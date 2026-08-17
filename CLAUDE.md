@@ -128,11 +128,6 @@ python -m pytest tests/
 
 ## 세션 진행 상황
 
-- 신규 함정 **T33 ★**: Sonnet 5는 `thinking` 생략 시 **사고가 켜지고** max_tokens를
-  응답과 나눠 쓴다 → JSON이 잘린다. `thinking=adaptive` + `effort="low"` 고정.
-- 신규 함정 **T34 ★**: 캐시 프리픽스가 **1,024토큰 미만이면 조용히 안 걸린다**(비용 10배).
-  시스템 프롬프트 실측 1,497토큰. 캐시 범위는 `tools + system`(실측 3,242) —
-  **도구를 바꾸면 캐시가 통째로 깨진다.**
 - **P8 텔레그램 완료 (2026-08-13)** — `setWebhook`/`deleteWebhook`/`getUpdates` 클라이언트
   내부 차단 ✓ · 실발송 1건 ✓ · 2회차 **중복 차단** ✓(notifications 1행) · tests 244 passed.
   `dashboard/app/api/telegram/lookup` 미리 생성(미사용).
@@ -247,3 +242,9 @@ python -m pytest tests/
 - 신규 함정 **T54 ★**: `git grep -c ... --cached | wc -l`은 옵션 위치 오류로 fatal이 나도
   **0**을 준다 → 시크릿 검사기가 "누출 0건"으로 조용히 무력화된다.
   **반드시 걸려야 하는 입력으로 검사기를 먼저 검증하라**(T51·T49와 같은 실패 모양).
+- **액션 Node24 · 대시보드 URL 배선 (2026-08-17)** — checkout v7 · setup-python v7 ·
+  cache v6(경고 소멸 확인) · 발송 워크플로 5개에 `DASHBOARD_BASE_URL: ${{ vars.… }}`
+  (미설정이면 코드 기본값으로 안전하게 떨어짐). Actions **411 passed**.
+- ★ **정기 실행에서는 LLM이 안 불린다**: `telegram_listen`의 `--analyze`가
+  **수동 실행에만** 붙어 cron 경로는 항상 `LLM 분석 OFF`다. `src.analysis.run`을 부르는
+  워크플로도 없다 → 해석 없는 숫자 리포트만 나간다. **비용 결정이라 사용자 판단 대기.**

@@ -129,3 +129,81 @@ T51(RLS 빈 배열) · T49(미측정을 0으로)와 **같은 실패 모양**이�
 2. **테스트 기준선 `403 passed, 1 skipped`.** venv에 `pip install -e ".[dev]"`가 필요하다.
 3. **이제부터는 실제로 텔레그램이 나간다.** 코드를 고치고 push하면 다음 cron부터 반영된다.
 4. 남은 건 Vercel 배포와 **시간**(D+20·D+60 표본이 쌓이는 것)뿐이다.
+
+---
+
+# 후속 — 자동화 가능한 잔여 작업 처리 (같은 날)
+
+## 1. Node 20 deprecation 해소
+
+```
+actions/checkout    v4 → v7
+actions/setup-python v5 → v7
+actions/cache       v4 → v6
+```
+
+메이저를 3단계씩 건너뛰지만 **변경점이 전부 Node24 전환 + ESM 마이그레이션**이라
+이 repo 사용법(입력 없는 checkout, `python-version`+`cache: pip`, 단순 path 캐시)에는
+영향이 없다. 러너는 실측 **2.336.0**으로 요구치 2.327.1을 넘는다.
+setup-python v7의 "Validate and retry manifest fetch to prevent silent failures"는
+이 프로젝트 성향에 오히려 맞는 변경이다.
+
+검증: push → `ci` ✓ **411 passed**, `telegram_listen` ✓ — **ANNOTATIONS 섹션 자체가 사라졌다.**
+
+## 2. `DASHBOARD_BASE_URL` 배선 (조용한 링크 사망 방지)
+
+텔레그램 메시지의 대시보드 링크는 코드에 박힌 기본값을 쓰고 있었다:
+
+```python
+optional_env("DASHBOARD_BASE_URL", "https://heimdallr-call.vercel.app")
+```
+
+워크플로가 이 값을 **전달하지 않았다.** Vercel 프로젝트 이름이 기본값과 다르면
+그날부터 전 메시지의 링크가 죽는데 — 에러도 없고 메시지는 멀쩡해 보이고
+**눌러보기 전까지 아무도 모른다.**
+
+→ 텔레그램 봇 토큰을 받는 워크플로 5개에 배선:
+
+```yaml
+DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
+```
+
+**변수가 없어도 안전하다.** `optional_env`는 빈 문자열을 default로 떨군다(실측 확인,
+`src/utils/env.py:80`). 즉 지금 당장은 기존과 동일하게 동작하고,
+Vercel 도메인이 정해지면 `gh variable set`만으로 덮을 수 있다.
+
+### 테스트는 "깨뜨려서" 검증했다
+
+`test_sending_workflows_wire_dashboard_url` 추가. 판정 기준을 `--send` 플래그가 아니라
+**봇 토큰 보유**로 잡았다 — `telegram_listen`은 `--send` 없이 회신하므로 플래그로 거르면 빠진다.
+
+넣기 전에 `daily_digest.yml`에서 배선을 지우고 돌려 **실제로 FAIL하는 것을 확인**했다:
+
+```
+FAILED tests/test_workflows.py::test_sending_workflows_wire_dashboard_url[daily_digest.yml]
+1 failed, 7 passed          ← 지웠을 때
+8 passed                    ← 복원 후
+```
+
+T54의 교훈이다. 통과만 보고 넣으면 아무것도 안 하는 테스트가 하나 늘 뿐이다.
+**tests 403 → 411 passed.**
+
+## ★ 발견 — 정기 실행에서는 LLM이 영영 불리지 않는다
+
+`ANTHROPIC_API_KEY`를 쓰는 워크플로는 `telegram_listen` **하나뿐**인데,
+`--analyze`가 **수동 실행(workflow_dispatch)에만** 붙는다:
+
+```yaml
+run: python -m src.notify.listen --once ${{ inputs.analyze && '--analyze' || '' }}
+```
+
+cron 실행에는 `inputs`가 없다 → 항상 빈 문자열 → **LLM 호출 0회.**
+실측 로그도 매번 `LLM 분석 OFF`다. `src.analysis.run`을 부르는 워크플로는 없다.
+
+즉 지금 상태로 두면 사용자가 종목을 물어봐도 **해석 없는 숫자 리포트만** 간다
+(`analysis_block`이 빈 채로 나간다). 이미 분석이 있는 종목만 예외다.
+
+비용이 걸린 결정($0.03/건)이라 **임의로 바꾸지 않고 사용자 판단으로 남긴다.**
+`default: false`가 의도적 비용 방어인지, cron 경로를 빠뜨린 것인지가 갈린다.
+CLAUDE.md는 "LLM은 기존 분석 없을 때만 호출(재질의해도 비용 0)"이라고 적어
+**호출하는 쪽이 의도**로 읽히지만, 확정은 사용자 몫이다.
