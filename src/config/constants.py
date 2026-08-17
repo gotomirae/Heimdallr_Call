@@ -76,6 +76,13 @@ SCORE_DENOM_FLASH_NO_CONSENSUS = 67  # A+B
 SCORE_DENOM_FINAL_WITH_CONSENSUS = 100  # A+B+C+D
 SCORE_DENOM_FINAL_NO_CONSENSUS = 85  # A+B+D
 
+# ═══ 대시보드 ═══
+# ★ 텔레그램 메시지의 링크가 여기서 나온다. 틀리면 **에러 없이 링크만 죽는다** —
+#   메시지는 멀쩡해 보이고 눌러보기 전까지 아무도 모른다.
+#   운영 값은 저장소 변수 `DASHBOARD_BASE_URL`이 덮는다(워크플로에서 주입).
+#   이 상수는 그게 없을 때의 fallback이므로 **실제 배포 도메인과 같아야** 의미가 있다.
+DASHBOARD_URL_DEFAULT = "https://heinmdallr.vercel.app"
+
 # ═══ 비용 ═══
 # 날짜 기준 가격 전환 로직 금지(traps.md T19).
 # Sonnet 5는 $2/$10이 정가로 확정됐고 2026-09-01 인상은 시행되지 않는다.

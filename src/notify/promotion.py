@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import argparse
 
-from src.config.constants import NOTIFY_GRADES
+from src.config.constants import DASHBOARD_URL_DEFAULT, NOTIFY_GRADES
 from src.db.supabase_client import select_all
 from src.notify.telegram import TelegramClient, TelegramError, send_once
 from src.notify.templates import KIND_UPGRADE, upgrade_message
@@ -119,7 +119,7 @@ def main() -> int:
 
     text = upgrade_message({
         "rows": rows,
-        "url": optional_env("DASHBOARD_BASE_URL", "https://heimdallr-call.vercel.app"),
+        "url": optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT),
     })
     client = TelegramClient()
     try:

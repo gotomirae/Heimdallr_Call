@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 from datetime import date
 
-from src.config.constants import FLASH_DAILY_MAX, NOTIFY_GRADES
+from src.config.constants import DASHBOARD_URL_DEFAULT, FLASH_DAILY_MAX, NOTIFY_GRADES
 from src.db.supabase_client import select_all
 from src.notify.run import build_flash_context
 from src.notify.telegram import TelegramClient, TelegramError, already_sent, send_once
@@ -136,7 +136,7 @@ def run_digest(send: bool) -> int:
             }
             for r in targets[:FLASH_DAILY_MAX]
         ],
-        "url": optional_env("DASHBOARD_BASE_URL", "https://heimdallr-call.vercel.app"),
+        "url": optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT),
     }
     text = daily_digest(ctx)
     print(text)

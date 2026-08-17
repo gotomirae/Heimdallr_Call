@@ -12,7 +12,7 @@ import argparse
 import json
 from datetime import date
 
-from src.config.constants import NOTIFY_GRADES
+from src.config.constants import DASHBOARD_URL_DEFAULT, NOTIFY_GRADES
 from src.finance.derive import (
     op_surprise_label,
     op_surprise_pct,
@@ -313,7 +313,7 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
         "top_risk": next(
             (f"{r.get('risk')} · 발생 {r.get('likelihood')} / 영향 {r.get('impact')}"
              for r in (payload.get("risks") or [])), None),
-        "url": f"{optional_env('DASHBOARD_BASE_URL', 'https://heimdallr-call.vercel.app')}"
+        "url": f"{optional_env('DASHBOARD_BASE_URL', DASHBOARD_URL_DEFAULT)}"
                f"/stock/{code}",
     }
 

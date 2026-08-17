@@ -140,3 +140,35 @@ def test_sending_workflows_wire_dashboard_url(path: Path):
     assert "DASHBOARD_BASE_URL" in body, (
         f"{path.name}이 텔레그램 봇 토큰을 받는데 DASHBOARD_BASE_URL을 넘기지 않는다"
     )
+
+
+def test_telegram_listen_analyzes_on_schedule():
+    """★★ 정기 실행에서 LLM이 불리는가.
+
+    원래는 `${{ inputs.analyze && '--analyze' || '' }}`였다.
+    `schedule` 이벤트에는 `inputs`가 없어 항상 빈 문자열이 되고,
+    **cron 경로에서는 LLM이 영영 호출되지 않았다** — 에러도 경고도 없이
+    해석 없는 숫자 리포트만 나간다. 실측 로그가 매번 `LLM 분석 OFF`였다.
+
+    같은 삼항은 반대 방향으로도 틀린다: GitHub 표현식에서 `false`는 falsy라
+    `inputs.x && A || B`가 x=false일 때도 **B**를 준다.
+    즉 "수동으로 끄기"가 에러 없이 무시된다. 그래서 분기를 셸로 옮겼다.
+
+    비용은 코드가 막는다 — `analyze()`가 `check_budget()`으로
+    월 $8 · 일 20건 상한을 걸고, 기존 분석이 있으면 재사용해 재질의는 0원이다.
+    """
+    yaml = pytest.importorskip("yaml")
+    path = WORKFLOWS / "telegram_listen.yml"
+    body = _text(path)
+
+    assert "inputs.analyze &&" not in body, (
+        "GitHub 삼항으로 --analyze를 거는 형태로 되돌아갔다 — "
+        "schedule에는 inputs가 없어 cron 경로에서 LLM이 안 불린다"
+    )
+    assert "--analyze" in body, "telegram_listen이 --analyze를 아예 주지 않는다"
+
+    spec = yaml.safe_load(body)
+    on = spec.get(True) or spec.get("on")
+    assert on.get("workflow_dispatch", {}).get("inputs", {})["analyze"]["default"] is True, (
+        "수동 실행 기본값이 켜져 있지 않다 — UI와 cron 동작이 어긋난다"
+    )

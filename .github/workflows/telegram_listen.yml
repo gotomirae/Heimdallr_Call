@@ -25,9 +25,9 @@ on:
   workflow_dispatch:
     inputs:
       analyze:
-        description: "분석이 없으면 LLM 호출 (건당 약 $0.03)"
+        description: "분석이 없으면 LLM 호출 (건당 약 $0.03). 끄려면 false"
         type: boolean
-        default: false
+        default: true
 
 # 두 잡이 겹치면 서로의 업데이트를 빼앗는다 — 반드시 하나만 돈다.
 concurrency:
@@ -37,7 +37,13 @@ concurrency:
 jobs:
   listen:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # ★ `--analyze`를 켠 뒤로는 5분이 부족하다. `confirm()`이 **배치를 다 처리한 뒤에야**
+    #   offset을 확정하므로(listen.py), 중간에 timeout으로 죽으면 확정이 안 되고
+    #   같은 BATCH(20건)가 다음 실행에 그대로 재배달된다 → 또 죽는다.
+    #   질문은 영영 답을 못 받는데 로그에는 빨간 X만 쌓이는 형태로 굳는다.
+    #   신규 분석 1건 ≈ 30초 × 20건 + 설치를 덮는 값으로 잡는다.
+    #   (timeout은 상한일 뿐 실제로 안 쓰면 과금되지 않는다.)
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
 
@@ -59,6 +65,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # ★ schedule에는 inputs가 없어 **빈 문자열**이 된다 → 아래에서 기본 ON이 된다.
+          #   GitHub 삼항 `${{ inputs.x && 'A' || 'B' }}`를 쓰지 않는 이유:
+          #   x가 **false일 때도 B**를 준다(false가 falsy라 fall-through).
+          #   즉 그 형태로는 "수동으로 끄기"가 에러 없이 무시된다.
+          ANALYZE_INPUT: ${{ inputs.analyze }}
         run: |
-          python -m src.notify.listen --once \
-            ${{ inputs.analyze && '--analyze' || '' }}
+          # 분석이 없는 종목만 호출한다. 재질의는 재사용이라 비용 0이고,
+          # analyze()가 호출 전에 check_budget()으로 월 $8 · 일 20건 상한을 건다.
+          if [ "$ANALYZE_INPUT" = "false" ]; then
+            echo "LLM 분석 OFF — 수동 실행에서 명시적으로 껐다"
+            python -m src.notify.listen --once
+          else
+            python -m src.notify.listen --once --analyze
+          fi
