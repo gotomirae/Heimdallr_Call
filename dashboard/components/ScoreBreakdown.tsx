@@ -32,7 +32,7 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold">{num(screen.score_flash, 1)}</span>
-        <span className="text-sm text-slate-400">
+        <span className="text-sm text-slate-300">
           raw {num(rawSum, 1)} / {denominator} 정규화
         </span>
       </div>
@@ -62,10 +62,10 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
           if (value == null) {
             return (
               <div key={axis.key} className="text-sm">
-                <span className="font-medium text-slate-300">
+                <span className="font-medium text-slate-200">
                   {axis.key.toUpperCase()} {axis.label}
                 </span>
-                <span className="ml-2 text-slate-500">
+                <span className="ml-2 text-slate-400">
                   {DASH} {AXIS_MISSING_REASON[axis.key] ?? "미측정"}
                 </span>
               </div>
@@ -89,11 +89,11 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
                 <span className="font-medium text-slate-200">
                   {axis.key.toUpperCase()} {axis.label}
                 </span>
-                <span className="text-slate-400">
+                <span className="text-slate-300">
                   {value.toFixed(0)}/{axis.max}
                 </span>
               </div>
-              <div className="ml-4 text-xs text-slate-400">
+              <div className="ml-4 text-xs text-slate-300">
                 {scored.length
                   ? scored
                       .map((it) => {
@@ -149,7 +149,7 @@ export function PriBreakdown({
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold">{num(pri, 1)}</span>
-        <span className="text-sm text-slate-400">/ 100 · {label}</span>
+        <span className="text-sm text-slate-300">/ 100 · {label}</span>
       </div>
 
       {pri == null && denominator > 0 && (
@@ -164,7 +164,7 @@ export function PriBreakdown({
           const value = parts[part.key];
           return (
             <div key={part.key} className="flex items-center gap-2 text-sm">
-              <span className="w-32 shrink-0 text-slate-300">{part.label}</span>
+              <span className="w-32 shrink-0 text-slate-200">{part.label}</span>
               <div className="h-2 flex-1 overflow-hidden rounded bg-slate-800">
                 {value != null && (
                   <div
@@ -173,7 +173,7 @@ export function PriBreakdown({
                   />
                 )}
               </div>
-              <span className="w-20 shrink-0 text-right text-xs text-slate-400">
+              <span className="w-20 shrink-0 text-right text-xs text-slate-300">
                 {value == null ? `${DASH} 미측정` : `${value.toFixed(0)}/${part.max}`}
               </span>
             </div>

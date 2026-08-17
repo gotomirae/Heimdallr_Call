@@ -42,13 +42,13 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
           <CartesianGrid stroke="#1e293b" />
           <XAxis
             type="number" dataKey="score" name="스코어" domain={[0, 100]}
-            stroke="#64748b" fontSize={12}
-            label={{ value: "스코어 (펀더멘털 강도) →", position: "insideBottom", offset: -12, fill: "#64748b", fontSize: 12 }}
+            stroke="#cbd5e1" fontSize={12}
+            label={{ value: "스코어 (펀더멘털 강도) →", position: "insideBottom", offset: -12, fill: "#cbd5e1", fontSize: 12 }}
           />
           <YAxis
             type="number" dataKey="pri" name="주가반영도" domain={[0, 100]}
-            stroke="#64748b" fontSize={12}
-            label={{ value: "← 주가반영도 (낮을수록 미반영)", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 12 }}
+            stroke="#cbd5e1" fontSize={12}
+            label={{ value: "← 주가반영도 (낮을수록 미반영)", angle: -90, position: "insideLeft", fill: "#cbd5e1", fontSize: 12 }}
           />
           <ZAxis range={[60, 60]} />
           {/* 사분면 색상 — 목표 구간은 왼쪽 아래가 아니라 **오른쪽 아래**(고스코어·미반영)다.
@@ -91,12 +91,12 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
               return (
                 <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
                   <div className="font-semibold text-slate-100">
-                    {p.grade ?? "·"} {p.name} <span className="text-slate-500">{p.code}</span>
+                    {p.grade ?? "·"} {p.name} <span className="text-slate-400">{p.code}</span>
                   </div>
-                  <div className="text-slate-400">
+                  <div className="text-slate-300">
                     스코어 {p.score.toFixed(1)} · 반영도 {p.pri.toFixed(1)}
                   </div>
-                  <div className="mt-1 text-slate-500">클릭하면 상세로 이동</div>
+                  <div className="mt-1 text-slate-400">클릭하면 상세로 이동</div>
                 </div>
               );
             }}
@@ -114,7 +114,7 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
             {points.map((p) => (
               <Cell
                 key={p.code}
-                fill={p.grade ? GRADE_COLOR[p.grade] : "#475569"}
+                fill={p.grade ? GRADE_COLOR[p.grade] : "#94a3b8"}
                 fillOpacity={p.grade === "★" || p.grade === "○" ? 0.95 : 0.45}
               />
             ))}

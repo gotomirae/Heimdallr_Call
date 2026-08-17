@@ -55,7 +55,7 @@ function growthLabel(props: Record<string, unknown> & { fill: string }) {
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (points.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-500">
+      <p className="py-8 text-center text-sm text-slate-400">
         분기 재무가 없다 — 수집되지 않았거나 상장 직후일 수 있다.
       </p>
     );
@@ -68,15 +68,23 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={points} margin={{ top: 24, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="#1e293b" vertical={false} />
-          <XAxis dataKey="label" stroke="#64748b" fontSize={12} tickLine={false} />
+          {/* ★ 진행 중 분기(실적 미발표)는 라벨에 표시를 남긴다 — 막대가 없는 게
+              결측인지 아직 발표 전인지 구분되지 않으면 오독한다. */}
+          <XAxis
+            dataKey="label"
+            stroke="#cbd5e1"
+            fontSize={12}
+            tickLine={false}
+            tickFormatter={(v, i) => (points[i]?.isCurrentQuarter ? `${v}*` : String(v))}
+          />
           <YAxis
             yAxisId="amount"
-            stroke="#475569"
+            stroke="#94a3b8"
             fontSize={11}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => `${Math.round(Number(v)).toLocaleString("ko-KR")}`}
-            label={{ value: "억원", position: "insideTopLeft", fill: "#475569", fontSize: 11 }}
+            label={{ value: "억원", position: "insideTopLeft", fill: "#94a3b8", fontSize: 11 }}
           />
           <YAxis
             yAxisId="growth"

@@ -18,10 +18,10 @@ function gradeRank(grade: Grade | null): number {
 
 /** 최근 5일 상승률은 부호에 따라 색을 바꾼다 — 표에서 눈이 먼저 가야 하는 열이다. */
 function returnClass(value: number | null | undefined): string {
-  if (value == null) return "text-slate-600";
+  if (value == null) return "text-slate-400";
   if (value > 0) return "text-rose-400";
   if (value < 0) return "text-sky-400";
-  return "text-slate-400";
+  return "text-slate-300";
 }
 
 export default async function HomePage() {
@@ -56,18 +56,18 @@ export default async function HomePage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">실적 가속 종목</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-300">
           {rows.length.toLocaleString("ko-KR")}종목 · 발송 대상(★/○) {notifyCount}
         </p>
         {/* ★ 정의를 목록 맨 위에 박아 둔다. "왜 이 종목들이 여기 있나"의 답이다. */}
-        <div className="mt-2 rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+        <div className="mt-2 rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
           <strong className="text-slate-200">실적 가속</strong>이란{" "}
           <Term term="매출액">매출액 성장률</Term>과{" "}
           <Term term="영업이익">영업이익 성장률</Term>이{" "}
           <strong className="text-slate-200">둘 다 전년 동기 대비(YoY)로 전분기보다 높아진</strong>{" "}
           것이다. 성장률이 <em>높은</em> 게 아니라 성장률이 <em>더 높아진</em> 것을 본다 —
           매출 +30%도 전분기가 +50%였다면 가속이 아니다.
-          <span className="mt-1 block text-slate-500">
+          <span className="mt-1 block text-slate-400">
             이 목록에는 <Term term="게이트">게이트</Term>를 통과한 종목만 있다. 탈락·판정 불가
             종목은 <Link href="/screener" className="text-sky-500 hover:underline">스크리너</Link>에서
             탈락 사유와 함께 볼 수 있고, 용어 설명은{" "}
@@ -90,7 +90,7 @@ export default async function HomePage() {
         </p>
       )}
       {!ret5dMissing && ret5dMeasured === 0 && listed.length > 0 && (
-        <p className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+        <p className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
           최근 5일 상승률이 아직 한 종목도 수집되지 않았다 — 다음 시세 수집에서 채워진다.
         </p>
       )}
@@ -111,12 +111,12 @@ export default async function HomePage() {
             }`}
           >
             <span className="mr-2 font-semibold">{g}</span>
-            <span className="text-slate-400">{counts.get(g) ?? 0}</span>
+            <span className="text-slate-300">{counts.get(g) ?? 0}</span>
           </div>
         ))}
         {rows.length - graded.length > 0 && (
           <div
-            className="rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-400"
+            className="rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-300"
             title="게이트는 통과했으나 시세가 없어 주가반영도를 판정하지 못한 종목"
           >
             반영도 미측정 {rows.length - graded.length}
@@ -129,7 +129,7 @@ export default async function HomePage() {
           세로 스크롤은 페이지에 맡기고 `sticky top-0`을 thead에 준다. */}
       <div className="overflow-x-auto rounded-lg border border-slate-800">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400 shadow-[0_1px_0_0_rgba(148,163,184,0.25)]">
+          <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.25)]">
             <tr>
               <TermTh term="섹터">섹터</TermTh>
               <TermTh term="">종목명</TermTh>
@@ -148,7 +148,7 @@ export default async function HomePage() {
               return (
                 <tr key={r.code} className="border-t border-slate-800/60 hover:bg-slate-900/40">
                   <td
-                    className="max-w-[13rem] truncate px-3 py-2 text-xs text-slate-500"
+                    className="max-w-[13rem] truncate px-3 py-2 text-xs text-slate-400"
                     title={stock?.industry ?? undefined}
                   >
                     {stock?.industry ?? DASH}
@@ -157,17 +157,17 @@ export default async function HomePage() {
                     <Link href={`/stock/${r.code}`} className="text-sky-400 hover:underline">
                       {stock?.name ?? r.code}
                     </Link>
-                    <span className="ml-2 text-xs text-slate-600">{r.code}</span>
+                    <span className="ml-2 text-xs text-slate-400">{r.code}</span>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <GradeBadge grade={r.grade} />
                   </td>
-                  <td className="px-3 py-2 text-slate-400">
+                  <td className="px-3 py-2 text-slate-300">
                     {quarterLabel(r.fiscal_year, r.fiscal_quarter)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{num(r.score_flash, 1)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{num(r.pri, 1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-300">
                     {marketCap(stock?.market_cap_krw)}
                   </td>
                   <td className={`px-3 py-2 text-right tabular-nums ${returnClass(ret5d)}`}>
@@ -178,7 +178,7 @@ export default async function HomePage() {
             })}
             {listed.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
                   실적이 가속 중인 종목이 없다.
                 </td>
               </tr>
@@ -187,10 +187,18 @@ export default async function HomePage() {
         </table>
       </div>
 
-      <p className="text-xs text-slate-500">
-        등급이 높은 순으로 정렬했고, 같은 등급 안에서는 스코어가 높은 순이다.
-        결측은 <span className="text-slate-400">—</span>로 표시한다 — 0이 아니라 측정하지
-        못했다는 뜻이다.
+      <p className="text-xs text-slate-400">
+        <strong className="text-slate-300">스코어</strong> 실적 가속의 강도(100점 만점, 높을수록 좋다) ·{" "}
+        <strong className="text-slate-300">반영도</strong> 주가가 이 실적을 이미 아는 정도
+        (<strong className="text-slate-300">낮을수록 아직 안 올랐다는 뜻</strong>) ·{" "}
+        <strong className="text-slate-300">등급</strong> 두 축을 교차한 판정으로,{" "}
+        <span className="text-amber-300">★는 스코어가 높은데 반영도가 낮은</span> 가장 찾던 구간이다 ·{" "}
+        <strong className="text-slate-300">최근 5일</strong> 최근 5거래일 주가 상승률.
+        <span className="mt-1 block">
+          등급이 높은 순으로 정렬했고, 같은 등급 안에서는 스코어가 높은 순이다.
+          결측은 <span className="text-slate-300">—</span>로 표시한다 — 0이 아니라 측정하지
+          못했다는 뜻이다.
+        </span>
       </p>
     </div>
   );

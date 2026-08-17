@@ -6,7 +6,7 @@ export function GradeBadge({ grade }: { grade: Grade | null }) {
     // ★ 등급 없음은 "낮다"가 아니라 "판정하지 못했다"이다(T35).
     return (
       <span
-        className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-0.5 text-sm text-slate-400"
+        className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-0.5 text-sm text-slate-300"
         title="게이트 미통과 또는 PRI 판정 불가"
       >
         판정 불가
@@ -77,12 +77,12 @@ export function WarningBadges({
   }
 
   if (badges.length === 0) {
-    return <span className="text-xs text-slate-500">경고 없음</span>;
+    return <span className="text-xs text-slate-400">경고 없음</span>;
   }
 
   const tones: Record<string, string> = {
     amber: "border-amber-700/60 bg-amber-900/30 text-amber-300",
-    slate: "border-slate-700 bg-slate-800/60 text-slate-300",
+    slate: "border-slate-700 bg-slate-800/60 text-slate-200",
     sky: "border-sky-700/60 bg-sky-900/30 text-sky-300",
     violet: "border-violet-700/60 bg-violet-900/30 text-violet-300",
   };

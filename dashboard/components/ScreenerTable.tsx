@@ -105,7 +105,7 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="종목명 또는 코드"
-          className={`${select} w-44 placeholder:text-slate-600`}
+          className={`${select} w-44 placeholder:text-slate-400`}
           aria-label="종목 검색"
         />
         <select
@@ -170,14 +170,14 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
         </select>
       </div>
 
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-300">
         {filtered.length.toLocaleString("ko-KR")}종목
-        <span className="text-slate-600"> / 전체 {rows.length.toLocaleString("ko-KR")}</span>
+        <span className="text-slate-400"> / 전체 {rows.length.toLocaleString("ko-KR")}</span>
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-slate-800">
         <table className="w-full min-w-[940px] text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase text-slate-500">
+          <thead className="bg-slate-900/60 text-xs uppercase text-slate-400">
             <tr>
               <th className="px-3 py-2 text-left">등급</th>
               <th className="px-3 py-2 text-left">종목</th>
@@ -205,15 +205,15 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
                   <Link href={`/stock/${r.code}`} className="text-sky-400 hover:underline">
                     {r.name}
                   </Link>
-                  <span className="ml-2 text-xs text-slate-600">{r.code}</span>
+                  <span className="ml-2 text-xs text-slate-400">{r.code}</span>
                 </td>
-                <td className="max-w-[12rem] truncate px-3 py-1.5 text-xs text-slate-500">
+                <td className="max-w-[12rem] truncate px-3 py-1.5 text-xs text-slate-400">
                   {r.industry ?? "—"}
                 </td>
-                <td className="px-3 py-1.5 text-slate-400">{r.quarter}</td>
+                <td className="px-3 py-1.5 text-slate-300">{r.quarter}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{fmtNum(r.score)}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{fmtNum(r.pri)}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">
+                <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
                   {fmtCap(r.marketCap)}
                 </td>
                 <td className="px-3 py-1.5 text-xs">
@@ -221,16 +221,16 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
                     <span className="text-emerald-400">통과</span>
                   ) : r.gatePassed === false ? (
                     // ★ 왜 떨어졌는지가 이 화면의 존재 이유다.
-                    <span className="text-slate-500">{r.failReasons.join(" · ") || "탈락"}</span>
+                    <span className="text-slate-400">{r.failReasons.join(" · ") || "탈락"}</span>
                   ) : (
-                    <span className="text-slate-600">판정 불가</span>
+                    <span className="text-slate-400">판정 불가</span>
                   )}
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-10 text-center text-slate-400">
                   조건에 맞는 종목이 없다.
                 </td>
               </tr>
@@ -240,7 +240,7 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
       </div>
 
       {filtered.length > 300 && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           상위 300종목만 표시한다 (스코어 순) · 조건이 {filtered.length.toLocaleString("ko-KR")}종목에
           걸렸다. 필터를 좁혀라.
         </p>

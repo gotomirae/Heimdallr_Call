@@ -33,8 +33,8 @@ function Card({ title, note, children }: {
 }) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-      <h2 className="mb-1 text-sm font-semibold text-slate-300">{title}</h2>
-      {note && <p className="mb-3 text-xs text-slate-500">{note}</p>}
+      <h2 className="mb-1 text-sm font-semibold text-slate-200">{title}</h2>
+      {note && <p className="mb-3 text-xs text-slate-400">{note}</p>}
       {children}
     </section>
   );
@@ -68,7 +68,7 @@ export default async function SeasonPage() {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-bold">시즌 현황</h1>
-        <p className="text-sm text-slate-400">분기 재무가 없다.</p>
+        <p className="text-sm text-slate-300">분기 재무가 없다.</p>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export default async function SeasonPage() {
         <h1 className="text-2xl font-bold">
           {year}.{quarter}Q 시즌 현황
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-300">
           정기보고서 마감 {DEADLINE[quarter]} · 대상 {targets.length.toLocaleString("ko-KR")}종목
           (업종 제외 뺀 수)
         </p>
@@ -125,7 +125,7 @@ export default async function SeasonPage() {
         <div className="space-y-3">
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-bold tabular-nums">{pct.toFixed(1)}%</span>
-            <span className="text-sm text-slate-400">
+            <span className="text-sm text-slate-300">
               {done.length.toLocaleString("ko-KR")} / {targets.length.toLocaleString("ko-KR")}종목
             </span>
           </div>
@@ -135,10 +135,10 @@ export default async function SeasonPage() {
               style={{ width: `${Math.min(pct, 100)}%` }}
             />
           </div>
-          <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+          <div className="flex flex-wrap gap-3 text-xs text-slate-300">
             <span>확정 {(done.length - preliminary.size).toLocaleString("ko-KR")}</span>
             <span>잠정만 {preliminary.size.toLocaleString("ko-KR")}</span>
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               미발표 {pending.length.toLocaleString("ko-KR")}
             </span>
           </div>
@@ -150,19 +150,19 @@ export default async function SeasonPage() {
         note={`공시 감지 ${disclosures.length.toLocaleString("ko-KR")}건 · 막대 높이는 그날 감지한 실적 공시 수`}
       >
         {days.length === 0 ? (
-          <p className="text-sm text-slate-500">감지된 공시가 없다.</p>
+          <p className="text-sm text-slate-400">감지된 공시가 없다.</p>
         ) : (
           <div className="overflow-x-auto">
             <div className="flex min-w-max items-end gap-1" style={{ height: "7rem" }}>
               {days.map(([day, n]) => (
                 <div key={day} className="flex w-7 flex-col items-center gap-1">
-                  <span className="text-[10px] tabular-nums text-slate-500">{n}</span>
+                  <span className="text-[10px] tabular-nums text-slate-400">{n}</span>
                   <div
                     className="w-full rounded-t bg-sky-700"
                     style={{ height: `${(n / peak) * 68}px` }}
                     title={`${day} · ${n}건`}
                   />
-                  <span className="text-[10px] text-slate-600">{day.slice(5)}</span>
+                  <span className="text-[10px] text-slate-400">{day.slice(5)}</span>
                 </div>
               ))}
             </div>
@@ -179,7 +179,7 @@ export default async function SeasonPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[420px] text-sm">
-              <thead className="text-xs uppercase text-slate-500">
+              <thead className="text-xs uppercase text-slate-400">
                 <tr className="border-b border-slate-800">
                   <th className="py-2 text-left">종목</th>
                   <th className="py-2 text-left">업종</th>
@@ -193,12 +193,12 @@ export default async function SeasonPage() {
                       <Link href={`/stock/${u.code}`} className="text-sky-400 hover:underline">
                         {u.name}
                       </Link>
-                      <span className="ml-2 text-xs text-slate-600">{u.code}</span>
+                      <span className="ml-2 text-xs text-slate-400">{u.code}</span>
                     </td>
-                    <td className="max-w-[14rem] truncate py-1.5 text-xs text-slate-500">
+                    <td className="max-w-[14rem] truncate py-1.5 text-xs text-slate-400">
                       {u.industry ?? "—"}
                     </td>
-                    <td className="py-1.5 text-right tabular-nums text-slate-400">
+                    <td className="py-1.5 text-right tabular-nums text-slate-300">
                       {marketCap(u.market_cap_krw)}
                     </td>
                   </tr>
@@ -206,7 +206,7 @@ export default async function SeasonPage() {
               </tbody>
             </table>
             {pending.length > 30 && (
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-slate-400">
                 … 외 {(pending.length - 30).toLocaleString("ko-KR")}종목
               </p>
             )}

@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-lg font-semibold">
               🛡️ Heimdallr Call
             </Link>
-            <nav className="flex gap-4 text-sm text-slate-400">
+            <nav className="flex gap-4 text-sm text-slate-300">
               {NAV.map((item) => (
                 <Link key={item.href} href={item.href} className="hover:text-slate-100">
                   {item.label}

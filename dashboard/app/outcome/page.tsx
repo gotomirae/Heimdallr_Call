@@ -23,8 +23,8 @@ function Card({ title, note, children }: {
 }) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-      <h2 className="mb-1 text-sm font-semibold text-slate-300">{title}</h2>
-      {note && <p className="mb-3 text-xs text-slate-500">{note}</p>}
+      <h2 className="mb-1 text-sm font-semibold text-slate-200">{title}</h2>
+      {note && <p className="mb-3 text-xs text-slate-400">{note}</p>}
       {children}
     </section>
   );
@@ -33,7 +33,7 @@ function Card({ title, note, children }: {
 /** 초과수익 분포 막대 — p25~p75 상자와 중앙값 선. */
 function DistBar({ stat }: { stat: { p25: number | null; p75: number | null; median: number | null } }) {
   if (stat.median == null || stat.p25 == null || stat.p75 == null) {
-    return <span className="text-xs text-slate-600">{DASH}</span>;
+    return <span className="text-xs text-slate-400">{DASH}</span>;
   }
   const SPAN = 30; // ±30%p를 폭 전체로 본다
   const clamp = (v: number) => Math.max(-SPAN, Math.min(SPAN, v));
@@ -73,8 +73,8 @@ export default async function OutcomePage() {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-bold">결과 추적</h1>
-        <p className="text-sm text-slate-400">
-          아직 기록이 없다. <code className="text-slate-300">python -m src.analysis.outcome_run --save</code>
+        <p className="text-sm text-slate-300">
+          아직 기록이 없다. <code className="text-slate-200">python -m src.analysis.outcome_run --save</code>
           로 채운다.
         </p>
       </div>
@@ -136,16 +136,16 @@ export default async function OutcomePage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">결과 추적</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-300">
           가속 판정을 받았던 {rows.length.toLocaleString("ko-KR")}건 ·
           비교 시점 <strong>D+{best}</strong>
           {excluded > 0 && (
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               {" "}· 게이트 탈락 {excluded.toLocaleString("ko-KR")}건 제외
             </span>
           )}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           스코어 배점에는 아직 이론적 근거가 없다. 이 화면은 <strong>배점을 데이터로
           조정하기 위한 것</strong>이고, 그때까지는 방향만 본다.
           발표 시점에 <strong>게이트를 통과했던 종목</strong>만 추적한다.
@@ -165,14 +165,14 @@ export default async function OutcomePage() {
                 key={days}
                 className={`rounded border px-3 py-2 ${
                   n === 0
-                    ? "border-slate-800 bg-slate-900/40 text-slate-600"
+                    ? "border-slate-800 bg-slate-900/40 text-slate-400"
                     : "border-slate-700 bg-slate-900/60"
                 }`}
               >
-                <div className="text-xs text-slate-500">D+{days}</div>
+                <div className="text-xs text-slate-400">D+{days}</div>
                 <div className="text-lg">
                   {n.toLocaleString("ko-KR")}
-                  <span className="text-sm text-slate-500"> / {rows.length}</span>
+                  <span className="text-sm text-slate-400"> / {rows.length}</span>
                 </div>
               </div>
             );
@@ -187,7 +187,7 @@ export default async function OutcomePage() {
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
-            <thead className="text-xs uppercase text-slate-500">
+            <thead className="text-xs uppercase text-slate-400">
               <tr className="border-b border-slate-800">
                 <th className="py-2 text-left">등급</th>
                 <th className="py-2 text-right">대상</th>
@@ -209,9 +209,9 @@ export default async function OutcomePage() {
                         {stat.key}
                       </span>
                     </td>
-                    <td className="py-2 text-right text-slate-400">{stat.total}</td>
+                    <td className="py-2 text-right text-slate-300">{stat.total}</td>
                     <td className="py-2 text-right">
-                      <span className={stat.n === 0 ? "text-slate-600" : ""}>{stat.n}</span>
+                      <span className={stat.n === 0 ? "text-slate-400" : ""}>{stat.n}</span>
                     </td>
                     <td className="py-2 text-right">{pct(stat.median, 2, "%p")}</td>
                     <td className="py-2 pl-4">
@@ -232,9 +232,9 @@ export default async function OutcomePage() {
         <div className="space-y-4">
           {icRows.map((row) => (
             <div key={row.days}>
-              <div className="mb-1 text-xs font-semibold text-slate-400">
+              <div className="mb-1 text-xs font-semibold text-slate-300">
                 D+{row.days}
-                <span className="ml-2 font-normal text-slate-500">측정 {row.n}건</span>
+                <span className="ml-2 font-normal text-slate-400">측정 {row.n}건</span>
                 {row.n < 3 && (
                   <span className="ml-2 font-normal text-amber-400">
                     — 3건 미만이라 계산하지 않는다
@@ -245,20 +245,20 @@ export default async function OutcomePage() {
                 <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                   {row.axisIc.map((a) => (
                     <div key={a.label} className="flex justify-between">
-                      <span className="text-slate-300">{a.label}</span>
-                      <span className={a.ic != null && a.ic > 0 ? "text-emerald-400" : "text-slate-400"}>
+                      <span className="text-slate-200">{a.label}</span>
+                      <span className={a.ic != null && a.ic > 0 ? "text-emerald-400" : "text-slate-300"}>
                         {a.ic != null ? a.ic.toFixed(3) : DASH}
                       </span>
                     </div>
                   ))}
                   <div className="flex justify-between border-t border-slate-800 pt-1">
-                    <span className="text-slate-300">스코어 총점</span>
-                    <span className={row.scoreIc != null && row.scoreIc > 0 ? "text-emerald-400" : "text-slate-400"}>
+                    <span className="text-slate-200">스코어 총점</span>
+                    <span className={row.scoreIc != null && row.scoreIc > 0 ? "text-emerald-400" : "text-slate-300"}>
                       {row.scoreIc != null ? row.scoreIc.toFixed(3) : DASH}
                     </span>
                   </div>
                   <div className="flex justify-between border-t border-slate-800 pt-1">
-                    <span className="text-slate-300">PRI (음수가 정상)</span>
+                    <span className="text-slate-200">PRI (음수가 정상)</span>
                     <span className={row.priIc != null && row.priIc < 0 ? "text-emerald-400" : "text-amber-400"}>
                       {row.priIc != null ? row.priIc.toFixed(3) : DASH}
                     </span>
@@ -281,13 +281,13 @@ export default async function OutcomePage() {
             { label: "기저효과 경고", stats: flagStats((s) => s?.base_effect_warning) },
           ].map(({ label, stats }) => (
             <div key={label}>
-              <div className="mb-1 text-xs font-semibold text-slate-400">{label}</div>
+              <div className="mb-1 text-xs font-semibold text-slate-300">{label}</div>
               <table className="w-full text-sm">
                 <tbody>
                   {stats.map((s) => (
                     <tr key={s.key} className="border-b border-slate-800/60">
-                      <td className="py-1 text-slate-300">{s.key}</td>
-                      <td className="py-1 text-right text-slate-500">n={s.n}</td>
+                      <td className="py-1 text-slate-200">{s.key}</td>
+                      <td className="py-1 text-right text-slate-400">n={s.n}</td>
                       <td className="py-1 text-right">{pct(s.median, 2, "%p")}</td>
                     </tr>
                   ))}
@@ -298,7 +298,7 @@ export default async function OutcomePage() {
         </div>
       </Card>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         표본이 작으면 통계적 유의성은 없다. 시즌 2회(약 6개월)가 쌓여야 배점 조정을
         시작할 수 있다 — 그때까지는 <strong>구조를 유지하는 것</strong>이 목적이다.
       </p>
