@@ -36,9 +36,9 @@ function Card({
 }) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-200">
+      <h2 className="mb-3 text-sm font-semibold text-slate-100">
         {title}
-        {note && <span className="ml-2 font-normal text-slate-400">{note}</span>}
+        {note && <span className="ml-2 font-normal text-slate-300">{note}</span>}
       </h2>
       {children}
     </section>
@@ -47,7 +47,7 @@ function Card({
 
 /** 카드 안에서 "이게 무슨 뜻인가"를 한 줄로 붙인다. 숫자만 있으면 읽히지 않는다. */
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 text-xs leading-relaxed text-slate-400">{children}</p>;
+  return <p className="mt-3 text-xs leading-relaxed text-slate-300">{children}</p>;
 }
 
 export default async function StockPage({ params }: { params: { code: string } }) {
@@ -122,23 +122,23 @@ export default async function StockPage({ params }: { params: { code: string } }
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">
-            {stock.name} <span className="text-slate-400">{code}</span>
+            {stock.name} <span className="text-slate-300">{code}</span>
           </h1>
-          <p className="mt-1 text-sm text-slate-300">
+          <p className="mt-1 text-sm text-slate-200">
             {stock.board} · {stock.industry ?? DASH} · 시총 {marketCap(stock.market_cap_krw)}
           </p>
           {stock.products && (
-            <p className="mt-1 text-xs text-slate-400">{stock.products}</p>
+            <p className="mt-1 text-xs text-slate-300">{stock.products}</p>
           )}
         </div>
         <div className="text-right">
           <div className="text-2xl font-semibold">{num(price?.close)}원</div>
-          <div className="text-sm text-slate-300">{pct(price?.chg_pct, 2)}</div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="text-sm text-slate-200">{pct(price?.chg_pct, 2)}</div>
+          <div className="mt-1 text-xs text-slate-300">
             52주 {num(price?.low_52w)} ~ {num(price?.high_52w)}
             {price?.pos_52w != null && ` (위치 ${(price.pos_52w * 100).toFixed(0)}%)`}
           </div>
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-slate-300">
             3개월 지수대비 {pct(price?.rel_ret_3m, 1, "%p")}
           </div>
         </div>
@@ -160,7 +160,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <GradeBadge grade={screen.grade} />
-              <span className="text-sm text-slate-300">
+              <span className="text-sm text-slate-200">
                 게이트 {screen.gate_passed === true ? "통과" : screen.gate_passed === false ? "탈락" : "판정 불가"}
               </span>
               {screen.turnaround && (
@@ -178,9 +178,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             />
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-300">스코어</h3>
+                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">스코어</h3>
                 <Note>
-                  실적 가속의 <strong className="text-slate-300">강도</strong>를 100점으로
+                  실적 가속의 <strong className="text-slate-200">강도</strong>를 100점으로
                   환산한 값. 매출·이익 성장률이 얼마나 더 빨라졌는지(A), 이익률이 같이
                   좋아지는지(B)를 잰다. 측정 못 한 축은 0점이 아니라 분모에서 빼고
                   정규화한다.
@@ -190,15 +190,15 @@ export default async function StockPage({ params }: { params: { code: string } }
                 </div>
               </div>
               <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-300">
+                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">
                   주가반영도 (PRI)
                 </h3>
                 {/* ★ 숫자 바로 아래에 뜻을 붙인다 — 62점이 좋은 건지 나쁜 건지가
                     이 화면에서 가장 자주 막히는 지점이다. */}
                 <Note>
-                  <strong className="text-slate-300">주가가 이 실적을 이미 얼마나 알고
+                  <strong className="text-slate-200">주가가 이 실적을 이미 얼마나 알고
                   있는가</strong>를 0~100으로 잰 값이다.{" "}
-                  <strong className="text-slate-300">낮을수록 아직 안 올랐다는 뜻</strong>이라
+                  <strong className="text-slate-200">낮을수록 아직 안 올랐다는 뜻</strong>이라
                   좋은 신호다. 이미 많이 오른 종목은 높게 나온다.
                   <span className="mt-1 block">
                     스코어와 <strong>더하지 않는다.</strong> &ldquo;실적이 얼마나 좋은가&rdquo;와
@@ -206,7 +206,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                     둘 다 못 읽는다. 이 시스템이 찾는 자리는{" "}
                     <strong className="text-amber-300">스코어는 높은데 반영도는 낮은</strong> 구간(★)이다.
                   </span>
-                  <span className="mt-1 block text-slate-400">
+                  <span className="mt-1 block text-slate-300">
                     0~39 미반영 · 40~65 부분반영 · 66~100 선반영
                   </span>
                 </Note>
@@ -217,7 +217,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </div>
           </div>
         ) : (
-          <p className="text-sm text-slate-400">스크리닝 결과가 없다.</p>
+          <p className="text-sm text-slate-300">스크리닝 결과가 없다.</p>
         )}
       </Card>
 
@@ -228,32 +228,32 @@ export default async function StockPage({ params }: { params: { code: string } }
       >
         <QuarterlyChart points={chartPoints} />
         <Note>
-          <strong className="text-slate-200">막대</strong>는 그 분기의 매출·영업이익 금액(억원),{" "}
+          <strong className="text-slate-100">막대</strong>는 그 분기의 매출·영업이익 금액(억원),{" "}
           {/* ★ 색 이름을 손으로 적지 않는다 — 차트 색을 바꾸면 여기가 조용히 어긋나
               "초록 실선은…"이라 써 놓고 화면은 노란 선인 상태가 된다. 둘 다 정상으로 보인다. */}
           <strong style={{ color: SERIES_COLOR.OP_LABEL }}>노란 실선</strong>은{" "}
           <Term term="영업이익">영업이익 성장률(YoY)</Term>,{" "}
           <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>녹색 실선</strong>은{" "}
           <Term term="매출액">매출 성장률(YoY)</Term>이다. 두 선 위의 숫자가 그 분기의
-          성장률이며, <strong className="text-slate-200">선이 우상향하면 그게 가속이다</strong> —
+          성장률이며, <strong className="text-slate-100">선이 우상향하면 그게 가속이다</strong> —
           값이 높은 것이 아니라 <em>전분기보다 높아진 것</em>이 이 시스템이 찾는 신호다.
           <span className="mt-1 block">
-            <strong className="text-slate-300">회색 점선(TTM 매출)</strong>은{" "}
+            <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>분홍 점선(TTM 매출)</strong>은{" "}
             <Term term="TTM">최근 4개 분기 매출의 합</Term>이다. 한 분기만 보면 계절성과
             일회성에 흔들리지만, 4분기를 더하면 계절 요인이 상쇄돼 &ldquo;지금 이 회사의 연간
             체력&rdquo;이 보인다. 이 선이 계속 최고치를 경신하면 그 가속은 일시적인 게 아니다.
           </span>
           <span className="mt-1 block">
             <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>빨간 점선(주가)</strong>은 그 분기 마지막
-            거래일 종가이고, <strong className="text-slate-300">맨 오른쪽 점은 오늘 종가</strong>다
+            거래일 종가이고, <strong className="text-slate-200">맨 오른쪽 점은 오늘 종가</strong>다
             — 실적은 마지막 발표 분기에서 끝나지만 주가는 <strong>현재까지</strong> 이어 그린다.
             실적 선보다 주가 선이 <em>늦게</em> 올라오는 구간이 이 시스템이 노리는 자리다.
-            <span className="ml-1 text-slate-400">
+            <span className="ml-1 text-slate-300">
               분기 라벨의 <code>*</code>는 아직 실적이 발표되지 않아 주가만 있는 분기다
               (막대가 없는 게 결측이 아니다).
             </span>
           </span>
-          <span className="mt-1 block text-slate-400">
+          <span className="mt-1 block text-slate-300">
             측정된 분기 — 영업이익 YoY {opYoyMeasured}/{chartPoints.length} · 매출 YoY{" "}
             {revYoyMeasured}/{chartPoints.length} · 주가 {priceMeasured}/{chartPoints.length}.
             {opYoyMeasured < chartPoints.length &&
@@ -267,12 +267,12 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 4. 분기 히스토리 표 */}
       <Card title="분기 히스토리">
         <Note>
-          <strong className="text-slate-300">YoY</strong> 전년 같은 분기 대비 증감률 ·{" "}
-          <strong className="text-slate-300">QoQ</strong> 직전 분기 대비(계절성이 커서 점수에는
-          쓰지 않는다) · <strong className="text-slate-300">OPM</strong> 영업이익률 ·{" "}
-          <strong className="text-slate-300">TTM 매출</strong> 최근 4개 분기 매출의 합 ·{" "}
-          <strong className="text-slate-300">잠정</strong> 정식 보고서 전 회사 발표,{" "}
-          <strong className="text-slate-300">확정</strong> 정기보고서 기준.
+          <strong className="text-slate-200">YoY</strong> 전년 같은 분기 대비 증감률 ·{" "}
+          <strong className="text-slate-200">QoQ</strong> 직전 분기 대비(계절성이 커서 점수에는
+          쓰지 않는다) · <strong className="text-slate-200">OPM</strong> 영업이익률 ·{" "}
+          <strong className="text-slate-200">TTM 매출</strong> 최근 4개 분기 매출의 합 ·{" "}
+          <strong className="text-slate-200">잠정</strong> 정식 보고서 전 회사 발표,{" "}
+          <strong className="text-slate-200">확정</strong> 정기보고서 기준.
           <span className="mt-1 block">
             &lsquo;흑전 / 적전&rsquo;은 흑자↔적자가 뒤바뀐 분기다 — %를 계산할 수 없어
             라벨로 적는다.
@@ -282,7 +282,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
         <div className="mt-3 max-h-[60vh] overflow-auto">
           <table className="w-full min-w-[720px] text-right text-sm">
-            <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
+            <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
               <tr className="border-b border-slate-800">
                 <TermTh term="분기">분기</TermTh>
                 <TermTh term="매출액" align="right">매출</TermTh>
@@ -302,7 +302,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                   key={`${f.fiscal_year}-${f.fiscal_quarter}`}
                   className="border-b border-slate-800/60"
                 >
-                  <td className="py-1.5 text-left text-slate-200">
+                  <td className="py-1.5 text-left text-slate-100">
                     {quarterLabel(f.fiscal_year, f.fiscal_quarter)}
                   </td>
                   <td className="py-1.5">{eok(f.revenue)}</td>
@@ -314,7 +314,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <td className="py-1.5">{pct(f.opm)}</td>
                   <td className="py-1.5">{pct(f.opm_yoy_delta, 1, "%p")}</td>
                   <td className="py-1.5">{eok(f.ttm_revenue)}</td>
-                  <td className="py-1.5 text-center text-xs text-slate-400">
+                  <td className="py-1.5 text-center text-xs text-slate-300">
                     {f.is_estimate ? "잠정" : "확정"}
                   </td>
                 </tr>
@@ -327,28 +327,28 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 5. 컨센서스 대비 */}
       <Card title="컨센서스 대비">
         <Note>
-          <strong className="text-slate-300">컨센서스</strong>는 증권사들의 실적 추정치
-          평균이고, <strong className="text-slate-300">서프라이즈</strong>는 실제 실적이 그
+          <strong className="text-slate-200">컨센서스</strong>는 증권사들의 실적 추정치
+          평균이고, <strong className="text-slate-200">서프라이즈</strong>는 실제 실적이 그
           추정을 웃돈 정도다. 추정기관이 2곳 미만이면 컨센서스로 인정하지 않는다.
         </Note>
         <div className="mt-3" />
         {consensus && (consensus.n_estimates ?? 0) >= 2 ? (
           <div className="grid gap-4 text-sm sm:grid-cols-3">
             <div>
-              <div className="text-xs text-slate-400">추정기관 수</div>
+              <div className="text-xs text-slate-300">추정기관 수</div>
               <div className="text-lg">{consensus.n_estimates}곳</div>
             </div>
             <div>
-              <div className="text-xs text-slate-400">매출 서프라이즈</div>
+              <div className="text-xs text-slate-300">매출 서프라이즈</div>
               <div className="text-lg">
                 {consensus.revenue_est && evaluated?.revenue
                   ? pct(((evaluated.revenue - consensus.revenue_est) / consensus.revenue_est) * 100)
                   : DASH}
               </div>
-              <div className="text-xs text-slate-400">컨센 {eok(consensus.revenue_est)}</div>
+              <div className="text-xs text-slate-300">컨센 {eok(consensus.revenue_est)}</div>
             </div>
             <div>
-              <div className="text-xs text-slate-400">영업이익 서프라이즈</div>
+              <div className="text-xs text-slate-300">영업이익 서프라이즈</div>
               <div className="text-lg">
                 {/* 부호가 바뀌면 %를 만들지 않는다(T37) */}
                 {consensus.op_est != null &&
@@ -362,12 +362,12 @@ export default async function StockPage({ params }: { params: { code: string } }
                       : "적자 구간 — % 계산 불가"
                     : DASH}
               </div>
-              <div className="text-xs text-slate-400">컨센 {eok(consensus.op_est)}</div>
+              <div className="text-xs text-slate-300">컨센 {eok(consensus.op_est)}</div>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-slate-300">
-            <strong className="text-slate-200">커버리지 없음.</strong> 추정기관이 2곳 미만이라
+          <p className="text-sm text-slate-200">
+            <strong className="text-slate-100">커버리지 없음.</strong> 추정기관이 2곳 미만이라
             컨센서스로 인정하지 않는다. C축을 <strong>분모에서 제외</strong>하고 정규화했다 —
             0점 처리가 아니다(ADR 2). 코스닥 상장사의 약 60%가 최근 1년 리포트 0건이며,
             이 시스템은 그 구간을 발굴 대상으로 삼는다.
@@ -379,13 +379,13 @@ export default async function StockPage({ params }: { params: { code: string } }
       <Card title="밸류에이션" note="이익 대비 지금 주가가 몇 배인가">
         <div className="grid gap-5 text-sm sm:grid-cols-2">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-300">
+            <div className="text-xs font-semibold text-slate-200">
               ① <Term term="PER최근4분기">최근 4개 분기 순이익 기준 PER</Term>
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {per4q != null ? `${per4q.toFixed(1)}배` : DASH}
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
               시가총액 ÷ 최근 4개 분기 순이익 합. <strong>지금까지 실제로 번 돈</strong> 기준이라
               추정이 섞이지 않는다.
               {ttmNp != null && (
@@ -398,21 +398,21 @@ export default async function StockPage({ params }: { params: { code: string } }
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-300">
+            <div className="text-xs font-semibold text-slate-200">
               ② <Term term="PER선행">향후 4개 분기 선행 PER</Term>
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
               시가총액 ÷ 향후 4개 분기 <strong>추정</strong> 순이익.{" "}
-              <strong className="text-slate-300">이익이 늘 것을 반영한 배수</strong>라 가속
+              <strong className="text-slate-200">이익이 늘 것을 반영한 배수</strong>라 가속
               구간에서는 ①보다 낮게 나온다.
               {fwd.basis ? (
                 <> 근거: {fwd.basis} — 연간 컨센서스에서 이미 발표된 분기를 뺀 값이고, 모자란
                   분기는 연간 추정의 분기 평균으로 이어 붙였다(추정 위의 추정).</>
               ) : (
-                <> <strong className="text-slate-300">연간 컨센서스가 없어 계산하지 않았다.</strong>{" "}
+                <> <strong className="text-slate-200">연간 컨센서스가 없어 계산하지 않았다.</strong>{" "}
                   코스닥 상장사의 약 60%가 최근 1년 리포트 0건이다 — 없는 값을 만들어내지 않는다.</>
               )}
             </p>
@@ -435,7 +435,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 7. LLM 분석 */}
       <Card title="LLM 분석">
         {analysis.isEmpty ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-300">
             아직 분석하지 않았다. 게이트 통과 상위 종목만 분석한다(비용 설계).
           </p>
         ) : (
@@ -445,44 +445,44 @@ export default async function StockPage({ params }: { params: { code: string } }
             )}
             {analysis.whyNow && (
               <div>
-                <div className="text-xs font-semibold uppercase text-slate-400">왜 지금인가</div>
-                <p className="text-slate-200">{analysis.whyNow}</p>
+                <div className="text-xs font-semibold uppercase text-slate-300">왜 지금인가</div>
+                <p className="text-slate-100">{analysis.whyNow}</p>
               </div>
             )}
             {(analysis.structuralDrivers.length > 0 || analysis.temporaryDrivers.length > 0) && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-300">구조적 동인</div>
+                  <div className="text-xs font-semibold uppercase text-slate-200">구조적 동인</div>
                   <Note>계속 이어질 이유 — 이게 많아야 가속이 오래간다.</Note>
-                  <ul className="mt-1 list-disc pl-4 text-slate-200">
+                  <ul className="mt-1 list-disc pl-4 text-slate-100">
                     {analysis.structuralDrivers.map((d) => <li key={d}>{d}</li>)}
                   </ul>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-300">일시적 동인</div>
+                  <div className="text-xs font-semibold uppercase text-slate-200">일시적 동인</div>
                   <Note>이번 분기에만 통한 이유 — 여기에 쏠려 있으면 곧 꺾인다.</Note>
-                  <ul className="mt-1 list-disc pl-4 text-slate-200">
+                  <ul className="mt-1 list-disc pl-4 text-slate-100">
                     {analysis.temporaryDrivers.map((d) => <li key={d}>{d}</li>)}
                   </ul>
                 </div>
               </div>
             )}
             {analysis.sustainabilityQuarters != null && (
-              <p className="text-slate-200">
+              <p className="text-slate-100">
                 가속 지속 전망: <strong>{analysis.sustainabilityQuarters}개 분기</strong>
               </p>
             )}
             {analysis.scenarios.length > 0 && (
               <div>
-                <div className="text-xs font-semibold uppercase text-slate-400">시나리오</div>
+                <div className="text-xs font-semibold uppercase text-slate-300">시나리오</div>
                 <div className="mt-1 space-y-1">
                   {analysis.scenarios.map((s) => (
                     <div key={s.name} className="flex gap-2">
-                      <span className="w-12 shrink-0 uppercase text-slate-300">{s.name}</span>
-                      <span className="w-14 shrink-0 text-slate-200">
+                      <span className="w-12 shrink-0 uppercase text-slate-200">{s.name}</span>
+                      <span className="w-14 shrink-0 text-slate-100">
                         {s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : DASH}
                       </span>
-                      <span className="text-slate-300">{s.description ?? DASH}</span>
+                      <span className="text-slate-200">{s.description ?? DASH}</span>
                     </div>
                   ))}
                 </div>
@@ -498,11 +498,11 @@ export default async function StockPage({ params }: { params: { code: string } }
                 목록이 아니라 **타임라인**으로 그린다. 시점 순서가 곧 판단이다. */}
             {timelineItems.length > 0 && (
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-                <div className="text-xs font-semibold uppercase text-slate-300">
+                <div className="text-xs font-semibold uppercase text-slate-200">
                   주가 상승 트리거
                 </div>
                 <Note>
-                  주가가 이 실적을 알아차리게 만들 <strong className="text-slate-300">확인
+                  주가가 이 실적을 알아차리게 만들 <strong className="text-slate-200">확인
                   가능한 사건</strong>과 그 예상 시점이다. 각 항목의 &lsquo;확인 지표&rsquo;로
                   실제로 일어났는지 나중에 대조할 수 있다 — 그래야 예측이 아니라 검증이 된다.
                 </Note>
@@ -513,9 +513,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             )}
             {analysis.risks.length > 0 && (
               <div>
-                <div className="text-xs font-semibold uppercase text-slate-400">리스크</div>
+                <div className="text-xs font-semibold uppercase text-slate-300">리스크</div>
                 <table className="mt-1 w-full text-left text-xs">
-                  <thead className="text-slate-400">
+                  <thead className="text-slate-300">
                     <tr>
                       <th className="py-1">리스크</th>
                       <th className="py-1">발생</th>
@@ -525,9 +525,9 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <tbody>
                     {analysis.risks.map((r, i) => (
                       <tr key={i} className="border-t border-slate-800/60">
-                        <td className="py-1 text-slate-200">{r.risk ?? DASH}</td>
-                        <td className="py-1 text-slate-300">{r.likelihood ?? DASH}</td>
-                        <td className="py-1 text-slate-300">{r.impact ?? DASH}</td>
+                        <td className="py-1 text-slate-100">{r.risk ?? DASH}</td>
+                        <td className="py-1 text-slate-200">{r.likelihood ?? DASH}</td>
+                        <td className="py-1 text-slate-200">{r.impact ?? DASH}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -536,10 +536,10 @@ export default async function StockPage({ params }: { params: { code: string } }
             )}
             {analysis.whyIMightBeWrong && (
               <div>
-                <div className="text-xs font-semibold uppercase text-slate-400">
+                <div className="text-xs font-semibold uppercase text-slate-300">
                   내가 틀릴 수 있는 이유
                 </div>
-                <p className="text-slate-200">{analysis.whyIMightBeWrong}</p>
+                <p className="text-slate-100">{analysis.whyIMightBeWrong}</p>
               </div>
             )}
           </div>
@@ -552,12 +552,12 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 9. 바깥 링크 */}
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <Link href="/" className="text-sky-400 hover:underline">← 발굴 목록</Link>
+        <Link href="/" className="text-sky-300 hover:underline">← 발굴 목록</Link>
         <a
           href={naverStockUrl(code)}
           target="_blank"
           rel="noreferrer"
-          className="text-sky-400 hover:underline"
+          className="text-sky-300 hover:underline"
           title="네이버 증권 — 시세·차트·공시·재무를 한 화면에서 본다"
         >
           네이버 증권 ↗
@@ -569,7 +569,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             href={dartReportUrl(latestDisclosure.rcept_no)}
             target="_blank"
             rel="noreferrer"
-            className="text-sky-400 hover:underline"
+            className="text-sky-300 hover:underline"
             title={latestDisclosure.report_nm ?? undefined}
           >
             DART 공시 원문 ↗
@@ -579,7 +579,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             href={naverDisclosureUrl(code)}
             target="_blank"
             rel="noreferrer"
-            className="text-slate-300 hover:underline"
+            className="text-slate-200 hover:underline"
             title="이 종목의 DART 접수번호를 아직 수집하지 못했다 — 네이버 공시 목록으로 연결한다"
           >
             공시 목록(네이버) ↗
@@ -589,18 +589,18 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {disclosures.length > 0 && (
         <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-200">최근 공시</h2>
+          <h2 className="mb-2 text-sm font-semibold text-slate-100">최근 공시</h2>
           <ul className="space-y-1 text-sm">
             {disclosures.map((d) => (
               <li key={d.rcept_no} className="flex flex-wrap gap-2">
-                <span className="w-24 shrink-0 text-xs text-slate-400">
+                <span className="w-24 shrink-0 text-xs text-slate-300">
                   {d.disclosed_at?.slice(0, 10) ?? DASH}
                 </span>
                 <a
                   href={dartReportUrl(d.rcept_no)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sky-400 hover:underline"
+                  className="text-sky-300 hover:underline"
                 >
                   {d.report_nm ?? d.rcept_no}
                 </a>

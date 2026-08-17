@@ -60,7 +60,7 @@ function growthLabel(props: Record<string, unknown> & { fill: string }) {
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (points.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-400">
+      <p className="py-8 text-center text-sm text-slate-300">
         분기 재무가 없다 — 수집되지 않았거나 상장 직후일 수 있다.
       </p>
     );
@@ -84,7 +84,7 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
           />
           <YAxis
             yAxisId="amount"
-            stroke={SERIES_COLOR.TTM_COLOR}
+            stroke={SERIES_COLOR.AXIS_COLOR}
             fontSize={11}
             tickLine={false}
             axisLine={false}

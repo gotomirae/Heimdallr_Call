@@ -295,3 +295,15 @@ CREATE POLICY anon_select_notifications ON notifications
 
 -- 2026-08-17 — 발굴 목록의 '최근 5일 주가 상승률' 열
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS ret_5d NUMERIC;
+
+-- 2026-08-17 (2) — 투자 섹터 분류 (`src/universe/sector_map.py`)
+--   KRX 업종명은 투자에 쓰는 말이 아니다('특수 목적용 기계 제조업' 93종목).
+ALTER TABLE krx_universe ADD COLUMN IF NOT EXISTS sector TEXT;
+CREATE INDEX IF NOT EXISTS krx_universe_sector_idx ON krx_universe (sector);
+
+-- 2026-08-17 (3) — 결과 추적에 **발표 전 5일**과 **발표 당일**을 추가
+--   ★ 음수 시점은 컬럼명에 '-'를 쓸 수 없어 `m`으로 적는다 (ret_dm5).
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_dm5 NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_dm5 NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d0 NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0 NUMERIC;

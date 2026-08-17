@@ -11,8 +11,11 @@ import type {
   UniverseRow,
 } from "./types";
 
-const UNIVERSE_COLUMNS =
-  "code,name,board,industry,products,market_cap_krw,sector_caveat,is_excluded,exclude_reason";
+// ★ 배열 — `sector`는 마이그레이션 전까지 없어서 통째 조회가 42703으로 죽는다(T18).
+const UNIVERSE_COLUMNS = [
+  "code", "name", "board", "industry", "sector", "products",
+  "market_cap_krw", "sector_caveat", "is_excluded", "exclude_reason",
+];
 
 const SCREEN_COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter", "gate_passed", "gate_detail",
@@ -64,8 +67,19 @@ export function foldLatest<T extends { code: string; fiscal_year: number; fiscal
 }
 
 export async function getUniverse(): Promise<Map<string, UniverseRow>> {
-  const rows = await selectAll<UniverseRow>("krx_universe", UNIVERSE_COLUMNS);
-  return new Map(rows.map((r) => [r.code, r]));
+  const { rows, dropped } = await selectWithOptionalColumns<UniverseRow>(
+    "krx_universe",
+    UNIVERSE_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  const all =
+    rows.length >= 1000
+      ? await selectAll<UniverseRow>(
+          "krx_universe",
+          UNIVERSE_COLUMNS.filter((c) => !dropped.includes(c)).join(",")
+        )
+      : rows;
+  return new Map(all.map((r) => [r.code, r]));
 }
 
 /**
@@ -98,6 +112,29 @@ export async function getLatestScreens(
     rows: accelerating ? latest.filter((r) => r.gate_passed === true) : latest,
     dropped,
   };
+}
+
+/**
+ * **접지 않은** 전 분기 스크린 행. 결과 추적에서 "그 발표 분기의 판정"을 찾는 데 쓴다.
+ *
+ * ★ `getLatestScreens`는 종목별 최신 1행으로 접는다(T40) — 그게 목록 화면에는
+ *   맞지만, 과거 분기 결과에 판정을 붙일 때는 **그 분기의 행**이 필요하다.
+ *   최신 행을 쓰면 2026.2Q 결과에 2026.3Q 판정이 붙는다.
+ */
+export async function getAllScreens(): Promise<{ rows: ScreenRow[]; dropped: string[] }> {
+  const { rows, dropped } = await selectWithOptionalColumns<ScreenRow>(
+    "screen_results",
+    SCREEN_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  const all =
+    rows.length >= 1000
+      ? await selectAll<ScreenRow>(
+          "screen_results",
+          SCREEN_COLUMNS.filter((c) => !dropped.includes(c)).join(",")
+        )
+      : rows;
+  return { rows: all, dropped };
 }
 
 export async function getScreenForCode(

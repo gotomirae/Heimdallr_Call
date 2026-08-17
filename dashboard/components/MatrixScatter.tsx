@@ -91,12 +91,12 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
               return (
                 <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
                   <div className="font-semibold text-slate-100">
-                    {p.grade ?? "·"} {p.name} <span className="text-slate-400">{p.code}</span>
+                    {p.grade ?? "·"} {p.name} <span className="text-slate-300">{p.code}</span>
                   </div>
-                  <div className="text-slate-300">
+                  <div className="text-slate-200">
                     스코어 {p.score.toFixed(1)} · 반영도 {p.pri.toFixed(1)}
                   </div>
-                  <div className="mt-1 text-slate-400">클릭하면 상세로 이동</div>
+                  <div className="mt-1 text-slate-300">클릭하면 상세로 이동</div>
                 </div>
               );
             }}

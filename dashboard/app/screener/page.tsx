@@ -59,11 +59,11 @@ export default async function ScreenerPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">전 종목 스크리너</h1>
-        <p className="mt-1 text-sm text-slate-300">
+        <p className="mt-1 text-sm text-slate-200">
           {rows.length.toLocaleString("ko-KR")}종목 · 가속 {passed} · 탈락 {failed} ·
           판정 불가 {undecided}
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-300">
           다른 화면과 달리 <strong>탈락 종목까지 전부</strong> 담는다 —
           여기는 &ldquo;왜 안 걸렸나&rdquo;를 확인하는 곳이다.
           종목별 <strong>최신 발표 분기</strong> 기준.

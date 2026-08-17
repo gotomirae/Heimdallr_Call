@@ -6,12 +6,15 @@ from __future__ import annotations
 import pytest
 
 from src.analysis.outcome import (
+    DISPLAY_HORIZONS,
     HORIZONS,
     REASON_HALTED,
     REASON_NOT_ENOUGH_DAYS,
     Outcome,
     base_trading_day,
     group_stats,
+    horizon_column,
+    horizon_label,
     measure,
     median,
     pct_change,
@@ -180,3 +183,87 @@ def test_median_even_and_odd():
     assert median([1, 2, 3]) == 2
     assert median([1, 2, 3, 4]) == pytest.approx(2.5)
     assert median([]) is None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 발표 전 / 발표 당일 시점 (2026-08-17 추가)
+#
+# ★ 구간의 **방향**이 시점마다 다르다. 뒤집으면 부호가 통째로 반대가 되는데
+#   숫자는 그럴듯하게 나와서 화면만 봐서는 못 잡는다.
+# ═══════════════════════════════════════════════════════════════════
+#: 발표일 = 20260610. 그 앞뒤로 거래일이 넉넉히 있는 계열.
+_DAYS = ["202606%02d" % d for d in (1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17)]
+#: 100부터 1씩 오르다가 발표일(20260610=index 7, 값 107)만 기억해 두면 손계산이 쉽다.
+_CLOSES = {d: 100.0 + i for i, d in enumerate(_DAYS)}
+_INDEX = {d: 1000.0 for d in _DAYS}  # 지수는 고정 → 초과수익 = 종목 수익률
+
+
+def test_horizon_column_names_avoid_minus_sign():
+    """`ret_d-5`는 컬럼명이 될 수 없다 — 음수는 `m`으로 쓴다."""
+    assert horizon_column(-5) == "m5"
+    assert horizon_column(0) == "0"
+    assert horizon_column(20) == "20"
+
+
+def test_day_zero_is_previous_close_to_announce_close():
+    """발표 당일 = **직전 거래일 종가 → 발표일 종가**.
+
+    손계산: 06-09(106) → 06-10(107) = +0.943%
+    """
+    h = measure(_CLOSES, _INDEX, "20260610")[0]
+    assert h.ret_pct == pytest.approx((107 / 106 - 1) * 100)
+    assert h.excess_pp == pytest.approx(h.ret_pct)  # 지수 고정
+
+
+def test_minus_five_is_five_sessions_before_to_announce():
+    """발표 전 5일 = **5거래일 전 종가 → 발표일 종가**.
+
+    _DAYS에서 발표일(20260610)의 직전 거래일은 06-09(106)이고,
+    거기서 5거래일 거슬러 오르면 06-03(102)이다.
+    손계산: 102 → 107 = +4.902%
+    """
+    h = measure(_CLOSES, _INDEX, "20260610")[-5]
+    assert h.ret_pct == pytest.approx((107 / 102 - 1) * 100)
+
+
+def test_forward_horizon_starts_at_announce_close():
+    """발표 후 N일은 **발표일 종가**에서 출발한다(방향이 반대면 부호가 뒤집힌다).
+
+    손계산: 06-10(107) → 06-17(112) = +4.673%  (5거래일 뒤)
+    """
+    h = measure(_CLOSES, _INDEX, "20260610")[5]
+    assert h.ret_pct == pytest.approx((112 / 107 - 1) * 100)
+
+
+def test_pre_announcement_none_when_not_enough_history():
+    """★ 발표 전 거래일이 모자라면 None이다.
+
+    있는 만큼으로 당겨 쓰면 '발표 전 5일'이 실제로는 2일이 되는데,
+    숫자는 정상으로 보인다.
+    """
+    short = {d: _CLOSES[d] for d in _DAYS[6:]}  # 발표일 앞에 1거래일뿐
+    h = measure(short, {d: 1000.0 for d in _DAYS[6:]}, "20260610")[-5]
+    assert h.ret_pct is None
+    assert h.reason == REASON_NOT_ENOUGH_DAYS
+
+
+def test_trading_days_after_counts_sessions_not_calendar():
+    """음수 방향도 **거래일**로 센다 — 주말·휴장이 끼어도 개수만 본다."""
+    assert trading_days_after(_CLOSES, "20260610", -1) == "20260609"
+    assert trading_days_after(_CLOSES, "20260610", -5) == "20260603"
+    assert trading_days_after(_CLOSES, "20260610", 0) == "20260610"
+    assert trading_days_after(_CLOSES, "20260610", 5) == "20260617"
+
+
+def test_display_horizons_are_what_user_asked_for():
+    assert DISPLAY_HORIZONS == (-5, 0, 5, 20, 60)
+    assert all(d in HORIZONS for d in DISPLAY_HORIZONS)
+
+
+def test_db_row_uses_m_prefix_for_negative():
+    o = Outcome(code="A", fiscal_year=2026, fiscal_quarter=2,
+                horizons=measure(_CLOSES, _INDEX, "20260610"))
+    row = o.as_db_row()
+    assert "ret_dm5" in row and "excess_dm5" in row
+    assert "ret_d0" in row and "excess_d0" in row
+    assert not any("-" in k for k in row), "컬럼명에 '-'가 들어가면 PostgREST가 죽는다"

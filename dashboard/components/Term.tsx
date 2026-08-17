@@ -73,11 +73,11 @@ export function TermList({ terms }: { terms: string[] }) {
         if (!def) return null;
         return (
           <div key={t}>
-            <dt className="text-sm font-semibold text-slate-200">{t}</dt>
-            <dd className="text-sm text-slate-300">
+            <dt className="text-sm font-semibold text-slate-100">{t}</dt>
+            <dd className="text-sm text-slate-200">
               {def.short}
               {def.detail && (
-                <span className="mt-0.5 block text-xs text-slate-400">{def.detail}</span>
+                <span className="mt-0.5 block text-xs text-slate-300">{def.detail}</span>
               )}
             </dd>
           </div>
@@ -93,7 +93,7 @@ export function Glossary({ sections = GLOSSARY_SECTIONS }: { sections?: typeof G
     <div className="grid gap-6 md:grid-cols-2">
       {sections.map((s) => (
         <section key={s.title}>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
             {s.title}
           </h3>
           <TermList terms={s.terms} />

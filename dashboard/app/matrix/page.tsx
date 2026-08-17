@@ -26,11 +26,11 @@ export default async function MatrixPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">2축 매트릭스</h1>
-        <p className="mt-1 text-sm text-slate-300">
+        <p className="mt-1 text-sm text-slate-200">
           실적이 가속 중인 {rows.length.toLocaleString("ko-KR")}종목 ·
           X = 스코어(펀더멘털 강도) · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-300">
           두 축을 한 숫자로 합치지 않는다(ADR 5). 같은 스코어라도 이미 오른 종목과
           안 오른 종목은 전혀 다른 투자다 — <strong>좋은 기업과 좋은 투자는 다르다.</strong>
         </p>
@@ -53,8 +53,8 @@ export default async function MatrixPage() {
               className="inline-block h-2.5 w-2.5 rounded-sm"
               style={{ backgroundColor: q.color }}
             />
-            <span className="text-slate-200">{q.title}</span>
-            <span className="text-slate-400">{q.note}</span>
+            <span className="text-slate-100">{q.title}</span>
+            <span className="text-slate-300">{q.note}</span>
           </span>
         ))}
       </div>
@@ -63,7 +63,7 @@ export default async function MatrixPage() {
         <MatrixScatter points={points} />
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-300">
         점 {points.length.toLocaleString("ko-KR")}개 · 주가반영도를 판정하지 못해 표시하지 않은
         종목 {undecided.toLocaleString("ko-KR")}개(시세 결측). 0으로 채워 찍으면 원점 근처에
         가짜 군집이 생긴다. <strong>게이트 탈락 종목은 애초에 이 화면에 없다.</strong>

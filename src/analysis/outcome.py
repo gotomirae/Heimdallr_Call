@@ -16,8 +16,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-#: 측정 지점(거래일 기준). D+60은 약 3개월이라 분기마다 한 번 채워진다.
-HORIZONS = (1, 5, 20, 60)
+#: 측정 지점(**거래일** 기준). 음수는 발표 **전**이다.
+#:   -5 = 발표 직전 5거래일 수익률 (미리 오른 정도 = 정보 선반영)
+#:    0 = 발표 당일 등락률       (직전 거래일 종가 → 발표일 종가)
+#:   +5 / +20 / +60 = 발표일 종가 대비
+#: ★ D+60은 약 3개월이라 분기마다 한 번 채워진다.
+HORIZONS = (-5, 0, 1, 5, 20, 60)
+
+#: 화면에서 보여 주는 시점(사용자 지정). D+1은 저장만 하고 표시하지 않는다.
+DISPLAY_HORIZONS = (-5, 0, 5, 20, 60)
+
+
+def horizon_column(days: int) -> str:
+    """DB 컬럼 접미사. **음수는 `m`으로 쓴다** — `ret_d-5`는 컬럼명이 될 수 없다."""
+    return f"m{abs(days)}" if days < 0 else str(days)
+
+
+def horizon_label(days: int) -> str:
+    """화면 라벨."""
+    if days < 0:
+        return f"발표 전 {abs(days)}일"
+    if days == 0:
+        return "발표 당일"
+    return f"발표 후 {days}일"
 
 #: 수익률을 못 낸 이유. 화면에 그대로 노출해 "0%"와 구분한다.
 REASON_NO_BASE = "기준일 종가 없음"
@@ -65,22 +86,29 @@ class Outcome:
         }
         for days in HORIZONS:
             h = self.horizons.get(days)
-            row[f"ret_d{days}"] = h.ret_pct if h else None
-            row[f"excess_d{days}"] = h.excess_pp if h else None
+            suffix = horizon_column(days)
+            row[f"ret_d{suffix}"] = h.ret_pct if h else None
+            row[f"excess_d{suffix}"] = h.excess_pp if h else None
         return row
 
 
 def trading_days_after(
     closes: dict[str, float], base_date: str, days: int
 ) -> str | None:
-    """기준일로부터 `days` **거래일 뒤**의 날짜.
+    """기준일로부터 `days` **거래일** 떨어진 날짜. 음수면 **발표 전**이다.
 
     ★ 캘린더 일수로 세면 안 된다. 휴장일이 섞여 20일이 14거래일이 되기도 하고,
       종목마다 다른 날을 비교하게 된다 — 숫자는 그럴듯하게 나온다.
     ★ 발표일이 휴장일일 수 있다(장 마감 후·주말 공시). 그러면 **그 다음 거래일**을
       기준으로 잡는다 — 그날이 시장이 처음 반응할 수 있는 날이기 때문이다.
+    ★ 음수(발표 전)는 **기준일보다 앞선 거래일**에서 센다. 거래일이 모자라면
+      None이다 — 있는 만큼으로 당겨 쓰면 '발표 전 5일'이 실제로는 2일이 된다.
     """
     ordered = sorted(closes)
+    if days < 0:
+        before = [d for d in ordered if d < base_date]
+        # before[-1]이 기준일 직전 거래일. 거기서 |days|-1만큼 더 거슬러 간다.
+        return before[days] if len(before) >= abs(days) else None
     after = [d for d in ordered if d >= base_date]
     if not after:
         return None
@@ -127,16 +155,29 @@ def measure(
             out[days] = h
             continue
 
-        target = trading_days_after(closes, announce_date, days)
-        index_target = trading_days_after(index_closes, announce_date, days)
-        if target is None or index_target is None:
+        # ★ 구간의 **방향**이 시점마다 다르다.
+        #   days > 0 : 발표일 종가 → D+N 종가            (발표 후 반응)
+        #   days == 0: 직전 거래일 종가 → 발표일 종가      (발표 당일 등락)
+        #   days < 0 : D−N 종가 → 발표일 종가            (발표 전 선반영)
+        #   이걸 뒤집으면 부호가 통째로 반대가 되는데 숫자는 그럴듯하게 나온다.
+        if days > 0:
+            start, index_start = base, index_base
+            end = trading_days_after(closes, announce_date, days)
+            index_end = trading_days_after(index_closes, announce_date, days)
+        else:
+            offset = days if days < 0 else -1
+            start = trading_days_after(closes, announce_date, offset)
+            index_start = trading_days_after(index_closes, announce_date, offset)
+            end, index_end = base, index_base
+
+        if start is None or end is None or index_start is None or index_end is None:
             h.reason = REASON_NOT_ENOUGH_DAYS
             out[days] = h
             continue
 
-        h.ret_pct = pct_change(closes.get(base), closes.get(target))
+        h.ret_pct = pct_change(closes.get(start), closes.get(end))
         h.index_ret_pct = pct_change(
-            index_closes.get(index_base), index_closes.get(index_target)
+            index_closes.get(index_start), index_closes.get(index_end)
         )
         if h.ret_pct is None or h.index_ret_pct is None:
             h.reason = REASON_NO_BASE

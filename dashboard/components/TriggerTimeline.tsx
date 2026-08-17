@@ -47,7 +47,7 @@ const TONE = {
 export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-slate-300">
+      <p className="text-sm text-slate-200">
         확인할 트리거가 없다 — 아직 분석하지 않았거나 모델이 짚어내지 못했다.
       </p>
     );
@@ -87,12 +87,12 @@ export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
                   {t.window}
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-slate-200">{t.event ?? DASH}</p>
+              <p className="mt-0.5 text-sm text-slate-100">{t.event ?? DASH}</p>
               {t.metric && (
                 // ★ '무엇을 보고 확인할 것인가'가 트리거의 핵심이다.
                 //   이게 없으면 "좋아질 것이다" 수준의 말과 구분되지 않는다.
-                <p className="mt-0.5 text-xs text-slate-300">
-                  <span className="text-slate-400">확인 지표 · </span>
+                <p className="mt-0.5 text-xs text-slate-200">
+                  <span className="text-slate-300">확인 지표 · </span>
                   {t.metric}
                 </p>
               )}

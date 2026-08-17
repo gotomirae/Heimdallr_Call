@@ -47,8 +47,10 @@ export const SERIES_COLOR = {
   REVENUE_LABEL: "#6ee7b7",
   /** 주가 — 빨간 점선. 현재 주가까지 이어 그린다. */
   PRICE_COLOR: "#f87171",
-  /** TTM 매출 — 회색 점선. */
-  TTM_COLOR: "#94a3b8",
+  /** TTM 매출 — 분홍 점선. */
+  TTM_COLOR: "#f9a8d4",
+  /** 축·눈금 — 계열 색이 아니다. 계열과 헷갈리지 않게 따로 둔다. */
+  AXIS_COLOR: "#cbd5e1",
 } as const;
 
 function qLabel(year: number, quarter: number): string {

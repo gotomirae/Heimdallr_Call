@@ -26,6 +26,8 @@ export interface UniverseRow {
   name: string | null;
   board: string | null;
   industry: string | null;
+  /** 투자 섹터(`src/universe/sector_map.py`). 마이그레이션 전에는 null이다. */
+  sector: string | null;
   products: string | null;
   market_cap_krw: number | null;
   sector_caveat: string | null;
