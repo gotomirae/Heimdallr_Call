@@ -1,0 +1,131 @@
+# 2026-08-17 — GitHub public 배포 · 시크릿 실검증
+
+지난 세션이 "코드로 할 일은 끝났고 남은 건 배포"라며 보류했던 것을 실행했다.
+사용자 확인: **GitHub까지만** · **비시즌 모드로 cron 활성**(Vercel은 사용자가 직접).
+
+## 한 일
+
+| 단계 | 결과 |
+|---|---|
+| `git init -b main` → 커밋 | 129파일 · `23710e5` |
+| public repo 생성·push | https://github.com/gotomirae/Heimdallr_Call |
+| Secrets 8개 + Variable 1개 | `SEASON_MODE=off` |
+| 워크플로 실검증 4건 | ci · outcome_update · disclosure_poll · telegram_listen |
+
+## 커밋 전에 한 안전 검사
+
+`.gitignore` 실동작을 `git check-ignore`로 대조했다(추측하지 않았다):
+
+```
+.env.txt                IGNORED ok      ← 실제 API 키 21개가 든 파일
+dashboard/.env.local    IGNORED ok
+.venv/ .cache/ node_modules/ .next/     IGNORED ok
+```
+
+스테이징 **내용**도 실제 키 값으로 스캔했다 — 파일명만 보면 코드에 하드코딩된 키를 놓친다.
+`.env.txt`의 값 21개를 하나씩 `git grep --cached`로 대조 → **누출 0건**.
+(단, 첫 시도는 검사기 자체가 죽어 있었다 → **T54**.)
+
+### `.gitignore`에 2줄 추가
+
+```
+.bkit/                          # 플러그인 런타임 상태 875K — 프로젝트 산출물이 아니다
+.claude/settings.local.json     # ★ 전역 ignore에만 걸려 있었다
+```
+
+후자가 중요하다. `C:\Users\user/.config/git/ignore`가 막아 주고 있어서 **이 머신에서만**
+안 올라간다. 다른 머신에서 클론하면 조용히 뚫린다 — 전역 ignore는 저장소를 따라가지 않는다.
+
+## 시크릿은 등록이 아니라 **실행**으로 검증했다
+
+등록 성공(`gh secret set` exit 0)은 값이 맞다는 증거가 아니다. 실제로 돌렸다.
+
+| 워크플로 | 검증한 시크릿 | 실측 결과 |
+|---|---|---|
+| `ci` (push 자동) | 없음 | ✓ 39초 |
+| `outcome_update` | SUPABASE_URL · SUPABASE_SERVICE_KEY · KIS_APP_KEY · KIS_APP_SECRET | ✓ `outcome_tracking upsert 459행` |
+| `disclosure_poll -f notify=false` | OPENDART_API_KEY (+ Supabase) | ✓ `screen_results upsert 1111행` |
+| `telegram_listen` | HEIMDALLR_TELEGRAM_BOT_TOKEN · CHAT_ID | ✓ `봇 8933940541 · 전용봇 True` |
+
+`outcome_update`을 첫 검증 대상으로 고른 이유는 **Supabase·KIS 4개를 쓰면서
+텔레그램 발송은 하지 않기** 때문이다. `disclosure_poll`도 `notify=false`로 발송을 껐다.
+
+KIS가 진짜 불렸는지도 확인했다 — env 값이 `***`로 찍힌 것만으로는 증거가 안 된다:
+
+```
+대상 459건 · 일봉 구간 20260705~20260818
+지수 종가 KOSPI 29일 · KOSDAQ 29일
+```
+
+D+5 등급별 초과수익은 지난 세션과 동일했다(★ +4.99 · ○ −0.68 · ✕ −4.20).
+A축 IC가 D+1 +0.112 · D+5 +0.097로 여전히 최고 — ADR 1이 두 번째 측정에서도 지지된다.
+`미래 분기 잔재 정리: 0행 삭제` → T36/T52 가드가 운영 환경에서도 동작한다.
+
+**`ANTHROPIC_API_KEY`만 Actions에서 안 불렸다.** `telegram_listen`은 `LLM 분석 OFF`로 돌고
+`disclosure_poll`은 알림을 껐기 때문이다. 값 자체는 로컬에서 이미 2회 실호출로 검증된 것과
+같은 키다(cost_log $0.0643).
+
+## ★ T53 — skip 수가 늘어난 건 커버리지가 사라진 것이다
+
+커밋 직전 테스트가 **378 passed, 26 skipped**로 나왔다. 직전 기록은 403 passed, 1 skipped.
+"passed"만 봤으면 그냥 넘어갔다.
+
+로컬 venv에 `pyyaml`이 없어서 `tests/test_workflows.py` **25건이 통째로 skip**됐다.
+하필 그게 **지금 public으로 올리려는 워크플로 YAML을 검증하는 테스트 전부**다 —
+시크릿 하드코딩 검사, sleep 과금 검사, `python -m` 대상 모듈 존재 검사.
+
+`pyproject.toml`에는 `dev` extras로 **제대로 선언돼 있었다**(T10 규칙 준수).
+venv에 `.[dev]`를 안 깐 게 원인이다 → 설치 후 **403 passed, 1 skipped** 복구.
+
+**정상 기준선은 `403 passed, 1 skipped`다.** 남은 skip 1건은
+`PENDING_P11`이 비어서 나는 의도된 것이다.
+
+## ★ T54 — 시크릿 검사기가 조용히 무력화됐다
+
+```bash
+git grep -c -F -- "$val" --cached | wc -l    # fatal → 파이프 뒤에서는 0
+```
+
+`--cached`를 패턴 뒤에 둬서 `git grep`이 fatal로 죽었는데, stderr는 흘러가고
+`wc -l`이 **0**을 준다. **키가 실제로 새고 있어도 "누출 0건"이 나온다.**
+
+→ 코드에 확실히 존재하는 문자열(`OPENDART_API_KEY`)로 스캐너를 먼저 쏴
+**15개 파일 매칭**을 확인한 뒤에야 결과를 믿었다.
+
+T51(RLS 빈 배열) · T49(미측정을 0으로)와 **같은 실패 모양**이다 —
+0은 "안전"과 "검사 안 됨"을 구분해 주지 않는다.
+
+## 지금 살아 있는 스케줄 (비시즌)
+
+| 워크플로 | 주기 | 발송 |
+|---|---|---|
+| `universe_daily` | 매일 06:00 KST | — |
+| `disclosure_poll` | 하루 4회 (`SEASON_MODE=off`) | ⚡ 즉시 알림 |
+| `telegram_listen` | 07:00~24:00 KST 15분 | 질의 회신 |
+| `daily_digest` | 평일 17:30 KST | 다이제스트 |
+| `outcome_update` | 평일 07:00 KST | — |
+| `promotion_check` | 월요일 07:00 KST | 승격 알림 |
+| `quarterly_backfill` | 매월 1·15일 05:00 KST | — |
+
+3Q 발표 시즌(11월경)에 `gh variable set SEASON_MODE --body on`으로 30분 폴링을 켠다.
+
+## 막힌 것 / 남은 것
+
+1. **Vercel 배포는 안 했다**(사용자 작업). Root Directory를 `dashboard`로 지정하는 게
+   필수다 — 모노레포라 루트에 `next build` 대상이 없다. 환경변수 4개는
+   `dashboard/.env.local`에 있고 `SUPABASE_SERVICE_KEY`가 없으면 `/settings` 비용이
+   `—`로 뜬다(0으로 뜨면 안 된다 — T51).
+2. **Node 20 deprecation 경고.** `actions/checkout@v4` · `actions/setup-python@v5`가
+   Node 24로 강제 실행되고 있다. 지금은 동작하지만 v5/v6로 올려야 한다.
+3. **로컬 `--watch`를 켜지 마라.** `telegram_listen` cron이 살아났다 —
+   동시에 켜면 `getUpdates`가 서로 메시지를 뺏는다(T44). 폴러는 하나만이다.
+4. `ANTHROPIC_API_KEY`는 Actions에서 아직 안 불렸다. 첫 `daily_digest`나
+   ★/○ 종목 발생 시 확인된다.
+
+## 다음 세션이 알아야 할 것
+
+1. **repo는 public이다**(Actions 무료 한도 때문). 시크릿은 GitHub Secrets에만 있고
+   Supabase anon key는 원래 공개 전제 + RLS 방어다.
+2. **테스트 기준선 `403 passed, 1 skipped`.** venv에 `pip install -e ".[dev]"`가 필요하다.
+3. **이제부터는 실제로 텔레그램이 나간다.** 코드를 고치고 push하면 다음 cron부터 반영된다.
+4. 남은 건 Vercel 배포와 **시간**(D+20·D+60 표본이 쌓이는 것)뿐이다.

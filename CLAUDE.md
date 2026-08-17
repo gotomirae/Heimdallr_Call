@@ -128,11 +128,6 @@ python -m pytest tests/
 
 ## 세션 진행 상황
 
-- **P7 LLM 분석 완료 (2026-08-13)** — 실호출 2회: 비용 **$0.0341 / $0.0302**(≤$0.05) ·
-  JSON 전 필드 · 확률 합 1.00 · `cost_log` env='prod' · **캐시읽기 3,242토큰 확인**.
-  tests 222 passed.
-- **T19 1차 출처로 검증 완료**: 공식 pricing 페이지가 "$2/$10이 정가이고 2026-09-01
-  인상은 시행되지 않는다"고 명시. 참고 프로젝트의 날짜 분기 로직이 틀린 쪽 — 이식 금지.
 - 신규 함정 **T33 ★**: Sonnet 5는 `thinking` 생략 시 **사고가 켜지고** max_tokens를
   응답과 나눠 쓴다 → JSON이 잘린다. `thinking=adaptive` + `effort="low"` 고정.
 - 신규 함정 **T34 ★**: 캐시 프리픽스가 **1,024토큰 미만이면 조용히 안 걸린다**(비용 10배).
@@ -243,3 +238,12 @@ python -m pytest tests/
 - **코딩 범위 완료, 배포만 남음 (2026-08-16)** — P0–P11 + 대시보드 7화면 전부 끝.
   GitHub public 전환 + Vercel 배포 절차를 단계별로 안내(코드 변경 없음,
   `docs/sessions/2026-08-16-dashboard-rest.md`의 "배포 절차 안내" 참조) — 실행은 사용자 확인 대기.
+- **GitHub public 배포 완료 (2026-08-17)** — `gotomirae/Heimdallr_Call` · Secrets 8 ·
+  `SEASON_MODE=off`. 실행 검증: outcome_update `459행` · disclosure_poll `1,111행` ·
+  telegram_listen `봇 8933940541 전용봇 True` · ci 39초. **cron 7개 가동 중 — 로컬 `--watch` 금지**(T44).
+- 신규 함정 **T53 ★**: dev 의존성이 없으면 테스트가 **실패가 아니라 skip**된다.
+  `pyyaml` 누락으로 워크플로 검증 25건이 통째로 빠진 채 "378 passed"였다 →
+  **기준선 `403 passed, 1 skipped`와 대조하라.** passed 수만 보면 커버리지 소실을 못 본다.
+- 신규 함정 **T54 ★**: `git grep -c ... --cached | wc -l`은 옵션 위치 오류로 fatal이 나도
+  **0**을 준다 → 시크릿 검사기가 "누출 0건"으로 조용히 무력화된다.
+  **반드시 걸려야 하는 입력으로 검사기를 먼저 검증하라**(T51·T49와 같은 실패 모양).

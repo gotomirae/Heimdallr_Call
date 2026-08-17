@@ -949,3 +949,58 @@ earnings_disclosures     anon 639행
 
 **교훈: 한 곳에서 막은 함정은 새 소비자가 생길 때마다 다시 뚫린다.**
 날짜 상한 같은 규칙은 조회 계층에 두거나, 최소한 주석으로 "같은 규칙"임을 못박아야 한다.
+
+---
+
+## T53. **깔려 있지 않은 dev 의존성은 테스트를 실패시키지 않고 skip시킨다** `[HD 2026-08-17 실측]`
+
+배포 직전 `pytest tests/`를 돌리니 **378 passed, 26 skipped**로 나왔다.
+직전 세션 기록은 **403 passed, 1 skipped**였다. "환경 차이겠지"로 넘기기 딱 좋다.
+
+실제 원인은 로컬 venv에 `pyyaml`이 없었던 것이다:
+
+```
+SKIPPED [8] tests/test_workflows.py:41: could not import 'yaml': No module named 'yaml'
+SKIPPED [8] tests/test_workflows.py:49: ...
+SKIPPED [8] tests/test_workflows.py:57: ...
+SKIPPED [1] tests/test_workflows.py:112: ...
+```
+
+`pyyaml`은 `pyproject.toml`의 `[project.optional-dependencies] dev`에 **정확히 선언돼 있었다**
+(T10 규칙은 지켜졌다). 문제는 venv에 `pip install -e .`만 했고 `.[dev]`를 안 했다는 것.
+
+**무엇이 조용히 틀리는가:** `pytest.importorskip` / 모듈 임포트 실패는 **초록색 통과로 보인다.**
+하필 skip된 25건이 **지금 활성화하려는 워크플로 YAML을 검증하는 테스트 전부**였다 —
+시크릿 하드코딩 검사(`test_secrets_are_not_hardcoded`), sleep 과금 검사,
+`python -m` 대상 모듈 존재 검사가 통째로 안 돌고 "통과"로 보였다.
+public repo에 push하기 직전에.
+
+→ `pip install -e ".[dev]"` 후 재실행 → **403 passed, 1 skipped**로 복구.
+
+**교훈: 통과 수를 직전 기록과 대조하라.** "passed"만 보면 안 된다 —
+skip 수가 늘어난 것은 커버리지가 조용히 사라진 것이다.
+CLAUDE.md의 "테스트 통과는 증거가 아니다"가 정확히 이 얘기다.
+남은 skip 1건(`test_pending_workflows_have_no_schedule`)은 `PENDING_P11`이 비어서 나는
+의도된 것이라 **정상 기준선이 `403 passed, 1 skipped`**다.
+
+## T54. **`git grep`은 옵션 위치가 틀리면 fatal로 죽고, 파이프 뒤에서는 0으로 보인다** `[HD 2026-08-17 실측]`
+
+public repo 전환 전에 "스테이징된 내용에 실제 API 키가 들어 있는가"를 이렇게 검사했다:
+
+```bash
+git grep -c -F -- "$val" --cached | wc -l     # ← 항상 0
+```
+
+`fatal: option '--cached' must come before non-option arguments`로 죽는데
+stderr는 화면 밖으로 흘러가고 `wc -l`은 **0**을 준다. 즉 **키가 실제로 새고 있어도
+"누출 0건"이 나온다.** 시크릿 검사기가 조용히 무력화되는 최악의 형태다.
+
+```bash
+git grep -l -F --cached -- "$val"             # ← 올바른 형태
+```
+
+**교훈: 검사기는 반드시 "반드시 걸려야 하는 입력"으로 자기 자신을 먼저 검증하라.**
+여기서는 `OPENDART_API_KEY`(코드에 확실히 있는 문자열)로 스캐너를 쏴서
+**15개 파일 매칭**을 확인한 뒤에야 "누출 0건"을 믿었다.
+0을 돌려주는 검사기는 "안전하다"와 "검사가 안 됐다"를 구분해 주지 않는다 —
+T51(RLS 빈 배열)·T49(미측정을 0으로)와 **완전히 같은 실패 모양**이다.
