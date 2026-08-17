@@ -4,6 +4,7 @@
 //   갈라지고, 어느 쪽이 실제로 쓰이는지 아무도 모르게 된다.
 //   `src/config/constants.py`가 유일한 출처이고 이 화면은 그걸 비춰 보일 뿐이다.
 import { headers } from "next/headers";
+import { Glossary } from "@/components/Term";
 import constants from "@/lib/constants.json";
 import { selectAll } from "@/lib/supabase";
 import type { CostSummary } from "@/app/api/cost/route";
@@ -240,6 +241,33 @@ export default async function SettingsPage() {
               hint={`하루 최대 ${constants.notify.daily_max}건`}
             />
           </div>
+        </div>
+      </Card>
+
+      {/* ★ 용어집 — 화면 곳곳의 툴팁과 **같은 출처**(`lib/glossary.ts`)를 쓴다.
+          설명을 화면마다 따로 쓰면 조용히 어긋난다. */}
+      <Card
+        title="용어"
+        note="이 시스템이 쓰는 낱말이 각각 무엇을 재는지. 표 머리글에 마우스를 올려도 같은 설명이 뜬다."
+      >
+        <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-300">
+          <strong className="text-slate-100">실적 가속</strong> — 매출액 성장률과 영업이익
+          성장률이 <strong>둘 다</strong> 전년 동기 대비(YoY)로{" "}
+          <strong>전분기보다 높아진</strong> 것.
+          <div className="mt-2 font-mono text-xs leading-relaxed text-slate-400">
+            G1 매출{"   "}revenue_yoy(t) &gt; revenue_yoy(t−1){"  "}AND{"  "}revenue_yoy(t) &gt; 0
+            <br />
+            G2 영업익 op_yoy(t){"     "}&gt; op_yoy(t−1){"      "}AND{"  "}op_yoy(t){"     "}&gt; 0
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            전년 적자에서 당기 흑자로 돌아선 &lsquo;흑전&rsquo;은 성장률(%)을 계산할 수 없지만
+            가속의 가장 강한 형태이므로 G2 통과로 인정한다. 전분기 성장률을 모르면 탈락이
+            아니라 <strong>판정 불가</strong>다 — 결측을 탈락으로 뭉개면 데이터가 덜 모인
+            소형주가 통째로 사라지는데, 이 시스템의 발굴 대상이 정확히 그 구간이다.
+          </p>
+        </div>
+        <div className="mt-4">
+          <Glossary />
         </div>
       </Card>
     </div>

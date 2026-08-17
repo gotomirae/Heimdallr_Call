@@ -44,6 +44,7 @@ jobs:
       - name: 진입점 임포트 확인
         run: |
           for m in universe.build collectors.replay collectors.price_run \
+                   collectors.quarter_prices \
                    finance.enrich finance.backfill screener.run \
                    notify.batch notify.run notify.listen; do
             python -c "import src.$m" || exit 1

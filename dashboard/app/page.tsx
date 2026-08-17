@@ -1,19 +1,36 @@
-// PRD Ref: §9 — 발굴 목록 (등급·스코어·반영도)
+// PRD Ref: §9 — 발굴 목록 (섹터·종목명·등급·분기·스코어·반영도·시총·최근 5일 상승률)
 import Link from "next/link";
 import { GradeBadge } from "@/components/Badges";
+import { Term, TermTh } from "@/components/Term";
 import { DASH, marketCap, num, pct, quarterLabel } from "@/lib/format";
-import { getLatestScreens, getUniverse } from "@/lib/queries";
+import { getAllLatestPrices, getLatestScreens, getUniverse } from "@/lib/queries";
 import type { Grade } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 const GRADE_ORDER: Grade[] = ["★", "○", "△", "·", "✕"];
 
+/** 정렬용 순위. 등급이 없는 행(반영도 미측정)은 **맨 뒤**로 보낸다. */
+const GRADE_RANK = new Map<Grade, number>(GRADE_ORDER.map((g, i) => [g, i]));
+function gradeRank(grade: Grade | null): number {
+  return grade == null ? GRADE_ORDER.length : (GRADE_RANK.get(grade) ?? GRADE_ORDER.length);
+}
+
+/** 최근 5일 상승률은 부호에 따라 색을 바꾼다 — 표에서 눈이 먼저 가야 하는 열이다. */
+function returnClass(value: number | null | undefined): string {
+  if (value == null) return "text-slate-600";
+  if (value > 0) return "text-rose-400";
+  if (value < 0) return "text-sky-400";
+  return "text-slate-400";
+}
+
 export default async function HomePage() {
-  const [{ rows, dropped }, universe] = await Promise.all([
+  const [{ rows, dropped }, universe, priceResult] = await Promise.all([
     getLatestScreens(),
     getUniverse(),
+    getAllLatestPrices(),
   ]);
+  const prices = priceResult.prices;
 
   const graded = rows.filter((r) => r.grade != null);
   const counts = new Map<Grade, number>();
@@ -21,15 +38,19 @@ export default async function HomePage() {
     counts.set(r.grade as Grade, (counts.get(r.grade as Grade) ?? 0) + 1);
   }
 
-  // ★ 게이트를 통과한 종목 전부를 스코어 순으로 보여준다.
-  //   ★/○만 보여주면 80종목뿐이라 "그 아래는 뭐가 있나"를 볼 수 없다.
+  // ★ 게이트를 통과한 종목 전부를 **등급 높은 순**으로 보여준다(사용자 지정).
+  //   같은 등급 안에서는 스코어가 높은 순이다 — 등급만으로는 ★ 27종목의
+  //   순서가 정해지지 않아 매번 다른 차례로 보이면 읽는 사람이 기준을 잃는다.
   //   탈락 종목은 애초에 조회에서 빠진다(`getLatestScreens`).
-  const listed = [...rows].sort(
-    (a, b) => (b.score_flash ?? 0) - (a.score_flash ?? 0)
-  );
-  const notifyCount = graded.filter(
-    (r) => r.grade === "★" || r.grade === "○"
-  ).length;
+  const listed = [...rows].sort((a, b) => {
+    const byGrade = gradeRank(a.grade) - gradeRank(b.grade);
+    if (byGrade !== 0) return byGrade;
+    return (b.score_flash ?? -1) - (a.score_flash ?? -1);
+  });
+  const notifyCount = graded.filter((r) => r.grade === "★" || r.grade === "○").length;
+
+  const ret5dMissing = priceResult.dropped.includes("ret_5d");
+  const ret5dMeasured = listed.filter((r) => prices.get(r.code)?.ret_5d != null).length;
 
   return (
     <div className="space-y-5">
@@ -38,16 +59,39 @@ export default async function HomePage() {
         <p className="mt-1 text-sm text-slate-400">
           {rows.length.toLocaleString("ko-KR")}종목 · 발송 대상(★/○) {notifyCount}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
-          매출 성장률이 <strong>전분기보다 높아진</strong> 종목만 담는다 —
-          게이트에서 탈락한 종목은 이 목록에 없다.
-          종목별 <strong>최신 발표 분기</strong> 기준이다.
-        </p>
+        {/* ★ 정의를 목록 맨 위에 박아 둔다. "왜 이 종목들이 여기 있나"의 답이다. */}
+        <div className="mt-2 rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+          <strong className="text-slate-200">실적 가속</strong>이란{" "}
+          <Term term="매출액">매출액 성장률</Term>과{" "}
+          <Term term="영업이익">영업이익 성장률</Term>이{" "}
+          <strong className="text-slate-200">둘 다 전년 동기 대비(YoY)로 전분기보다 높아진</strong>{" "}
+          것이다. 성장률이 <em>높은</em> 게 아니라 성장률이 <em>더 높아진</em> 것을 본다 —
+          매출 +30%도 전분기가 +50%였다면 가속이 아니다.
+          <span className="mt-1 block text-slate-500">
+            이 목록에는 <Term term="게이트">게이트</Term>를 통과한 종목만 있다. 탈락·판정 불가
+            종목은 <Link href="/screener" className="text-sky-500 hover:underline">스크리너</Link>에서
+            탈락 사유와 함께 볼 수 있고, 용어 설명은{" "}
+            <Link href="/settings" className="text-sky-500 hover:underline">설정</Link> 화면에 모아 두었다.
+            종목별 <strong>최신 발표 분기</strong> 기준이다.
+          </span>
+        </div>
       </div>
 
       {dropped.length > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">
           ⚠ 아직 DB에 없는 컬럼을 제외하고 조회했다: {dropped.join(", ")}
+        </p>
+      )}
+      {ret5dMissing && (
+        <p className="rounded border border-amber-800/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">
+          ⚠ <code>price_snapshots.ret_5d</code> 컬럼이 아직 없다 — 최근 5일 상승률 열이 전부
+          비어 있다. 마이그레이션 적용 후 다음 시세 수집(매일 06:00 KST)에서 채워진다.
+          <strong className="ml-1">0%가 아니라 미수집이다.</strong>
+        </p>
+      )}
+      {!ret5dMissing && ret5dMeasured === 0 && listed.length > 0 && (
+        <p className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+          최근 5일 상승률이 아직 한 종목도 수집되지 않았다 — 다음 시세 수집에서 채워진다.
         </p>
       )}
 
@@ -56,6 +100,15 @@ export default async function HomePage() {
           <div
             key={g}
             className="rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm"
+            title={`${g} — ${
+              {
+                "★": "고스코어 · 미반영",
+                "○": "고스코어 · 부분반영",
+                "△": "고스코어 · 선반영",
+                "·": "중간",
+                "✕": "저스코어 · 선반영",
+              }[g]
+            }`}
           >
             <span className="mr-2 font-semibold">{g}</span>
             <span className="text-slate-400">{counts.get(g) ?? 0}</span>
@@ -71,56 +124,61 @@ export default async function HomePage() {
         )}
       </div>
 
+      {/* ★ 헤더 고정 — 아래로 스크롤해도 어느 열인지 잃지 않는다(사용자 지정).
+          `overflow-x-auto`만 있는 컨테이너에서는 sticky가 먹지 않으므로
+          세로 스크롤은 페이지에 맡기고 `sticky top-0`을 thead에 준다. */}
       <div className="overflow-x-auto rounded-lg border border-slate-800">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase text-slate-500">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400 shadow-[0_1px_0_0_rgba(148,163,184,0.25)]">
             <tr>
-              <th className="px-3 py-2 text-left">등급</th>
-              <th className="px-3 py-2 text-left">종목</th>
-              <th className="px-3 py-2 text-left">분기</th>
-              <th className="px-3 py-2 text-right">스코어</th>
-              <th className="px-3 py-2 text-right">반영도</th>
-              <th className="px-3 py-2 text-right">시총</th>
-              <th className="px-3 py-2 text-left">경고</th>
+              <TermTh term="섹터">섹터</TermTh>
+              <TermTh term="">종목명</TermTh>
+              <TermTh term="등급" align="center">등급</TermTh>
+              <TermTh term="분기">분기</TermTh>
+              <TermTh term="스코어" align="right">스코어</TermTh>
+              <TermTh term="반영도" align="right">반영도</TermTh>
+              <TermTh term="시총" align="right">시총</TermTh>
+              <TermTh term="최근5일상승률" align="right">최근 5일</TermTh>
             </tr>
           </thead>
           <tbody>
             {listed.map((r) => {
               const stock = universe.get(r.code);
+              const ret5d = prices.get(r.code)?.ret_5d ?? null;
               return (
                 <tr key={r.code} className="border-t border-slate-800/60 hover:bg-slate-900/40">
-                  <td className="px-3 py-2">
-                    <GradeBadge grade={r.grade} />
+                  <td
+                    className="max-w-[13rem] truncate px-3 py-2 text-xs text-slate-500"
+                    title={stock?.industry ?? undefined}
+                  >
+                    {stock?.industry ?? DASH}
                   </td>
                   <td className="px-3 py-2">
                     <Link href={`/stock/${r.code}`} className="text-sky-400 hover:underline">
                       {stock?.name ?? r.code}
                     </Link>
-                    <span className="ml-2 text-xs text-slate-500">{r.code}</span>
+                    <span className="ml-2 text-xs text-slate-600">{r.code}</span>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <GradeBadge grade={r.grade} />
                   </td>
                   <td className="px-3 py-2 text-slate-400">
                     {quarterLabel(r.fiscal_year, r.fiscal_quarter)}
                   </td>
-                  <td className="px-3 py-2 text-right">{num(r.score_flash, 1)}</td>
-                  <td className="px-3 py-2 text-right">{num(r.pri, 1)}</td>
-                  <td className="px-3 py-2 text-right text-slate-400">
+                  <td className="px-3 py-2 text-right tabular-nums">{num(r.score_flash, 1)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{num(r.pri, 1)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                     {marketCap(stock?.market_cap_krw)}
                   </td>
-                  <td className="px-3 py-2 text-xs text-slate-500">
-                    {[
-                      r.base_effect_warning ? "기저효과" : null,
-                      !r.has_consensus ? "컨센없음" : null,
-                      stock?.sector_caveat ? "업종주의" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || DASH}
+                  <td className={`px-3 py-2 text-right tabular-nums ${returnClass(ret5d)}`}>
+                    {pct(ret5d, 1)}
                   </td>
                 </tr>
               );
             })}
             {listed.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
                   실적이 가속 중인 종목이 없다.
                 </td>
               </tr>
@@ -128,6 +186,12 @@ export default async function HomePage() {
           </tbody>
         </table>
       </div>
+
+      <p className="text-xs text-slate-500">
+        등급이 높은 순으로 정렬했고, 같은 등급 안에서는 스코어가 높은 순이다.
+        결측은 <span className="text-slate-400">—</span>로 표시한다 — 0이 아니라 측정하지
+        못했다는 뜻이다.
+      </p>
     </div>
   );
 }

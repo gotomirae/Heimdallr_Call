@@ -125,6 +125,17 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   PRIMARY KEY (code, snap_date)
 );
 
+-- 분기말 종가 — 상세화면의 9분기 차트에 주가를 겹쳐 그리는 데 쓴다.
+-- ★ price_snapshots는 '오늘의 스냅샷'이라 과거를 알 수 없다(실측 2일치뿐).
+--   분기별 주가는 별도로 채워야 한다 — 네이버 일봉 1콜로 2.5년치가 온다.
+CREATE TABLE IF NOT EXISTS quarter_prices (
+  code TEXT NOT NULL, fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
+  close NUMERIC,                            -- 그 분기 **마지막 거래일** 종가
+  trade_date DATE,                          -- 실제로 어느 날 종가인지 (휴장일 보정 확인용)
+  refreshed_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (code, fiscal_year, fiscal_quarter)
+);
+
 CREATE TABLE IF NOT EXISTS index_snapshots (   -- 상대수익률 계산용
   index_name TEXT NOT NULL,                    -- 'KOSPI' | 'KOSDAQ'
   snap_date DATE NOT NULL, close NUMERIC,
@@ -220,6 +231,7 @@ ALTER TABLE quarterly_fundamentals  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE consensus_snapshots     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE earnings_disclosures    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_snapshots         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quarter_prices          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE index_snapshots         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE screen_results          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analyses                ENABLE ROW LEVEL SECURITY;
@@ -245,6 +257,10 @@ CREATE POLICY anon_select_earnings_disclosures ON earnings_disclosures
 
 DROP POLICY IF EXISTS anon_select_price_snapshots ON price_snapshots;
 CREATE POLICY anon_select_price_snapshots ON price_snapshots
+  FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS anon_select_quarter_prices ON quarter_prices;
+CREATE POLICY anon_select_quarter_prices ON quarter_prices
   FOR SELECT TO anon USING (true);
 
 DROP POLICY IF EXISTS anon_select_index_snapshots ON index_snapshots;
@@ -276,3 +292,6 @@ CREATE POLICY anon_select_notifications ON notifications
 -- 예)
 -- ALTER TABLE quarterly_fundamentals ADD COLUMN IF NOT EXISTS new_col NUMERIC;
 -- ═══════════════════════════════════════════════════════════════════
+
+-- 2026-08-17 — 발굴 목록의 '최근 5일 주가 상승률' 열
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS ret_5d NUMERIC;

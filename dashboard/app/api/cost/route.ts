@@ -9,6 +9,7 @@
 //    service_role 키는 RLS를 우회하며, 이 키는 서버에서만 존재한다
 //    (`NEXT_PUBLIC_` 접두사가 없으므로 브라우저 번들에 들어가지 않는다).
 import { createClient } from "@supabase/supabase-js";
+import { NO_STORE_OPTIONS } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,9 @@ export async function GET() {
   }
 
   try {
-    const admin = createClient(url, serviceKey);
+    // ★ NO_STORE_OPTIONS 필수 — 없으면 Next가 응답을 디스크에 캐시해 며칠 전
+    //   비용을 계속 보여준다(T59). 라우트에 force-dynamic이 있어도 막히지 않는다.
+    const admin = createClient(url, serviceKey, NO_STORE_OPTIONS);
     const { data, error } = await admin
       .from("cost_log")
       .select("cost_usd,env,created_at")

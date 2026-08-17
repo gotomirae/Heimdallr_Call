@@ -3,8 +3,10 @@ import { selectAll, selectWithOptionalColumns, supabase } from "./supabase";
 import { qIndex } from "./format";
 import type {
   ConsensusRow,
+  DisclosureRow,
   FundamentalRow,
   PriceRow,
+  QuarterPriceRow,
   ScreenRow,
   UniverseRow,
 } from "./types";
@@ -30,9 +32,13 @@ const FUND_COLUMNS = [
   "ttm_revenue", "ttm_opm", "ttm_opm_delta", "is_estimate", "source",
 ];
 
-const PRICE_COLUMNS =
-  "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,rel_ret_3m," +
-  "market_cap_krw,per,pbr,per_pctile_3y,avg_value_20d";
+// ★ 배열로 둔다 — `ret_5d`는 마이그레이션 전까지 DB에 없어서 통째 조회가 42703으로
+//   죽는다. `selectWithOptionalColumns`가 없는 컬럼을 걷어내려면 배열이어야 한다(T18).
+const PRICE_COLUMNS = [
+  "code", "snap_date", "close", "chg_pct", "high_52w", "low_52w", "pos_52w",
+  "rel_ret_3m", "ret_5d",
+  "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
+];
 
 /**
  * ★ `screen_results`는 분기 이력이 쌓이는 테이블이다(T40).
@@ -124,24 +130,104 @@ export async function getFundamentals(code: string): Promise<FundamentalRow[]> {
 }
 
 export async function getLatestPrice(code: string): Promise<PriceRow | null> {
-  const { data, error } = await supabase
-    .from("price_snapshots")
-    .select(PRICE_COLUMNS)
-    .eq("code", code)
-    .order("snap_date", { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  return ((data as unknown as PriceRow[]) ?? [])[0] ?? null;
+  const { rows } = await selectWithOptionalColumns<PriceRow>(
+    "price_snapshots",
+    PRICE_COLUMNS,
+    (q, cols) =>
+      q.select(cols).eq("code", code).order("snap_date", { ascending: false }).limit(1)
+  );
+  return rows[0] ?? null;
 }
 
-export async function getAllLatestPrices(): Promise<Map<string, PriceRow>> {
-  const rows = await selectAll<PriceRow>("price_snapshots", PRICE_COLUMNS);
+export async function getAllLatestPrices(): Promise<{
+  prices: Map<string, PriceRow>;
+  dropped: string[];
+}> {
+  const { rows, dropped } = await selectWithOptionalColumns<PriceRow>(
+    "price_snapshots",
+    PRICE_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  // range(0,4999)로도 PostgREST는 1,000행씩만 줄 수 있다 — 잘리면 페이징으로 보강한다(T7).
+  const all =
+    rows.length >= 1000
+      ? await selectAll<PriceRow>(
+          "price_snapshots",
+          PRICE_COLUMNS.filter((c) => !dropped.includes(c)).join(",")
+        )
+      : rows;
   const latest = new Map<string, PriceRow>();
-  for (const row of rows) {
+  for (const row of all) {
     const prev = latest.get(row.code);
     if (!prev || row.snap_date > prev.snap_date) latest.set(row.code, row);
   }
-  return latest;
+  return { prices: latest, dropped };
+}
+
+/**
+ * 분기말 종가 — 9분기 차트의 주가 라인.
+ *
+ * ★ 테이블 자체가 아직 없을 수 있다(마이그레이션 전). 그때는 **빈 맵**을 준다 —
+ *   페이지 전체를 500으로 죽이지 않고 주가 라인만 빠지게 한다.
+ *   키는 `qIndex`다. 연도 경계를 넘는 비교를 문자열로 하면 조용히 틀린다.
+ */
+export async function getQuarterPrices(code: string): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  try {
+    const { data, error } = await supabase
+      .from("quarter_prices")
+      .select("code,fiscal_year,fiscal_quarter,close,trade_date")
+      .eq("code", code);
+    if (error) return out;
+    for (const row of (data as unknown as QuarterPriceRow[]) ?? []) {
+      if (row.close != null) {
+        out.set(qIndex(row.fiscal_year, row.fiscal_quarter), Number(row.close));
+      }
+    }
+  } catch {
+    return out;
+  }
+  return out;
+}
+
+/**
+ * 그 종목의 DART 공시 — **최신순**. 첫 행이 '공시 원문' 링크가 된다.
+ *
+ * ★ 접수번호가 없으면 링크를 만들지 않는다. 회사명으로 DART 검색 URL을 조립하면
+ *   200이 뜨지만 검색이 실행되지 않아 **빈 화면**이 나온다(T58).
+ */
+export async function getDisclosures(
+  code: string,
+  limit = 5
+): Promise<DisclosureRow[]> {
+  const { data, error } = await supabase
+    .from("earnings_disclosures")
+    .select("rcept_no,code,report_nm,doc_type,fiscal_year,fiscal_quarter,disclosed_at")
+    .eq("code", code)
+    .order("disclosed_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return (data as unknown as DisclosureRow[]) ?? [];
+}
+
+/**
+ * 연간 컨센서스(`fiscal_quarter = 0`) — 선행 PER의 재료다.
+ * 분기 컨센은 한 분기뿐이라 '향후 4분기'를 만들 수 없다.
+ */
+export async function getAnnualConsensus(
+  code: string,
+  fromYear: number
+): Promise<ConsensusRow | null> {
+  const { data, error } = await supabase
+    .from("consensus_snapshots")
+    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est")
+    .eq("code", code)
+    .eq("fiscal_quarter", 0)
+    .gte("fiscal_year", fromYear)
+    .order("fiscal_year", { ascending: true })
+    .limit(1);
+  if (error) return null;
+  return ((data as unknown as ConsensusRow[]) ?? [])[0] ?? null;
 }
 
 export async function getConsensus(

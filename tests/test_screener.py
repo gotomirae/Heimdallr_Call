@@ -33,7 +33,8 @@ def _healthy_gate(**overrides) -> GateInput:
         revenue_t=1200.0, revenue_t1=1000.0, revenue_t4=900.0,
         op_t=200.0, op_t1=150.0, op_t4=100.0,
         revenue_yoy_t=33.3, revenue_yoy_t1=11.1,
-        op_yoy_t=100.0,
+        # 영업이익 YoY도 가속해야 통과한다 (50.0 → 100.0)
+        op_yoy_t=100.0, op_yoy_t1=50.0,
         revenue_last4=(1000.0, 950.0, 920.0, 900.0),
     )
     base.update(overrides)
@@ -94,6 +95,44 @@ def test_gate_turnaround_counts_as_g2_pass():
     r = evaluate_gate(_healthy_gate(op_t=200.0, op_yoy_t=None, op_status_label="흑전"))
     assert r.g2 is True
     assert r.turnaround is True
+
+
+def test_gate_op_growth_must_accelerate():
+    """★ 실적 가속의 정의 — 영업이익도 **가속**해야 한다.
+
+    영업이익이 흑자이고 +30% 성장 중이어도, 전분기가 +80%였다면 이익 성장은
+    둔화되고 있는 것이다. 매출(G1)과 같은 잣대를 영업이익에도 적용한다.
+    """
+    r = evaluate_gate(_healthy_gate(op_yoy_t=30.0, op_yoy_t1=80.0))
+    assert r.g2 is False
+    assert r.passed is False
+
+
+def test_gate_op_accelerating_but_negative_fails():
+    """가속해도 영업이익 YoY가 음수면 탈락 — G1과 대칭이다.
+
+    −30% → −10%는 '덜 나빠진 것'이지 성장이 아니다.
+    """
+    r = evaluate_gate(_healthy_gate(op_yoy_t=-10.0, op_yoy_t1=-30.0))
+    assert r.g2 is False
+
+
+def test_gate_op_delta_recorded():
+    """가속폭을 detail에 남긴다 — 화면에서 '얼마나' 가속했는지 보여준다."""
+    r = evaluate_gate(_healthy_gate(op_yoy_t=100.0, op_yoy_t1=50.0))
+    assert r.g2 is True
+    assert r.detail["op_yoy_delta_pp"] == 50.0
+
+
+def test_gate_op_undecidable_when_prev_growth_missing():
+    """★ 전분기 op_yoy가 없으면 **판정 불가(None)**다. 탈락이 아니다.
+
+    전분기가 흑전/적전이면 op_yoy가 애초에 None으로 저장된다(T25).
+    False로 뭉개면 그 종목들이 에러 없이 통째로 사라진다 — 실측 36종목.
+    """
+    r = evaluate_gate(_healthy_gate(op_yoy_t=100.0, op_yoy_t1=None))
+    assert r.g2 is None
+    assert r.passed is None
 
 
 def test_gate_undecidable_when_growth_missing():

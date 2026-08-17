@@ -98,11 +98,33 @@ export interface PriceRow {
   low_52w: number | null;
   pos_52w: number | null;
   rel_ret_3m: number | null;
+  /** 최근 5**거래일** 상승률(%). 수집 전에는 null이다 — 0으로 채우지 않는다. */
+  ret_5d: number | null;
   market_cap_krw: number | null;
   per: number | null;
   pbr: number | null;
   per_pctile_3y: number | null;
   avg_value_20d: number | null;
+}
+
+/** 분기말 종가 — 9분기 차트에 주가를 겹쳐 그린다. **달력 분기** 기준이다. */
+export interface QuarterPriceRow {
+  code: string;
+  fiscal_year: number;
+  fiscal_quarter: number;
+  close: number | null;
+  trade_date: string | null;
+}
+
+/** DART 공시. `rcept_no`가 원문 링크의 유일한 열쇠다. */
+export interface DisclosureRow {
+  rcept_no: string;
+  code: string;
+  report_nm: string | null;
+  doc_type: string | null;
+  fiscal_year: number | null;
+  fiscal_quarter: number | null;
+  disclosed_at: string | null;
 }
 
 export interface ConsensusRow {

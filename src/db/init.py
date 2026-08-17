@@ -7,7 +7,7 @@ schema.sql을 Supabase SQL Editor에 적용한 뒤 실행한다.
 
 확인 항목
   1. SUPABASE_URL의 프로젝트 ref (HermesCall과 다른지 눈으로 대조 — ADR 8)
-  2. 11개 테이블이 전부 존재하는지 (service key)
+  2. EXPECTED_TABLES가 전부 존재하는지 (service key)
   3. anon(publishable) 키로 SELECT가 실제로 되는지 — 추측하지 말 것 (T16)
   4. cost_log가 anon에게 닫혀 있는지
 
@@ -28,6 +28,7 @@ EXPECTED_TABLES = (
     "consensus_snapshots",
     "earnings_disclosures",
     "price_snapshots",
+    "quarter_prices",
     "index_snapshots",
     "screen_results",
     "analyses",

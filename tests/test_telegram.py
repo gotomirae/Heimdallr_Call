@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from src.config.constants import NOTIFY_GRADES
+from src.notify.links import dart_report_url, naver_stock_url
 from src.notify.telegram import (
     ALLOWED_METHODS,
     MAX_MESSAGE_CHARS,
@@ -436,3 +437,68 @@ def test_valuation_states_when_forward_unavailable():
 def test_message_stays_short():
     text = flash_message(_rich_ctx())
     assert len(text) < 900, f"{len(text)}자"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 바깥 링크 — 대시보드 · 네이버 증권 · DART 원문
+# ═══════════════════════════════════════════════════════════════════
+def test_dart_report_url_uses_receipt_number():
+    """DART 원문은 **접수번호**로만 열린다."""
+    url = dart_report_url("20260814003699")
+    assert url == "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699"
+
+
+def test_dart_url_is_none_without_receipt_number():
+    """★ 접수번호가 없으면 링크를 만들지 않는다.
+
+    회사명으로 DART 검색 주소를 조립하면 **200이 뜨고 검색창에 이름까지
+    채워지지만 검색이 실행되지 않아 빈 화면**이 나온다(T58).
+    죽은 링크가 아니라 '살아 있는데 아무것도 없는' 링크라 더 나쁘다.
+    """
+    assert dart_report_url(None) is None
+    assert dart_report_url("") is None
+
+
+def test_naver_url_pc_and_mobile():
+    assert naver_stock_url("005930") == (
+        "https://finance.naver.com/item/main.naver?code=005930"
+    )
+    assert naver_stock_url("005930", mobile=True) == (
+        "https://m.stock.naver.com/domestic/stock/005930/total"
+    )
+
+
+def test_alphanumeric_code_survives_url_building():
+    """★ `0126Z0` 같은 영숫자 종목코드를 버리지 않는다(T6)."""
+    assert "0126Z0" in naver_stock_url("0126Z0")
+
+
+def test_flash_never_links_dart_search_page():
+    """★ 회사명 검색 주소가 다시 기어들어오지 못하게 못 박는다."""
+    text = flash_message(_rich_ctx(dart_url=dart_report_url("20260814003699")))
+    assert "dsab007" not in text
+    assert "textCrpNm" not in text
+    assert "dsaf001/main.do?rcpNo=" in text
+
+
+def test_flash_links_naver_and_dart():
+    text = flash_message(
+        _rich_ctx(
+            naver_url=naver_stock_url("058470", mobile=True),
+            dart_url=dart_report_url("20260814003699"),
+        )
+    )
+    assert "대시보드" in text and "네이버증권" in text and "DART 원문" in text
+
+
+def test_flash_omits_dart_link_when_no_disclosure():
+    """공시를 못 받은 종목은 DART 링크를 아예 걸지 않는다."""
+    text = flash_message(_rich_ctx(naver_url=naver_stock_url("058470"), dart_url=None))
+    assert "네이버증권" in text
+    assert "DART" not in text
+
+
+def test_flash_states_acceleration_definition():
+    """'가속'이 성장률이 아니라 **성장률의 변화**임을 제목이 말해야 한다."""
+    text = flash_message(_rich_ctx())
+    assert "전분기 성장률 →" in text

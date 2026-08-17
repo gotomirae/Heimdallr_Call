@@ -188,6 +188,26 @@ def fetch_daily_closes(
     return out
 
 
+def trailing_return_pct(closes: dict[str, float], sessions: int = 5) -> float | None:
+    """최근 N **거래일** 수익률(%). 발굴 목록의 '최근 5일 주가 상승률'.
+
+    ★ 캘린더 5일이 아니라 **거래일 5일**이다(T49와 같은 이유). 휴장·연휴가 끼면
+      캘린더 기준은 구간이 제멋대로 늘어나는데 숫자는 그럴듯하게 나온다.
+    ★ 거래일이 모자라면 **None**이다. 있는 만큼으로 계산하면 상장 직후 종목이
+      3거래일치를 '5일 상승률'로 표시하게 된다.
+
+    손계산 대조: {d1:100, d2:101, d3:102, d4:103, d5:104, d6:110}
+      → 최근 6개 중 5거래일 전(d1=100) 대비 최신(d6=110) = +10.0%
+    """
+    if len(closes) < sessions + 1:
+        return None
+    ordered = sorted(closes)
+    base, last = closes[ordered[-(sessions + 1)]], closes[ordered[-1]]
+    if base <= 0:
+        return None
+    return (last / base - 1) * 100
+
+
 def fetch_index_closes(index_name: str, begin: str, end: str) -> dict[str, float]:
     """지수 일별 종가. 네이버 `siseJson.naver`는 JS 배열이라 따옴표를 고쳐 파싱한다."""
     resp = http_get(

@@ -12,7 +12,28 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient(url, anonKey);
+/**
+ * ★★ `cache: "no-store"`를 **반드시** 준다 (T59).
+ *
+ * `export const dynamic = "force-dynamic"`는 **페이지 렌더를 매번 다시 할 뿐**,
+ * 그 안에서 supabase-js가 부르는 `fetch`까지 막아 주지는 않는다. Next는 그 응답을
+ * `.next/cache/fetch-cache`에 **디스크로 남기고**, Vercel은 그 캐시를 배포 사이에
+ * 복원한다 — 그래서 화면이 며칠 전 숫자를 계속 보여준다.
+ *
+ * 실측(2026-08-17): 게이트를 고쳐 DB가 발송대상 67이 된 뒤에도
+ *   로컬 `next start`  → 80 (`.next/cache/fetch-cache`에 08-15자 파일 44개)
+ *   배포 사이트        → 80 (`X-Vercel-Cache: MISS`인데도)
+ *   fetch-cache 삭제 후 → 67 ✓
+ * **에러도 경고도 없고 숫자만 틀린다.** HTTP 200에 화면도 멀쩡해서 알아채기 어렵다.
+ */
+export const NO_STORE_OPTIONS = {
+  global: {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, { ...init, cache: "no-store" as RequestCache }),
+  },
+};
+
+export const supabase = createClient(url, anonKey, NO_STORE_OPTIONS);
 
 /** PostgREST가 한 번에 1,000행만 주는 한계(T7)를 넘기 위한 페이지 크기. */
 const PAGE_SIZE = 1000;

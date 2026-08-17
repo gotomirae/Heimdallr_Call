@@ -228,9 +228,26 @@ def flash_message(ctx: dict) -> str:
     ):
         lines += block(ctx)
 
-    if ctx.get("url"):
-        lines += ["", f'🔗 <a href="{ctx["url"]}">대시보드에서 자세히</a>']
+    lines += link_block(ctx)
     return "\n".join(lines)
+
+
+def link_block(ctx: dict) -> list[str]:
+    """바깥으로 나가는 링크 — 대시보드 · 네이버 증권 · DART 원문.
+
+    ★ 한 줄에 모은다. 줄마다 링크를 하나씩 두면 알림이 링크 목록처럼 보인다.
+    ★ DART는 **접수번호가 있을 때만** 건다. 회사명 검색 주소는 200이 뜨고 검색창에
+      이름까지 채워 주지만 **검색을 실행하지 않아 빈 화면**이 나온다(T58) —
+      죽은 링크가 아니라 '살아 있는데 아무것도 없는' 링크라 더 나쁘다.
+    """
+    parts = []
+    if ctx.get("url"):
+        parts.append(f'<a href="{ctx["url"]}">대시보드</a>')
+    if ctx.get("naver_url"):
+        parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
+    if ctx.get("dart_url"):
+        parts.append(f'<a href="{ctx["dart_url"]}">DART 원문</a>')
+    return ["", "🔗 " + " · ".join(parts)] if parts else []
 
 
 def profile_block(ctx: dict) -> list[str]:
@@ -318,7 +335,9 @@ def earnings_block(ctx: dict) -> list[str]:
 
     accel = accel_lines(ctx)
     if accel:
-        out += ["", "⚡ <b>가속</b>"] + accel
+        # ★ 제목에 정의를 박아 둔다. '가속'만 쓰면 '성장률이 높다'로 읽힌다 —
+        #   이 시스템이 보는 건 성장률이 아니라 **성장률의 변화**다.
+        out += ["", "⚡ <b>가속</b> <i>(전분기 성장률 → 이번 분기)</i>"] + accel
 
     cd = ctx.get("confirmed_delta") or {}
     parts = [f"{k} {signed(v)}" for k, v in cd.items() if v is not None]
@@ -334,6 +353,8 @@ def accel_lines(ctx: dict) -> list[str]:
 
     ★ 이 시스템의 게이트가 보는 것이 정확히 이것이다 — 성장률이 아니라
       **성장률의 변화**. 셋을 나란히 놓아야 "이익이 같이 따라오는가"가 보인다.
+    ★ 실적 가속의 정의(2026-08-17): 매출 YoY **와** 영업이익 YoY가 **둘 다** 높아진 것.
+      그래서 이 표의 앞 두 줄이 게이트 G1·G2 그 자체다. OPM은 참고다.
     """
     rows = [
         ("매출", ctx.get("revenue_yoy_prev"), ctx.get("revenue_yoy")),

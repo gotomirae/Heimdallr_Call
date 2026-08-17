@@ -27,6 +27,7 @@ from src.notify.telegram import (
     send_once,
     truncate,
 )
+from src.notify.links import dart_report_url, naver_stock_url
 from src.notify.templates import KIND_DAILY, KIND_FLASH, daily_digest, flash_message
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import optional_env
@@ -315,7 +316,30 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
              for r in (payload.get("risks") or [])), None),
         "url": f"{optional_env('DASHBOARD_BASE_URL', DASHBOARD_URL_DEFAULT)}"
                f"/stock/{code}",
+        # ★ 텔레그램은 폰에서 열린다 — 네이버는 모바일 주소를 준다.
+        "naver_url": naver_stock_url(code, mobile=True),
+        # ★ 접수번호가 없으면 None이다. 회사명 검색 주소를 대신 넣지 않는다(T58).
+        "dart_url": dart_report_url(latest_rcept_no(code)),
     }
+
+
+def latest_rcept_no(code: str) -> str | None:
+    """그 종목의 **가장 최근 공시 접수번호**. 없으면 None.
+
+    ★ 없을 때 회사명으로 DART 검색 주소를 만들면 안 된다 — 200이 뜨고 검색창에
+      이름까지 채워지지만 검색이 실행되지 않아 **빈 화면**이 나온다.
+      실측(2026-08-17): 파라미터가 있는 응답과 없는 응답의 차이가 input의
+      `value=` 24바이트뿐이었다.
+    """
+    rows = [
+        r for r in select_all(
+            "earnings_disclosures", "code,rcept_no,disclosed_at")
+        if r["code"] == code and r.get("rcept_no")
+    ]
+    if not rows:
+        return None
+    rows.sort(key=lambda r: (r.get("disclosed_at") or "", r["rcept_no"]), reverse=True)
+    return rows[0]["rcept_no"]
 
 
 def main() -> int:

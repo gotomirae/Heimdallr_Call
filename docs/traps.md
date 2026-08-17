@@ -1117,6 +1117,18 @@ python -m pytest tests/ -q        # 기준선: 413 passed, 1 skipped
 **passed 수만 보지 말고 skip 수까지 기준선과 대조하라.**
 
 `pyvenv.cfg`의 `home`은 파이썬 본체(`C:\Python314`)를 가리키므로 venv를 새로 만들 필요는 없다.
+(`pyvenv.cfg`의 `command` 줄에는 옛 경로가 남지만 **기록용이라 동작에 영향이 없다** — 고치지 말 것.)
+
+**실제로 발생했다 `[2026-08-17 실측]`** — 폴더를 `Heinmdallr_Call` → `Heimdallr_Call`로 바꾼 뒤:
+
+```
+프로젝트 루트에서:  python -c "import src"  →  OK       ← 여기만 보면 정상으로 보인다
+루트 밖(cd /c)에서: python -c "import src"  →  ModuleNotFoundError: No module named 'src'
+```
+
+**pytest도 통과한다**(`pythonpath = ["."]`). 즉 "테스트 초록"이 이 함정의 증거가 되지 못한다 —
+**검증은 반드시 프로젝트 밖에서 `import src`를 해봐야 한다.** 재설치 후 finder가
+`Heimdallr_Call`로 갱신됐고 루트 밖 import·`413 passed, 1 skipped` 모두 확인했다.
 
 ---
 
@@ -1138,3 +1150,140 @@ def bot_id_of(token: str) -> str:
 
 표시명은 `아이언맨의 Heimdallr`로 변경 완료(실조회 확인). 사용자 눈에 보이는 곳은 통일됐다.
 **다음 세션이 "이름이 왜 다르지"로 다시 시간 쓰지 말 것.**
+
+---
+
+## T58. DART **회사명 검색 URL은 검색을 하지 않는다** `[HD 2026-08-17 실측]`
+
+상세화면의 "DART 공시 원문" 링크가 이렇게 돼 있었다:
+
+```
+https://dart.fss.or.kr/dsab007/main.do?textCrpNm={회사명}
+```
+
+**무엇이 조용히 틀리는가:** 링크는 **200**이고 페이지도 정상이며 검색창에 회사명까지
+채워져 있다. 그런데 **결과가 하나도 안 나온다.** 죽은 링크가 아니라
+"살아 있는데 아무것도 없는" 링크라 오류로 보이지 않는다 — 사용자가 "조회가 안 된다"고
+말해 주기 전까지 아무도 모른다.
+
+실측으로 원인을 확정했다. 파라미터를 준 응답과 안 준 응답을 통째로 diff하면
+**차이가 `<input … value="삼성전자">` 두 줄, 24바이트뿐**이다:
+
+```bash
+$ curl -s ".../dsab007/main.do?textCrpNm=%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90" -o a.html   # 112,035 B
+$ curl -s ".../dsab007/main.do"                                                 -o b.html   # 112,011 B
+$ diff a.html b.html   # → input value= 두 줄만 다르다
+```
+
+페이지의 `$(document).ready`를 읽어 보면 **어디에서도 `search()`를 부르지 않는다.**
+셀렉트 박스만 세팅하고 끝난다. `autoSearch` 파라미터도 먹지 않는다.
+
+→ **공시 원문은 접수번호로만 열린다.** 그리고 우리는 이미 갖고 있다
+(`earnings_disclosures.rcept_no`, 1,558행 / 1,091종목).
+
+```
+https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699
+  → <title>삼성전자/반기보고서/2026.08.14</title>     ✓ 실호출 확인
+```
+
+**접수번호가 없으면 링크를 만들지 않는다.** 회사명 검색 주소를 대신 넣으면 위 함정이
+그대로 되살아난다 — 대신 네이버 공시 목록으로 보내고 그 사실을 밝힌다.
+유니버스 1,322종목 중 231종목이 여기 해당한다.
+
+조립은 `src/notify/links.py`와 `dashboard/lib/links.ts` **두 곳에서만** 한다.
+규칙이 갈라지면 텔레그램과 화면이 서로 다른 곳을 가리키는데 **둘 다 200이라**
+아무도 눈치채지 못한다. `tests/test_workflows.py`가 두 파일의 규칙 일치와
+`dsab007`/`textCrpNm` 재등장을 막는다.
+
+---
+
+## T59. ★★ `force-dynamic`은 **fetch 캐시를 막지 못한다** `[HD 2026-08-17 실측]`
+
+대시보드 전 페이지에 `export const dynamic = "force-dynamic"`이 걸려 있었다.
+그런데도 **화면이 이틀 전 숫자를 보여줬다.**
+
+게이트를 고쳐 DB의 발송 대상이 **67**이 된 직후:
+
+| 경로 | 값 |
+|---|---|
+| DB (service key) | **67** ✓ |
+| DB (anon key, 페이징) | **67** ✓ |
+| node에서 supabase-js로 직접 재현 | **67** ✓ |
+| 로컬 `next start` | **80** ✗ |
+| 배포 사이트 (`X-Vercel-Cache: MISS`) | **80** ✗ |
+
+**무엇이 조용히 틀리는가:** HTTP 200, 화면 정상, 에러 로그 없음, CDN 캐시도 MISS.
+**숫자만 낡는다.** 쿼리 로직을 아무리 들여다봐도 안 나온다 — 재현해 보면 맞기 때문이다.
+
+원인:
+
+```
+$ find .next/cache/fetch-cache -type f | wc -l
+44                    ← 전부 8월 15일자 (이틀 전)
+$ rm -rf .next/cache/fetch-cache && next start
+발송 대상 67          ← 정상
+```
+
+`dynamic = "force-dynamic"`은 **페이지 렌더를 매번 다시 할 뿐**, 그 안에서 supabase-js가
+부르는 `fetch`까지 막아 주지 않는다. Next는 그 응답을 `.next/cache/fetch-cache`에
+**디스크로 남기고**, **Vercel은 그 빌드 캐시를 배포 사이에 복원한다.**
+그래서 배포해도 안 고쳐진다.
+
+→ 클라이언트를 만들 때 fetch를 감싸 캐시를 끈다. **`createClient` 호출 전부에 준다** —
+페이지용 anon 클라이언트만 고치면 `/api/cost`(service_role)와
+`/api/telegram/lookup`(HermesCall이 부른다)이 그대로 낡는다.
+
+```ts
+export const NO_STORE_OPTIONS = {
+  global: {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, { ...init, cache: "no-store" as RequestCache }),
+  },
+};
+export const supabase = createClient(url, anonKey, NO_STORE_OPTIONS);
+```
+
+**검증은 캐시를 지우고 하면 안 된다.** 캐시가 **남아 있는 상태에서** 최신 값이 나와야
+고쳐진 것이다(실측: 캐시 파일 9개가 있는 채로 67 ✓, 새 캐시 파일도 안 늘어남).
+
+`tests/test_workflows.py::test_every_supabase_client_disables_fetch_cache`가
+`NO_STORE_OPTIONS` 없는 `createClient`를 막는다.
+
+---
+
+## T60. 게이트를 좁힐 때 **부호전환 종목이 조용히 사라진다** `[HD 2026-08-17 실측]`
+
+"실적 가속 = 매출 **과** 영업이익 성장률이 둘 다 YoY 가속"으로 G2를 좁혔다.
+단순하게 `op_yoy(t) > op_yoy(t−1)`만 요구하면 이렇게 된다:
+
+```
+현재 통과 343종목
+  ├ 영업이익도 가속        182   → 통과
+  ├ 가속 아님               69   → 탈락 (의도한 것)
+  └ 부호전환이라 op_yoy=None 92   → ??? ★
+       당분기 흑전 53 포함
+```
+
+**무엇이 조용히 틀리는가:** `op_yoy`는 부호가 바뀌는 구간에서 **애초에 None으로 저장된다**
+(T25 — 적자↔흑자 사이에서 %를 만들면 안 되기 때문이다). 그 None을 `False`로 뭉개면
+**흑전 종목 53개가 에러 없이 통째로 탈락한다.** 흑전은 이익 가속의 **가장 강한 형태**인데
+정확히 그것만 사라지는, 최악의 방향으로 틀리는 형태다.
+
+→ 라벨로 판정한다. 그리고 **전분기 성장률을 모르면 탈락이 아니라 판정 불가(None)**다.
+
+```python
+elif data.op_status_label == "흑전":
+    result.g2 = True                       # %는 못 구하지만 이익이 는 건 명백하다
+elif data.op_yoy_t is None or data.op_yoy_t1 is None:
+    result.g2 = None                       # ★ False가 아니다
+else:
+    result.g2 = data.op_yoy_t > data.op_yoy_t1 and data.op_yoy_t > 0
+```
+
+`> 0`을 빼면 **영업이익 −30% → −10%가 '가속'으로 통과한다.** G1(매출)이 이미
+`가속 AND 양(+)` 둘 다 요구하므로 대칭을 맞춘다.
+
+실측 결과: 통과 **343 → 238** · 판정 불가 91 · 흑전 통과 76 · 발송 대상(★/○) 80 → 67.
+
+**게이트를 만질 때는 반드시 "판정 불가로 빠지는 종목이 몇이고 왜인가"를 세어 보라.**
+탈락 수만 보면 정상으로 보인다.

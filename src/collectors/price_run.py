@@ -21,6 +21,7 @@ from src.collectors.kis_prices import (
     fetch_index_closes,
     fetch_quote,
     relative_return_pp,
+    trailing_return_pct,
 )
 from src.db.supabase_client import get_client, select_all
 from src.screener.pri import PriInput, compute_pri
@@ -161,6 +162,7 @@ def save(limit: int | None) -> int:
     started = time.monotonic()
     payload: list[dict] = []
     rel_ok = 0
+    ret5_ok = 0
     saved = 0
     for index, row in enumerate(targets, 1):
         quote = fetch_quote(client, row["code"], stats=stats)
@@ -171,12 +173,17 @@ def save(limit: int | None) -> int:
         #   P6에서는 3종목만 했다 — PRI를 실제로 붙이려면 전 종목이 필요하다.
         rel_return = None
         avg_value_20d = None
+        ret_5d = None
         try:
             closes = fetch_daily_closes(client, row["code"], begin, end)
             index_closes = indexes.get(INDEX_OF_BOARD.get(row["board"], "KOSPI"), {})
             rel_return = relative_return_pp(closes, index_closes)
             if rel_return is not None:
                 rel_ok += 1
+            # ★ 이미 받아 둔 일봉을 재사용한다 — 콜을 늘리지 않는다.
+            ret_5d = trailing_return_pct(closes, 5)
+            if ret_5d is not None:
+                ret5_ok += 1
             avg_value_20d = fetch_avg_value_20d(client, row["code"], begin, end)
         except Exception:
             pass  # 일봉 실패가 시세 스냅샷 전체를 막지 않는다
@@ -187,6 +194,7 @@ def save(limit: int | None) -> int:
             "high_52w": quote.high_52w, "low_52w": quote.low_52w,
             "pos_52w": quote.pos_52w,
             "rel_ret_3m": rel_return,
+            "ret_5d": ret_5d,
             "market_cap_krw": quote.market_cap_krw,
             "per": quote.per, "pbr": quote.pbr,
             # ★ P6에서는 '당일 누적거래대금'을 넣어 과대 추정이었다. 일봉 20일 평균으로 고친다.
@@ -212,6 +220,7 @@ def save(limit: int | None) -> int:
           f"({len(targets) / max(elapsed, 1):.1f}건/초)")
     print(f"  3개월 상대수익률(PRI P1) 측정 {rel_ok}종목 "
           f"— 이게 있어야 PRI 분모가 하한(40)을 넘는다 (T35)")
+    print(f"  최근 5거래일 상승률 측정 {ret5_ok}종목 — 발굴 목록의 마지막 열")
     print(f"  KIS 성공 {stats.kis_ok} · KIS 실패 {stats.kis_failed} "
           f"· 네이버 폴백 성공 {stats.naver_ok} · 전부 실패 {stats.failed}")
     print(f"  오류 종류: {stats.errors or '없음'}")

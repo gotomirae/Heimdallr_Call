@@ -154,7 +154,9 @@ def build_inputs(
         revenue_t=_f(t, "revenue"), revenue_t1=_f(t1, "revenue"), revenue_t4=_f(t4, "revenue"),
         op_t=_f(t, "op"), op_t1=_f(t1, "op"), op_t4=_f(t4, "op"),
         revenue_yoy_t=_f(t, "revenue_yoy"), revenue_yoy_t1=_f(t1, "revenue_yoy"),
-        op_yoy_t=_f(t, "op_yoy"),
+        # ★ op_yoy_t1을 빼먹으면 G2가 **전 종목 None(판정 불가)**이 된다 —
+        #   에러 없이 발굴 결과가 통째로 비는 형태다.
+        op_yoy_t=_f(t, "op_yoy"), op_yoy_t1=_f(t1, "op_yoy"),
         op_status_label=(t or {}).get("op_status_label"),
         rev_2y_t=_f(t, "rev_2y_stack"), rev_2y_t1=_f(t1, "rev_2y_stack"),
         ttm_revenue_t=_f(t, "ttm_revenue"), ttm_revenue_history=ttm_history,

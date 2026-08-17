@@ -14,7 +14,9 @@ from src.collectors.kis_prices import (
     Quote,
     _ratio,
     relative_return_pp,
+    trailing_return_pct,
 )
+from src.collectors.quarter_prices import quarter_end_closes, quarter_of
 from src.config.constants import KIS_ALLOWED_PATHS
 
 
@@ -160,3 +162,81 @@ def test_relative_return_none_without_overlap():
 
 def test_relative_return_none_with_single_day():
     assert relative_return_pp({"20260501": 100.0}, {"20260501": 1000.0}) is None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 최근 5거래일 상승률 — 발굴 목록의 마지막 열
+# ═══════════════════════════════════════════════════════════════════
+def test_trailing_return_counts_sessions_not_calendar_days():
+    """5**거래일** 전과 비교한다. 손계산: 100 → 110 = +10.0%"""
+    closes = {
+        "20260803": 100.0, "20260804": 101.0, "20260805": 102.0,
+        "20260806": 103.0, "20260807": 104.0, "20260810": 110.0,
+    }
+    assert trailing_return_pct(closes, 5) == pytest.approx(10.0)
+
+
+def test_trailing_return_ignores_calendar_gaps():
+    """연휴로 캘린더 간격이 벌어져도 거래일 수만 센다.
+
+    ★ 캘린더 기준이면 이 구간은 '5일'이 아니지만 숫자는 그럴듯하게 나온다 —
+      틀린 걸 알아채지 못하는 종류의 오류다.
+    """
+    closes = {
+        "20260925": 100.0, "20260926": 101.0,   # 추석 연휴로 5일 공백
+        "20261005": 102.0, "20261006": 103.0,
+        "20261007": 104.0, "20261008": 110.0,
+    }
+    assert trailing_return_pct(closes, 5) == pytest.approx(10.0)
+
+
+def test_trailing_return_none_when_not_enough_sessions():
+    """★ 거래일이 모자라면 None이다. 있는 만큼으로 계산하지 않는다 —
+    상장 직후 종목이 3거래일치를 '5일 상승률'로 표시하게 된다."""
+    closes = {f"2026080{i}": 100.0 + i for i in range(1, 6)}  # 5봉 = 4구간
+    assert trailing_return_pct(closes, 5) is None
+
+
+def test_trailing_return_none_when_base_is_zero():
+    closes = {"20260803": 0.0, "20260804": 1.0, "20260805": 1.0,
+              "20260806": 1.0, "20260807": 1.0, "20260810": 1.0}
+    assert trailing_return_pct(closes, 5) is None
+
+
+def test_trailing_return_uses_latest_window_only():
+    """봉이 많아도 **최근** 5거래일만 본다."""
+    closes = {f"202608{d:02d}": v for d, v in
+              [(3, 1.0), (4, 2.0), (5, 3.0), (6, 100.0), (7, 101.0),
+               (10, 102.0), (11, 103.0), (12, 104.0), (13, 110.0)]}
+    # 5거래일 전 = 08-06(100.0) · 최신 = 08-13(110.0) → +10%
+    assert trailing_return_pct(closes, 5) == pytest.approx(10.0)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 분기말 종가 — 9분기 차트의 주가 라인
+# ═══════════════════════════════════════════════════════════════════
+def test_quarter_of_maps_calendar_quarters():
+    assert quarter_of("20260101") == (2026, 1)
+    assert quarter_of("20260331") == (2026, 1)
+    assert quarter_of("20260401") == (2026, 2)
+    assert quarter_of("20261231") == (2026, 4)
+
+
+def test_quarter_end_close_picks_last_trading_day():
+    """분기의 **마지막 거래일**을 고른다. 손계산 대조."""
+    closes = {"20260330": 100.0, "20260331": 110.0, "20260401": 120.0}
+    out = quarter_end_closes(closes)
+    assert out[(2026, 1)] == ("20260331", 110.0)
+    assert out[(2026, 2)] == ("20260401", 120.0)
+
+
+def test_quarter_end_close_when_last_day_is_holiday():
+    """★ 분기 말일이 휴장이면 그 앞 거래일이어야 한다.
+
+    말일 날짜로 직접 찍으면 그 분기 값이 통째로 빈다 — 실측으로
+    2024.4Q는 12/31이 휴장이라 12/30이 마지막 거래일이었다.
+    """
+    closes = {"20241227": 90.0, "20241230": 95.0, "20250102": 99.0}
+    out = quarter_end_closes(closes)
+    assert out[(2024, 4)] == ("20241230", 95.0)
+    assert (2025, 1) in out

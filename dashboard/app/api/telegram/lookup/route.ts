@@ -8,12 +8,16 @@
 // 안 쓰더라도 대시보드 자체 검색에 재사용된다.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { NO_STORE_OPTIONS } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
+// ★ NO_STORE_OPTIONS 필수(T59) — 없으면 조회 결과가 디스크에 캐시돼
+//   HermesCall이 며칠 전 등급을 받아 간다. 에러 없이 값만 낡는다.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  NO_STORE_OPTIONS,
 );
 
 /**

@@ -1,6 +1,14 @@
 # PRD Ref: §4.1 (게이트) · traps.md T12, T14
 """게이트 판정 — **순수 함수. 외부 I/O 금지.**
 
+★ **실적 가속의 정의** (2026-08-17 확정):
+  매출액 성장률(YoY)**과** 영업이익 성장률(YoY)이 **둘 다 가속**한 종목.
+  '가속'은 성장률이 높다는 뜻이 아니라 **성장률이 전분기보다 더 높아졌다**는 뜻이다.
+
+      G1  매출   revenue_yoy(t) > revenue_yoy(t−1)  AND  revenue_yoy(t) > 0
+      G2  영업익  op_yoy(t)      > op_yoy(t−1)       AND  op_yoy(t)      > 0
+                 (단, '흑전'은 %를 못 구할 뿐이므로 통과로 인정한다)
+
 전부 AND. 하나라도 실패하면 알림 대상이 아니다.
 
 ★ `False`와 `None`을 반드시 구분한다.
@@ -28,6 +36,8 @@ class GateInput:
     revenue_yoy_t: float | None = None
     revenue_yoy_t1: float | None = None
     op_yoy_t: float | None = None
+    #: 전분기 영업이익 YoY. **가속 판정에 반드시 필요하다** — 없으면 G2는 None이다.
+    op_yoy_t1: float | None = None
     op_status_label: str | None = None  # 부호 전환 구간이면 op_yoy가 None이다
     # 기저효과 보조 판정 (PRD §4.1)
     rev_2y_t: float | None = None
@@ -98,21 +108,29 @@ def evaluate_gate(data: GateInput) -> GateResult:
     else:
         result.g1 = None
 
-    # ── G2: 영업이익이 흑자이고 성장하는가 ──
+    # ── G2: 영업이익이 흑자이고, 그 YoY 성장률이 **가속**하고 있는가 ──
+    #
+    # ★ 정의(2026-08-17 확정): 실적 가속 = 매출 성장률 **과** 영업이익 성장률이
+    #   **둘 다** YoY로 가속. G1과 대칭으로 `가속 AND 양(+)` 둘 다 요구한다 —
+    #   `> 0`을 빼면 "영업이익 −30% → −10%"가 가속으로 통과한다.
     # ★ 부호 전환 구간에서는 op_yoy가 None이다(T12·T25). 그때는 라벨로 판정한다.
+    #   흑전(전년 적자 → 당기 흑자)은 %를 못 구할 뿐 가속의 가장 강한 형태라 통과시킨다.
+    #   그러지 않으면 실측 92종목(당분기 흑전 53 포함)이 **에러 없이 통째로 사라진다.**
     if data.op_t is None:
         result.g2 = None
     elif data.op_t <= 0:
         result.g2 = False  # 적자는 탈락 — 판정 불가가 아니다
         result.turnaround = data.op_status_label == "적자축소"
     elif data.op_status_label == "흑전":
-        # 전년 적자 → 당기 흑자. %는 못 구하지만 "이익이 늘었다"는 명백하다.
         result.g2 = True
         result.turnaround = True
-    elif data.op_yoy_t is None:
+    elif data.op_yoy_t is None or data.op_yoy_t1 is None:
+        # 전분기 성장률을 모르면 **가속인지 아닌지 알 수 없다.**
+        # False(탈락)로 뭉개면 전분기가 부호전환이었던 종목이 조용히 사라진다.
         result.g2 = None
     else:
-        result.g2 = data.op_yoy_t > 0
+        result.g2 = data.op_yoy_t > data.op_yoy_t1 and data.op_yoy_t > 0
+        result.detail["op_yoy_delta_pp"] = data.op_yoy_t - data.op_yoy_t1
 
     # ── G3: 업종 제외 · 관리종목 · 스팩 · 히스토리 부족 ──
     if data.is_excluded:

@@ -172,3 +172,100 @@ def test_telegram_listen_analyzes_on_schedule():
     assert on.get("workflow_dispatch", {}).get("inputs", {})["analyze"]["default"] is True, (
         "수동 실행 기본값이 켜져 있지 않다 — UI와 cron 동작이 어긋난다"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 대시보드 정합성 — 화면은 CI에서 안 돌아보므로 소스로 검사한다
+# ═══════════════════════════════════════════════════════════════════
+DASHBOARD = Path(__file__).resolve().parents[1] / "dashboard"
+
+
+def _strip_ts_comments(source: str) -> str:
+    """`//` 줄주석과 `/* */` 블록주석을 걷어낸다.
+
+    ★ 문자열 리터럴 안의 `//`(예: `https://…`)를 지우면 안 된다 —
+      URL이 통째로 사라져 검사기가 조용히 무력화된다. 그래서 줄주석은
+      **줄 맨 앞(공백 뒤)에서 시작할 때만** 지운다. 이 저장소의 주석은 전부 그 형태다.
+    """
+    without_block = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+    return "\n".join(
+        line for line in without_block.splitlines() if not line.lstrip().startswith(("//", "*"))
+    )
+
+
+def _dashboard_sources() -> list[Path]:
+    """`node_modules`·`.next`를 제외한 대시보드 소스."""
+    out: list[Path] = []
+    for pattern in ("app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "components/**/*.tsx"):
+        out += [p for p in DASHBOARD.glob(pattern)
+                if "node_modules" not in p.parts and ".next" not in p.parts]
+    return sorted(out)
+
+
+def test_every_supabase_client_disables_fetch_cache():
+    """★★ T59 — `createClient`는 **반드시** `NO_STORE_OPTIONS`를 받아야 한다.
+
+    `export const dynamic = "force-dynamic"`는 페이지 렌더만 매번 다시 할 뿐,
+    supabase-js가 부르는 `fetch`까지 막지 않는다. Next는 그 응답을
+    `.next/cache/fetch-cache`에 디스크로 남기고 Vercel은 배포 사이에 복원한다.
+
+    실측(2026-08-17): 게이트를 고쳐 DB가 발송대상 67이 된 뒤에도
+    로컬·배포 화면이 모두 **80**을 보여줬다. HTTP 200에 화면도 멀쩡하고
+    `X-Vercel-Cache: MISS`였다 — **에러 없이 숫자만 낡는다.**
+    """
+    offenders = []
+    for path in _dashboard_sources():
+        body = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"createClient\((.*?)\);", body, re.S):
+            if "NO_STORE_OPTIONS" not in match.group(1):
+                offenders.append(f"{path.name}: {match.group(1)[:60]}")
+    assert not offenders, (
+        "NO_STORE_OPTIONS 없이 만든 Supabase 클라이언트가 있다 — "
+        "화면이 며칠 전 숫자를 조용히 보여준다(T59):\n" + "\n".join(offenders)
+    )
+
+
+def test_dashboard_never_links_dart_search_page():
+    """★ T58 — 회사명으로 DART를 검색하는 주소는 쓰지 않는다.
+
+    `dsab007/main.do?textCrpNm=…`은 200을 주고 검색창에 이름까지 채워 주지만
+    **검색을 실행하지 않아 빈 화면**이 뜬다. 공시 원문은 접수번호로만 열린다.
+    """
+    # ★ 주석은 걷어낸다 — `links.ts`는 그 주소를 **쓰지 말라고 설명하는** 곳이라
+    #   본문 검사에 그대로 걸린다. 검사기가 자기 문서에 걸려 무력화되면 안 된다.
+    offenders = []
+    for path in _dashboard_sources():
+        code = _strip_ts_comments(path.read_text(encoding="utf-8"))
+        if "textCrpNm" in code or "dsab007" in code:
+            offenders.append(path.name)
+    assert not offenders, f"DART 검색 URL이 되살아났다(T58): {offenders}"
+
+
+def test_dart_search_guard_actually_catches_it():
+    """★ 검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54와 같은 실패 모양).
+
+    주석 제거를 넣으면서 검사기가 통째로 무력화될 수 있다 — 실제로 잡는지 본다.
+    """
+    bad = 'const u = `https://dart.fss.or.kr/dsab007/main.do?textCrpNm=${name}`;'
+    assert "dsab007" in _strip_ts_comments(bad)
+    assert "dsab007" not in _strip_ts_comments("// dsab007 은 쓰지 마라\nconst x = 1;")
+    assert "dsab007" not in _strip_ts_comments("/* dsab007 금지 */\nconst x = 1;")
+
+
+def test_dashboard_and_python_agree_on_external_urls():
+    """★ 링크 규칙이 갈라지면 텔레그램과 화면이 다른 곳을 가리키는데 **둘 다 200**이다."""
+    from src.notify import links
+
+    ts = (DASHBOARD / "lib" / "links.ts").read_text(encoding="utf-8")
+    assert "dsaf001/main.do?rcpNo=" in ts and "dsaf001/main.do?rcpNo=" in links.DART_REPORT
+    assert "finance.naver.com/item/main.naver" in ts
+    assert "finance.naver.com/item/main.naver" in links.NAVER_STOCK
+    assert "m.stock.naver.com/domestic/stock/" in ts
+    assert "m.stock.naver.com/domestic/stock/" in links.NAVER_STOCK_MOBILE
+
+
+def test_quarter_prices_collector_is_wired_into_a_workflow():
+    """수집기를 만들어 놓고 어디서도 안 부르면 차트의 주가 라인이 영영 비어 있다."""
+    called = [p.name for p in YAML_FILES
+              if "collectors.quarter_prices" in _text(p)]
+    assert called, "quarter_prices 수집기를 부르는 워크플로가 없다"
