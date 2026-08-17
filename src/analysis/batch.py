@@ -45,6 +45,7 @@ from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
 from src.db.supabase_client import select_all
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
+from src.utils.env import optional_env
 
 #: 기본 분석 종목 수. **게이트 통과 전부를 담을 만큼 크게** 둔다(B안, 2026-08-17).
 #: 실측: 게이트 통과 238종목 · 분기 비용 $7.51 (캐시히트 $0.0315/건).
@@ -125,6 +126,42 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
     return picked[:top]
 
 
+def write_job_summary(lines: list[str]) -> bool:
+    """GitHub Actions 잡 요약에 진행 상황을 쓴다. 로컬에서는 조용히 건너뛴다.
+
+    ★ 배치는 **DB에만 쓰므로 커밋할 파일이 없다.** 그래서 진행 상황이 남는 곳이
+      워크플로 로그뿐인데, 로그는 90일 뒤 사라지고 찾아 들어가야 보인다.
+      잡 요약은 Actions 화면 첫 페이지에 표로 남는다.
+    """
+    # 환경변수는 반드시 optional_env로 — 값에 개행이 섞여도 벗겨준다.
+    path = optional_env("GITHUB_STEP_SUMMARY")
+    if not path:
+        return False
+    try:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
+        return True
+    except OSError:
+        # 요약을 못 써도 분석은 이미 끝났다 — 여기서 죽으면 안 된다.
+        return False
+
+
+def notify_progress(text: str) -> bool:
+    """텔레그램으로 진행 통지. **매번 보내지 않는다** — 호출부가 조건을 정한다.
+
+    ★ 실패해도 배치를 세우지 않는다. 통지는 부가 기능이고 분석은 이미 저장됐다.
+    ★ 토큰이 없으면(로컬) 조용히 건너뛴다.
+    """
+    try:
+        from src.notify.telegram import PREFIX, TelegramClient
+
+        TelegramClient().send_message(f"{PREFIX}{text}")
+        return True
+    except Exception as exc:
+        print(f"  (텔레그램 통지 실패 — 무시한다: {type(exc).__name__}: {exc})")
+        return False
+
+
 def already_analyzed() -> set[tuple[str, int, int]]:
     return {
         (a["code"], a["fiscal_year"], a["fiscal_quarter"])
@@ -161,6 +198,16 @@ def run(
 
     if not pending:
         print("\n새로 분석할 종목이 없다.")
+        # ★ 요약은 남기되 **텔레그램은 보내지 않는다.** 따라잡기가 끝난 뒤에는
+        #   매일 밤 이 경로로 들어오므로, 보내면 같은 메시지가 매일 온다.
+        #   완료 통지는 **마지막 종목을 실제로 채운 그 실행**에서 한 번만 나간다.
+        write_job_summary([
+            "## LLM 배치 분석",
+            "",
+            f"**{len(picked)}/{len(picked)}종목 (100%) — 따라잡기 완료.** 새로 호출할 대상이 없다.",
+            "",
+            f"누적 비용 ${status.month_spent_usd:.4f} / ${status.month_ceiling_usd}",
+        ])
         return 0
 
     print(f"\n{'#':>4} {'종목':<14}{'분기':<9}{'스코어':>7}{'반영도':>7}  결과")
@@ -233,6 +280,49 @@ def run(
     if stopped_at:
         print(f"  ⚠ 비용 상한에 걸려 중단했다: {stopped_at}")
         print(f"    남은 {skipped}종목은 다음 달 또는 실링 상향 후에 이어서 한다.")
+
+    # ── 진행 리포트 ────────────────────────────────────────────────
+    # ★ 배치는 DB에만 쓰므로 **커밋할 파일이 없다.** 진행 상황이 남는 곳을 따로 만든다.
+    done_now = len(picked) - len(pending) + ok
+    remaining = len(picked) - done_now
+    progress = f"{done_now}/{len(picked)}종목 ({done_now / max(len(picked), 1) * 100:.0f}%)"
+
+    write_job_summary([
+        "## LLM 배치 분석",
+        "",
+        f"| 항목 | 값 |",
+        f"|---|---|",
+        f"| 진행 | **{progress}** |",
+        f"| 이번 실행 | 분석 {ok} · 실패 {failed} · 남김 {skipped} |",
+        f"| 소요 | {elapsed:.0f}초" + (f" ({elapsed / ok:.0f}초/건)" if ok else "") + " |",
+        f"| 누적 비용 | ${final.month_spent_usd:.4f} / ${final.month_ceiling_usd} |",
+        f"| 멈춘 이유 | "
+        + ("시간 예산" if timed_out else "비용 상한" if stopped_at else "대상 소진")
+        + " |",
+        "",
+        "배치는 멱등이라 다음 실행에서 이어서 한다(이미 분석된 건 재호출하지 않는다).",
+    ])
+
+    # ★ 텔레그램은 **매일 보내지 않는다.** 밤마다 같은 진행 메시지가 오면
+    #   알림이 소음이 되고, 정작 중요한 종목 알림을 덮는다.
+    #   보내는 경우: ① 전부 끝났다 ② 비용 상한에 걸렸다 ③ 실패가 많다.
+    if ok and remaining == 0:
+        notify_progress(
+            f"🧠 <b>LLM 배치 완료</b>\n\n"
+            f"게이트 통과 {len(picked)}종목 해석을 전부 채웠다.\n"
+            f"누적 비용 ${final.month_spent_usd:.2f}/${final.month_ceiling_usd}"
+        )
+    elif stopped_at:
+        notify_progress(
+            f"💸 <b>LLM 배치 — 비용 상한</b>\n\n"
+            f"진행 {progress} · 남은 {remaining}종목\n"
+            f"${final.month_spent_usd:.2f}/${final.month_ceiling_usd}에서 멈췄다."
+        )
+    elif failed >= 5:
+        notify_progress(
+            f"⚠️ <b>LLM 배치 — 실패 {failed}건</b>\n\n"
+            f"진행 {progress}. 로그를 확인하라."
+        )
     return 0
 
 

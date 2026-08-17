@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from src.analysis.batch import (
@@ -184,3 +186,92 @@ def test_default_max_seconds_is_set():
     assert DEFAULT_MAX_SECONDS > 0
     # 기본 10분은 disclosure_poll(15분)에도 들어간다.
     assert DEFAULT_MAX_SECONDS <= 15 * 60
+
+
+# ── 진행 리포트 (2026-08-17) ──────────────────────────────────────
+# ★ 배치는 DB에만 쓰므로 커밋할 파일이 없다. 밤마다 도는 따라잡기가 어디까지
+#   갔는지 알 방법이 Actions 로그뿐이었다 → 잡 요약 + (사건일 때만) 텔레그램.
+
+
+def test_job_summary_appends_when_env_set(tmp_path, monkeypatch):
+    from src.analysis.batch import write_job_summary
+
+    path = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(path))
+    assert write_job_summary(["첫 줄", "둘째 줄"]) is True
+    assert write_job_summary(["셋째 줄"]) is True  # append — 덮어쓰지 않는다
+    body = path.read_text(encoding="utf-8")
+    assert "첫 줄" in body and "셋째 줄" in body
+
+
+def test_job_summary_is_silent_without_env(monkeypatch):
+    """로컬 실행에서 요약을 못 쓴다고 배치가 죽으면 안 된다."""
+    from src.analysis.batch import write_job_summary
+
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    assert write_job_summary(["아무거나"]) is False
+
+
+def test_job_summary_survives_bad_path(monkeypatch, tmp_path):
+    """경로가 틀려도 분석은 이미 끝났다 — 예외를 밖으로 내보내지 않는다."""
+    from src.analysis.batch import write_job_summary
+
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "없는폴더" / "s.md"))
+    assert write_job_summary(["x"]) is False
+
+
+def test_notify_progress_never_raises(monkeypatch):
+    """텔레그램이 죽어도 배치 결과(이미 DB에 있다)를 실패로 만들지 않는다."""
+    from src.analysis import batch
+
+    import src.notify.telegram as tg
+
+    def boom(*_a, **_k):
+        raise RuntimeError("텔레그램 다운")
+
+    monkeypatch.setattr(tg, "TelegramClient", boom)
+    assert batch.notify_progress("테스트") is False
+
+
+def test_telegram_notice_is_event_driven_not_daily():
+    """★ 매일 밤 같은 진행 메시지를 보내면 알림이 소음이 되고 종목 알림을 덮는다.
+
+    통지는 **사건일 때만** 나가야 한다: 전부 끝남 / 비용 상한 / 실패 다수.
+    따라잡기가 끝난 뒤 매일 들어오는 `not pending` 경로에는 통지가 없어야 한다.
+    """
+    import ast
+
+    src = Path(__file__).resolve().parents[1] / "src" / "analysis" / "batch.py"
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+    run = next(n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "run")
+
+    # `not pending` 조기 반환 블록 안에 notify_progress가 있으면 매일 발송된다.
+    for node in ast.walk(run):
+        if not (isinstance(node, ast.If) and isinstance(node.test, ast.UnaryOp)
+                and isinstance(node.test.op, ast.Not)):
+            continue
+        if not (isinstance(node.test.operand, ast.Name)
+                and node.test.operand.id == "pending"):
+            continue
+        calls = [c for c in ast.walk(node)
+                 if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
+        names = {c.func.id for c in calls}
+        assert "notify_progress" not in names, (
+            "따라잡기 완료 후 매일 밤 이 경로로 들어온다 — 여기서 보내면 매일 온다"
+        )
+        assert "write_job_summary" in names, "요약은 남겨야 진행 상황이 보인다"
+        break
+    else:
+        raise AssertionError("`if not pending:` 조기 반환을 찾지 못했다")
+
+
+def test_llm_batch_workflow_has_telegram_secrets():
+    """통지를 코드에 넣고 워크플로에 시크릿을 안 주면 **조용히 안 간다**(T51 모양)."""
+    import yaml
+
+    path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "llm_batch.yml"
+    spec = yaml.safe_load(path.read_text(encoding="utf-8"))
+    env = spec["jobs"]["run"]["env"]
+    assert "HEIMDALLR_TELEGRAM_BOT_TOKEN" in env
+    assert "HEIMDALLR_TELEGRAM_CHAT_ID" in env
