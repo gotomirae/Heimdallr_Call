@@ -19,6 +19,8 @@ from datetime import date, timedelta
 
 from src.analysis.outcome import (
     HORIZONS,
+    horizon_column,
+    horizon_label,
     Outcome,
     group_stats,
     measure,
@@ -26,7 +28,11 @@ from src.analysis.outcome import (
 )
 from src.collectors.kis_client import KisClient
 from src.collectors.kis_prices import fetch_daily_closes, fetch_index_closes
-from src.db.supabase_client import get_client, select_all
+from src.db.supabase_client import (
+    get_client,
+    select_all,
+    upsert_tolerating_missing_columns,
+)
 from src.utils.console import enable_utf8_stdout
 
 #: 발표일로부터 이만큼 전후의 일봉을 받는다. D+60을 담으려면 넉넉해야 한다.
@@ -165,12 +171,15 @@ def report(results: list[Outcome], screens: dict) -> None:
             o.horizons[days].reason for o in results
             if days in o.horizons and not o.horizons[days].measured
         )
-        print(f"    D+{days:<3} 측정 {measured:>4}/{len(results)}  미측정 사유 {dict(reasons)}")
+        print(f"    {horizon_label(days):<11} 측정 {measured:>4}/{len(results)}  "
+              f"미측정 사유 {dict(reasons)}")
 
     print("\n[2] 등급별 초과수익 중앙값 (%p)")
     print(f"    {'등급':6}{'대상':>6}{'측정':>6}", end="")
     for days in HORIZONS:
-        print(f"{'D+' + str(days):>10}", end="")
+        # ★ 'D+-5'가 아니라 'D-5'. 부호를 두 번 쓰면 표가 안 읽힌다.
+        head = f"D{days:+d}" if days != 0 else "D0"
+        print(f"{head:>12}", end="")
     print()
     for grade in ("★", "○", "△", "·", "✕", None):
         subset = [r for r in rows if r["grade_at_announce"] == grade]
@@ -179,7 +188,8 @@ def report(results: list[Outcome], screens: dict) -> None:
         label = grade or "판정불가"
         print(f"    {label:6}{len(subset):>6}", end="")
         for days in HORIZONS:
-            values = [r[f"excess_d{days}"] for r in subset if r[f"excess_d{days}"] is not None]
+            field = f"excess_d{horizon_column(days)}"
+            values = [r[field] for r in subset if r[field] is not None]
             # 값과 표본 수를 함께 낸다 — n=1짜리 중앙값을 신호로 읽으면 안 된다.
             cell = f"{statistics.median(values):+.2f}({len(values)})" if values else "—"
             print(f"{cell:>12}", end="")
@@ -191,12 +201,12 @@ def report(results: list[Outcome], screens: dict) -> None:
     #   측정 가능한 시점 **전부**에서 계산하고 어느 시점인지 명시한다 —
     #   D+1 IC를 D+20 IC로 읽으면 완전히 다른 결론이 나온다.
     for days in HORIZONS:
-        excess = [r[f"excess_d{days}"] for r in rows]
+        excess = [r[f"excess_d{horizon_column(days)}"] for r in rows]
         n_measured = sum(1 for v in excess if v is not None)
         if n_measured < 3:
-            print(f"    D+{days}: 측정 {n_measured}건 — 3건 미만이라 계산하지 않는다")
+            print(f"    {horizon_label(days)}: 측정 {n_measured}건 — 3건 미만이라 계산하지 않는다")
             continue
-        print(f"    D+{days} (측정 {n_measured}건):")
+        print(f"    {horizon_label(days)} (측정 {n_measured}건):")
         for axis, items in (
             ("A 성장가속", ("raw_a1", "raw_a2", "raw_a3", "raw_a4")),
             ("B 수익성", ("raw_b1", "raw_b2", "raw_b3", "raw_b4")),
@@ -271,10 +281,25 @@ def main() -> int:
     if not results:
         print("대상이 없다 — 발표일과 매칭되는 분기 재무가 없다.")
         return 0
-    report(results, latest_screens())
+
+    # ★★ **저장을 리포트보다 먼저** 한다.
+    #   실측(2026-08-17): 리포트가 KeyError로 죽어 **481건 수집분이 통째로 버려졌다.**
+    #   collect()는 종목당 KIS 일봉을 한 번씩 읽으므로(수 분) 값비싼 작업인데,
+    #   그 뒤에 오는 **출력용 코드**의 버그가 그걸 다 날린다.
+    #   비싼 것을 먼저 확정하고, 리포트는 실패해도 데이터는 남게 한다.
+    saved = 0
     if args.save:
-        return save(results)
-    print("\n(--save 미지정 — DB에 기록하지 않았다)")
+        saved = save(results)
+    else:
+        print("\n(--save 미지정 — DB에 기록하지 않는다)")
+
+    try:
+        report(results, latest_screens())
+    except Exception as exc:
+        # 리포트는 사람이 읽는 요약일 뿐이다. 여기서 죽어도 수집·저장은 이미 끝났다.
+        print(f"\n⚠ 리포트 생성 실패({type(exc).__name__}: {exc}) — "
+              f"수집·저장은 완료됐다{'(저장 ' + str(saved) + '행)' if args.save else ''}.")
+        return 1
     return 0
 
 

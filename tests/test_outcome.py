@@ -267,3 +267,35 @@ def test_db_row_uses_m_prefix_for_negative():
     assert "ret_dm5" in row and "excess_dm5" in row
     assert "ret_d0" in row and "excess_d0" in row
     assert not any("-" in k for k in row), "컬럼명에 '-'가 들어가면 PostgREST가 죽는다"
+
+def test_report_uses_horizon_column_for_db_keys():
+    """★ 리포트가 컬럼명을 손으로 만들면 음수 시점에서 KeyError로 죽는다.
+
+    실측(2026-08-17): `outcome_run`의 리포트가 `f"excess_d{days}"`를 써서
+    `excess_d-5`를 찾다가 KeyError로 죽었다. **수집·저장은 이미 성공한 뒤**라
+    481건이 DB에 들어갔는데도 프로세스가 exit 1이었다 — 부분 성공이 실패로 보인다.
+    컬럼명은 반드시 `horizon_column()`을 거쳐야 한다.
+    """
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "src" / "analysis" / "outcome_run.py").read_text(
+        encoding="utf-8"
+    )
+    code = "\n".join(
+        line for line in src.splitlines() if not line.lstrip().startswith("#")
+    )
+    for bad in ('excess_d{days}', 'ret_d{days}'):
+        assert bad not in code, (
+            f"'{bad}'로 컬럼명을 만들고 있다 — 음수 시점에서 KeyError로 죽는다. "
+            "horizon_column(days)를 써라"
+        )
+    assert "horizon_column" in code, "리포트가 horizon_column을 쓰지 않는다"
+
+
+def test_horizon_column_round_trips_for_every_horizon():
+    """모든 시점이 유효한 컬럼명을 만들어야 한다 — '-'가 들어가면 PostgREST가 죽는다."""
+    for days in HORIZONS:
+        for prefix in ("ret_d", "excess_d"):
+            name = f"{prefix}{horizon_column(days)}"
+            assert "-" not in name and "+" not in name, f"{name}은 컬럼명이 될 수 없다"
+            assert name.replace("_", "").isalnum(), f"{name}에 이상한 문자가 있다"
