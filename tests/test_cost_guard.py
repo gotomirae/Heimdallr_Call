@@ -10,6 +10,8 @@ import pytest
 from src.analysis.analyze import build_user_message, AnalysisInput, validate_payload
 from src.analysis.prompts import ANALYSIS_SCHEMA, SYSTEM_PROMPT
 from src.config.constants import (
+    DAILY_ANALYSIS_LIMIT,
+    MONTHLY_COST_CEILING_USD,
     ANALYSIS_MODEL,
     FALLBACK_MODEL,
     LLM_INPUT_TOKEN_BUDGET,
@@ -106,8 +108,37 @@ def test_schema_is_strict_compatible():
 
 
 def test_max_tokens_matches_prd():
-    assert LLM_MAX_TOKENS == 8192
+    """★ PRD §7.3과 코드가 같아야 한다. 한쪽만 고치면 두 문서가 조용히 어긋난다.
+
+    2026-08-17 개정: 8192 → 12288.
+    실측 78건 중 2건(3%)이 상한에 닿아 잘렸고, 잘린 건은 저장 안 되면서
+    비용은 발생했다($0.0857씩 · 전체의 6%). 출력 중앙값은 2,928토큰이라
+    상한을 올려도 평균 비용은 거의 안 오른다.
+    """
+    assert LLM_MAX_TOKENS == 12288
     assert LLM_INPUT_TOKEN_BUDGET == 5000
+
+
+def test_guardrails_match_prd_document():
+    """★ PRD 본문의 숫자와 상수를 **직접 대조**한다.
+
+    값만 테스트에 박아 두면 PRD가 낡아도 안 걸린다 — 실제로 실링을 $12로 올렸을 때
+    PRD는 8로 남아 있었다.
+    """
+    from pathlib import Path
+    import re
+
+    prd = (Path(__file__).resolve().parents[1] / "docs" / "PRD.md").read_text(encoding="utf-8")
+    for name, value in (
+        ("MONTHLY_COST_CEILING_USD", MONTHLY_COST_CEILING_USD),
+        ("DAILY_ANALYSIS_LIMIT", DAILY_ANALYSIS_LIMIT),
+        ("max_tokens", LLM_MAX_TOKENS),
+    ):
+        m = re.search(rf"^{re.escape(name)}\s*=\s*(\d+)", prd, re.M)
+        assert m, f"PRD에 {name} 줄이 없다"
+        assert int(m.group(1)) == value, (
+            f"PRD {name} = {m.group(1)} vs 코드 {value} — 두 곳이 어긋났다"
+        )
 
 
 # ═══ 저장 전 검증 (T18) ═══
