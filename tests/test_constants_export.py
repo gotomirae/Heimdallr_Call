@@ -71,3 +71,34 @@ def test_matrix_thresholds_are_ordered():
 
 def test_notify_grades_are_star_and_circle():
     assert build()["notify"]["grades"] == ["★", "○"]
+
+
+def test_dashboard_url_default_matches_env_example():
+    """★ 대시보드 기본 URL이 `.env.example`과 어긋나면 안 된다.
+
+    이 값이 틀리면 **에러 없이 텔레그램 링크만 죽는다** — 메시지는 멀쩡하고
+    배포도 성공이라 눌러보기 전까지 아무도 모른다.
+
+    실제로 겪었다: Vercel 프로젝트명을 `heinmdallr`로 알고 두 곳을 고쳤는데
+    배포된 도메인은 `heimdallr-call`이었다(`heinmdallr.vercel.app` → **404**).
+    두 곳을 따로 고치는 구조라 한쪽만 고치면 그대로 어긋난다.
+
+    운영 값은 저장소 변수 `DASHBOARD_BASE_URL`이 덮으므로 이 상수는 fallback이지만,
+    fallback이 틀려 있으면 변수가 빠진 순간 조용히 죽는다.
+    """
+    from pathlib import Path
+
+    from src.config.constants import DASHBOARD_URL_DEFAULT
+
+    env_example = (Path(__file__).resolve().parents[1] / ".env.example").read_text(
+        encoding="utf-8"
+    )
+    declared = [
+        line.split("=", 1)[1].strip()
+        for line in env_example.splitlines()
+        if line.startswith("DASHBOARD_BASE_URL=")
+    ]
+    assert declared, ".env.example에 DASHBOARD_BASE_URL 항목이 없다"
+    assert declared[0] == DASHBOARD_URL_DEFAULT, (
+        f".env.example({declared[0]})과 constants({DASHBOARD_URL_DEFAULT})가 어긋났다"
+    )

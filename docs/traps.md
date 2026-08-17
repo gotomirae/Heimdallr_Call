@@ -1051,3 +1051,39 @@ BATCH 20건 × 분석 30초에서 죽으면 확정이 안 되고 **같은 20건�
 
 **교훈: 플래그를 켜는 변경은 켠 경로와 끈 경로를 둘 다 실행해 확인하라.**
 켠 쪽만 보면 "동작한다"로 보이는데, 정작 되돌릴 수단이 죽어 있다.
+
+## T56. **배포 URL은 프로젝트 이름에서 추론하지 말고 실제로 열어봐라** `[HD 2026-08-17 실측]`
+
+Vercel 프로젝트명이 `heinmdallr`라는 말을 듣고 기본 URL을 `https://heinmdallr.vercel.app`으로
+바꿨다(코드 상수 + `.env.example` + GitHub 저장소 변수 3곳). 그럴듯했다.
+
+실제 배포 도메인은 **`heimdallr-call.vercel.app`**이었다:
+
+```
+https://heinmdallr.vercel.app/       → HTTP 404
+https://heimdallr-call.vercel.app/   → HTTP 200
+```
+
+Vercel URL은 프로젝트 이름과 **항상 같지 않다** — 이름 충돌 시 접미사가 붙고,
+저장소명·팀명에서 파생되기도 하며, 나중에 바꾼 이름이 도메인에 반영되지 않기도 한다.
+
+**무엇이 조용히 틀리는가:** 이 값이 틀려도 아무것도 실패하지 않는다.
+워크플로는 초록, 텔레그램 메시지는 멀쩡, 링크는 정상 형태.
+**누가 폰에서 링크를 눌러보기 전까지** 전 메시지의 링크가 죽어 있다.
+게다가 이 프로젝트는 링크를 fallback 상수 + 저장소 변수 **두 층**으로 두는데,
+둘 다 같은 오답으로 맞춰 놓으면 이중화가 아무 의미가 없다.
+
+→ `curl -o /dev/null -w "%{http_code}"`로 **양쪽을 다 찍어** 확정한 뒤 되돌렸다.
+→ `test_dashboard_url_default_matches_env_example`로 두 선언이 어긋나는 것은 막았다
+   (실제 도메인과의 일치는 테스트가 검증할 수 없다 — 네트워크가 필요하다).
+
+**함께 확인한 배포 점검법** (로그인한 브라우저로는 못 잡는 것들):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" https://<url>/     # 401이면 Deployment Protection
+curl -s https://<url>/api/cost                            # available:false면 서버 키 누락
+```
+
+배포자 브라우저는 Vercel에 로그인돼 있어 보호가 켜져 있어도 **그냥 열린다.**
+`available:false`와 `spentUsd:0`도 화면에서는 둘 다 "0"처럼 보인다(T51).
+**미인증 요청으로 확인하라 — 그게 폰과 같은 조건이다.**

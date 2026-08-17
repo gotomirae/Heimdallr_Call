@@ -305,3 +305,65 @@ cost_log:   월 $0.0643 → $0.0991
 따라서 배포는 **브라우저 로그인** 또는 **사용자가 발급한 Vercel 토큰** 중 하나가 필요하다.
 토큰이 있으면 CLI로 프로젝트 생성·Root Directory 지정·환경변수 4개 주입·프로덕션 배포까지
 전부 무인으로 가능하다(`dashboard/.env.local`에 필요한 4개가 모두 있는 것을 확인).
+
+---
+
+# 후속 3 — Vercel 배포 검증 (사용자가 배포, 내가 검증)
+
+배포 URL: **https://heimdallr-call.vercel.app**
+
+## 미인증 요청으로 확인했다
+
+배포자 브라우저는 Vercel에 로그인돼 있어 **Deployment Protection이 켜져 있어도 그냥 열린다.**
+폰에서만 로그인 벽이 뜬다 — 그래서 로그인하지 않은 상태로 찍었다.
+
+```
+GET /                → 200
+GET /matrix          → 200
+GET /stock/452280    → 200          ← 보호 없음 확정
+GET /api/cost        → {"available":true,"spentUsd":0.0991204,"monthCalls":3,"totalCalls":3}
+```
+
+`available:true`이므로 Vercel의 `SUPABASE_SERVICE_KEY`가 정상이다.
+숫자도 DB와 **정확히 일치**한다(`$0.0991` — 방금 LLM 검증 1건 포함).
+
+화면이 껍데기가 아닌지도 봤다 — 200만으로는 빈 페이지와 구분이 안 된다:
+
+```
+/            729,564 bytes
+/matrix       55,164 bytes
+/settings    $0.0991 렌더 확인
+/stock/452280  "한선엔지니어링" 렌더 확인   ← 직전에 LLM 분석한 종목
+```
+
+## ★ T56 — URL을 이름에서 추론한 것이 틀렸다
+
+Vercel 프로젝트명이 `heinmdallr`라고 들어 기본 URL을 3곳(상수·`.env.example`·저장소 변수)
+전부 그 값으로 바꿨는데, **실제 도메인은 `heimdallr-call`이었다.**
+
+```
+https://heinmdallr.vercel.app/      → 404
+https://heimdallr-call.vercel.app/  → 200
+```
+
+그대로 뒀으면 텔레그램 전 메시지의 링크가 죽었을 것이고, **아무 에러도 나지 않았을 것이다.**
+fallback 상수와 저장소 변수를 이중으로 둔 설계였는데 **둘 다 같은 오답으로 맞춰 놓아**
+이중화가 무의미해진 상태였다.
+
+→ 3곳 모두 `heimdallr-call`로 되돌렸다.
+→ `test_dashboard_url_default_matches_env_example` 추가 — 두 선언이 어긋나는 것은 막는다.
+   (실제 도메인과의 일치는 네트워크가 필요해 테스트로 못 잡는다. 그래서 T56에 적는다.)
+   어긋뜨려 **FAIL하는 것을 확인**하고 넣었다.
+
+**tests 412 → 413 passed.**
+
+## 이로써 전부 끝났다
+
+| 구성요소 | 상태 |
+|---|---|
+| GitHub public repo | ✓ 워크플로 8개 active |
+| Secrets 8 + Variables 2 | ✓ **전부 실행으로 검증** |
+| Vercel 대시보드 7화면 | ✓ 공개 접근 · 실데이터 렌더 |
+| LLM 분석 | ✓ cron 경로 ON · $0.0348/건 |
+
+남은 것은 **시간**뿐이다 — D+20·D+60 표본이 쌓이고, 11월 3Q 시즌에 `SEASON_MODE=on`.
