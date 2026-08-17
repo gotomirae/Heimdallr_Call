@@ -218,7 +218,7 @@ export default async function OutcomePage() {
       <section className="rounded-lg border-2 border-amber-600/70 bg-amber-950/20 p-4">
         <h2 className="text-lg font-bold text-amber-200">이번 실적 시즌 투자 전략</h2>
         <p className="mt-0.5 text-sm text-slate-100">
-          아래 회고 분석에서 <strong className="text-white">표본이 충분한 결론만</strong> 뽑았다.
+          표본이 충분한 결론만 (아래 회고 분석 근거)
         </p>
         {playbook.length > 0 ? (
           <ol className="mt-3 space-y-2">
@@ -246,7 +246,7 @@ export default async function OutcomePage() {
       {/* ═══ ② 언제 샀어야 했나 ═══ */}
       <Card
         title="언제 샀어야 했나"
-        note="발표일을 기준으로 구간별 초과수익. 발표 전이 크면 정보가 미리 반영된 것이고, 발표 후가 크면 확인하고 들어가도 늦지 않았다는 뜻이다."
+        note="발표 전이 크면 정보 선반영 · 발표 후가 크면 확인 후 진입도 유효"
       >
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {profile.map(({ days, cell }) => {
@@ -287,7 +287,7 @@ export default async function OutcomePage() {
       {/* ═══ ③ 회고 분석 — 무엇을 샀어야 했나 ═══ */}
       <Card
         title="과거 시즌으로 돌아간다면 — 무엇을 샀어야 했나"
-        note="숫자에서 직접 뽑은 결론이다. LLM을 쓰지 않는다."
+        note="숫자에서 직접 뽑은 결론 (LLM 미사용)"
       >
         {insights.length > 0 ? (
           <div className="space-y-3">
@@ -338,7 +338,7 @@ export default async function OutcomePage() {
       {/* ═══ ④ 섹터별 실적 — 어디가 잘 나왔나 (사용자 요청) ═══ */}
       <Card
         title={`섹터별 실적 — ${curQ ? `${curQ.year}.${curQ.quarter}Q` : "—"}`}
-        note={`매출·영업이익 성장률(YoY) 중앙값과 '가속 종목 비율'. 가속 = 매출·이익 성장률이 둘 다 전분기보다 높아진 것 — 이 시스템의 서프라이즈다. 종목 ${MIN_SECTOR_SAMPLE}개 미만 섹터는 제외했다.`}
+        note={`성장률 중앙값 + 가속 종목 비율(= 이 시스템의 서프라이즈) · 종목 ${MIN_SECTOR_SAMPLE}개 미만 섹터 제외`}
       >
         {sectorUsable.length > 0 ? (
           <div className="max-h-[60vh] overflow-auto rounded border border-slate-700">
@@ -402,7 +402,7 @@ export default async function OutcomePage() {
               지난 분기보다 가속 종목이 늘어난 섹터
             </div>
             <p className="mt-0.5 text-xs text-slate-200">
-              서프라이즈가 확산되는 곳이다 — 개별 종목이 아니라 섹터 전체가 좋아지고 있다는 신호.
+              개별 종목이 아니라 섹터 전체가 좋아지는 신호
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {rising.map((r, i) => (
@@ -430,7 +430,7 @@ export default async function OutcomePage() {
       {outlookRows.length > 0 && (
         <Card
           title="다음 분기 전망"
-          note="예측 모델이 아니다 — 이번 분기와 지난 분기의 추세가 같은 방향을 가리키는지만 본다. 매출 성장률과 가속 종목 비율이 둘 다 개선되면 '가속', 둘 다 나빠지면 '둔화', 엇갈리면 '유지'다."
+          note="예측이 아니라 방향 · 매출 성장률과 가속 비율이 둘 다 개선=가속, 둘 다 악화=둔화, 엇갈림=유지"
         >
           <div className="space-y-2">
             {outlookRows.slice(0, 12).map((o) => (
@@ -460,7 +460,7 @@ export default async function OutcomePage() {
       {/* ═══ ⑥ 특징별 × 시점별 표 ═══ */}
       <Card
         title="특징별 · 시점별 초과수익"
-        note={`각 칸은 지수 대비 초과수익 중앙값(%p)과 측정 표본 수다. 표본 ${MIN_SAMPLE}건 미만은 흐리게 표시했다 — 숫자는 있어도 결론으로 쓰면 안 된다.`}
+        note={`칸 = 초과수익 중앙값(%p) · 괄호 = 측정 표본 · 흐린 값은 표본 ${MIN_SAMPLE}건 미만(결론 금지)`}
       >
         {FEATURE_GROUPS.map((g) => (
           <FeatureTable key={g.title} title={g.title} note={g.note} table={tables.get(g.title) ?? []} />

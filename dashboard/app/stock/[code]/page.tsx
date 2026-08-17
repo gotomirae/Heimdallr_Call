@@ -180,8 +180,8 @@ export default async function StockPage({ params }: { params: { code: string } }
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">스코어</h3>
                 <Note>
-                  가속 강도를 100점으로 환산. 측정 못 한 축은 0점이 아니라{" "}
-                  <strong className="text-slate-100">분모에서 빼고</strong> 정규화한다.
+                  가속 강도 100점 만점 · 미측정 축은 0점이 아니라{" "}
+                  <strong className="text-slate-100">분모 제외</strong>
                 </Note>
                 <div className="mt-2">
                   <ScoreBreakdown screen={screen} />
@@ -194,13 +194,12 @@ export default async function StockPage({ params }: { params: { code: string } }
                 {/* ★ 숫자 바로 아래에 뜻을 붙인다 — 62점이 좋은 건지 나쁜 건지가
                     이 화면에서 가장 자주 막히는 지점이다. */}
                 <Note>
-                  주가가 이 실적을 <strong className="text-slate-100">이미 아는 정도</strong>(0~100).{" "}
-                  <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>는 뜻이라 좋은 신호다.
-                  스코어와 <strong>더하지 않는다</strong> — 찾는 자리는{" "}
-                  <strong className="text-amber-300">스코어 높고 반영도 낮은</strong> 구간(★)이다.
-                  <span className="mt-0.5 block text-slate-200">
-                    0~39 미반영 · 40~65 부분반영 · 66~100 선반영
+                  <span className="block text-slate-100">
+                    주가가 아는 정도 (0~100) ·{" "}
+                    <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>
                   </span>
+                  <span className="block">0~39 미반영 · 40~65 부분반영 · 66~100 선반영</span>
+                  <span className="block">스코어와 <strong>합산하지 않는다</strong> · ★ = 스코어 높음 + 반영도 낮음</span>
                 </Note>
                 <div className="mt-2">
                   <PriBreakdown pri={screen.pri} detail={screen.pri_detail} />
@@ -220,20 +219,16 @@ export default async function StockPage({ params }: { params: { code: string } }
       >
         <QuarterlyChart points={chartPoints} />
         <Note>
-          {/* ★ 기본 용어(막대·실선 색·YoY)는 적지 않는다(사용자 요청) —
-              범례가 이미 말해 준다. 이 시스템에만 있는 것만 남긴다. */}
-          <strong className="text-slate-100">선이 우상향하면 그게 가속이다</strong> —
-          값이 높은 게 아니라 전분기보다 높아진 것을 본다.{" "}
-          <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM 매출</strong>은 최근 4개 분기
-          합으로, 계절성이 상쇄돼 연간 체력이 보인다.{" "}
-          <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>주가</strong>는 현재까지 이어 그린다
-          — 실적 선보다 늦게 올라오는 구간이 노리는 자리다.
-          <span className="mt-1 block text-slate-200">
-            측정 — 영업이익 YoY {opYoyMeasured}/{chartPoints.length} · 매출 YoY{" "}
-            {revYoyMeasured}/{chartPoints.length} · 주가 {priceMeasured}/{chartPoints.length}.
-            {opYoyMeasured < chartPoints.length &&
-              " 빠진 분기는 흑자↔적자 전환이라 %를 계산할 수 없다(0%가 아니다)."}
-            {" 분기 라벨의 "}<code>*</code>{"는 실적 미발표(주가만 있음)."}
+          <span className="text-slate-100">
+            선이 <strong className="text-amber-300">우상향</strong> = 가속 ·{" "}
+            <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM</strong> 최근 4분기 합 ·{" "}
+            <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>주가</strong> 현재까지 ·{" "}
+            <code>*</code> 실적 미발표
+          </span>
+          <span className="mt-1 block">
+            측정 {opYoyMeasured}/{chartPoints.length}(영업익) · {revYoyMeasured}/
+            {chartPoints.length}(매출) · {priceMeasured}/{chartPoints.length}(주가)
+            {opYoyMeasured < chartPoints.length && " · 빈 칸은 흑↔적 전환(0%가 아니다)"}
           </span>
         </Note>
       </Card>
@@ -241,11 +236,9 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 4. 분기 히스토리 표 */}
       <Card title="분기 히스토리">
         <Note>
-          {/* 기본 용어(YoY·QoQ·OPM)는 생략(사용자 요청). 이 시스템 고유의 것만. */}
-          <strong className="text-slate-100">TTM 매출</strong>은 최근 4개 분기 합 ·{" "}
-          <strong className="text-slate-100">잠정</strong>은 정식 보고서 전 회사 발표 ·{" "}
-          <strong className="text-slate-100">흑전/적전</strong>은 흑자↔적자가 뒤바뀐 분기로
-          %를 계산할 수 없어 라벨로 적는다. QoQ는 계절성이 커서 점수에 쓰지 않는다.
+          <strong className="text-slate-100">TTM 매출</strong> 최근 4분기 합 ·{" "}
+          <strong className="text-slate-100">흑전/적전</strong> 흑↔적 전환(%계산 불가) ·{" "}
+          <strong className="text-slate-100">QoQ</strong> 참고용(점수 미반영)
         </Note>
         {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
@@ -295,10 +288,7 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 5. 컨센서스 대비 */}
       <Card title="컨센서스 대비">
-        <Note>
-          추정기관 <strong className="text-slate-100">2곳 미만이면 컨센서스로 인정하지 않는다.</strong>{" "}
-          없다고 감점하지 않고 분모에서 제외해 정규화한다.
-        </Note>
+        <Note>추정기관 2곳 이상만 인정 · 없으면 감점이 아니라 분모 제외</Note>
         <div className="mt-3" />
         {consensus && (consensus.n_estimates ?? 0) >= 2 ? (
           <div className="grid gap-4 text-sm sm:grid-cols-3">
@@ -354,8 +344,7 @@ export default async function StockPage({ params }: { params: { code: string } }
               {per4q != null ? `${per4q.toFixed(1)}배` : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              시가총액 ÷ 최근 4개 분기 순이익 합. <strong>지금까지 실제로 번 돈</strong> 기준이라
-              추정이 섞이지 않는다.
+              시총 ÷ 최근 4분기 순이익 · <strong>실제로 번 돈</strong> 기준(추정 없음).
               {ttmNp != null && (
                 <> 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>
               )}
@@ -469,14 +458,14 @@ export default async function StockPage({ params }: { params: { code: string } }
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="text-xs font-semibold uppercase text-slate-200">구조적 동인</div>
-                  <Note>계속 이어질 이유 — 이게 많아야 가속이 오래간다.</Note>
+                  <Note>계속 이어질 이유 · 많을수록 가속이 길다</Note>
                   <ul className="mt-1 list-disc pl-4 text-slate-100">
                     {analysis.structuralDrivers.map((d) => <li key={d}>{d}</li>)}
                   </ul>
                 </div>
                 <div>
                   <div className="text-xs font-semibold uppercase text-slate-200">일시적 동인</div>
-                  <Note>이번 분기에만 통한 이유 — 여기에 쏠려 있으면 곧 꺾인다.</Note>
+                  <Note>이번만 통한 이유 · 쏠려 있으면 곧 꺾인다</Note>
                   <ul className="mt-1 list-disc pl-4 text-slate-100">
                     {analysis.temporaryDrivers.map((d) => <li key={d}>{d}</li>)}
                   </ul>
@@ -517,11 +506,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                 <div className="text-xs font-semibold uppercase text-slate-200">
                   주가 상승 트리거
                 </div>
-                <Note>
-                  주가를 올릴 수 있는 <strong className="text-slate-100">확인 가능한 사건</strong>과
-                  예상 시점. &lsquo;확인 지표&rsquo;로 실제 발생을 나중에 대조할 수 있다 —
-                  그래야 예측이 아니라 검증이 된다.
-                </Note>
+                <Note>확인 가능한 사건 + 예상 시점 · 확인 지표로 나중에 대조한다</Note>
                 <div className="mt-3">
                   <TriggerTimeline items={timelineItems} />
                 </div>

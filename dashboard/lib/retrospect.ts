@@ -19,6 +19,7 @@ import {
   horizonLabel,
   median,
 } from "./outcome";
+import { sectorOf } from "./sector";
 import type { ScreenRow, UniverseRow } from "./types";
 
 /** 결론을 내기 위한 최소 표본. 이보다 적으면 **숫자를 보여주되 결론은 내지 않는다.** */
@@ -59,7 +60,7 @@ export function enrich(
     return {
       ...r,
       name: u?.name ?? r.code,
-      sector: u?.sector ?? "미분류",
+      sector: sectorOf(u),
       marketCap: u?.market_cap_krw ?? null,
       hasConsensus: s?.has_consensus ?? null,
       turnaround: s?.turnaround ?? null,

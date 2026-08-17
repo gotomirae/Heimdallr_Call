@@ -8,6 +8,7 @@ import DiscoveryTable, { type DiscoveryRow } from "@/components/DiscoveryTable";
 import { HORIZONS, excessField, type OutcomeRow, getOutcomes } from "@/lib/outcome";
 import { getAllLatestPrices, getLatestScreens, getUniverse } from "@/lib/queries";
 import { quarterLabel } from "@/lib/format";
+import { sectorOf } from "@/lib/sector";
 import type { Grade, ScreenRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,8 @@ export default async function HomePage() {
       code: s.code,
       name: u?.name ?? s.code,
       board: u?.board ?? null,
-      sector: u?.sector ?? null,
+      // ★ DB 컬럼이 없어도 industry·products로 즉시 분류한다(DDL 불필요).
+      sector: sectorOf(u),
       industry: u?.industry ?? null,
       marketCap: u?.market_cap_krw ?? null,
       quarter: quarterLabel(s.fiscal_year, s.fiscal_quarter),
@@ -81,7 +83,6 @@ export default async function HomePage() {
     if (r.grade) counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
   }
   const notifyCount = (counts.get("★") ?? 0) + (counts.get("○") ?? 0);
-  const sectorMissing = !universe.values().next().value?.sector;
 
   return (
     <div className="space-y-4">
@@ -95,33 +96,42 @@ export default async function HomePage() {
           <strong className="text-amber-300">{notifyCount}</strong>
         </p>
 
-        {/* ★ 게이트 기준 — 핵심만. 길게 쓰면 정작 안 읽힌다(사용자 요청). */}
-        <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100">
-          <strong className="text-white">게이트</strong> — 아래를 <strong>모두</strong> 만족하면 통과:
-          <div className="mt-1 font-mono text-xs leading-relaxed text-slate-200">
-            ① 매출 성장률(YoY)이 <span className="text-amber-300">전분기보다 높아지고</span> 양(+)
-            <br />
-            ② 영업이익 성장률(YoY)이 <span className="text-amber-300">전분기보다 높아지고</span> 양(+)
-            <span className="text-slate-300"> — 흑자 전환은 통과 인정</span>
-            <br />
-            ③ 제외 업종·관리종목·스팩이 아니고 상장 이력 5분기 이상
+        {/* ★ 서술형을 쓰지 않는다(사용자 요청). 조건은 조건처럼, 정의는 한 줄로. */}
+        <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm">
+          <div className="text-slate-100">
+            <strong className="text-white">가속</strong> = 성장률이{" "}
+            <strong className="text-amber-300">전분기보다 높아진 것</strong>
+            <span className="text-slate-300"> (높은 것이 아니다)</span>
           </div>
-          <p className="mt-1 text-xs text-slate-200">
-            성장률이 <em>높은</em> 게 아니라 <em>더 높아진</em> 것을 본다. 데이터가 없으면
-            탈락이 아니라 <strong className="text-slate-100">판정 불가</strong>다.
-          </p>
+          <table className="mt-1.5 text-xs">
+            <tbody className="text-slate-100">
+              <tr>
+                <td className="pr-3 font-mono text-slate-300">G1</td>
+                <td className="pr-2">매출 YoY</td>
+                <td className="text-amber-300">가속 · 양(+)</td>
+              </tr>
+              <tr>
+                <td className="pr-3 font-mono text-slate-300">G2</td>
+                <td className="pr-2">영업이익 YoY</td>
+                <td className="text-amber-300">가속 · 양(+)</td>
+                <td className="pl-2 text-slate-300">흑자전환 통과</td>
+              </tr>
+              <tr>
+                <td className="pr-3 font-mono text-slate-300">G3</td>
+                <td className="pr-2">업종·이력</td>
+                <td className="text-slate-200">제외업종 아님 · 5분기+</td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="mt-1 text-xs text-slate-300">
+            셋 모두 만족 = 통과 · 데이터 없으면 탈락이 아니라 <strong className="text-slate-100">판정 불가</strong>
+          </div>
         </div>
       </div>
 
       {dropped.length > 0 && (
         <p className="rounded border border-amber-700 bg-amber-900/30 px-3 py-2 text-sm text-amber-200">
           ⚠ 아직 DB에 없는 컬럼을 제외하고 조회했다: {dropped.join(", ")}
-        </p>
-      )}
-      {sectorMissing && (
-        <p className="rounded border border-amber-700 bg-amber-900/30 px-3 py-2 text-sm text-amber-200">
-          ⚠ <code>krx_universe.sector</code> 컬럼이 없어 KRX 업종명으로 대체 표시한다.
-          마이그레이션 후 <code>python -m src.universe.sector_map --save</code>를 돌리면 채워진다.
         </p>
       )}
       {outcomeResult.dropped.length > 0 && (
@@ -150,15 +160,38 @@ export default async function HomePage() {
 
       <DiscoveryTable rows={rows} />
 
-      <p className="text-sm text-slate-200">
-        <strong className="text-white">반영도</strong>는{" "}
-        <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>는 뜻이고,{" "}
-        <span className="text-amber-300">★</span>는 스코어 높고 반영도 낮은 구간이다.{" "}
-        <strong className="text-indigo-200">전/당일/후 열</strong>은 그 종목 발표일 기준{" "}
-        <strong className="text-white">지수 대비 초과수익</strong> —{" "}
-        <Link href="/outcome" className="text-sky-300 underline">결과 추적</Link>에 시기별 전략이 있다.
-        결측은 <span className="text-white">—</span>다(0이 아니다).
-      </p>
+      <div className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm">
+        <table className="text-xs">
+          <tbody>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">스코어</td>
+              <td className="text-slate-100">가속 강도 (100점 · 높을수록 좋다)</td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">반영도</td>
+              <td className="text-slate-100">
+                주가가 아는 정도 ·{" "}
+                <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>
+              </td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-amber-300">★</td>
+              <td className="text-slate-100">스코어 높음 + 반영도 낮음 = 찾던 구간</td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">전·당일·후</td>
+              <td className="text-slate-100">
+                발표일 기준 지수 대비 초과수익 (영업일) ·{" "}
+                <Link href="/outcome" className="text-sky-300 underline">시기별 전략</Link>
+              </td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">—</td>
+              <td className="text-slate-100">측정하지 못함 (0이 아니다)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

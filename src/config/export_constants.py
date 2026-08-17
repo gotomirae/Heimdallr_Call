@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 
 from src.config import constants
+from src.universe.sector_map import SECTOR_RULES, UNKNOWN_SECTOR
 from src.utils.console import enable_utf8_stdout
 
 OUTPUT = Path(__file__).resolve().parents[2] / "dashboard" / "lib" / "constants.json"
@@ -28,6 +29,15 @@ def build() -> dict:
     return {
         "_generated_by": "python -m src.config.export_constants",
         "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
+        # ★ 섹터 분류 규칙을 함께 내보낸다.
+        #   대시보드가 `industry`·`products`로 **읽는 시점에** 분류하므로
+        #   DB에 `sector` 컬럼이 없어도 투자 섹터명이 보인다.
+        #   규칙을 TS에 다시 적으면 두 곳이 조용히 어긋난다 — 생성물로 둔다.
+        "sector_rules": [
+            {"sector": name, "keywords": list(keywords)}
+            for name, keywords in SECTOR_RULES
+        ],
+        "sector_unknown": UNKNOWN_SECTOR,
         "gate": {
             "market_cap_floor_krw": getattr(constants, "MARKET_CAP_FLOOR_KRW", None),
             "min_quarters_history": constants.MIN_QUARTERS_HISTORY,

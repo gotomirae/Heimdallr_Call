@@ -16,7 +16,7 @@ export interface DiscoveryRow {
   code: string;
   name: string;
   board: string | null;
-  sector: string | null;
+  sector: string;
   industry: string | null;
   marketCap: number | null;
   quarter: string;
@@ -94,7 +94,7 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
 
   const sectors = useMemo(
     () =>
-      [...new Set(rows.map((r) => r.sector ?? r.industry).filter((v): v is string => !!v))].sort(
+      [...new Set(rows.map((r) => r.sector))].sort(
         (a, b) => a.localeCompare(b, "ko")
       ),
     [rows]
@@ -114,7 +114,7 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
         if (gate === "failed" && r.gatePassed !== false) return false;
         if (gate === "undecided" && r.gatePassed != null) return false;
         if (grade !== "all" && r.grade !== grade) return false;
-        if (sector !== "all" && (r.sector ?? r.industry) !== sector) return false;
+        if (sector !== "all" && r.sector !== sector) return false;
         if (quarter !== "all" && r.quarter !== quarter) return false;
         if (consensus === "yes" && !r.hasConsensus) return false;
         if (consensus === "no" && r.hasConsensus) return false;
@@ -224,13 +224,13 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
               <tr key={r.code} className="border-t border-slate-800 hover:bg-slate-900/60">
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200"
                     title={r.industry ?? undefined}>
-                  {r.sector ?? r.industry ?? "—"}
+                  {r.sector}
                 </td>
+                {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
                 <td className="whitespace-nowrap px-3 py-2">
                   <Link href={`/stock/${r.code}`} className="font-medium text-sky-300 hover:underline">
                     {r.name}
                   </Link>
-                  <span className="ml-2 text-xs text-slate-300">{r.code}</span>
                 </td>
                 <td className="px-3 py-2 text-center">
                   {r.grade ? (

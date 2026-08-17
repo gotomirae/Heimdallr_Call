@@ -102,3 +102,65 @@ def test_dashboard_url_default_matches_env_example():
     assert declared[0] == DASHBOARD_URL_DEFAULT, (
         f".env.example({declared[0]})과 constants({DASHBOARD_URL_DEFAULT})가 어긋났다"
     )
+
+def test_sector_rules_are_exported():
+    """★ 대시보드가 **읽는 시점에** 섹터를 분류한다(DB 컬럼 없이).
+
+    규칙을 TS에 다시 적으면 두 곳이 조용히 어긋난다 — 파이썬을 유일한 출처로 두고
+    JSON으로 내보낸다. `dashboard/lib/sector.ts`가 이걸 읽는다.
+    """
+    import json
+    from pathlib import Path
+
+    from src.universe.sector_map import SECTOR_RULES, UNKNOWN_SECTOR
+
+    path = Path(__file__).resolve().parents[1] / "dashboard" / "lib" / "constants.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    exported = data["sector_rules"]
+    assert len(exported) == len(SECTOR_RULES), (
+        "생성물이 낡았다 — python -m src.config.export_constants 를 다시 돌려라"
+    )
+    # ★ **순서가 우선순위다.** 순서가 바뀌면 두산에너빌리티가 조용히 조선으로 간다(T68).
+    assert [r["sector"] for r in exported] == [name for name, _ in SECTOR_RULES]
+    for row, (name, keywords) in zip(exported, SECTOR_RULES):
+        assert row["keywords"] == list(keywords), f"{name} 키워드가 어긋났다"
+    assert data["sector_unknown"] == UNKNOWN_SECTOR
+
+
+def _strip_ts_comments(source: str) -> str:
+    """주석을 걷어낸다. **검사기가 자기 설명 주석에 걸리면 안 된다.**
+
+    실측: `sector.ts` 주석에 '반도체장비'라는 낱말이 예시로 들어 있어
+    "규칙이 TS에 박혔다"는 오탐이 났다.
+    """
+    import re
+
+    without_block = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+    return "\n".join(
+        line for line in without_block.splitlines()
+        if not line.lstrip().startswith(("//", "*"))
+    )
+
+
+def test_dashboard_does_not_redefine_sector_rules():
+    """★ TS에 규칙을 손으로 적어 두면 파이썬을 고쳐도 화면이 안 바뀐다."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "dashboard" / "lib" / "sector.ts").read_text(
+        encoding="utf-8"
+    )
+    assert "constants.sector_rules" in src, "규칙을 생성물에서 읽지 않는다"
+
+    code = _strip_ts_comments(src)
+    for keyword in ("반도체장비", "터어빈", "양극재", "이차전지"):
+        assert keyword not in code, (
+            f"'{keyword}'가 TS 코드에 직접 적혀 있다 — sector_map.py가 유일한 출처여야 한다"
+        )
+
+
+def test_sector_guard_actually_catches_it():
+    """검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54)."""
+    assert "터어빈" in _strip_ts_comments('const R = ["터어빈"];')
+    assert "터어빈" not in _strip_ts_comments("// 터어빈은 예시다\nconst x = 1;")
+    assert "터어빈" not in _strip_ts_comments("/* 터어빈 설명 */\nconst x = 1;")

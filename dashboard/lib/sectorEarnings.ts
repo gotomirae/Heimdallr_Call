@@ -14,6 +14,7 @@
 
 import type { FundamentalRow, ScreenRow, UniverseRow } from "./types";
 import { median } from "./outcome";
+import { sectorOf } from "./sector";
 
 /** 섹터를 결론에 쓰기 위한 최소 종목 수. */
 export const MIN_SECTOR_SAMPLE = 5;
@@ -55,17 +56,14 @@ export function aggregateSectors(
   current: { year: number; quarter: number },
   previous: { year: number; quarter: number }
 ): SectorEarnings[] {
-  const sectorOf = (code: string): string => {
-    const u = universe.get(code);
-    return u?.sector ?? u?.industry ?? "미분류";
-  };
+  const sectorFor = (code: string): string => sectorOf(universe.get(code));
 
   const bucket = new Map<
     string,
     { cur: FundamentalRow[]; prev: FundamentalRow[] }
   >();
   for (const f of funds) {
-    const key = sectorOf(f.code);
+    const key = sectorFor(f.code);
     const b = bucket.get(key) ?? { cur: [], prev: [] };
     if (f.fiscal_year === current.year && f.fiscal_quarter === current.quarter) b.cur.push(f);
     else if (f.fiscal_year === previous.year && f.fiscal_quarter === previous.quarter) b.prev.push(f);
