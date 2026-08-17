@@ -128,9 +128,6 @@ python -m pytest tests/
 
 ## 세션 진행 상황
 
-- **P8 텔레그램 완료 (2026-08-13)** — `setWebhook`/`deleteWebhook`/`getUpdates` 클라이언트
-  내부 차단 ✓ · 실발송 1건 ✓ · 2회차 **중복 차단** ✓(notifications 1행) · tests 244 passed.
-  `dashboard/app/api/telegram/lookup` 미리 생성(미사용).
 - **PRI 연결 · 텔레그램 표기 · 2026.2Q 반영 완료 (2026-08-15)** — 잠정 357행
   (삼성전자 2026.2Q 매출 1,714,995억) · 파생 10,072행 · 시세 **1,112행 KIS 실패 0** ·
   **PRI 1,103종목(분모 65)** · 등급 ★26·○55·△23··184·✕50(= 게이트 통과 338) · tests 262.
@@ -245,6 +242,9 @@ python -m pytest tests/
 - **액션 Node24 · 대시보드 URL 배선 (2026-08-17)** — checkout v7 · setup-python v7 ·
   cache v6(경고 소멸 확인) · 발송 워크플로 5개에 `DASHBOARD_BASE_URL: ${{ vars.… }}`
   (미설정이면 코드 기본값으로 안전하게 떨어짐). Actions **411 passed**.
-- ★ **정기 실행에서는 LLM이 안 불린다**: `telegram_listen`의 `--analyze`가
-  **수동 실행에만** 붙어 cron 경로는 항상 `LLM 분석 OFF`다. `src.analysis.run`을 부르는
-  워크플로도 없다 → 해석 없는 숫자 리포트만 나간다. **비용 결정이라 사용자 판단 대기.**
+- **LLM 정기 분석 ON (2026-08-17)** — `telegram_listen` cron이 `--analyze`를 못 받아
+  **LLM 호출 0회**였던 것을 켰다(실증: `LLM 분석 ON` / `-f analyze=false` → `OFF`).
+  상한은 코드가 건다(`check_budget` 월 $8·일 20건, 재질의 재사용 0원). timeout 5→12분.
+- 신규 함정 **T55 ★**: GitHub 삼항 `${{ inputs.x && 'A' || 'B' }}`는 **x가 false일 때도 B**를
+  준다(false가 falsy). schedule엔 `inputs` 자체가 없어 늘 B다 — 켜기·끄기가 **양방향으로**
+  조용히 무시된다. 분기는 셸로 옮긴다. `DASHBOARD_URL_DEFAULT`는 constants 한 곳으로.

@@ -207,3 +207,71 @@ cron 실행에는 `inputs`가 없다 → 항상 빈 문자열 → **LLM 호출 0
 `default: false`가 의도적 비용 방어인지, cron 경로를 빠뜨린 것인지가 갈린다.
 CLAUDE.md는 "LLM은 기존 분석 없을 때만 호출(재질의해도 비용 0)"이라고 적어
 **호출하는 쪽이 의도**로 읽히지만, 확정은 사용자 몫이다.
+
+---
+
+# 후속 2 — LLM 정기 분석 ON · Vercel 도메인 반영 (사용자 요청)
+
+## LLM을 켰다 — 다만 플래그만 뒤집으면 안 됐다
+
+요청은 "켜줘"였지만 원래 형태는 **양방향으로** 고장나 있었다(→ **T55**).
+
+```yaml
+${{ inputs.analyze && '--analyze' || '' }}
+```
+
+`schedule`에는 `inputs`가 없어 늘 빈 문자열이고(그래서 cron에서 LLM 0회),
+기본값만 `true`로 뒤집으면 이번엔 GitHub 표현식에서 `false`가 falsy라
+**`-f analyze=false`가 조용히 무시된다.** 그래서 분기를 셸로 옮겼다.
+
+두 경로를 **둘 다** 돌려 확인했다 — 켠 쪽만 보면 ②를 못 잡는다:
+
+```
+기본 디스패치        → 허용 chat: [***] · LLM 분석 ON
+-f analyze=false    → LLM 분석 OFF — 수동 실행에서 명시적으로 껐다
+```
+
+### 비용은 코드가 막는다 (켜기 전에 확인한 것)
+
+| 장치 | 값 | 위치 |
+|---|---|---|
+| 월 하드실링 | **$8** | `MONTHLY_COST_CEILING_USD` |
+| 일일 건수 | **20건** | `DAILY_ANALYSIS_LIMIT` |
+| 재질의 | **0원** | `ensure_analysis`가 기존 분석 재사용 |
+| 호출 전 검사 | `check_budget()` | `analyze.py:186` |
+
+건당 실측 $0.03 기준 일 최대 $0.60이고, 월 실링이 먼저 막는다.
+모르는 chat은 조용히 무시되므로 외부인이 비용을 태울 수 없다.
+
+### timeout 5 → 12분 (곁다리로 드러난 것)
+
+`confirm()`이 **배치를 다 처리한 뒤에야** offset을 확정한다(`listen.py:243`).
+BATCH 20 × 분석 30초면 5분을 넘겨 죽고, 죽으면 확정이 안 돼
+**같은 20건이 계속 재배달된다** → 매번 같은 자리에서 죽는 빨간 X 루프.
+질문은 영영 답을 못 받는데 로그만 쌓인다. timeout은 상한일 뿐이라 과금은 늘지 않는다.
+
+## Vercel 도메인 — 프로젝트 이름을 바꿀 필요는 없었다
+
+사용자 확인: Vercel 프로젝트명은 **`heinmdallr`**(코드 기본값은 `heimdallr-call`).
+
+이름을 맞출 필요는 없다. 앞서 배선한 저장소 변수가 그 목적이었다:
+
+```
+gh variable set DASHBOARD_BASE_URL --body https://heinmdallr.vercel.app   ✓ 등록
+```
+
+다만 **fallback이 틀린 채 남으면 변수가 빠졌을 때 조용히 죽으므로** 코드 기본값도 고쳤다.
+그러면서 3개 파일(`batch.py`·`promotion.py`·`run.py`)에 흩어져 있던 리터럴을
+`constants.DASHBOARD_URL_DEFAULT` 한 곳으로 모았다 —
+"임계값은 constants.py 한 곳에만"이라는 프로젝트 규칙이 URL에는 안 지켜지고 있었다.
+`.env.example`도 갱신.
+
+**tests 411 → 412 passed.** `test_telegram_listen_analyzes_on_schedule`은
+옛 형태로 되돌리면 실제로 FAIL하는 것을 확인하고 넣었다.
+
+## 남은 사용자 작업
+
+1. **Vercel 배포** — Root Directory `dashboard`, 환경변수 4개.
+2. 배포 후 **실제 URL이 `heinmdallr.vercel.app`이 맞는지 확인.** Vercel이 이름 충돌 시
+   접미사를 붙이므로 다르면 `gh variable set DASHBOARD_BASE_URL`로 덮으면 된다(코드 수정 불필요).
+3. 텔레그램 봇에 종목명 하나 보내기 — 이제 분석이 없으면 LLM이 붙어 회신한다.

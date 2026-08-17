@@ -1004,3 +1004,50 @@ git grep -l -F --cached -- "$val"             # ← 올바른 형태
 **15개 파일 매칭**을 확인한 뒤에야 "누출 0건"을 믿었다.
 0을 돌려주는 검사기는 "안전하다"와 "검사가 안 됐다"를 구분해 주지 않는다 —
 T51(RLS 빈 배열)·T49(미측정을 0으로)와 **완전히 같은 실패 모양**이다.
+
+## T55. GitHub 삼항 `inputs.x && A || B`는 **양방향으로** 조용히 틀린다 `[HD 2026-08-17 실측]`
+
+`telegram_listen`이 이렇게 돼 있었다:
+
+```yaml
+run: python -m src.notify.listen --once ${{ inputs.analyze && '--analyze' || '' }}
+```
+
+**틀림 ①: `schedule`에는 `inputs`가 존재하지 않는다.**
+항상 빈 문자열이 되어 **cron 경로에서 LLM이 영영 호출되지 않았다.**
+로그는 매번 `LLM 분석 OFF`를 정직하게 찍고 있었지만, 워크플로는 성공(초록)이고
+텔레그램 회신도 정상적으로 나가서 — **해석 문단만 빠진 채** — 아무도 눈치채지 못했다.
+`ANTHROPIC_API_KEY`는 시크릿으로 등록돼 있는데 **한 번도 안 쓰였다.**
+
+**틀림 ②: 반대 방향도 안 된다.** GitHub 표현식에서 `false`는 falsy라
+`inputs.x && A || B`는 x가 **false일 때도 B**를 준다.
+즉 기본값만 뒤집으면 이번엔 "수동으로 끄기"가 에러 없이 무시된다.
+JS의 같은 관용구를 그대로 옮기면 이 함정을 반드시 밟는다.
+
+→ 분기를 **셸로** 옮겼다. 값 비교라 fall-through가 없다:
+
+```yaml
+env:
+  ANALYZE_INPUT: ${{ inputs.analyze }}   # schedule이면 빈 문자열
+run: |
+  if [ "$ANALYZE_INPUT" = "false" ]; then
+    python -m src.notify.listen --once
+  else
+    python -m src.notify.listen --once --analyze
+  fi
+```
+
+실측 검증(두 경로를 **둘 다** 돌렸다 — 한쪽만 보면 ②를 못 잡는다):
+
+```
+기본 디스패치        → 허용 chat: [***] · LLM 분석 ON
+-f analyze=false    → LLM 분석 OFF — 수동 실행에서 명시적으로 껐다
+```
+
+**곁다리로 드러난 것:** `--analyze`를 켜자 timeout 5분이 부족해졌다.
+`confirm()`이 **배치를 다 처리한 뒤에야** offset을 확정하므로(`listen.py`),
+BATCH 20건 × 분석 30초에서 죽으면 확정이 안 되고 **같은 20건이 계속 재배달된다**
+→ 매번 같은 자리에서 죽는 빨간 X 루프가 되고 질문은 영영 답을 못 받는다. → 12분으로.
+
+**교훈: 플래그를 켜는 변경은 켠 경로와 끈 경로를 둘 다 실행해 확인하라.**
+켠 쪽만 보면 "동작한다"로 보이는데, 정작 되돌릴 수단이 죽어 있다.
