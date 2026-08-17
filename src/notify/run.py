@@ -27,6 +27,7 @@ from src.notify.telegram import (
     send_once,
     truncate,
 )
+from src.analysis.analyze import sanitize_payload
 from src.notify.links import dart_report_url, naver_stock_url
 from src.notify.templates import KIND_DAILY, KIND_FLASH, daily_digest, flash_message
 from src.utils.console import enable_utf8_stdout
@@ -212,7 +213,10 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
          if a["code"] == code and a["fiscal_year"] == year and a["fiscal_quarter"] == quarter),
         None,
     )
-    payload = (analysis or {}).get("payload") or {}
+    # ★ 저장 시점에도 걷어내지만(T61) **이미 저장된 행**이 있으므로 읽는 쪽에서도 막는다.
+    #   태그가 새면 esc()가 escape해 발송은 성공하고 화면에만 `&lt;/…&gt;`가 남는다 —
+    #   에러가 없어서 알아채지 못한다.
+    payload = sanitize_payload((analysis or {}).get("payload") or {})
 
     yoy = cur.get("revenue_yoy")
     yoy_prev = prev.get("revenue_yoy")

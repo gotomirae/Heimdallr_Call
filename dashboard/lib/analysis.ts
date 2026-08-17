@@ -12,8 +12,34 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/** 모델이 값 안에 흘려 넣는 마커. 여기서부터 뒤는 그 필드의 내용이 아니다. */
+const LEAK_MARKERS = ["</", "<parameter", "<function_calls", "<invoke", "<"];
+
+/**
+ * 문자열 값에 새어 든 **XML 태그와 그 뒤 전부**를 잘라낸다 (T61).
+ *
+ * ★ 도구 호출로 받아도 모델이 값 **안쪽에** 닫는 태그와 다음 필드를 통째로
+ *   흘려 넣을 때가 있다. 스키마 검증은 통과한다 — 타입은 여전히 문자열이다.
+ *   실측(042700): `one_line_thesis` 334자 중 뒤 230자가
+ *   `…구간이다.</one_line_thesis>\n<parameter name="why_now">…`였다.
+ *
+ * ★ 저장 시점(`src/analysis/analyze.py`)에서도 걷어내지만, **이미 저장된 행이
+ *   있으므로** 읽는 쪽에서도 막는다. 파이썬 쪽 짝은 `strip_tag_leakage`다.
+ */
+export function stripTagLeakage(text: string): string {
+  let cut = text.length;
+  for (const marker of LEAK_MARKERS) {
+    const found = text.indexOf(marker);
+    if (found !== -1) cut = Math.min(cut, found);
+  }
+  const trimmed = text.slice(0, cut).trim();
+  return trimmed || text.trim();
+}
+
 function asString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value : null;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const clean = stripTagLeakage(value);
+  return clean === "" ? null : clean;
 }
 
 function asNumber(value: unknown): number | null {

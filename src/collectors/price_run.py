@@ -23,7 +23,11 @@ from src.collectors.kis_prices import (
     relative_return_pp,
     trailing_return_pct,
 )
-from src.db.supabase_client import get_client, select_all
+from src.db.supabase_client import (
+    get_client,
+    select_all,
+    upsert_tolerating_missing_columns,
+)
 from src.screener.pri import PriInput, compute_pri
 from src.utils.console import enable_utf8_stdout
 
@@ -33,11 +37,21 @@ INDEX_OF_BOARD = {"KOSPI": "KOSPI", "KOSDAQ": "KOSDAQ"}
 CHUNK_ROWS = 200  # 중간 저장 단위 — 중단돼도 여기까지는 남는다
 
 
-def _flush(db, rows: list[dict]) -> None:
-    for i in range(0, len(rows), 500):
-        db.table("price_snapshots").upsert(
-            rows[i : i + 500], on_conflict="code,snap_date"
-        ).execute()
+#: 마이그레이션 미적용으로 걷어낸 컬럼. 마지막에 화면에 밝힌다 —
+#: 조용히 삼키면 "저장은 됐는데 그 값만 영영 비어 있는" 상태를 아무도 모른다.
+_DROPPED: set[str] = set()
+
+
+def _flush(db, rows: list[dict]) -> int:
+    """★ 없는 컬럼 하나 때문에 수집 전체가 죽으면 안 된다(T18).
+
+    같은 잡에서 이어 도는 스크리닝까지 함께 멈춘다 — 실측으로 겪었다.
+    """
+    saved, dropped = upsert_tolerating_missing_columns(
+        db, "price_snapshots", rows, on_conflict="code,snap_date"
+    )
+    _DROPPED.update(dropped)
+    return saved
 
 
 def _window(months: int = 3) -> tuple[str, str]:
@@ -204,16 +218,14 @@ def save(limit: int | None) -> int:
         #   마지막에 한 번만 upsert하면 **끊긴 순간 한 행도 남지 않는다**(실제로 한 번 날렸다).
         #   snap_date로 멱등하므로 재실행해도 중복되지 않는다.
         if len(payload) >= CHUNK_ROWS:
-            _flush(db, payload)
-            saved += len(payload)
+            saved += _flush(db, payload)
             payload.clear()
 
         if index % 300 == 0:
             print(f"    {index}/{len(targets)} · {time.monotonic() - started:.0f}초 "
                   f"· KIS ok {stats.kis_ok} / 실패 {stats.kis_failed} · 저장 {saved}행")
 
-    _flush(db, payload)
-    saved += len(payload)
+    saved += _flush(db, payload)
 
     elapsed = time.monotonic() - started
     print(f"\n✓ price_snapshots {saved}행 · {elapsed:.0f}초 "
@@ -221,6 +233,11 @@ def save(limit: int | None) -> int:
     print(f"  3개월 상대수익률(PRI P1) 측정 {rel_ok}종목 "
           f"— 이게 있어야 PRI 분모가 하한(40)을 넘는다 (T35)")
     print(f"  최근 5거래일 상승률 측정 {ret5_ok}종목 — 발굴 목록의 마지막 열")
+    if _DROPPED:
+        # ★ 여기서 밝히지 않으면 "저장은 됐는데 그 값만 영영 비어 있는" 상태가 된다.
+        print(f"  ⚠ DB에 없는 컬럼을 빼고 저장했다: {', '.join(sorted(_DROPPED))}")
+        print(f"    → src/db/schema.sql의 마이그레이션을 SQL Editor에 적용하라 (T18).")
+        print(f"    측정은 했지만 **저장되지 않았다** — 0이 아니라 미저장이다.")
     print(f"  KIS 성공 {stats.kis_ok} · KIS 실패 {stats.kis_failed} "
           f"· 네이버 폴백 성공 {stats.naver_ok} · 전부 실패 {stats.failed}")
     print(f"  오류 종류: {stats.errors or '없음'}")

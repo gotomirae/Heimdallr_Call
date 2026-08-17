@@ -232,6 +232,10 @@ def analyze(
     if payload is None:
         raise AnalysisError(f"{data.code}: tool_use 블록이 없다 (stop_reason={response.stop_reason})")
 
+    # ★ 저장 전에 태그 누출을 걷어낸다(T61). 스키마 검증은 이걸 못 잡는다 —
+    #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
+    payload = sanitize_payload(payload)
+
     usage = response.usage
     return AnalysisResult(
         code=data.code,
@@ -245,6 +249,52 @@ def analyze(
         cache_write_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
         output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
     )
+
+
+#: 모델이 값 안에 흘려 넣는 마커. 여기서부터 뒤는 그 필드의 내용이 아니다.
+_LEAK_MARKERS = ("</", "<parameter", "<function_calls", "<invoke", "<")
+
+
+def strip_tag_leakage(text: str) -> str:
+    """문자열 값에 새어 든 **XML 태그와 그 뒤 전부**를 잘라낸다. 순수 함수.
+
+    ★ **무엇이 조용히 틀리는가 (T61):** 도구 호출(`tool_use`)로 받아도 모델이
+      값 **안쪽에** 닫는 태그와 다음 필드를 통째로 흘려 넣을 때가 있다.
+      스키마 검증은 통과한다 — 타입은 여전히 문자열이기 때문이다.
+      실측(042700, 2026-08-17): `one_line_thesis` 334자 중 뒤 230자가
+
+          …구간이다.</one_line_thesis>\\n<parameter name="why_now">2026.1Q 매출이…
+
+      였다. 텔레그램은 `esc()`가 태그를 escape해 **발송도 성공한다** —
+      화면에 `&lt;/one_line_thesis&gt;`가 그대로 보일 뿐이다. 에러가 없다.
+
+    ★ 자른 뒤 남는 게 없으면 **원문을 그대로 돌려준다.** 마커로 시작하는 정상
+      문장은 없겠지만, 잘라서 빈 문자열을 만드는 것보다 원문이 낫다.
+    """
+    if not isinstance(text, str):
+        return text
+    cut = len(text)
+    for marker in _LEAK_MARKERS:
+        found = text.find(marker)
+        if found != -1:
+            cut = min(cut, found)
+    trimmed = text[:cut].strip()
+    return trimmed or text.strip()
+
+
+def sanitize_payload(payload):
+    """payload 안의 **모든 문자열**에 `strip_tag_leakage`를 적용한다(재귀).
+
+    ★ 어느 필드에서 샐지 미리 알 수 없다 — 실측은 `one_line_thesis`였지만
+      다음번엔 `why_now`나 리스크 항목일 수 있다. 전부 훑는다.
+    """
+    if isinstance(payload, str):
+        return strip_tag_leakage(payload)
+    if isinstance(payload, dict):
+        return {k: sanitize_payload(v) for k, v in payload.items()}
+    if isinstance(payload, list):
+        return [sanitize_payload(v) for v in payload]
+    return payload
 
 
 def validate_payload(payload: dict) -> list[str]:

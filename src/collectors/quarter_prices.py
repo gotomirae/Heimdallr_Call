@@ -91,8 +91,30 @@ def _iso(yyyymmdd: str) -> str:
     return f"{yyyymmdd[:4]}-{yyyymmdd[4:6]}-{yyyymmdd[6:]}"
 
 
+def table_ready(db) -> bool:
+    """테이블이 실제로 있는가.
+
+    ★ **수집 전에** 본다. 나중에 알면 238종목을 전부 긁은 **뒤에** 죽어서
+      네이버 콜 238번을 통째로 버린다(실측). 실패는 빨리 해야 싸다.
+    """
+    try:
+        db.table("quarter_prices").select("code").limit(1).execute()
+        return True
+    except Exception as exc:
+        if str(getattr(exc, "code", "") or "") == "PGRST205":
+            return False
+        raise
+
+
 def save(limit: int | None, *, all_codes: bool) -> int:
     """게이트 통과 종목만 채운다 — 상세화면을 여는 종목이 거기이기 때문이다."""
+    if not table_ready(get_client()):
+        print("✗ quarter_prices 테이블이 없다 — 아무것도 수집하지 않고 멈춘다.")
+        print("  src/db/schema.sql의 CREATE TABLE quarter_prices 블록과 RLS 정책을")
+        print("  Supabase SQL Editor에 적용하라 (DDL은 REST로 실행할 수 없다 · T18).")
+        print("  적용 전까지 상세화면의 주가 라인만 비고, 나머지는 정상 동작한다.")
+        return 1
+
     universe = select_all("krx_universe", "code,name,is_excluded")
     by_code = {u["code"]: u for u in universe}
 

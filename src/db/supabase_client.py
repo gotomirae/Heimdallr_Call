@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -83,3 +84,63 @@ def select_all(
         if len(chunk) < page_size:
             return rows
         offset += page_size
+
+
+#: PostgREST가 "쓰려는 컬럼이 없다"고 알릴 때의 코드 (T18).
+UNDEFINED_COLUMN_WRITE = "PGRST204"
+_MISSING_COLUMN_RE = re.compile(r"Could not find the '([^']+)' column")
+
+
+def missing_column_of(exc: Exception) -> str | None:
+    """PGRST204 예외에서 없는 컬럼 이름을 뽑는다. 아니면 None."""
+    if str(getattr(exc, "code", "") or "") != UNDEFINED_COLUMN_WRITE:
+        return None
+    match = _MISSING_COLUMN_RE.search(str(getattr(exc, "message", "") or exc))
+    return match.group(1) if match else None
+
+
+def upsert_tolerating_missing_columns(
+    client: Client,
+    table: str,
+    rows: list[dict[str, Any]],
+    *,
+    on_conflict: str,
+    chunk: int = 500,
+) -> tuple[int, list[str]]:
+    """없는 컬럼을 하나씩 걷어내며 upsert한다. (저장행수, 걷어낸컬럼) 반환.
+
+    ★ **왜 필요한가 (T18):** DDL은 REST로 실행할 수 없어 사람이 SQL Editor에
+      적용하기 전까지 공백이 생긴다. 그 사이 새 컬럼 **하나** 때문에 수집기가
+      통째로 죽으면, 같은 잡의 뒷 단계(스크리닝)까지 함께 멈춘다.
+      실측(2026-08-17): `ret_5d`를 추가하자 `price_run --save`가 PGRST204로
+      크래시했고, `universe_daily`가 시세·스크리너를 통째로 잃을 뻔했다.
+
+    ★ PostgREST는 **한 번에 하나씩만** 알려준다 → 반드시 루프여야 한다.
+      한 번만 폴백하는 패턴은 컬럼이 둘 이상 빠지면 여전히 죽는다.
+
+    ★ 걷어낸 컬럼을 **반드시 호출부가 화면에 밝혀야 한다.** 조용히 삼키면
+      "저장은 됐는데 그 값만 영영 비어 있는" 상태를 아무도 모른다.
+    """
+    if not rows:
+        return 0, []
+
+    payload = [dict(r) for r in rows]
+    dropped: list[str] = []
+    all_keys = {k for r in payload for k in r}
+
+    for _ in range(len(all_keys) + 1):
+        try:
+            for i in range(0, len(payload), chunk):
+                client.table(table).upsert(
+                    payload[i : i + chunk], on_conflict=on_conflict
+                ).execute()
+            return len(payload), dropped
+        except Exception as exc:
+            missing = missing_column_of(exc)
+            if missing is None:
+                raise
+            dropped.append(missing)
+            payload = [{k: v for k, v in r.items() if k != missing} for r in payload]
+            if not any(payload):
+                return 0, dropped
+    return 0, dropped

@@ -17,6 +17,10 @@ from src.collectors.kis_prices import (
     trailing_return_pct,
 )
 from src.collectors.quarter_prices import quarter_end_closes, quarter_of
+from src.db.supabase_client import (
+    missing_column_of,
+    upsert_tolerating_missing_columns,
+)
 from src.config.constants import KIS_ALLOWED_PATHS
 
 
@@ -240,3 +244,92 @@ def test_quarter_end_close_when_last_day_is_holiday():
     out = quarter_end_closes(closes)
     assert out[(2024, 4)] == ("20241230", 95.0)
     assert (2025, 1) in out
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ★ 마이그레이션 미적용 구간 방어 (T18)
+#
+# DDL은 REST로 실행할 수 없어 사람이 SQL Editor에 적용하기 전까지 공백이 생긴다.
+# 그 사이 **새 컬럼 하나 때문에 수집기가 통째로 죽으면** 같은 잡에서 이어 도는
+# 스크리닝까지 함께 멈춘다 — 실측으로 겪었다(ret_5d · 2026-08-17).
+# ═══════════════════════════════════════════════════════════════════
+class _FakeAPIError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class _FakeTable:
+    """지정한 컬럼이 payload에 있으면 PGRST204를 던지는 가짜 테이블."""
+
+    def __init__(self, forbidden: set[str], sink: list[dict]):
+        self.forbidden = forbidden
+        self.sink = sink
+        self._rows: list[dict] = []
+
+    def upsert(self, rows, on_conflict=None):
+        self._rows = rows
+        return self
+
+    def execute(self):
+        for row in self._rows:
+            for key in row:
+                if key in self.forbidden:
+                    raise _FakeAPIError(
+                        "PGRST204",
+                        f"Could not find the '{key}' column of 'x' in the schema cache",
+                    )
+        self.sink.extend(self._rows)
+        return self
+
+
+class _FakeClient:
+    def __init__(self, forbidden: set[str]):
+        self.forbidden = forbidden
+        self.saved: list[dict] = []
+
+    def table(self, _name):
+        return _FakeTable(self.forbidden, self.saved)
+
+
+def test_upsert_drops_missing_column_and_keeps_going():
+    """없는 컬럼은 걷어내고 **나머지는 저장한다.** 통째로 죽지 않는다."""
+    client = _FakeClient({"ret_5d"})
+    rows = [{"code": "005930", "close": 100.0, "ret_5d": 1.5}]
+    saved, dropped = upsert_tolerating_missing_columns(
+        client, "price_snapshots", rows, on_conflict="code"
+    )
+    assert saved == 1
+    assert dropped == ["ret_5d"]
+    assert client.saved == [{"code": "005930", "close": 100.0}]
+
+
+def test_upsert_drops_multiple_missing_columns():
+    """★ PostgREST는 **한 번에 하나씩만** 알려준다 — 한 번 폴백하고 마는
+    패턴은 컬럼이 둘 이상 빠지면 여전히 죽는다. 반드시 루프여야 한다."""
+    client = _FakeClient({"ret_5d", "fwd_per"})
+    rows = [{"code": "A", "close": 1.0, "ret_5d": 1.0, "fwd_per": 2.0}]
+    saved, dropped = upsert_tolerating_missing_columns(
+        client, "price_snapshots", rows, on_conflict="code"
+    )
+    assert saved == 1
+    assert sorted(dropped) == ["fwd_per", "ret_5d"]
+    assert client.saved == [{"code": "A", "close": 1.0}]
+
+
+def test_upsert_reraises_unrelated_errors():
+    """★ 아무 에러나 삼키면 진짜 고장을 '컬럼 없음'으로 착각하게 된다."""
+    class _Boom:
+        def table(self, _n):
+            raise _FakeAPIError("PGRST301", "인증 실패")
+
+    with pytest.raises(_FakeAPIError):
+        upsert_tolerating_missing_columns(
+            _Boom(), "price_snapshots", [{"code": "A"}], on_conflict="code"
+        )
+
+
+def test_missing_column_of_ignores_other_codes():
+    assert missing_column_of(_FakeAPIError("PGRST204", "Could not find the 'x' column")) == "x"
+    assert missing_column_of(_FakeAPIError("42703", "Could not find the 'x' column")) is None
