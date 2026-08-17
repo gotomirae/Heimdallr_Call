@@ -124,12 +124,17 @@ export default async function HomePage() {
         )}
       </div>
 
-      {/* ★ 헤더 고정 — 아래로 스크롤해도 어느 열인지 잃지 않는다(사용자 지정).
-          `overflow-x-auto`만 있는 컨테이너에서는 sticky가 먹지 않으므로
-          세로 스크롤은 페이지에 맡기고 `sticky top-0`을 thead에 준다. */}
-      <div className="overflow-x-auto rounded-lg border border-slate-800">
+      {/* ★ 머리글 고정 — 아래로 스크롤해도 어느 열인지 잃지 않는다(사용자 지정).
+          함정 (T64):
+          `overflow-x-auto`만 주면 **세로축도 스크롤 컨테이너가 된다**
+          (CSS는 한 축이 visible이 아니면 다른 축의 visible을 auto로 바꾼다).
+          그런데 높이 제한이 없어 이 div는 세로로 스크롤되지 않고 **페이지가** 스크롤된다
+          → thead가 붙을 스크롤 영역이 없어 그냥 같이 밀려 올라간다.
+          빌드도 통과하고 클래스도 그대로 붙어 있어 코드만 봐서는 멀쩡해 보인다.
+          → 높이를 제한해 이 div를 **실제 세로 스크롤 영역**으로 만든다. */}
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-800">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.25)]">
+          <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
             <tr>
               <TermTh term="섹터">섹터</TermTh>
               <TermTh term="">종목명</TermTh>

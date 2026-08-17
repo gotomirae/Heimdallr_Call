@@ -175,9 +175,11 @@ export default function ScreenerTable({ rows }: { rows: ScreenerRow[] }) {
         <span className="text-slate-400"> / 전체 {rows.length.toLocaleString("ko-KR")}</span>
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-800">
+      {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). 300행을 훑어 내려가는
+          화면이라 여기가 가장 필요하다. */}
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-800">
         <table className="w-full min-w-[940px] text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase text-slate-400">
+          <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
             <tr>
               <th className="px-3 py-2 text-left">등급</th>
               <th className="px-3 py-2 text-left">종목</th>

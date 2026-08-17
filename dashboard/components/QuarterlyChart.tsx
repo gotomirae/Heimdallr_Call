@@ -18,12 +18,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ChartPoint } from "@/lib/chart";
+import { SERIES_COLOR, type ChartPoint } from "@/lib/chart";
 import { DASH } from "@/lib/format";
 
 const REVENUE_YOY = "매출 YoY";
 const OP_YOY = "영업이익 YoY";
 const CLOSE = "주가";
+
+// ★ 색은 `lib/chart.ts`가 단일 출처다. **여기서 export하면 안 된다** —
+//   이 파일은 "use client"라, 서버 컴포넌트(상세 페이지 설명 글)가 여기서
+//   비컴포넌트 export를 가져오면 빌드·tsc를 통과하고 **런타임에 500**이 난다(T41).
+const { OP_COLOR, OP_LABEL, REVENUE_COLOR, REVENUE_LABEL, PRICE_COLOR } = SERIES_COLOR;
 
 function fmt(value: unknown, unit: string): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return DASH;
@@ -79,7 +84,7 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
           />
           <YAxis
             yAxisId="amount"
-            stroke="#94a3b8"
+            stroke={SERIES_COLOR.TTM_COLOR}
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -126,59 +131,62 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
             type="monotone"
             dataKey="ttmRevenue"
             name="TTM 매출"
-            stroke="#94a3b8"
+            stroke={SERIES_COLOR.TTM_COLOR}
             strokeWidth={1.5}
             strokeDasharray="4 3"
             dot={false}
             isAnimationActive={false}
             connectNulls={false}
           />
+          {/* 주가 — **빨간 점선**. 현재 주가까지 이어 그린다.
+              ★ 오른쪽 축(price)은 숨겨 두었다. 억원·%·원 축을 셋 다 그리면
+                눈이 어디를 봐야 할지 잃는다. */}
           {hasPrice && (
             <Line
               yAxisId="price"
               type="monotone"
               dataKey="close"
               name={CLOSE}
-              stroke="#a78bfa"
-              strokeWidth={1.5}
-              strokeDasharray="2 3"
-              dot={{ r: 2, fill: "#a78bfa", strokeWidth: 0 }}
+              stroke={PRICE_COLOR}
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              dot={{ r: 2.5, fill: PRICE_COLOR, strokeWidth: 0 }}
               isAnimationActive={false}
               connectNulls={false}
             />
           )}
 
-          {/* 매출 성장률 — 두 번째로 중요하다 */}
+          {/* 매출 성장률 — **녹색 실선** */}
           <Line
             yAxisId="growth"
             type="monotone"
             dataKey="revenueYoy"
             name={REVENUE_YOY}
-            stroke="#f59e0b"
+            stroke={REVENUE_COLOR}
             strokeWidth={2.5}
-            dot={{ r: 4, fill: "#f59e0b", strokeWidth: 0 }}
+            dot={{ r: 4, fill: REVENUE_COLOR, strokeWidth: 0 }}
             activeDot={{ r: 6 }}
             isAnimationActive={false}
             // 부호 전환 구간(null)은 이어 그리지 않는다 — 없는 값을 만들어내면 안 된다.
             connectNulls={false}
           >
-            <LabelList dataKey="revenueYoy" content={(p) => growthLabel({ ...p, fill: "#fbbf24" })} />
+            <LabelList dataKey="revenueYoy" content={(p) => growthLabel({ ...p, fill: REVENUE_LABEL })} />
           </Line>
 
-          {/* ★★ 주인공 — 가장 굵고, 가장 밝고, 점이 크다 */}
+          {/* ★★ 주인공 — 영업이익 성장률. **노란 실선**. 가장 굵고 점이 크다. */}
           <Line
             yAxisId="growth"
             type="monotone"
             dataKey="opYoy"
             name={OP_YOY}
-            stroke="#34d399"
+            stroke={OP_COLOR}
             strokeWidth={3.5}
-            dot={{ r: 5, fill: "#34d399", strokeWidth: 0 }}
+            dot={{ r: 5, fill: OP_COLOR, strokeWidth: 0 }}
             activeDot={{ r: 7 }}
             isAnimationActive={false}
             connectNulls={false}
           >
-            <LabelList dataKey="opYoy" content={(p) => growthLabel({ ...p, fill: "#6ee7b7" })} />
+            <LabelList dataKey="opYoy" content={(p) => growthLabel({ ...p, fill: OP_LABEL })} />
           </Line>
         </ComposedChart>
       </ResponsiveContainer>

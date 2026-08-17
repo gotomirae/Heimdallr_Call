@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
-import { CHART_QUARTERS, measuredCount, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, measuredCount, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -229,9 +229,11 @@ export default async function StockPage({ params }: { params: { code: string } }
         <QuarterlyChart points={chartPoints} />
         <Note>
           <strong className="text-slate-200">막대</strong>는 그 분기의 매출·영업이익 금액(억원),{" "}
-          <strong className="text-emerald-400">초록 실선</strong>은{" "}
+          {/* ★ 색 이름을 손으로 적지 않는다 — 차트 색을 바꾸면 여기가 조용히 어긋나
+              "초록 실선은…"이라 써 놓고 화면은 노란 선인 상태가 된다. 둘 다 정상으로 보인다. */}
+          <strong style={{ color: SERIES_COLOR.OP_LABEL }}>노란 실선</strong>은{" "}
           <Term term="영업이익">영업이익 성장률(YoY)</Term>,{" "}
-          <strong className="text-amber-400">주황 실선</strong>은{" "}
+          <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>녹색 실선</strong>은{" "}
           <Term term="매출액">매출 성장률(YoY)</Term>이다. 두 선 위의 숫자가 그 분기의
           성장률이며, <strong className="text-slate-200">선이 우상향하면 그게 가속이다</strong> —
           값이 높은 것이 아니라 <em>전분기보다 높아진 것</em>이 이 시스템이 찾는 신호다.
@@ -242,7 +244,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             체력&rdquo;이 보인다. 이 선이 계속 최고치를 경신하면 그 가속은 일시적인 게 아니다.
           </span>
           <span className="mt-1 block">
-            <strong className="text-violet-300">보라 점선(주가)</strong>은 그 분기 마지막
+            <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>빨간 점선(주가)</strong>은 그 분기 마지막
             거래일 종가이고, <strong className="text-slate-300">맨 오른쪽 점은 오늘 종가</strong>다
             — 실적은 마지막 발표 분기에서 끝나지만 주가는 <strong>현재까지</strong> 이어 그린다.
             실적 선보다 주가 선이 <em>늦게</em> 올라오는 구간이 이 시스템이 노리는 자리다.
@@ -276,10 +278,11 @@ export default async function StockPage({ params }: { params: { code: string } }
             라벨로 적는다.
           </span>
         </Note>
-        <div className="mt-3 overflow-x-auto">
+        {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
+            세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
+        <div className="mt-3 max-h-[60vh] overflow-auto">
           <table className="w-full min-w-[720px] text-right text-sm">
-            {/* 헤더 고정 — 12분기를 훑어 내려도 어느 열인지 잃지 않는다 */}
-            <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-300">
+            <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-300 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
               <tr className="border-b border-slate-800">
                 <TermTh term="분기">분기</TermTh>
                 <TermTh term="매출액" align="right">매출</TermTh>

@@ -28,6 +28,29 @@ export interface ChartPoint {
 /** 상세화면 차트의 기본 분기 수. 사용자 요청으로 8 → 9. */
 export const CHART_QUARTERS = 9;
 
+/**
+ * 차트 계열 색 — **단일 출처**.
+ *
+ * ★ 차트 컴포넌트와 그 아래 설명 글이 서로 다른 파일에 있다. 색을 각자 적어 두면
+ *   "초록 실선은 매출…"이라고 써 놓고 화면은 노란 선인 상태가 되는데,
+ *   **둘 다 정상으로 보여서** 아무도 눈치채지 못한다.
+ * ★ 이 상수는 **`lib/`에 있어야 한다.** `QuarterlyChart.tsx`는 "use client"라
+ *   서버 컴포넌트가 그 파일에서 비컴포넌트 export를 가져오면 빌드는 통과하고
+ *   런타임에 500이 난다(T41).
+ */
+export const SERIES_COLOR = {
+  /** 영업이익 YoY — 노란 실선. 이 차트의 주인공. */
+  OP_COLOR: "#facc15",
+  OP_LABEL: "#fde047",
+  /** 매출 YoY — 녹색 실선. */
+  REVENUE_COLOR: "#34d399",
+  REVENUE_LABEL: "#6ee7b7",
+  /** 주가 — 빨간 점선. 현재 주가까지 이어 그린다. */
+  PRICE_COLOR: "#f87171",
+  /** TTM 매출 — 회색 점선. */
+  TTM_COLOR: "#94a3b8",
+} as const;
+
 function qLabel(year: number, quarter: number): string {
   return `${String(year).slice(-2)}.${quarter}Q`;
 }
