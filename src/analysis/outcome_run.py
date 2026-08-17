@@ -232,16 +232,18 @@ def report(results: list[Outcome], screens: dict) -> None:
     #   비어 있는 시점으로 비교하면 "n=1 vs n=1"을 근거로 SC6를 판정하게 된다.
     best = max(
         HORIZONS,
-        key=lambda d: sum(1 for r in rows if r[f"excess_d{d}"] is not None),
+        key=lambda d: sum(
+            1 for r in rows if r[f"excess_d{horizon_column(d)}"] is not None
+        ),
     )
-    print(f"\n[4] SC6 · SC8 검증 그룹 비교 (D+{best})")
+    print(f"\n[4] SC6 · SC8 검증 그룹 비교 ({horizon_label(best)})")
     print("    ★ SC6: 컨센서스 없는 종목이 구조적으로 불리하지 않아야 한다(ADR 2).")
     for key, label in (("has_consensus", "컨센서스"), ("base_effect_warning", "기저효과 경고")):
         merged = []
         for r in rows:
             s = screens.get((r["code"], r["fiscal_year"], r["fiscal_quarter"])) or {}
             merged.append({**r, key: s.get(key)})
-        stats = group_stats(merged, key, f"excess_d{best}")
+        stats = group_stats(merged, key, f"excess_d{horizon_column(best)}")
         parts = []
         for k, v in sorted(stats.items(), key=lambda x: str(x[0])):
             med = v["median"]

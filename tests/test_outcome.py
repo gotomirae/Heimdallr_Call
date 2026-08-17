@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from src.analysis.outcome import (
@@ -284,12 +286,28 @@ def test_report_uses_horizon_column_for_db_keys():
     code = "\n".join(
         line for line in src.splitlines() if not line.lstrip().startswith("#")
     )
-    for bad in ('excess_d{days}', 'ret_d{days}'):
-        assert bad not in code, (
-            f"'{bad}'로 컬럼명을 만들고 있다 — 음수 시점에서 KeyError로 죽는다. "
-            "horizon_column(days)를 써라"
-        )
+    # ★ **변수명을 열거하면 안 된다.** 처음엔 `{days}`만 검사했는데 같은 파일의
+    #   `{d}`·`{best}`가 남아 있어 그대로 KeyError가 났다(실측 2회 재발).
+    #   f-string 안에 horizon_column을 거치지 않은 보간이 있으면 전부 잡는다.
+    offenders = re.findall(r'(?:excess|ret)_d\{(?!horizon_column)[^}]+\}', code)
+    assert not offenders, (
+        f"컬럼명을 직접 보간하고 있다 — 음수 시점에서 KeyError로 죽는다: {offenders}. "
+        "f\"excess_d{horizon_column(days)}\" 형태로 써라"
+    )
     assert "horizon_column" in code, "리포트가 horizon_column을 쓰지 않는다"
+
+
+def test_column_guard_actually_catches_it():
+    """검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54).
+
+    변수명을 열거하는 방식이었다가 `{d}`를 놓쳤다 — 어떤 이름이든 걸려야 한다.
+    """
+    pat = r'(?:excess|ret)_d\{(?!horizon_column)[^}]+\}'
+    for bad in ('excess_d{days}', 'ret_d{days}', 'excess_d{d}', 'excess_d{best}',
+                'excess_d{x + 1}'):
+        assert re.findall(pat, f'r[f"{bad}"]'), f"{bad}를 못 잡는다"
+    # 올바른 형태는 걸리지 않아야 한다
+    assert not re.findall(pat, 'r[f"excess_d{horizon_column(days)}"]')
 
 
 def test_horizon_column_round_trips_for_every_horizon():
