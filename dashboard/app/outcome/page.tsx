@@ -29,6 +29,7 @@ import {
   risingSectors,
   usableSectors,
 } from "@/lib/sectorEarnings";
+import { playFor, projectSector } from "@/lib/sectorPlaybook";
 import { DASH } from "@/lib/format";
 import type { ScreenRow } from "@/lib/types";
 
@@ -426,34 +427,124 @@ export default async function OutcomePage() {
         )}
       </Card>
 
-      {/* ═══ ⑤ 다음 분기 전망 (사용자 요청) ═══ */}
+      {/* ═══ ⑤ 다음 분기 전망 — 섹터별 이벤트·지표·전망값 (사용자 지정) ═══ */}
       {outlookRows.length > 0 && (
         <Card
-          title="다음 분기 전망"
-          note="예측이 아니라 방향 · 매출 성장률과 가속 비율이 둘 다 개선=가속, 둘 다 악화=둔화, 엇갈림=유지"
+          title="다음 분기 전망 — 섹터별"
+          note="성장률 범위는 이번 분기 실측에서 계산했다(예측 모델이 아니다). 이벤트·지표는 그 섹터에서 주가를 움직이는 것들이다."
         >
-          <div className="space-y-2">
-            {outlookRows.slice(0, 12).map((o) => (
-              <div key={o.sector}
-                   className="flex flex-wrap items-start gap-3 border-b border-slate-800 pb-2 last:border-b-0">
-                <span className={`w-16 shrink-0 rounded px-2 py-0.5 text-center text-xs font-bold ${
-                  { 가속: "bg-rose-500/20 text-rose-200",
-                    유지: "bg-amber-500/20 text-amber-200",
-                    둔화: "bg-sky-500/20 text-sky-200",
-                    판정불가: "bg-slate-700/40 text-slate-200" }[o.momentum]
-                }`}>
-                  {o.momentum}
-                </span>
-                <span className="w-28 shrink-0 text-sm font-semibold text-white">{o.sector}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-100">{o.basis}</p>
+          <div className="space-y-3">
+            {outlookRows.slice(0, 14).map((o) => {
+              const row = sectorRows.find((s) => s.sector === o.sector);
+              if (!row) return null;
+              const proj = projectSector(row);
+              const play = playFor(o.sector);
+              const band = (r: [number, number] | null) =>
+                r == null
+                  ? DASH
+                  : `${r[0] >= 0 ? "+" : ""}${r[0].toFixed(1)} ~ ${r[1] >= 0 ? "+" : ""}${r[1].toFixed(1)}%`;
+              return (
+                <div key={o.sector} className="rounded-lg border border-slate-700 bg-slate-950/40 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded px-2 py-0.5 text-xs font-bold ${
+                      { 가속: "bg-rose-500/20 text-rose-200",
+                        유지: "bg-amber-500/20 text-amber-200",
+                        둔화: "bg-sky-500/20 text-sky-200",
+                        판정불가: "bg-slate-700/40 text-slate-100" }[o.momentum]
+                    }`}>
+                      {o.momentum}
+                    </span>
+                    <span className="text-base font-bold text-white">{o.sector}</span>
+                    <span className="text-xs text-slate-200">{row.n}종목</span>
+                  </div>
+
+                  {/* 성장률: 이번 분기 실측 → 다음 분기 예상 범위 */}
+                  <table className="mt-2 text-xs">
+                    <thead>
+                      <tr className="text-slate-200">
+                        <th className="pr-3 text-left font-medium"></th>
+                        <th className="pr-3 text-right font-medium">이번 분기</th>
+                        <th className="pr-3 text-right font-medium">섹터 내 범위</th>
+                        <th className="pr-3 text-right font-medium">전분기 대비</th>
+                        <th className="text-right font-medium text-amber-200">다음 분기 예상</th>
+                      </tr>
+                    </thead>
+                    <tbody className="tabular-nums">
+                      <tr>
+                        <td className="pr-3 font-semibold text-slate-100">매출</td>
+                        <td className={`pr-3 text-right font-semibold ${toneOf(row.revenueYoy)}`}>
+                          {row.revenueYoy == null ? DASH : `${row.revenueYoy >= 0 ? "+" : ""}${row.revenueYoy.toFixed(1)}%`}
+                        </td>
+                        <td className="pr-3 text-right text-slate-200">
+                          {row.revenueRange == null
+                            ? DASH
+                            : `${row.revenueRange[0].toFixed(0)} ~ ${row.revenueRange[1].toFixed(0)}%`}
+                        </td>
+                        <td className={`pr-3 text-right ${toneOf(row.revenueYoyDelta)}`}>
+                          {row.revenueYoyDelta == null ? DASH : `${row.revenueYoyDelta >= 0 ? "+" : ""}${row.revenueYoyDelta.toFixed(1)}%p`}
+                        </td>
+                        <td className="text-right font-bold text-amber-200">{band(proj.revenue)}</td>
+                      </tr>
+                      <tr>
+                        <td className="pr-3 font-semibold text-slate-100">영업이익</td>
+                        <td className={`pr-3 text-right font-semibold ${toneOf(row.opYoy)}`}>
+                          {row.opYoy == null ? DASH : `${row.opYoy >= 0 ? "+" : ""}${row.opYoy.toFixed(1)}%`}
+                        </td>
+                        <td className="pr-3 text-right text-slate-200">
+                          {row.opRange == null
+                            ? DASH
+                            : `${row.opRange[0].toFixed(0)} ~ ${row.opRange[1].toFixed(0)}%`}
+                        </td>
+                        <td className={`pr-3 text-right ${toneOf(row.opYoyDelta)}`}>
+                          {row.opYoyDelta == null ? DASH : `${row.opYoyDelta >= 0 ? "+" : ""}${row.opYoyDelta.toFixed(1)}%p`}
+                        </td>
+                        <td className="text-right font-bold text-amber-200">{band(proj.op)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* 섹터별 이벤트·지표 — 일괄 문구를 대체한다 */}
+                  <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                    <div>
+                      <div className="font-semibold text-sky-200">주가를 움직일 이벤트</div>
+                      <div className="mt-0.5 flex flex-wrap gap-1">
+                        {play.events.map((e) => (
+                          <span key={e} className="rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-100">
+                            {e}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-violet-200">확인할 지표</div>
+                      <div className="mt-0.5 flex flex-wrap gap-1">
+                        {play.indicators.map((m) => (
+                          <span key={m} className="rounded bg-violet-500/15 px-1.5 py-0.5 text-violet-100">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-200">
+                    <span className="font-semibold text-slate-100">주의 · </span>{play.risk}
+                  </p>
                   <p className="mt-0.5 text-xs text-slate-200">
-                    <span className="text-slate-300">다음 분기 확인 · </span>{o.watch}
+                    <span className="text-slate-300">근거 · </span>{o.basis}
                   </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+          <p className="mt-3 text-xs text-slate-200">
+            <strong className="text-slate-100">다음 분기 예상</strong>은 이번 분기 중앙값을 하단,
+            전분기 대비 변화의 절반을 더한 값을 상단으로 잡았다 — 성장률 변화는 평균회귀가
+            강해 모멘텀을 온전히 연장하지 않는다.{" "}
+            <strong className="text-amber-200">예측 모델이 아니라 &ldquo;이 추세가 이어지면
+            이 범위&rdquo;라는 조건부 서술이다.</strong>{" "}
+            이벤트·지표는 산업 지식으로 정리한 것이며 전망값은 여기서 오지 않는다.
+          </p>
         </Card>
       )}
 

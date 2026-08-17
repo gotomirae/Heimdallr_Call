@@ -35,6 +35,31 @@ export interface SectorEarnings {
   accelRateDelta: number | null;
   /** 지난 분기 대비 매출 성장률 중앙값 변화(%p) — 섹터 자체가 가속 중인가. */
   revenueYoyDelta: number | null;
+  /** 지난 분기 대비 **영업이익** 성장률 중앙값 변화(%p). */
+  opYoyDelta: number | null;
+  /** 매출 성장률 사분위 범위(p25~p75) — 중앙값만 보면 섹터 안 편차를 못 본다. */
+  revenueRange: [number, number] | null;
+  /** 영업이익 성장률 사분위 범위. */
+  opRange: [number, number] | null;
+  /** 지난 분기 중앙값(전망 근거로 화면에 함께 보여준다). */
+  prevRevenueYoy: number | null;
+  prevOpYoy: number | null;
+}
+
+/** 사분위. 중앙값 하나로는 "섹터 전체가 좋은가, 몇 종목만 좋은가"를 못 가른다. */
+function quantile(values: number[], q: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+function range(values: number[]): [number, number] | null {
+  const lo = quantile(values, 0.25);
+  const hi = quantile(values, 0.75);
+  return lo == null || hi == null ? null : [lo, hi];
 }
 
 function pick<T>(rows: T[], f: (r: T) => number | null | undefined): number[] {
@@ -84,8 +109,12 @@ export function aggregateSectors(
   const out: SectorEarnings[] = [];
   for (const [sector, b] of bucket) {
     if (b.cur.length === 0) continue;
-    const rev = median(pick(b.cur, (r) => r.revenue_yoy));
+    const revVals = pick(b.cur, (r) => r.revenue_yoy);
+    const opVals = pick(b.cur, (r) => r.op_yoy);
+    const rev = median(revVals);
+    const op = median(opVals);
     const prevRev = median(pick(b.prev, (r) => r.revenue_yoy));
+    const prevOp = median(pick(b.prev, (r) => r.op_yoy));
     const rate = passRate(b.cur, current.year, current.quarter);
     const prevRate = passRate(b.prev, previous.year, previous.quarter);
     const accelerated = b.cur.filter(
@@ -97,12 +126,17 @@ export function aggregateSectors(
       sector,
       n: b.cur.length,
       revenueYoy: rev,
-      opYoy: median(pick(b.cur, (r) => r.op_yoy)),
+      opYoy: op,
+      revenueRange: range(revVals),
+      opRange: range(opVals),
+      prevRevenueYoy: prevRev,
+      prevOpYoy: prevOp,
       accelerated,
       accelRate: rate,
       prevAccelRate: prevRate,
       accelRateDelta: rate != null && prevRate != null ? (rate - prevRate) * 100 : null,
       revenueYoyDelta: rev != null && prevRev != null ? rev - prevRev : null,
+      opYoyDelta: op != null && prevOp != null ? op - prevOp : null,
     });
   }
   return out.sort((a, b) => (b.revenueYoy ?? -Infinity) - (a.revenueYoy ?? -Infinity));

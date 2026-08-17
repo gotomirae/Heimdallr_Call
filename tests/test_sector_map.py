@@ -88,3 +88,37 @@ def test_keywords_are_lowercase():
     """`_haystack`이 소문자로 비교하므로 대문자 키워드는 **영원히 안 걸린다.**"""
     bad = [(s, k) for s, ks in SECTOR_RULES for k in ks if k != k.lower()]
     assert not bad, f"대문자가 섞인 키워드는 매칭되지 않는다: {bad}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 섹터 플레이북 — 대시보드의 섹터별 이벤트·지표
+#
+# ★ 섹터명이 **글자까지 같아야** 한다. 다르면 매칭이 안 돼 화면에 기본값만 나오는데
+#   **에러가 없다** — 오타 하나로 그 섹터의 이벤트·지표가 조용히 사라진다.
+# ═══════════════════════════════════════════════════════════════════
+def _playbook_keys() -> set[str]:
+    import re
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parents[1] / "dashboard" / "lib" / "sectorPlaybook.ts"
+    ).read_text(encoding="utf-8")
+    body = src[src.index("SECTOR_PLAYBOOK") : src.index("DEFAULT_PLAY")]
+    return {
+        k.strip('"')
+        for k in re.findall(r"^  ([가-힣A-Za-z0-9·]+|\"[^\"]+\"):\s*\{", body, re.M)
+    }
+
+
+def test_playbook_has_no_typo_keys():
+    """★ 플레이북에만 있는 섹터명 = 오타다. 그 항목은 영영 안 쓰인다."""
+    real = {name for name, _ in SECTOR_RULES} | {UNKNOWN_SECTOR}
+    extra = _playbook_keys() - real
+    assert not extra, f"실제 섹터에 없는 플레이북 키(오타 의심): {sorted(extra)}"
+
+
+def test_playbook_covers_every_sector():
+    """모든 실제 섹터에 이벤트·지표가 있어야 한다 — 없으면 기본값으로 떨어진다."""
+    real = {name for name, _ in SECTOR_RULES}
+    missing = real - _playbook_keys()
+    assert not missing, f"플레이북에 없는 섹터: {sorted(missing)}"
