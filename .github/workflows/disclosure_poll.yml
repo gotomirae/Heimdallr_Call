@@ -1,0 +1,84 @@
+# PRD Ref: §10, §10.2 · traps.md T28, T36
+#
+# DART 공시 폴링 → 잠정실적 파싱 → 파생지표 → 스크리닝 → ⚡알림.
+#
+# ★ 시즌/비시즌 빈도를 `SEASON_MODE` 저장소 변수로 전환한다.
+#   GitHub Actions의 cron은 조건부로 못 쓰므로 **두 스케줄을 다 걸고 잡 안에서 건너뛴다.**
+#   (건너뛰는 잡도 시작 비용이 들지만 몇 초라 폴링 자체보다 훨씬 싸다.)
+# ★ 잡 안에서 sleep 루프를 쓰지 않는다(PRD §10.1) — sleep도 과금된다.
+
+name: disclosure_poll
+
+on:
+  schedule:
+    - cron: "*/30 0-10 * * 1-5" # 시즌: 09:00~19:00 KST 30분마다
+    - cron: "0 1,4,7,10 * * 1-5" # 비시즌: 하루 4회
+  workflow_dispatch:
+    inputs:
+      notify:
+        description: "★/○ 즉시 알림까지 발송"
+        type: boolean
+        default: true
+
+concurrency:
+  group: disclosure-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
+      HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      # ★ 30분 스케줄은 시즌에만 의미가 있다. 비시즌이면 여기서 끝낸다.
+      - name: 시즌 확인
+        id: season
+        run: |
+          season="${{ vars.SEASON_MODE }}"
+          frequent="${{ github.event.schedule == '*/30 0-10 * * 1-5' }}"
+          if [ "$frequent" = "true" ] && [ "$season" != "on" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "비시즌이라 30분 폴링을 건너뛴다 (SEASON_MODE=$season)"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.season.outputs.run == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.season.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 설치
+        if: steps.season.outputs.run == 'true'
+        run: pip install -e .
+
+      # 최근 3일치만 훑는다. 텔레그램과 달리 DART는 과거를 계속 주므로
+      # 놓친 공시가 있어도 다음 실행이 다시 잡는다.
+      - name: 공시 감지 · 잠정실적 반영
+        if: steps.season.outputs.run == 'true'
+        run: |
+          begin=$(date -u -d '3 days ago' +%Y%m%d)
+          end=$(date -u +%Y%m%d)
+          python -m src.collectors.replay --begin "$begin" --end "$end" --save
+          python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
+
+      - name: 파생지표
+        if: steps.season.outputs.run == 'true'
+        run: python -m src.finance.enrich --save
+
+      - name: 스크리닝
+        if: steps.season.outputs.run == 'true'
+        run: python -m src.screener.run --save
+
+      # 중복은 `notifications` 테이블이 막는다 — 하루 38회 돌아도 같은 종목은 한 번만 나간다.
+      - name: ⚡ 즉시 알림
+        if: steps.season.outputs.run == 'true' && inputs.notify != false
+        run: python -m src.notify.batch --flash --send

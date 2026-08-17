@@ -1,0 +1,70 @@
+{
+  "_generated_by": "python -m src.config.export_constants",
+  "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
+  "gate": {
+    "market_cap_floor_krw": 100000000000,
+    "min_quarters_history": 5
+  },
+  "score_axes": {
+    "A_성장가속": 35,
+    "B_수익성": 32,
+    "C_서프라이즈": 15,
+    "D_회계품질": 18
+  },
+  "score_items": {
+    "a1": 14,
+    "a2": 10,
+    "a3": 6,
+    "a4": 5,
+    "b1": 14,
+    "b2": 7,
+    "b3": 6,
+    "b4": 5,
+    "c1": 9,
+    "c2": 6,
+    "d1": 6,
+    "d2": 4,
+    "d3": 4,
+    "d4": 4
+  },
+  "denominators": {
+    "flash_with_consensus": 82,
+    "flash_no_consensus": 67,
+    "final_with_consensus": 100,
+    "final_no_consensus": 85
+  },
+  "pri": {
+    "p1": 40,
+    "p2": 25,
+    "p3": 20,
+    "p4": 15,
+    "min_denominator": 40
+  },
+  "matrix": {
+    "score_high": 75,
+    "score_mid": 60,
+    "pri_low": 40,
+    "pri_high": 65
+  },
+  "notify": {
+    "grades": [
+      "★",
+      "○"
+    ],
+    "daily_max": 15
+  },
+  "consensus": {
+    "min_estimates": 2
+  },
+  "cost": {
+    "monthly_ceiling_usd": 8,
+    "input_token_budget": 5000,
+    "model": "claude-sonnet-5",
+    "input_per_mtok": 2.0,
+    "output_per_mtok": 10.0
+  },
+  "data": {
+    "start_year": 2024,
+    "start_quarter": 1
+  }
+}

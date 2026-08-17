@@ -1,0 +1,40 @@
+# ── 시크릿 ──
+# ★ .env.txt에는 실제 API 키가 들어 있다. 반드시 제외한다.
+.env
+.env.*
+!.env.example
+*.env.txt
+
+# ── 캐시 ──
+.cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── 파이썬 ──
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# ── 대시보드 (Next.js) ──
+dashboard/.next/
+dashboard/node_modules/
+dashboard/out/
+node_modules/
+.vercel/
+
+# ── 로컬 도구 상태 ──
+# bkit 플러그인 런타임(감사 로그·스냅샷·세션 이력) — 프로젝트 산출물이 아니다.
+.bkit/
+# ★ 전역 ignore에만 걸려 있으면 다른 머신에서 클론할 때 조용히 뚫린다.
+.claude/settings.local.json
+
+# ── 에디터 · OS ──
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

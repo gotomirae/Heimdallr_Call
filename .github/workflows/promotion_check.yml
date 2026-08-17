@@ -1,0 +1,39 @@
+# PRD Ref: §10 · §9 /outcome
+#
+# △ → ○/★ 승격 확인 및 알림
+#
+# ★★ **이 알림이 ADR 5의 실질적 쓸모다.**
+#    스코어와 PRI를 한 숫자로 뭉갰다면 △는 "중간 점수"로 묻힌다.
+#    따로 두었기에 "펀더멘털은 그대로인데 가격만 내려온 종목"을 집어낼 수 있다.
+# ★ 주 1회면 충분하다. 가격 조정은 하루 만에 일어나지 않는다.
+
+name: promotion_check
+
+on:
+  schedule:
+    - cron: "0 22 * * 1" # 월요일 07:00 KST
+  workflow_dispatch:
+
+concurrency:
+  group: promotion-check
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
+      HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+
+      - run: python -m src.notify.promotion --send

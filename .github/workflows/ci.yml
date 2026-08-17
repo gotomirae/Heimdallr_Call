@@ -1,0 +1,50 @@
+# PRD Ref: §10 · traps.md T10
+#
+# 테스트 + 깨끗한 환경 설치 검증.
+#
+# ★ **깨끗한 `pip install -e .`가 이 워크플로의 핵심이다.**
+#   로컬 venv에 수동 설치된 패키지가 있으면 로컬은 전부 통과하고
+#   Actions에서만 죽는다(참고 프로젝트 3회 재발, T10).
+#   여기서 잡지 않으면 야간 배치가 조용히 실패한다.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 설치 (깨끗한 환경)
+        run: pip install -e ".[dev]"
+
+      # ★ 시크릿 없이 전부 돈다 — `conftest.py`의 `needs_secret` 마커가
+      #   외부 API 테스트를 스킵한다. 실측: 시크릿 0개로 376 passed / 6 skipped.
+      #   그래서 CI에 시크릿을 주지 않는다(노출면을 넓히지 않는다).
+      - name: 테스트
+        run: python -m pytest tests/ -q
+
+      - name: 진입점 임포트 확인
+        run: |
+          for m in universe.build collectors.replay collectors.price_run \
+                   finance.enrich finance.backfill screener.run \
+                   notify.batch notify.run notify.listen; do
+            python -c "import src.$m" || exit 1
+          done

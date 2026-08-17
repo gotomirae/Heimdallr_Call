@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heimdallr-call"
+version = "0.1.0"
+description = "KOSPI/KOSDAQ 분기실적 가속 종목 자동 발굴 (미반영 구간 탐지)"
+requires-python = ">=3.11"
+
+# ─────────────────────────────────────────────────────────────────────
+# traps.md T10 — 새 서드파티 임포트는 반드시 여기에 먼저 선언한다.
+# 로컬 venv에 수동 설치돼 있으면 로컬 테스트는 전부 통과하고
+# GitHub Actions의 깨끗한 `pip install -e .` 환경에서만 죽는다(참고 프로젝트 3회 재발).
+# lxml은 임포트가 아니라 "실제 파싱 순간"에만 죽어서 더 악질이었다.
+# 검증: python -m venv /tmp/x && /tmp/x/bin/pip install -e . 후 실제 경로 1회 실행.
+# ─────────────────────────────────────────────────────────────────────
+dependencies = [
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.2",            # 주의: KIND 상장법인목록에는 쓰지 않는다(T5) — 다른 소스 전용
+    "supabase>=2.15",
+    "python-dotenv>=1.0",
+    "anthropic>=0.40",
+    "tzdata>=2024.1",       # Windows에 IANA tz DB가 없어 ZoneInfo("Asia/Seoul")가 죽는다
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    # ★ 워크플로 YAML 검증에 쓴다. 로컬에 우연히 깔려 있어 선언을 빠뜨리면
+    #   테스트가 **로컬만 통과하고 Actions에서 죽는다**(T10, 참고 프로젝트 3회 재발).
+    "pyyaml>=6.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

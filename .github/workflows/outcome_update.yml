@@ -1,0 +1,41 @@
+# PRD Ref: §10 · §9 /outcome
+#
+# D+1/5/20/60 초과수익 갱신
+#
+# ★ D+1/5/20/60은 시간이 지나야 채워진다. 매일 다시 돌려 **빈 칸을 메운다** —
+#   한 번 돌고 끝나는 잡이 아니다. upsert라 재실행이 안전하다.
+# ★ 측정 못 한 시점은 **0이 아니라 NULL**로 남는다(`outcome.py`).
+#   0으로 채우면 평균이 0 쪽으로 끌려가 "아무 효과 없음"으로 보인다.
+
+name: outcome_update
+
+on:
+  schedule:
+    - cron: "0 22 * * 1-5" # 07:00 KST
+  workflow_dispatch:
+
+concurrency:
+  group: outcome-update
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+      HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
+      HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+
+      - run: python -m src.analysis.outcome_run --save

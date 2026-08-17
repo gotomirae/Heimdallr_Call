@@ -1,0 +1,292 @@
+# PRD Ref: §7 전체, §11 · ADR 3, 4
+"""게이트 통과 ★○ 종목 LLM 해석.
+
+비용 설계가 이 모듈의 전부다:
+
+1. **공시 원문 전체를 넣지 않는다.** 숫자는 이미 DB에 정확히 있다.
+   입력은 PRD §7.1의 구조화 블록 + 발췌 2,000자, 총 5,000토큰 이내.
+2. **시스템 프롬프트에 `cache_control: ephemeral`.** 종목마다 바뀌는 내용을
+   시스템 프롬프트에 넣으면 캐시가 통째로 깨진다(ADR 4).
+3. **`stop_reason == "max_tokens"`는 명시적 실패.** 잘린 JSON을 저장하면
+   대시보드가 나중에 500을 낸다(PRD §7.3, T18).
+4. **호출 전 `check_budget()`.** 월 실링·일일 상한에 걸리면 호출하지 않는다.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+
+from src.config.constants import (
+    ANALYSIS_MODEL,
+    LLM_EFFORT,
+    LLM_INPUT_TOKEN_BUDGET,
+    LLM_MAX_TOKENS,
+)
+from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME, SYSTEM_PROMPT
+from src.utils.cost_guard import ENV_PROD, check_budget, record_usage
+from src.utils.env import require_env
+
+EXCERPT_MAX_CHARS = 2000  # PRD §7.1 — 공시 발췌 상한
+
+
+class AnalysisError(RuntimeError):
+    """분석 실패. 잘린/불완전한 결과를 저장하지 않기 위해 예외로 올린다."""
+
+
+class BudgetExceeded(AnalysisError):
+    """월 실링 또는 일일 상한. 호출부는 우선순위 큐로 이월한다."""
+
+
+@dataclass
+class AnalysisInput:
+    """PRD §7.1의 7개 블록. 전부 이미 계산된 값이다."""
+
+    code: str
+    name: str
+    board: str
+    industry: str | None = None
+    products: str | None = None
+    market_cap_krw: int | None = None
+    listed_at: str | None = None
+    fiscal_year: int | None = None
+    fiscal_quarter: int | None = None
+    is_estimate: bool = False
+    quarters: list[dict] = field(default_factory=list)  # 8분기 표
+    gate: dict = field(default_factory=dict)
+    score: dict = field(default_factory=dict)
+    consensus: dict | None = None
+    price: dict = field(default_factory=dict)
+    pri: dict = field(default_factory=dict)
+    excerpt: str | None = None
+    peers: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class AnalysisResult:
+    code: str
+    fiscal_year: int | None
+    fiscal_quarter: int | None
+    payload: dict
+    model: str
+    cost_usd: float
+    input_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
+    output_tokens: int
+
+
+def _fmt_quarters(quarters: list[dict]) -> str:
+    """8분기 표. 억원 단위로 줄여 토큰을 아낀다."""
+    if not quarters:
+        return "(분기 데이터 없음)"
+    header = (
+        "| 분기 | 매출(억) | YoY% | 영업이익(억) | YoY% | OPM% | OPM YoYΔ%p | "
+        "TTM매출(억) | TTM OPM% | 라벨 |"
+    )
+    lines = [header, "|---|---|---|---|---|---|---|---|---|---|"]
+    for q in quarters:
+        def eok(key):
+            v = q.get(key)
+            return "—" if v is None else f"{float(v) / 1e8:,.0f}"
+
+        def pct(key):
+            v = q.get(key)
+            return "—" if v is None else f"{float(v):+.1f}"
+
+        lines.append(
+            f"| {q.get('fiscal_year')}.{q.get('fiscal_quarter')}Q | {eok('revenue')} | "
+            f"{pct('revenue_yoy')} | {eok('op')} | {pct('op_yoy')} | {pct('opm')} | "
+            f"{pct('opm_yoy_delta')} | {eok('ttm_revenue')} | {pct('ttm_opm')} | "
+            f"{q.get('op_status_label') or ''} |"
+        )
+    return "\n".join(lines)
+
+
+def build_user_message(data: AnalysisInput) -> str:
+    """PRD §7.1의 7개 블록. **공시 원문 전체를 넣지 않는다.**"""
+    cap = (
+        f"{data.market_cap_krw / 1e12:.2f}조" if data.market_cap_krw else "—"
+    )
+    parts = [
+        "## 1. 기본정보",
+        f"- {data.name} ({data.code} · {data.board})",
+        f"- 업종: {data.industry or '—'}",
+        f"- 주요제품: {(data.products or '—')[:200]}",
+        f"- 시가총액: {cap} · 상장일: {data.listed_at or '—'}",
+        f"- 대상 분기: {data.fiscal_year}.{data.fiscal_quarter}Q "
+        f"({'잠정치' if data.is_estimate else '확정치'})",
+        "",
+        "## 2. 분기 실적 (최근 8분기)",
+        _fmt_quarters(data.quarters),
+        "",
+        "## 3. 판정 결과",
+        f"- 게이트: {json.dumps(data.gate, ensure_ascii=False)}",
+        f"- 스코어: {json.dumps(data.score, ensure_ascii=False)}",
+        "",
+        "## 4. 컨센서스",
+    ]
+    if data.consensus:
+        parts.append(json.dumps(data.consensus, ensure_ascii=False))
+    else:
+        parts.append(
+            "**커버리지 없음** — 증권사 추정치가 없다(또는 추정기관 2곳 미만). "
+            "C축(서프라이즈)은 0점이 아니라 분모에서 제외되어 정규화됐다. "
+            "서프라이즈를 논하지 마라."
+        )
+    parts += [
+        "",
+        "## 5. 주가",
+        f"- 시세: {json.dumps(data.price, ensure_ascii=False)}",
+        f"- 주가반영도(PRI) 분해: {json.dumps(data.pri, ensure_ascii=False)}",
+        "",
+        "## 6. 공시 발췌",
+        (data.excerpt or "(발췌 없음)")[:EXCERPT_MAX_CHARS],
+        "",
+        "## 7. 업종 비교 (동일 업종 상위)",
+        json.dumps(data.peers, ensure_ascii=False) if data.peers else "(비교군 없음)",
+    ]
+    return "\n".join(parts)
+
+
+def _client():
+    import anthropic
+
+    return anthropic.Anthropic(api_key=require_env("ANTHROPIC_API_KEY"))
+
+
+def count_input_tokens(data: AnalysisInput) -> int:
+    """호출 전 입력 토큰을 센다. 5,000토큰을 넘으면 호출하지 않는다(PRD §7.1)."""
+    client = _client()
+    resp = client.messages.count_tokens(
+        model=ANALYSIS_MODEL,
+        system=[{"type": "text", "text": SYSTEM_PROMPT}],
+        messages=[{"role": "user", "content": build_user_message(data)}],
+        tools=[_tool_definition()],
+    )
+    return int(resp.input_tokens)
+
+
+def _tool_definition() -> dict:
+    return {
+        "name": ANALYSIS_TOOL_NAME,
+        "description": "분석 결과를 구조화해 기록한다. 반드시 이 도구로만 응답한다.",
+        "input_schema": ANALYSIS_SCHEMA,
+        "strict": True,  # 스키마를 정확히 지키도록 강제한다
+    }
+
+
+def analyze(
+    data: AnalysisInput,
+    *,
+    env: str = ENV_PROD,
+    enforce_budget: bool = True,
+    token_budget: int = LLM_INPUT_TOKEN_BUDGET,
+) -> AnalysisResult:
+    if enforce_budget:
+        status = check_budget(env=env)
+        if not status.allowed:
+            raise BudgetExceeded(
+                f"{status.reason}: 월 ${status.month_spent_usd:.2f}/"
+                f"${status.month_ceiling_usd} · 오늘 {status.today_count}/{status.daily_limit}"
+            )
+
+    user_message = build_user_message(data)
+    client = _client()
+
+    response = client.messages.create(
+        model=ANALYSIS_MODEL,
+        max_tokens=LLM_MAX_TOKENS,
+        # ★ 시스템 프롬프트만 캐시한다. 유저 메시지는 종목마다 바뀌므로 캐시 밖이다.
+        system=[
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        # ★ 사고가 출력 자리를 먹지 않도록 effort를 낮게 고정한다(constants 참조).
+        thinking={"type": "adaptive"},
+        output_config={"effort": LLM_EFFORT},
+        tools=[_tool_definition()],
+        tool_choice={"type": "tool", "name": ANALYSIS_TOOL_NAME},
+        messages=[{"role": "user", "content": user_message}],
+    )
+
+    cost = record_usage(ANALYSIS_MODEL, response.usage, env=env)
+
+    # ★ 잘린 응답을 저장하지 않는다 (PRD §7.3).
+    if response.stop_reason == "max_tokens":
+        raise AnalysisError(
+            f"{data.code}: max_tokens({LLM_MAX_TOKENS})에 걸려 잘렸다. "
+            f"비용 ${cost:.4f}는 이미 발생했다(cost_log 기록됨). 저장하지 않는다."
+        )
+    if response.stop_reason == "refusal":
+        raise AnalysisError(f"{data.code}: 모델이 응답을 거부했다 (stop_reason=refusal)")
+
+    payload = next(
+        (b.input for b in response.content
+         if getattr(b, "type", None) == "tool_use" and b.name == ANALYSIS_TOOL_NAME),
+        None,
+    )
+    if payload is None:
+        raise AnalysisError(f"{data.code}: tool_use 블록이 없다 (stop_reason={response.stop_reason})")
+
+    usage = response.usage
+    return AnalysisResult(
+        code=data.code,
+        fiscal_year=data.fiscal_year,
+        fiscal_quarter=data.fiscal_quarter,
+        payload=payload,
+        model=ANALYSIS_MODEL,
+        cost_usd=cost,
+        input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+        cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        cache_write_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
+        output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+    )
+
+
+def validate_payload(payload: dict) -> list[str]:
+    """저장 전 필드 단위 검증 (T18). 상위 객체만 보면 대시보드가 나중에 500을 낸다."""
+    problems: list[str] = []
+    for key in ANALYSIS_SCHEMA["required"]:
+        if key not in payload or payload[key] in (None, "", [], {}):
+            problems.append(f"missing:{key}")
+
+    scenarios = payload.get("scenarios") or {}
+    probs = []
+    for name in ("bull", "base", "bear"):
+        node = scenarios.get(name) or {}
+        if "probability" not in node:
+            problems.append(f"missing:scenarios.{name}.probability")
+        else:
+            probs.append(float(node["probability"]))
+    if len(probs) == 3 and not (0.9 <= sum(probs) <= 1.1):
+        problems.append(f"scenarios.probability_sum={sum(probs):.2f} (1.0 근처여야 한다)")
+
+    triggers = payload.get("triggers") or {}
+    for window in ("within_3m", "within_6m"):
+        if not triggers.get(window):
+            problems.append(f"empty:triggers.{window}")
+
+    if "is_genuine" not in (payload.get("acceleration_quality") or {}):
+        problems.append("missing:acceleration_quality.is_genuine")
+
+    return problems
+
+
+def save(result: AnalysisResult) -> None:
+    from src.db.supabase_client import get_client
+
+    get_client().table("analyses").upsert(
+        {
+            "code": result.code,
+            "fiscal_year": result.fiscal_year,
+            "fiscal_quarter": result.fiscal_quarter,
+            "model": result.model,
+            "cost_usd": result.cost_usd,
+            "payload": result.payload,
+        },
+        on_conflict="code,fiscal_year,fiscal_quarter",
+    ).execute()

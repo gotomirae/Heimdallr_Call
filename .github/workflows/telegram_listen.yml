@@ -1,0 +1,62 @@
+# PRD Ref: §10 · traps.md T44
+#
+# 텔레그램 수신 — 종목명을 보내면 리포트를 회신한다.
+#
+# ★ 잡 안에서 sleep 루프를 쓰지 않는다(PRD §10.1) — **sleep도 과금된다.**
+#   짧은 잡을 여러 번 띄우는 편이 싸다. `--watch`가 아니라 `--once`를 주기 실행한다.
+#
+# ★ getUpdates는 **소비**다(T44). 같은 봇을 두 곳에서 폴링하면 서로 메시지를 빼앗는다.
+#   이 워크플로가 도는 동안 로컬에서 `--watch`를 켜두면 응답이 한쪽으로만 간다.
+#   `concurrency`로 이 워크플로끼리의 중복 실행은 막지만, 로컬 실행까지는 못 막는다.
+
+name: telegram_listen
+
+# ★★ 이건 **즉답용이 아니라 '놓치지 않기'용이다.**
+#    GitHub Actions cron은 부하가 걸리면 5~20분씩 밀린다 — 챗봇 응답으로는 느리다.
+#    즉답이 필요하면 `python -m src.notify.listen --watch`를 상시 띄워라(롱폴링, 즉시).
+#    이 워크플로는 그게 안 떠 있을 때 질문이 영영 묻히지 않게 하는 안전망이다.
+#
+# ★ 5분 주기는 월 8,640분이다(실측 추정). 텔레그램은 미확정 업데이트를 24시간
+#   보관하므로 자주 돌 이유가 없다 — 깨어 있는 시간에 15분마다면 충분하고
+#   월 2,040분으로 줄어든다.
+on:
+  schedule:
+    - cron: "*/15 22-23,0-14 * * *" # 07:00~23:59 KST, 15분마다
+  workflow_dispatch:
+    inputs:
+      analyze:
+        description: "분석이 없으면 LLM 호출 (건당 약 $0.03)"
+        type: boolean
+        default: false
+
+# 두 잡이 겹치면 서로의 업데이트를 빼앗는다 — 반드시 하나만 돈다.
+concurrency:
+  group: telegram-listen
+  cancel-in-progress: false
+
+jobs:
+  listen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 설치
+        run: pip install -e .
+
+      - name: 수신 처리
+        env:
+          # ★ 전용 봇 토큰. 공유 봇이면 코드가 수신을 막는다(T44).
+          HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
+          HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python -m src.notify.listen --once \
+            ${{ inputs.analyze && '--analyze' || '' }}
