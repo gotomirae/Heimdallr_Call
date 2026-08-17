@@ -30,15 +30,15 @@ jobs:
       KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
       PYTHONUNBUFFERED: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
 
       # ★ KIS 토큰 캐시. 러너는 매번 새로 뜨므로 이게 없으면 실행마다 재발급한다.
       - name: KIS 토큰 캐시 복원
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache
           key: kis-token-${{ github.run_id }}

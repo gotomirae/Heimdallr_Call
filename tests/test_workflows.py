@@ -118,3 +118,25 @@ def test_kis_only_used_where_needed():
         assert path.name in {"universe_daily.yml", "outcome_update.yml"}, (
             f"{path.name}이 KIS 시크릿을 받는데 KIS를 쓰지 않는다"
         )
+
+
+@pytest.mark.parametrize("path", YAML_FILES, ids=lambda p: p.name)
+def test_sending_workflows_wire_dashboard_url(path: Path):
+    """★ 발송 워크플로는 `DASHBOARD_BASE_URL`을 반드시 넘긴다.
+
+    안 넘기면 `optional_env`가 **코드에 박힌 기본값**으로 조용히 떨어진다.
+    에러도 경고도 없고, 텔레그램 메시지는 정상으로 보이는데
+    **링크만 엉뚱한 도메인을 가리킨다** — 눌러보기 전까지 아무도 모른다.
+    Vercel 프로젝트 이름이 기본값과 다르면 그날부터 전 메시지의 링크가 죽는다.
+
+    저장소 변수가 비어 있어도 안전하다: `optional_env`는 빈 문자열을 default로 떨군다.
+
+    기준을 `--send` 플래그가 아니라 **봇 토큰 보유**로 잡는다.
+    `telegram_listen`은 `--send` 없이도 질의에 회신하므로 플래그로 거르면 빠진다.
+    """
+    body = _text(path)
+    if "HEIMDALLR_TELEGRAM_BOT_TOKEN" not in body:
+        return
+    assert "DASHBOARD_BASE_URL" in body, (
+        f"{path.name}이 텔레그램 봇 토큰을 받는데 DASHBOARD_BASE_URL을 넘기지 않는다"
+    )

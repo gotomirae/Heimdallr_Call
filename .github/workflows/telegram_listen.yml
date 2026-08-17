@@ -39,9 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -54,6 +54,8 @@ jobs:
           # ★ 전용 봇 토큰. 공유 봇이면 코드가 수신을 막는다(T44).
           HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
           HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+          # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
+          DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
