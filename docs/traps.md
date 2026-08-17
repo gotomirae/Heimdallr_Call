@@ -1789,3 +1789,34 @@ DART·KIS에 없는 **산업 지식**이라 손으로 적을 수밖에 없다.
   실측으로 `지주·기타서비스` 하나가 빠져 있었다.
   `tests/test_sector_map.py`가 양방향으로 검사한다(플레이북에만 있는 키 = 오타,
   실제에만 있는 섹터 = 누락).
+
+---
+
+## T76 ★ 텔레그램 env를 `""`로 덮어도 **실제로 발송된다** (테스트가 진짜 메시지를 보냄)
+
+`notify_progress()`가 실패해도 배치를 세우지 않는지 검증하려고
+`HEIMDALLR_TELEGRAM_BOT_TOKEN=""`·`..._CHAT_ID=""`로 monkeypatch하고
+"토큰이 없으니 예외 → False"를 기대했다. **테스트가 실패했고, 그 이유는 실제 발송이 성공했기 때문이다.**
+사용자 텔레그램에 `🛡️ 테스트`가 한 건 나갔다(2026-08-17).
+
+원인 — `src/notify/telegram.py`의 폴백 사슬:
+
+```python
+dedicated = optional_env("HEIMDALLR_TELEGRAM_BOT_TOKEN")
+return dedicated or require_env("TELEGRAM_BOT_TOKEN")   # ← 빈 문자열이면 여기로 떨어진다
+```
+
+`""`는 falsy라 **공유 봇 자격증명(`TELEGRAM_*`)으로 조용히 폴백**한다.
+그리고 `.env.txt`에 그 값이 살아 있다. 즉 **"비활성화했다고 믿은 설정이
+다른 경로로 활성 상태**가 된다 — 발송이니 되돌릴 수도 없다.
+
+→ **발송 계열을 테스트할 때 env를 비우지 마라. 클라이언트 자체를 갈아끼워라.**
+
+```python
+import src.notify.telegram as tg
+monkeypatch.setattr(tg, "TelegramClient", boom)   # 네트워크에 닿을 길을 없앤다
+```
+
+★ 같은 모양이 T51(RLS가 에러 대신 빈 배열)·T54(검사기가 fatal에도 0)와 같다:
+  **"막았다고 믿은 것이 조용히 안 막혀 있다."** 차이는 여기선 결과가
+  화면이 아니라 **남의 휴대폰에 남는다**는 것이다.
