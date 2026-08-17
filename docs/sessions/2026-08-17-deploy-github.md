@@ -275,3 +275,33 @@ gh variable set DASHBOARD_BASE_URL --body https://heinmdallr.vercel.app   ✓ �
 2. 배포 후 **실제 URL이 `heinmdallr.vercel.app`이 맞는지 확인.** Vercel이 이름 충돌 시
    접미사를 붙이므로 다르면 `gh variable set DASHBOARD_BASE_URL`로 덮으면 된다(코드 수정 불필요).
 3. 텔레그램 봇에 종목명 하나 보내기 — 이제 분석이 없으면 LLM이 붙어 회신한다.
+
+## ANTHROPIC 경로까지 실검증 — 8개 시크릿 전부 확인 완료
+
+"봇에 메시지를 보내는 것"은 사용자 계정이 필요하지만, **LLM 호출 경로 자체는
+`build_report(code, analyze=True)`로 직접 돌릴 수 있다.** 텔레그램 수신만 못 흉내낼 뿐이다.
+
+대상 선정: `screen_results`를 **종목별 최신 1행으로 접고**(T40) ★ 등급 중 분석이 없는 것.
+실측 — 원본 1,595행 → 1,111종목 · ★ 26종목 · **기존 분석은 단 1건**(그래서 26개 전부 후보).
+
+```
+llm_called: True · analysis: 신규 호출 $0.0348      ← PRD 상한 $0.05 이내
+cost_log:   월 $0.0643 → $0.0991
+일일 카운터: 0 → 1 / 20
+메시지 961자 · 💡 해설 · 트리거 2건 · 리스크 1건 전부 채워짐
+🔗 https://heinmdallr.vercel.app/stock/452280      ← DASHBOARD_URL_DEFAULT 적용 확인
+```
+
+로컬에는 `DASHBOARD_BASE_URL` 환경변수가 없으므로 이 링크는 **새 상수가 실제로 쓰인
+증거**다. Actions에서는 저장소 변수가 같은 값을 덮는다.
+
+이로써 **Secrets 8개 전부 실행으로 검증**됐다(직전까지 ANTHROPIC만 미확인이었다).
+
+## Vercel — 자격증명이 이 머신에 없다
+
+확인한 것: Vercel CLI 미설치 · `%APPDATA%/com.vercel.cli` 없음 · `~/.vercel` 없음 ·
+`.env.txt`에 VERCEL 키 없음 · 참고 프로젝트에도 없음. node 24.15.0 / npm 11.12.1은 있다.
+
+따라서 배포는 **브라우저 로그인** 또는 **사용자가 발급한 Vercel 토큰** 중 하나가 필요하다.
+토큰이 있으면 CLI로 프로젝트 생성·Root Directory 지정·환경변수 4개 주입·프로덕션 배포까지
+전부 무인으로 가능하다(`dashboard/.env.local`에 필요한 4개가 모두 있는 것을 확인).
