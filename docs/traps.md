@@ -1087,3 +1087,54 @@ curl -s https://<url>/api/cost                            # available:false면 �
 배포자 브라우저는 Vercel에 로그인돼 있어 보호가 켜져 있어도 **그냥 열린다.**
 `available:false`와 `spentUsd:0`도 화면에서는 둘 다 "0"처럼 보인다(T51).
 **미인증 요청으로 확인하라 — 그게 폰과 같은 조건이다.**
+
+## T57. 폴더명을 바꾸면 **editable 설치가 절반만 깨진다** `[HD 2026-08-17 실측]`
+
+프로젝트 폴더명을 바꿔도 코드는 멀쩡하다 — 루트를 전부 `Path(__file__).parents[N]`으로
+계산하고(T48), 추적 파일에 절대경로가 **0건**인 것을 `git grep`으로 확인했다.
+
+깨지는 건 **venv 쪽**이다. `pip install -e .`가 절대경로를 박아둔다:
+
+```
+.venv/Lib/site-packages/__editable___heimdallr_call_0_1_0_finder.py
+  → C:\Claude\dev\Heinmdallr_Call\src
+```
+
+**무엇이 조용히 틀리는가:** 완전히 죽지 않고 **절반만** 죽는다.
+프로젝트 폴더 **안에서** 실행하면 현재 디렉터리 덕에 `import src`가 되고,
+`pyproject.toml`의 `pythonpath = ["."]` 때문에 pytest도 대체로 통과한다.
+그런데 다른 위치에서 부르거나 설치된 패키지로 참조하는 경로는 옛 폴더를 가리킨다 —
+"되는 것 같은데 가끔 안 되는" 형태라 원인을 찾는 데 시간이 든다.
+
+→ 폴더명을 바꿨으면 **반드시** 새 위치에서 다시 깔아라:
+
+```bash
+.venv/Scripts/python.exe -m pip install -e ".[dev]"
+python -m pytest tests/ -q        # 기준선: 413 passed, 1 skipped
+```
+
+`.[dev]`를 빼면 T53(워크플로 검증 25건 조용한 skip)을 그대로 밟는다.
+**passed 수만 보지 말고 skip 수까지 기준선과 대조하라.**
+
+`pyvenv.cfg`의 `home`은 파이썬 본체(`C:\Python314`)를 가리키므로 venv를 새로 만들 필요는 없다.
+
+---
+
+## 명명 규칙 — `Heimdallr`(m)로 통일, 봇 username만 예외 `[HD 2026-08-17 확정]`
+
+코드·GitHub repo·Vercel 도메인·시크릿 이름·대시보드 표기는 전부 **`Heimdallr`**다.
+
+**봇 username `@Heinmdallr_bot`만 다르다.** 텔레그램이 봇 username 변경을 지원하지 않아서다
+(BotFather에 `Edit Name`은 있어도 `Edit Username`은 없다). 바꾸려면 새 봇을 만들어야 하고
+= 새 토큰 = 시크릿 재등록 = 기존 대화 단절이다. **그 값어치가 없다.**
+
+**동작에는 무관하다.** 코드는 username을 어디서도 참조하지 않는다
+(`src`·`dashboard`·`.github` 전수 `git grep` 0건). 봇 판정은 토큰에서 뽑은 숫자 ID로 한다:
+
+```python
+def bot_id_of(token: str) -> str:
+    return token.split(":", 1)[0].strip()      # 8933940541
+```
+
+표시명은 `아이언맨의 Heimdallr`로 변경 완료(실조회 확인). 사용자 눈에 보이는 곳은 통일됐다.
+**다음 세션이 "이름이 왜 다르지"로 다시 시간 쓰지 말 것.**

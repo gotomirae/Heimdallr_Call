@@ -367,3 +367,55 @@ fallback 상수와 저장소 변수를 이중으로 둔 설계였는데 **둘 �
 | LLM 분석 | ✓ cron 경로 ON · $0.0348/건 |
 
 남은 것은 **시간**뿐이다 — D+20·D+60 표본이 쌓이고, 11월 3Q 시즌에 `SEASON_MODE=on`.
+
+---
+
+# 후속 4 — 명명 통일 `Heimdallr`(m)
+
+혼란의 원인: 로컬 폴더 `Heinmdallr_Call`(n) · 봇 `@Heinmdallr_bot`(n) vs
+GitHub repo `Heimdallr_Call`(m) · Vercel `heimdallr-call`(m) · 코드 전반(m).
+
+전수 조사 결과 **코드·인프라는 이미 전부 `Heimdallr`**였다. `n`은 실체 두 개뿐:
+
+| 대상 | 처리 |
+|---|---|
+| 봇 표시명 `아이언맨의 Heinmdallr` | ✓ **`아이언맨의 Heimdallr`로 변경**(사용자, 실조회 확인) |
+| 봇 username `@Heinmdallr_bot` | **변경 불가** — 텔레그램 제약. 동작 무관 |
+| 로컬 폴더명 | 나중에(선택). 운영에 영향 없음 |
+
+## 봇 username은 왜 그냥 두는가
+
+텔레그램은 봇 username 변경을 지원하지 않는다. 바꾸려면 새 봇 = 새 토큰 =
+시크릿 재등록 = **기존 대화 단절**이다. 얻는 건 주소창의 철자 하나다.
+
+무관하다는 것을 **주장이 아니라 확인으로** 정리했다:
+
+```
+git grep -i "username" -- src/ dashboard/ .github/   →  0건
+bot_id_of(token) = "8933940541"                      →  판정은 숫자 ID로
+```
+
+이미 오늘 하루 종일 이 username 그대로 돌았다(`telegram_listen` ✓ · LLM 리포트 ✓).
+
+## 폴더명 — 나중에 바꿔도 되지만 venv를 다시 깔아야 한다 (→ T57)
+
+코드는 폴더명에 의존하지 않는다(추적 파일 절대경로 `git grep` **0건**,
+루트는 전부 `Path(__file__).parents[N]` — T48 덕분).
+
+깨지는 건 editable 설치다:
+
+```
+.venv/Lib/site-packages/__editable___heimdallr_call_0_1_0_finder.py
+  → C:\Claude\dev\Heinmdallr_Call\src        ← 절대경로가 박혀 있다
+```
+
+**절반만 깨지는 게 고약하다** — 폴더 안에서 실행하면 cwd와 `pythonpath = ["."]` 덕에
+대체로 통과해서 "되는 것 같은데 가끔 안 되는" 상태가 된다.
+→ 새 위치에서 `pip install -e ".[dev]"` 후 **`413 passed, 1 skipped`** 확인.
+
+## 문서에 남긴 것
+
+- `CLAUDE.md` 개요에 **명명 규칙 + 이유 + "다시 고민하지 말 것"** 명시
+- `docs/traps.md` T57(폴더명↔editable) + 명명 규칙 절
+- T56과 그 세션 기록의 `heinmdallr` 표기는 **그대로 둔다** —
+  두 철자의 대비 자체가 그 함정의 내용이라 통일하면 기록이 무의미해진다.
