@@ -87,7 +87,18 @@ DASHBOARD_URL_DEFAULT = "https://heimdallr-call.vercel.app"
 # 날짜 기준 가격 전환 로직 금지(traps.md T19).
 # Sonnet 5는 $2/$10이 정가로 확정됐고 2026-09-01 인상은 시행되지 않는다.
 MONTHLY_COST_CEILING_USD = optional_env_int("MONTHLY_COST_CEILING_USD", 8)
-DAILY_ANALYSIS_LIMIT = optional_env_int("DAILY_ANALYSIS_LIMIT", 20)
+
+# 일 상한 = **하루 안에 배치를 끝낼 수 있는 크기**여야 한다.
+#
+# ★ 실측 근거(2026-08-17): 1건당 캐시히트 $0.0271 / 캐시미스 $0.0346.
+#   시스템 프롬프트 3,242토큰이 캐시 대상이고 TTL이 5분이라 **연속 호출**해야 히트한다.
+#   상한 20이면 스코어 75+ 66종목이 **4일로 쪼개져 매일 첫 건이 캐시 미스**가 되고,
+#   실적 시즌에 4일을 흘려보낸다. 80으로 두면 하루에 끝난다.
+#
+# ★ 이 값이 비용을 결정하지 않는다 — **월 실링이 결정한다.**
+#   실링 $8이면 캐시히트 기준 약 295종목이 한 달 한도다(전부 미스면 231종목).
+#   상한 80 × $0.0271 = 하루 최대 $2.17이므로 실링을 하루에 태울 수 없다.
+DAILY_ANALYSIS_LIMIT = optional_env_int("DAILY_ANALYSIS_LIMIT", 80)
 
 # 단가 ($/MTok). 2026-08-13 Anthropic 공식 pricing 페이지 실측 확인.
 #   "The $2/$10 pricing for Claude Sonnet 5 ... is now the standard price.

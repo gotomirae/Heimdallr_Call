@@ -180,10 +180,8 @@ export default async function StockPage({ params }: { params: { code: string } }
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">스코어</h3>
                 <Note>
-                  실적 가속의 <strong className="text-slate-200">강도</strong>를 100점으로
-                  환산한 값. 매출·이익 성장률이 얼마나 더 빨라졌는지(A), 이익률이 같이
-                  좋아지는지(B)를 잰다. 측정 못 한 축은 0점이 아니라 분모에서 빼고
-                  정규화한다.
+                  가속 강도를 100점으로 환산. 측정 못 한 축은 0점이 아니라{" "}
+                  <strong className="text-slate-100">분모에서 빼고</strong> 정규화한다.
                 </Note>
                 <div className="mt-2">
                   <ScoreBreakdown screen={screen} />
@@ -196,17 +194,11 @@ export default async function StockPage({ params }: { params: { code: string } }
                 {/* ★ 숫자 바로 아래에 뜻을 붙인다 — 62점이 좋은 건지 나쁜 건지가
                     이 화면에서 가장 자주 막히는 지점이다. */}
                 <Note>
-                  <strong className="text-slate-200">주가가 이 실적을 이미 얼마나 알고
-                  있는가</strong>를 0~100으로 잰 값이다.{" "}
-                  <strong className="text-slate-200">낮을수록 아직 안 올랐다는 뜻</strong>이라
-                  좋은 신호다. 이미 많이 오른 종목은 높게 나온다.
-                  <span className="mt-1 block">
-                    스코어와 <strong>더하지 않는다.</strong> &ldquo;실적이 얼마나 좋은가&rdquo;와
-                    &ldquo;주가가 얼마나 알고 있는가&rdquo;는 다른 질문이라, 한 숫자로 뭉개면
-                    둘 다 못 읽는다. 이 시스템이 찾는 자리는{" "}
-                    <strong className="text-amber-300">스코어는 높은데 반영도는 낮은</strong> 구간(★)이다.
-                  </span>
-                  <span className="mt-1 block text-slate-300">
+                  주가가 이 실적을 <strong className="text-slate-100">이미 아는 정도</strong>(0~100).{" "}
+                  <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>는 뜻이라 좋은 신호다.
+                  스코어와 <strong>더하지 않는다</strong> — 찾는 자리는{" "}
+                  <strong className="text-amber-300">스코어 높고 반영도 낮은</strong> 구간(★)이다.
+                  <span className="mt-0.5 block text-slate-200">
                     0~39 미반영 · 40~65 부분반영 · 66~100 선반영
                   </span>
                 </Note>
@@ -224,42 +216,24 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 3. 9분기 차트 — 성장률 라인이 주인공 */}
       <Card
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="초록 = 영업이익 YoY (가장 중요)"
+        note="노란 선 = 영업이익 YoY (가장 중요)"
       >
         <QuarterlyChart points={chartPoints} />
         <Note>
-          <strong className="text-slate-100">막대</strong>는 그 분기의 매출·영업이익 금액(억원),{" "}
-          {/* ★ 색 이름을 손으로 적지 않는다 — 차트 색을 바꾸면 여기가 조용히 어긋나
-              "초록 실선은…"이라 써 놓고 화면은 노란 선인 상태가 된다. 둘 다 정상으로 보인다. */}
-          <strong style={{ color: SERIES_COLOR.OP_LABEL }}>노란 실선</strong>은{" "}
-          <Term term="영업이익">영업이익 성장률(YoY)</Term>,{" "}
-          <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>녹색 실선</strong>은{" "}
-          <Term term="매출액">매출 성장률(YoY)</Term>이다. 두 선 위의 숫자가 그 분기의
-          성장률이며, <strong className="text-slate-100">선이 우상향하면 그게 가속이다</strong> —
-          값이 높은 것이 아니라 <em>전분기보다 높아진 것</em>이 이 시스템이 찾는 신호다.
-          <span className="mt-1 block">
-            <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>분홍 점선(TTM 매출)</strong>은{" "}
-            <Term term="TTM">최근 4개 분기 매출의 합</Term>이다. 한 분기만 보면 계절성과
-            일회성에 흔들리지만, 4분기를 더하면 계절 요인이 상쇄돼 &ldquo;지금 이 회사의 연간
-            체력&rdquo;이 보인다. 이 선이 계속 최고치를 경신하면 그 가속은 일시적인 게 아니다.
-          </span>
-          <span className="mt-1 block">
-            <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>빨간 점선(주가)</strong>은 그 분기 마지막
-            거래일 종가이고, <strong className="text-slate-200">맨 오른쪽 점은 오늘 종가</strong>다
-            — 실적은 마지막 발표 분기에서 끝나지만 주가는 <strong>현재까지</strong> 이어 그린다.
-            실적 선보다 주가 선이 <em>늦게</em> 올라오는 구간이 이 시스템이 노리는 자리다.
-            <span className="ml-1 text-slate-300">
-              분기 라벨의 <code>*</code>는 아직 실적이 발표되지 않아 주가만 있는 분기다
-              (막대가 없는 게 결측이 아니다).
-            </span>
-          </span>
-          <span className="mt-1 block text-slate-300">
-            측정된 분기 — 영업이익 YoY {opYoyMeasured}/{chartPoints.length} · 매출 YoY{" "}
+          {/* ★ 기본 용어(막대·실선 색·YoY)는 적지 않는다(사용자 요청) —
+              범례가 이미 말해 준다. 이 시스템에만 있는 것만 남긴다. */}
+          <strong className="text-slate-100">선이 우상향하면 그게 가속이다</strong> —
+          값이 높은 게 아니라 전분기보다 높아진 것을 본다.{" "}
+          <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM 매출</strong>은 최근 4개 분기
+          합으로, 계절성이 상쇄돼 연간 체력이 보인다.{" "}
+          <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>주가</strong>는 현재까지 이어 그린다
+          — 실적 선보다 늦게 올라오는 구간이 노리는 자리다.
+          <span className="mt-1 block text-slate-200">
+            측정 — 영업이익 YoY {opYoyMeasured}/{chartPoints.length} · 매출 YoY{" "}
             {revYoyMeasured}/{chartPoints.length} · 주가 {priceMeasured}/{chartPoints.length}.
             {opYoyMeasured < chartPoints.length &&
-              " 빠진 구간은 흑자↔적자 전환이라 성장률(%)을 계산할 수 없는 분기다(0%가 아니다)."}
-            {priceMeasured === 0 &&
-              " 주가는 아직 수집되지 않아 라인이 그려지지 않았다."}
+              " 빠진 분기는 흑자↔적자 전환이라 %를 계산할 수 없다(0%가 아니다)."}
+            {" 분기 라벨의 "}<code>*</code>{"는 실적 미발표(주가만 있음)."}
           </span>
         </Note>
       </Card>
@@ -267,16 +241,11 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 4. 분기 히스토리 표 */}
       <Card title="분기 히스토리">
         <Note>
-          <strong className="text-slate-200">YoY</strong> 전년 같은 분기 대비 증감률 ·{" "}
-          <strong className="text-slate-200">QoQ</strong> 직전 분기 대비(계절성이 커서 점수에는
-          쓰지 않는다) · <strong className="text-slate-200">OPM</strong> 영업이익률 ·{" "}
-          <strong className="text-slate-200">TTM 매출</strong> 최근 4개 분기 매출의 합 ·{" "}
-          <strong className="text-slate-200">잠정</strong> 정식 보고서 전 회사 발표,{" "}
-          <strong className="text-slate-200">확정</strong> 정기보고서 기준.
-          <span className="mt-1 block">
-            &lsquo;흑전 / 적전&rsquo;은 흑자↔적자가 뒤바뀐 분기다 — %를 계산할 수 없어
-            라벨로 적는다.
-          </span>
+          {/* 기본 용어(YoY·QoQ·OPM)는 생략(사용자 요청). 이 시스템 고유의 것만. */}
+          <strong className="text-slate-100">TTM 매출</strong>은 최근 4개 분기 합 ·{" "}
+          <strong className="text-slate-100">잠정</strong>은 정식 보고서 전 회사 발표 ·{" "}
+          <strong className="text-slate-100">흑전/적전</strong>은 흑자↔적자가 뒤바뀐 분기로
+          %를 계산할 수 없어 라벨로 적는다. QoQ는 계절성이 커서 점수에 쓰지 않는다.
         </Note>
         {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
@@ -327,9 +296,8 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 5. 컨센서스 대비 */}
       <Card title="컨센서스 대비">
         <Note>
-          <strong className="text-slate-200">컨센서스</strong>는 증권사들의 실적 추정치
-          평균이고, <strong className="text-slate-200">서프라이즈</strong>는 실제 실적이 그
-          추정을 웃돈 정도다. 추정기관이 2곳 미만이면 컨센서스로 인정하지 않는다.
+          추정기관 <strong className="text-slate-100">2곳 미만이면 컨센서스로 인정하지 않는다.</strong>{" "}
+          없다고 감점하지 않고 분모에서 제외해 정규화한다.
         </Note>
         <div className="mt-3" />
         {consensus && (consensus.n_estimates ?? 0) >= 2 ? (
@@ -449,6 +417,54 @@ export default async function StockPage({ params }: { params: { code: string } }
                 <p className="text-slate-100">{analysis.whyNow}</p>
               </div>
             )}
+
+            {/* ★ 실적 변화 — 원인 / 결과 / 전망 (사용자 요청).
+                2026-08-17 이전에 저장된 행에는 없다 → 있을 때만 그린다. */}
+            {(analysis.earningsChange.cause ||
+              analysis.earningsChange.effect ||
+              analysis.earningsChange.outlook) && (
+              <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase text-slate-200">
+                    실적 변화 — 원인 · 결과 · 전망
+                  </span>
+                  {analysis.earningsChange.confidence && (
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[11px] ${
+                        {
+                          high: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
+                          medium: "border-amber-500/60 bg-amber-500/10 text-amber-200",
+                          low: "border-slate-600 bg-slate-700/30 text-slate-200",
+                        }[analysis.earningsChange.confidence]
+                      }`}
+                      title="전망의 확신도 — 근거가 약하면 모델이 스스로 낮춘다"
+                    >
+                      전망 확신도 {analysis.earningsChange.confidence}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 space-y-3">
+                  {analysis.earningsChange.cause && (
+                    <div className="border-l-2 border-sky-500/70 pl-3">
+                      <div className="text-xs font-bold text-sky-200">왜 이렇게 변했나 (원인)</div>
+                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.cause}</p>
+                    </div>
+                  )}
+                  {analysis.earningsChange.effect && (
+                    <div className="border-l-2 border-violet-500/70 pl-3">
+                      <div className="text-xs font-bold text-violet-200">무엇이 달라졌나 (결과)</div>
+                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.effect}</p>
+                    </div>
+                  )}
+                  {analysis.earningsChange.outlook && (
+                    <div className="border-l-2 border-amber-500/70 pl-3">
+                      <div className="text-xs font-bold text-amber-200">앞으로 어떻게 되나 (전망)</div>
+                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.outlook}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {(analysis.structuralDrivers.length > 0 || analysis.temporaryDrivers.length > 0) && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -502,9 +518,9 @@ export default async function StockPage({ params }: { params: { code: string } }
                   주가 상승 트리거
                 </div>
                 <Note>
-                  주가가 이 실적을 알아차리게 만들 <strong className="text-slate-200">확인
-                  가능한 사건</strong>과 그 예상 시점이다. 각 항목의 &lsquo;확인 지표&rsquo;로
-                  실제로 일어났는지 나중에 대조할 수 있다 — 그래야 예측이 아니라 검증이 된다.
+                  주가를 올릴 수 있는 <strong className="text-slate-100">확인 가능한 사건</strong>과
+                  예상 시점. &lsquo;확인 지표&rsquo;로 실제 발생을 나중에 대조할 수 있다 —
+                  그래야 예측이 아니라 검증이 된다.
                 </Note>
                 <div className="mt-3">
                   <TriggerTimeline items={timelineItems} />

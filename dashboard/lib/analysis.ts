@@ -54,6 +54,18 @@ export interface Trigger {
   event: string | null;
   metric: string | null;
   expectedDate: string | null;
+  /** 주가 영향 크기. 없으면 null — 구 스키마로 저장된 행이 있다. */
+  impact: "high" | "medium" | "low" | null;
+  /** 트리거 성격(실적·수주·증설·인증·규제 등). 자유 문자열이다. */
+  kind: string | null;
+}
+
+/** 실적이 왜 변했고, 무엇이 달라졌고, 앞으로 어떻게 될 것인가. */
+export interface EarningsChange {
+  cause: string | null;
+  effect: string | null;
+  outlook: string | null;
+  confidence: "high" | "medium" | "low" | null;
 }
 
 export interface Risk {
@@ -71,6 +83,8 @@ export interface Scenario {
 export interface AnalysisView {
   thesis: string | null;
   whyNow: string | null;
+  /** 실적 변화의 원인·결과·전망. 구 스키마 행은 전부 null이다. */
+  earningsChange: EarningsChange;
   structuralDrivers: string[];
   temporaryDrivers: string[];
   sustainabilityQuarters: number | null;
@@ -84,6 +98,22 @@ export interface AnalysisView {
   isEmpty: boolean;
 }
 
+/**
+ * 실적 변화 3단(원인·결과·전망).
+ *
+ * ★ 이 필드는 2026-08-17에 추가됐다. **그 전에 저장된 행에는 없다** —
+ *   없으면 전부 null을 주고 화면이 그 사실을 밝힌다(빈 문자열로 채우지 않는다).
+ */
+function readEarningsChange(node: unknown): EarningsChange {
+  const n = asRecord(node);
+  return {
+    cause: n ? asString(n.cause) : null,
+    effect: n ? asString(n.effect) : null,
+    outlook: n ? asString(n.outlook) : null,
+    confidence: n ? (asString(n.confidence) as EarningsChange["confidence"]) : null,
+  };
+}
+
 function readTriggers(node: unknown, key: string): Trigger[] {
   const bucket = asRecord(node);
   if (!bucket) return [];
@@ -93,6 +123,8 @@ function readTriggers(node: unknown, key: string): Trigger[] {
       event: t ? asString(t.event) : null,
       metric: t ? asString(t.verifiable_metric) : null,
       expectedDate: t ? asString(t.expected_date) : null,
+      impact: t ? (asString(t.impact) as Trigger["impact"]) : null,
+      kind: t ? asString(t.kind) : null,
     };
   });
 }
@@ -133,6 +165,7 @@ export function readAnalysis(payload: unknown): AnalysisView {
   const view: AnalysisView = {
     thesis: root ? asString(root.one_line_thesis) : null,
     whyNow: root ? asString(root.why_now) : null,
+    earningsChange: readEarningsChange(root ? root.earnings_change : null),
     structuralDrivers: quality ? readStrings(quality, "structural_drivers") : [],
     temporaryDrivers: quality ? readStrings(quality, "temporary_drivers") : [],
     sustainabilityQuarters: quality ? asNumber(quality.sustainability_quarters) : null,

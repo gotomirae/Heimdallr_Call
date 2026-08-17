@@ -89,7 +89,7 @@ export async function getUniverse(): Promise<Map<string, UniverseRow>> {
  *   이 대시보드는 "실적이 가속 중인 종목"을 보는 곳이다 —
  *   탈락·판정불가 767종목이 섞이면 매트릭스가 회색 점으로 덮이고
  *   목록에서도 눈이 갈 곳을 잃는다.
- *   전수가 필요한 화면(예: 향후 /screener)에서만 false를 준다.
+ *   전수가 필요한 화면(발굴 목록의 게이트 필터·결과 추적)에서만 false를 준다.
  */
 export async function getLatestScreens(
   { accelerating = true }: { accelerating?: boolean } = {}
@@ -303,4 +303,42 @@ export async function getAnalysis(
   if (error) throw error;
   const row = ((data as unknown as { payload: unknown }[]) ?? [])[0];
   return (row?.payload as Record<string, unknown>) ?? null;
+}
+
+/**
+ * 섹터 실적 집계를 위한 **전 종목 분기 재무**. 특정 두 분기만 읽는다.
+ *
+ * ★ 종목당 전 분기를 다 읽으면 1만 행을 넘긴다 — 필요한 분기만 서버에서 걸러
+ *   페이징 왕복을 줄인다. 그래도 1,000행 절단(T7)이 있으므로 페이징한다.
+ */
+export async function getFundamentalsForQuarters(
+  quarters: { year: number; quarter: number }[]
+): Promise<FundamentalRow[]> {
+  if (quarters.length === 0) return [];
+  const out: FundamentalRow[] = [];
+  const cols = [
+    "code", "fiscal_year", "fiscal_quarter", "revenue", "op", "np",
+    "revenue_yoy", "op_yoy", "op_status_label", "opm", "opm_yoy_delta",
+    "ttm_revenue", "is_estimate",
+  ];
+  for (const { year, quarter } of quarters) {
+    const { rows, dropped } = await selectWithOptionalColumns<FundamentalRow>(
+      "quarterly_fundamentals",
+      cols,
+      (q, c) =>
+        q.select(c).eq("fiscal_year", year).eq("fiscal_quarter", quarter).range(0, 4999)
+    );
+    if (rows.length >= 1000) {
+      // 잘렸다 — 페이징으로 전부 읽는다.
+      const all = await selectAll<FundamentalRow>(
+        "quarterly_fundamentals",
+        cols.filter((c) => !dropped.includes(c)).join(","),
+        (q) => q.eq("fiscal_year", year).eq("fiscal_quarter", quarter)
+      );
+      out.push(...all);
+    } else {
+      out.push(...rows);
+    }
+  }
+  return out;
 }

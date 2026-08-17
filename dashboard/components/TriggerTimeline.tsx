@@ -44,6 +44,13 @@ const TONE = {
   },
 } as const;
 
+/** 영향도 배지 색. high를 가장 눈에 띄게 — 먼저 볼 것이 그것이다. */
+const IMPACT = {
+  high: "border-rose-500/60 bg-rose-500/15 text-rose-200",
+  medium: "border-amber-500/50 bg-amber-500/10 text-amber-200",
+  low: "border-slate-600 bg-slate-700/30 text-slate-200",
+} as const;
+
 export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
   if (items.length === 0) {
     return (
@@ -53,9 +60,13 @@ export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
     );
   }
 
-  const sorted = [...items].sort(
-    (a, b) => sortKey(a.expectedDate).localeCompare(sortKey(b.expectedDate))
-  );
+  // 시점 순 → 같은 시점이면 영향 큰 것 먼저. 영향도가 없는 항목은 뒤로.
+  const RANK = { high: 0, medium: 1, low: 2 } as const;
+  const sorted = [...items].sort((a, b) => {
+    const byDate = sortKey(a.expectedDate).localeCompare(sortKey(b.expectedDate));
+    if (byDate !== 0) return byDate;
+    return (a.impact ? RANK[a.impact] : 3) - (b.impact ? RANK[b.impact] : 3);
+  });
 
   return (
     <ol className="relative space-y-0">
@@ -88,6 +99,25 @@ export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
                 </span>
               </div>
               <p className="mt-0.5 text-sm text-slate-100">{t.event ?? DASH}</p>
+              {/* ★ 성격·영향도는 2026-08-17에 추가됐다. 구 스키마 행에는 없으니
+                  있을 때만 그린다 — 없는 값을 'medium'으로 채우면 안 된다. */}
+              {(t.kind || t.impact) && (
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {t.kind && (
+                    <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] text-slate-100">
+                      {t.kind}
+                    </span>
+                  )}
+                  {t.impact && (
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${IMPACT[t.impact]}`}
+                      title="주가에 미칠 영향의 크기"
+                    >
+                      영향 {t.impact === "high" ? "큼" : t.impact === "medium" ? "보통" : "작음"}
+                    </span>
+                  )}
+                </div>
+              )}
               {t.metric && (
                 // ★ '무엇을 보고 확인할 것인가'가 트리거의 핵심이다.
                 //   이게 없으면 "좋아질 것이다" 수준의 말과 구분되지 않는다.

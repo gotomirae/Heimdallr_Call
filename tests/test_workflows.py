@@ -269,3 +269,29 @@ def test_quarter_prices_collector_is_wired_into_a_workflow():
     called = [p.name for p in YAML_FILES
               if "collectors.quarter_prices" in _text(p)]
     assert called, "quarter_prices 수집기를 부르는 워크플로가 없다"
+
+
+def test_no_stale_chart_color_names_in_ui_text():
+    """★ T65 — 차트 색 이름을 본문에 손으로 적으면 조용히 어긋난다.
+
+    실측(2026-08-17): 색을 바꾼 뒤에도 카드 제목 note에 `초록 = 영업이익 YoY`가
+    남아 있었다. 화면은 노란 선인데 설명은 초록이라 **둘 다 정상으로 보인다.**
+    검사기가 자기 주석에 걸리지 않게 주석은 걷어낸다.
+    """
+    STALE = ("초록 실선", "주황 실선", "보라 점선", "회색 점선", "초록 =", "주황 =")
+    offenders = []
+    for path in _dashboard_sources():
+        code = _strip_ts_comments(path.read_text(encoding="utf-8"))
+        for word in STALE:
+            if word in code:
+                offenders.append(f"{path.name}: {word}")
+    assert not offenders, (
+        "차트 색이 바뀌었는데 설명 글이 안 따라왔다(T65) — "
+        f"`SERIES_COLOR`를 style로 쓰라: {offenders}"
+    )
+
+
+def test_chart_color_guard_actually_catches_it():
+    """검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54)."""
+    assert "초록 실선" in _strip_ts_comments('note="초록 실선은 영업이익"')
+    assert "초록 실선" not in _strip_ts_comments("// 초록 실선은 쓰지 마라\nconst x=1;")

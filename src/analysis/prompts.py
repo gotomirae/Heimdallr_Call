@@ -22,6 +22,37 @@ ANALYSIS_SCHEMA: dict = {
             "description": "왜 지금 이 종목을 봐야 하는지 한 문장",
         },
         "why_now": {"type": "string", "description": "2~3문장"},
+        # ★ 사용자 요청(2026-08-17): 실적이 **왜** 그렇게 변했고, 그래서 **무엇이**
+        #   달라졌으며, **앞으로** 어떻게 될 것인지를 각각 따로 받는다.
+        #   한 필드에 뭉치면 모델이 원인만 길게 쓰고 전망을 빠뜨린다(실측 경향).
+        "earnings_change": {
+            "type": "object",
+            "properties": {
+                "cause": {
+                    "type": "string",
+                    "description": "이번 분기 실적이 이렇게 변한 **원인**. "
+                                   "수요·단가·믹스·원가·환율·일회성 중 무엇인지 "
+                                   "숫자와 함께 3~4문장",
+                },
+                "effect": {
+                    "type": "string",
+                    "description": "그 결과 회사의 **무엇이 달라졌는가**. "
+                                   "마진 구조·현금흐름·수주잔고·시장지위 관점 2~3문장",
+                },
+                "outlook": {
+                    "type": "string",
+                    "description": "**향후 전망**. 다음 1~2개 분기에 이 추세가 어떻게 "
+                                   "될 것으로 보는지와 그 근거 3~4문장",
+                },
+                "confidence": {
+                    "type": "string",
+                    "enum": ["high", "medium", "low"],
+                    "description": "전망의 확신도. 근거가 약하면 low로 낮춰라",
+                },
+            },
+            "required": ["cause", "effect", "outlook", "confidence"],
+            "additionalProperties": False,
+        },
         "growth_engine": {
             "type": "object",
             "properties": {
@@ -110,7 +141,8 @@ ANALYSIS_SCHEMA: dict = {
         "how_i_could_be_wrong": {"type": "string"},
     },
     "required": [
-        "one_line_thesis", "why_now", "growth_engine", "acceleration_quality",
+        "one_line_thesis", "why_now", "earnings_change",
+        "growth_engine", "acceleration_quality",
         "triggers", "price_position", "scenarios", "risks",
         "next_data_to_watch", "how_i_could_be_wrong",
     ],
@@ -118,17 +150,36 @@ ANALYSIS_SCHEMA: dict = {
     "$defs": {
         "trigger_list": {
             "type": "array",
+            # ★ 사용자 요청: 주가 상승 트리거는 **무엇이든** 쓰게 한다.
+            #   종류를 열거형으로 제한하면 모델이 실적 발표·수주만 반복한다 —
+            #   증설·인증·규제·고객사 이벤트·지수 편입·산업 사이클도 트리거다.
             "items": {
                 "type": "object",
                 "properties": {
-                    "event": {"type": "string"},
+                    "event": {
+                        "type": "string",
+                        "description": "주가를 올릴 수 있는 구체적 사건. 종류에 제한 없다 — "
+                                       "실적 발표·신규 수주·증설/가동·고객 승인·인증/허가·"
+                                       "규제 변화·전방 산업 사이클·경쟁사 이탈·지수 편입·"
+                                       "주주환원 등 무엇이든",
+                    },
                     "verifiable_metric": {
                         "type": "string",
-                        "description": "숫자로 확인 가능한 지표",
+                        "description": "그 사건이 실제로 일어났는지 **숫자나 공시로 확인**하는 방법",
                     },
                     "expected_date": {"type": "string", "description": "예: 2026-11"},
+                    "impact": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "주가에 미칠 영향의 크기",
+                    },
+                    "kind": {
+                        "type": "string",
+                        "description": "트리거 성격을 짧은 낱말로 (예: 실적, 수주, 증설, "
+                                       "인증, 규제, 전방수요, 고객사, 수급, 주주환원)",
+                    },
                 },
-                "required": ["event", "verifiable_metric", "expected_date"],
+                "required": ["event", "verifiable_metric", "expected_date", "impact", "kind"],
                 "additionalProperties": False,
             },
         },
@@ -172,9 +223,21 @@ SYSTEM_PROMPT = """\
 52주 위치, PER 밴드 위치)를 보고, **이미 반영된 것**과 **아직 반영되지 않은 것**을
 각각 구체적으로 짚어라.
 
+**실적 변화를 원인·결과·전망으로 나눠라.** `earnings_change`에 세 개를 따로 쓴다.
+`cause`는 **왜** 이렇게 변했는가(수요·단가·믹스·원가·환율·일회성 중 무엇인지 숫자와 함께),
+`effect`는 그래서 회사의 **무엇이 달라졌는가**(마진 구조·현금흐름·수주잔고·시장지위),
+`outlook`은 다음 1~2개 분기에 이 추세가 **어떻게 될 것인가**와 그 근거다.
+근거가 약하면 `confidence`를 low로 낮춰라 — 확신 없는 전망을 확신처럼 쓰지 마라.
+
 **트리거는 검증 가능해야 한다.** "실적 개선 기대" 같은 것은 트리거가 아니다.
 "3Q 매출 950억 상회 여부", "주요 고객사 양산 일정 확정"처럼 **다음 분기에
-숫자나 사실로 확인할 수 있는 것**만 적어라. 각 트리거에 확인 지표와 예상 시점을 붙여라.
+숫자나 사실로 확인할 수 있는 것**만 적어라.
+
+**트리거의 종류는 제한하지 않는다.** 실적 발표와 신규 수주만 반복하지 마라 —
+증설·가동 개시, 고객사 승인·양산 진입, 인증·허가, 규제·정책 변화, 전방 산업
+사이클 전환, 경쟁사 이탈, 지수 편입, 주주환원 발표 등 **주가를 올릴 수 있는 것은
+무엇이든** 트리거다. 각 항목에 확인 지표·예상 시점·영향 크기(impact)·성격(kind)을 붙여라.
+3개월 내와 6개월 내를 각각 **가능한 만큼** 적되, 억지로 채우지는 마라.
 
 **시나리오 확률의 합은 1.0이 되어야 한다.** bull/base/bear 각각에 조건과 함의를 쓰되,
 조건은 "무엇이 관측되면 이 시나리오인가"로 서술하라.

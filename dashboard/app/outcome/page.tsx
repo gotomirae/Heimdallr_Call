@@ -21,7 +21,14 @@ import {
   type Insight,
   type Row,
 } from "@/lib/retrospect";
-import { getAllScreens, getUniverse } from "@/lib/queries";
+import { getAllScreens, getFundamentalsForQuarters, getUniverse } from "@/lib/queries";
+import {
+  MIN_SECTOR_SAMPLE,
+  aggregateSectors,
+  outlook,
+  risingSectors,
+  usableSectors,
+} from "@/lib/sectorEarnings";
 import { DASH } from "@/lib/format";
 import type { ScreenRow } from "@/lib/types";
 
@@ -138,6 +145,19 @@ export default async function OutcomePage() {
     getUniverse(),
   ]);
 
+  // ── 섹터별 실적: 최신 분기와 그 직전 분기를 비교한다 ──────────────
+  // ★ 분기를 **데이터에서** 고른다. 상수로 박으면 다음 시즌에 조용히 낡는다(T36).
+  const quarterIndexes = [
+    ...new Set(screensResult.rows.map((s) => s.fiscal_year * 4 + (s.fiscal_quarter - 1))),
+  ].sort((a, b) => b - a);
+  const toYQ = (i: number) => ({ year: Math.floor(i / 4), quarter: (i % 4) + 1 });
+  const curQ = quarterIndexes.length > 0 ? toYQ(quarterIndexes[0]) : null;
+  const prevQ = curQ ? toYQ(quarterIndexes[0] - 1) : null;
+
+  const funds = curQ && prevQ
+    ? await getFundamentalsForQuarters([curQ, prevQ])
+    : [];
+
   // ★ 분기까지 맞춘 색인을 함께 넘긴다 — 최신 행만 쓰면 분기가 쌓인 뒤
   //   2026.2Q 결과에 다른 분기 판정이 붙는다(T40).
   // 최신 행(폴백용) — 그 분기 행이 없을 때만 쓴다.
@@ -155,6 +175,13 @@ export default async function OutcomePage() {
   const tables = new Map<string, Row[]>(
     FEATURE_GROUPS.map((g) => [g.title, crosstab(rows, g.keyOf)])
   );
+  const sectorRows = curQ && prevQ
+    ? aggregateSectors(universe, funds, screensByQuarter, curQ, prevQ)
+    : [];
+  const sectorUsable = usableSectors(sectorRows);
+  const rising = risingSectors(sectorRows);
+  const outlookRows = outlook(sectorRows);
+
   const { insights, bestTiming, caveats } = buildInsights(rows, tables);
   const playbook = seasonPlaybook(insights);
   const profile = timingProfile(rows);
@@ -308,7 +335,129 @@ export default async function OutcomePage() {
         )}
       </Card>
 
-      {/* ═══ ④ 특징별 × 시점별 표 ═══ */}
+      {/* ═══ ④ 섹터별 실적 — 어디가 잘 나왔나 (사용자 요청) ═══ */}
+      <Card
+        title={`섹터별 실적 — ${curQ ? `${curQ.year}.${curQ.quarter}Q` : "—"}`}
+        note={`매출·영업이익 성장률(YoY) 중앙값과 '가속 종목 비율'. 가속 = 매출·이익 성장률이 둘 다 전분기보다 높아진 것 — 이 시스템의 서프라이즈다. 종목 ${MIN_SECTOR_SAMPLE}개 미만 섹터는 제외했다.`}
+      >
+        {sectorUsable.length > 0 ? (
+          <div className="max-h-[60vh] overflow-auto rounded border border-slate-700">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="sticky top-0 z-20 bg-slate-800 text-xs uppercase text-slate-100">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">종목</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">매출 YoY</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">영업익 YoY</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium"
+                      title="매출·이익 성장률이 둘 다 가속한 종목 비율">
+                    가속 비율
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium"
+                      title="지난 분기 대비 가속 종목 비율의 변화 — 서프라이즈가 늘었나">
+                    전분기 대비
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectorUsable.map((r, i) => (
+                  <tr key={r.sector} className="border-t border-slate-800">
+                    <td className="whitespace-nowrap px-3 py-1.5">
+                      <span className={i < 3 ? "font-bold text-amber-200" : "text-slate-100"}>
+                        {i < 3 && <span className="mr-1">{["①", "②", "③"][i]}</span>}
+                        {r.sector}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{r.n}</td>
+                    <td className={`px-3 py-1.5 text-right font-semibold tabular-nums ${toneOf(r.revenueYoy)}`}>
+                      {r.revenueYoy == null ? DASH : `${r.revenueYoy >= 0 ? "+" : ""}${r.revenueYoy.toFixed(1)}%`}
+                    </td>
+                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.opYoy)}`}>
+                      {r.opYoy == null ? DASH : `${r.opYoy >= 0 ? "+" : ""}${r.opYoy.toFixed(1)}%`}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-slate-100">
+                      {r.accelRate == null ? DASH : `${(r.accelRate * 100).toFixed(0)}%`}
+                      <span className="ml-1 text-xs text-slate-300">({r.accelerated})</span>
+                    </td>
+                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.accelRateDelta)}`}>
+                      {r.accelRateDelta == null
+                        ? DASH
+                        : `${r.accelRateDelta >= 0 ? "+" : ""}${r.accelRateDelta.toFixed(0)}%p`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-slate-100">
+            섹터 집계를 만들 데이터가 아직 없다. <code>krx_universe.sector</code> 마이그레이션과{" "}
+            <code>python -m src.universe.sector_map --save</code>가 필요하다.
+          </p>
+        )}
+
+        {rising.length > 0 && (
+          <div className="mt-4 rounded-lg border border-emerald-700/60 bg-emerald-950/20 p-3">
+            <div className="text-sm font-bold text-emerald-200">
+              지난 분기보다 가속 종목이 늘어난 섹터
+            </div>
+            <p className="mt-0.5 text-xs text-slate-200">
+              서프라이즈가 확산되는 곳이다 — 개별 종목이 아니라 섹터 전체가 좋아지고 있다는 신호.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {rising.map((r, i) => (
+                <span key={r.sector}
+                      className={`rounded px-2 py-1 text-sm ${
+                        i === 0
+                          ? "bg-emerald-500/25 font-bold text-emerald-100"
+                          : "bg-slate-800 text-slate-100"
+                      }`}>
+                  {r.sector}{" "}
+                  <span className="tabular-nums">
+                    {(r.prevAccelRate! * 100).toFixed(0)}% → {(r.accelRate! * 100).toFixed(0)}%
+                  </span>
+                  <span className="ml-1 text-xs text-emerald-200">
+                    ({r.accelRateDelta! >= 0 ? "+" : ""}{r.accelRateDelta!.toFixed(0)}%p)
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* ═══ ⑤ 다음 분기 전망 (사용자 요청) ═══ */}
+      {outlookRows.length > 0 && (
+        <Card
+          title="다음 분기 전망"
+          note="예측 모델이 아니다 — 이번 분기와 지난 분기의 추세가 같은 방향을 가리키는지만 본다. 매출 성장률과 가속 종목 비율이 둘 다 개선되면 '가속', 둘 다 나빠지면 '둔화', 엇갈리면 '유지'다."
+        >
+          <div className="space-y-2">
+            {outlookRows.slice(0, 12).map((o) => (
+              <div key={o.sector}
+                   className="flex flex-wrap items-start gap-3 border-b border-slate-800 pb-2 last:border-b-0">
+                <span className={`w-16 shrink-0 rounded px-2 py-0.5 text-center text-xs font-bold ${
+                  { 가속: "bg-rose-500/20 text-rose-200",
+                    유지: "bg-amber-500/20 text-amber-200",
+                    둔화: "bg-sky-500/20 text-sky-200",
+                    판정불가: "bg-slate-700/40 text-slate-200" }[o.momentum]
+                }`}>
+                  {o.momentum}
+                </span>
+                <span className="w-28 shrink-0 text-sm font-semibold text-white">{o.sector}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-100">{o.basis}</p>
+                  <p className="mt-0.5 text-xs text-slate-200">
+                    <span className="text-slate-300">다음 분기 확인 · </span>{o.watch}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* ═══ ⑥ 특징별 × 시점별 표 ═══ */}
       <Card
         title="특징별 · 시점별 초과수익"
         note={`각 칸은 지수 대비 초과수익 중앙값(%p)과 측정 표본 수다. 표본 ${MIN_SAMPLE}건 미만은 흐리게 표시했다 — 숫자는 있어도 결론으로 쓰면 안 된다.`}
@@ -357,8 +506,8 @@ export default async function OutcomePage() {
       </Card>
 
       <p className="text-sm text-slate-200">
-        발굴 목록은 <Link href="/" className="text-sky-300 underline">여기</Link>,
-        전 종목 스크리너는 <Link href="/screener" className="text-sky-300 underline">여기</Link>.
+        발굴 목록·스크리너는 <Link href="/" className="text-sky-300 underline">한 화면</Link>에 있다
+        (게이트 필터로 탈락까지 볼 수 있다).
         모든 수치는 <strong className="text-slate-100">영업일 기준</strong>이며 발표일이 휴장이면
         다음 거래일을 기준으로 잡는다.
       </p>

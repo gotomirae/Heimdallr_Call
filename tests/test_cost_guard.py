@@ -114,14 +114,19 @@ def test_max_tokens_matches_prd():
 def _good_payload() -> dict:
     return {
         "one_line_thesis": "t", "why_now": "w",
+        # 2026-08-17 추가 — 실적 변화의 원인·결과·전망
+        "earnings_change": {"cause": "c", "effect": "e", "outlook": "o",
+                            "confidence": "medium"},
         "growth_engine": {"drivers": ["물량 증가"], "structural_or_temporary": "structural",
                           "evidence": "e"},
         "acceleration_quality": {"is_genuine": True, "base_effect_assessment": "b",
                                  "sustainability_quarters": 3},
         "triggers": {"within_3m": [{"event": "e", "verifiable_metric": "m",
-                                    "expected_date": "2026-11"}],
+                                    "expected_date": "2026-11",
+                                    "impact": "high", "kind": "실적"}],
                      "within_6m": [{"event": "e", "verifiable_metric": "m",
-                                    "expected_date": "2027-02"}]},
+                                    "expected_date": "2027-02",
+                                    "impact": "medium", "kind": "수주"}]},
         "price_position": {"verdict": "적정", "reason": "r", "priced_in": ["a"],
                            "not_priced_in": ["b"]},
         "scenarios": {"bull": {"probability": 0.25, "condition": "c", "implication": "i"},
