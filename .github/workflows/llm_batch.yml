@@ -1,0 +1,72 @@
+# PRD Ref: §7 (LLM 해석) · ADR 3 · traps.md T69
+#
+# 게이트 통과 종목 **전부**에 LLM 해석을 붙이는 따라잡기 배치 (A′+B, 2026-08-17)
+#
+# ★ 왜 별도 워크플로인가:
+#   실측 호출당 36~56초 · 게이트 통과 238종목 = 2.4~3.7시간.
+#   `disclosure_poll`(timeout 15분)에 얹으면 갓 발표된 몇 종목만 처리하고 끝난다.
+#   여기서 **밤에 몰아서** 나머지를 채운다.
+#
+# ★ 왜 한 번에 다 안 도는가:
+#   GitHub Actions 잡 상한이 6시간이고, 한 잡이 몇 시간 점유하면 다른 워크플로와
+#   겹친다. `--max-seconds`로 끊고 **여러 날에 걸쳐 누적**한다 —
+#   배치는 멱등이라(이미 분석된 건 재호출 안 함) 재실행이 안전하다.
+#
+# ★ 비용은 코드가 막는다: 월 실링 $12 · 일 80건(`check_budget`).
+#   실측 분기 비용 $7.51(238종목 · 캐시히트 $0.0315/건) = 실링의 63%.
+#   상한에 걸리면 **실패가 아니라** 남은 건수를 밝히고 멈춘다.
+
+name: llm_batch
+
+on:
+  schedule:
+    # 03:00 KST — 시세·스크리닝(06:00 KST)보다 앞서 돌면 어제 등급으로 분석하게 된다.
+    # 그래서 **스크리닝 뒤**인 밤 시간대를 쓴다(전날 06:00 갱신분 기준).
+    - cron: "0 18 * * *" # 03:00 KST
+  workflow_dispatch:
+    inputs:
+      max_seconds:
+        description: "이번 실행 시간 예산(초)"
+        required: false
+        default: "10800"
+      min_score:
+        description: "스코어 하한 (발송 등급 ★/○은 하한과 무관하게 항상 포함)"
+        required: false
+        default: "0"
+
+concurrency:
+  group: llm-batch
+  # ★ 취소하지 않는다. 도는 중에 새로 띄우면 같은 종목을 두 번 호출해 돈이 두 번 나간다.
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # 시간 예산(기본 3시간)보다 여유를 둔다. 예산이 먼저 걸려 깨끗하게 멈춘다.
+    timeout-minutes: 200
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
+      DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+
+      # ★ 분기를 셸로 정한다. GitHub 삼항 `${{ x && 'A' || 'B' }}`는 x가 false일 때도
+      #   B를 주고, schedule에는 inputs 자체가 없어 늘 B다 — 양방향으로 조용히 틀린다(T55).
+      - name: LLM 배치 (따라잡기)
+        run: |
+          secs="${{ inputs.max_seconds }}"
+          score="${{ inputs.min_score }}"
+          [ -z "$secs" ] && secs=10800
+          [ -z "$score" ] && score=0
+          echo "시간 예산 ${secs}초 · 스코어 하한 ${score}"
+          python -m src.analysis.batch --send --max-seconds "$secs" --min-score "$score"

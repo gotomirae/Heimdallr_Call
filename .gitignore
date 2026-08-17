@@ -42,3 +42,6 @@ Thumbs.db
 # 검증용 임시 산출물
 *.tmp.html
 *.tmp.log
+
+# 실행 로그(검증용, 커밋 대상 아님)
+*.run.log

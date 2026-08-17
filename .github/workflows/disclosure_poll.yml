@@ -87,10 +87,14 @@ jobs:
       #   이미 분석된 종목은 재호출하지 않으므로 하루 여러 번 돌아도 비용이 안 늘어난다.
       #   상한은 코드가 건다(월 $8 · 일 80건). 실패해도 잡을 세우지 않는다 —
       #   해석이 없으면 숫자만 담긴 알림이 나갈 뿐이다.
-      - name: LLM 배치 분석
+      # ★ 시간 예산을 잡의 timeout(15분)보다 작게 준다 — 강제 종료되면 진행 상황이
+      #   로그에 안 남는다. 배치는 멱등이라 여러 실행에 걸쳐 누적된다.
+      #   여기서는 **갓 발표된 종목**을 빠르게 해석하는 것이 목적이다(알림에 실린다).
+      #   전체 따라잡기는 llm_batch.yml이 밤에 한다.
+      - name: LLM 배치 분석 (신규 우선)
         if: steps.season.outputs.run == 'true'
         continue-on-error: true
-        run: python -m src.analysis.batch --send
+        run: python -m src.analysis.batch --send --max-seconds 480
 
       # 중복은 `notifications` 테이블이 막는다 — 하루 38회 돌아도 같은 종목은 한 번만 나간다.
       - name: ⚡ 즉시 알림

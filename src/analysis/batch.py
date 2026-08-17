@@ -7,14 +7,19 @@
   시스템 프롬프트 3,242토큰은 종목마다 동일한데, 캐시 TTL이 5분이라
   **연속 호출**해야 히트한다.
 
-    캐시 미스 1건  $0.0346
-    캐시 히트 1건  $0.0271   ← 22% 절감
-    실측 평균      $0.0333   (대부분 미스였다)
+    캐시 미스 1건  $0.0363
+    캐시 히트 1건  $0.0315   ← 13% 절감뿐이다(비용의 대부분이 출력 2,400~2,800토큰)
+    (2026-08-17 cost_log 25건 실측)
 
-선정 기준 (`--top N`):
-  게이트 통과 + 등급이 있는 종목을 **투자 매력도 순**으로 정렬한다.
-  매력도 = 스코어(펀더멘털 강도)와 낮은 반영도(아직 안 오름)를 함께 본다 —
-  둘을 합산하지 않는다(ADR 5). 정렬 키만 만든다.
+선정 기준 (2026-08-17 확정 · A′+B):
+  **게이트를 통과한 종목 전부**가 대상이다(B안 · 실측 238종목 · 분기 $7.51).
+  그리고 **발송 등급(★/○)은 스코어 하한과 무관하게 항상 포함한다**(A′안) —
+  등급은 스코어와 반영도의 교차 판정이라 하한을 걸면 "○인데 스코어 74.9"가 빠진다.
+  실측: 발송 대상 70종목 중 22종목이 해석 없이 알림만 나가고 있었다.
+
+  정렬은 **투자 매력도 순**이다. 시간·비용이 모자라 중간에 끊겨도
+  중요한 종목이 먼저 처리되게 한다. 매력도는 스코어와 낮은 반영도를 함께 보되
+  **합산하지 않는다**(ADR 5) — 정렬 키일 뿐이다.
 
 ★ 비용은 코드가 막는다. `analyze()`가 `check_budget()`으로 월 실링과 일 상한을
   확인하고, 걸리면 `BudgetExceeded`를 올린다. 여기서는 그걸 잡아 **남은 종목을
@@ -36,18 +41,31 @@ from src.analysis.analyze import (
     validate_payload,
 )
 from src.analysis.run import build_input
-from src.config.constants import SCORE_HIGH
+from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
 from src.db.supabase_client import select_all
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
 
-#: 기본 분석 종목 수. 실측 비용 기준으로 월 실링 $8의 약 34%(캐시 히트 시 $2.71).
-#: 분기 시즌이 한 달에 몰리므로 **분기 비용 ≈ 그 달 비용**이다.
-DEFAULT_TOP = 100
+#: 기본 분석 종목 수. **게이트 통과 전부를 담을 만큼 크게** 둔다(B안, 2026-08-17).
+#: 실측: 게이트 통과 238종목 · 분기 비용 $7.51 (캐시히트 $0.0315/건).
+#: 분기 시즌이 한 달에 몰리므로 **분기 비용 ≈ 그 달 비용**이다 → 실링 $12.
+DEFAULT_TOP = 2000
+
+#: 스코어 하한. **발송 등급(★/○)은 이 하한과 무관하게 항상 포함된다**(A′안).
+#: 0이면 게이트 통과 전부가 대상이다.
+DEFAULT_MIN_SCORE = 0.0
 
 #: 연속 호출 간격(초). 캐시 TTL 5분 안에 들어가려면 붙여서 불러야 한다.
-#: 0으로 두면 레이트리밋에 걸리고, 크게 두면 캐시가 식는다.
+#: ★ 실측 호출 자체가 36~56초 걸린다(출력 2,400~2,800토큰) — 이 간격은 사실상 무의미하다.
+#:   레이트리밋 여유를 위해 남겨 둔다.
 CALL_GAP_SEC = 1.0
+
+#: 한 번 실행에서 쓸 최대 시간(초). **워크플로 timeout보다 작아야 한다.**
+#: ★ 238종목 × 36~56초 = 2.4~3.7시간이라 한 번에 다 못 돈다.
+#:   시간이 되면 **깨끗하게 멈추고 남은 건수를 밝힌다** — 강제 종료되면
+#:   진행 상황이 로그에 안 남아 다음 사람이 어디까지 됐는지 모른다.
+#:   배치는 멱등이라(이미 분석된 건 건너뜀) 여러 번 돌면 누적된다.
+DEFAULT_MAX_SECONDS = 600
 
 
 def attractiveness(screen: dict) -> float | None:
@@ -65,8 +83,16 @@ def attractiveness(screen: dict) -> float | None:
     return float(score) - float(pri) * 0.5
 
 
-def targets(top: int, *, min_score: float = SCORE_HIGH) -> list[dict]:
-    """분석 대상. 게이트 통과 + 등급 있음 + 스코어 하한, 매력도 순 상위 N.
+def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
+    """분석 대상. 게이트 통과 + 등급 있음, 매력도 순 상위 N.
+
+    ★★ **발송 등급(★/○)은 스코어 하한과 무관하게 반드시 포함된다** (A′안).
+       예전에는 `score >= 75`만 걸었는데, 등급은 스코어와 반영도의 **교차** 판정이라
+       "○인데 스코어 74.9"인 종목이 사이로 빠졌다. 실측(2026-08-17):
+       발송 대상 70종목 중 **22종목이 해석 없이 알림만 나갔다** —
+       그중 롯데케미칼(반영도 2.7)·GKL(1.8)처럼 **반영도가 매우 낮은 종목**이 많았다.
+       이 시스템이 찾는 바로 그 구간이 빠지고 있었다.
+       두 기준(발송=등급 / 분석=스코어)이 갈라져 있던 것이 원인이다.
 
     ★ 종목별 **최신 분기 1행**으로 접는다(T40). 접지 않으면 같은 종목이
       과거 분기로 여러 번 뽑혀 예산을 태운다.
@@ -87,8 +113,12 @@ def targets(top: int, *, min_score: float = SCORE_HIGH) -> list[dict]:
         r for r in latest.values()
         if r.get("gate_passed") is True
         and r.get("grade") is not None
-        and r.get("score_flash") is not None
-        and float(r["score_flash"]) >= min_score
+        and (
+            # ★ 발송 대상은 하한을 적용하지 않는다 — 알림이 나가는 종목에
+            #   해석이 없으면 안 된다.
+            r["grade"] in NOTIFY_GRADES
+            or (r.get("score_flash") is not None and float(r["score_flash"]) >= min_score)
+        )
     ]
     # 매력도가 None인 종목은 뒤로.
     picked.sort(key=lambda r: (attractiveness(r) is None, -(attractiveness(r) or 0)))
@@ -102,7 +132,13 @@ def already_analyzed() -> set[tuple[str, int, int]]:
     }
 
 
-def run(top: int, *, send: bool, min_score: float) -> int:
+def run(
+    top: int,
+    *,
+    send: bool,
+    min_score: float,
+    max_seconds: float = DEFAULT_MAX_SECONDS,
+) -> int:
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     picked = targets(top, min_score=min_score)
     done = already_analyzed()
@@ -142,9 +178,20 @@ def run(top: int, *, send: bool, min_score: float) -> int:
 
     ok = failed = skipped = 0
     stopped_at: str | None = None
+    timed_out = False
     started = time.monotonic()
+    print(f"\n시간 예산 {max_seconds:.0f}초 · 실측 호출당 36~56초 → "
+          f"이번 실행에서 약 {max(1, int(max_seconds / 46))}건 예상")
 
     for i, r in enumerate(pending, 1):
+        # ★ 시간이 되면 **깨끗하게 멈춘다.** 워크플로가 강제 종료하면 진행 상황이
+        #   로그에 안 남아 다음 사람이 어디까지 됐는지 모른다.
+        #   배치는 멱등이라(이미 분석된 건 건너뜀) 여러 번 돌면 누적된다.
+        if time.monotonic() - started >= max_seconds:
+            timed_out = True
+            skipped = len(pending) - i + 1
+            break
+
         code, year, quarter = r["code"], r["fiscal_year"], r["fiscal_quarter"]
         label = f"{names.get(code, code)}({code}) {year}.{quarter}Q"
         try:
@@ -177,11 +224,15 @@ def run(top: int, *, send: bool, min_score: float) -> int:
 
     elapsed = time.monotonic() - started
     final = check_budget()
-    print(f"\n✓ 분석 {ok}건 · 실패 {failed}건 · 예산소진 건너뜀 {skipped}건 · {elapsed:.0f}초")
+    print(f"\n✓ 분석 {ok}건 · 실패 {failed}건 · 남김 {skipped}건 · {elapsed:.0f}초"
+          f"{f' ({elapsed / ok:.0f}초/건)' if ok else ''}")
     print(f"  누적 월 비용 ${final.month_spent_usd:.4f}/${final.month_ceiling_usd}")
+    if timed_out:
+        print(f"  ⏱ 시간 예산({max_seconds:.0f}초)에 걸려 멈췄다 — **실패가 아니다.**")
+        print(f"    남은 {skipped}종목은 다음 실행에서 이어서 한다(멱등: 된 건 재호출 안 함).")
     if stopped_at:
-        print(f"  ⚠ 예산 상한에 걸려 중단했다: {stopped_at}")
-        print(f"    남은 {skipped}종목은 다음 실행에서 이어서 분석한다(이미 된 건 재호출하지 않는다).")
+        print(f"  ⚠ 비용 상한에 걸려 중단했다: {stopped_at}")
+        print(f"    남은 {skipped}종목은 다음 달 또는 실링 상향 후에 이어서 한다.")
     return 0
 
 
@@ -189,12 +240,17 @@ def main() -> int:
     enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="LLM 배치 분석")
     parser.add_argument("--top", type=int, default=DEFAULT_TOP,
-                        help=f"매력도 상위 N종목 (기본 {DEFAULT_TOP})")
-    parser.add_argument("--min-score", type=float, default=SCORE_HIGH,
-                        help=f"스코어 하한 (기본 {SCORE_HIGH})")
+                        help=f"매력도 상위 N종목 (기본 {DEFAULT_TOP} = 게이트 통과 전부)")
+    parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE,
+                        help=f"스코어 하한 (기본 {DEFAULT_MIN_SCORE:.0f}) — "
+                             f"발송 등급 {'/'.join(NOTIFY_GRADES)}은 하한과 무관하게 항상 포함")
+    parser.add_argument("--max-seconds", type=float, default=DEFAULT_MAX_SECONDS,
+                        help=f"이번 실행 시간 예산(초, 기본 {DEFAULT_MAX_SECONDS:.0f}) — "
+                             f"워크플로 timeout보다 작게 준다")
     parser.add_argument("--send", action="store_true", help="실제 API 호출")
     args = parser.parse_args()
-    return run(args.top, send=args.send, min_score=args.min_score)
+    return run(args.top, send=args.send, min_score=args.min_score,
+               max_seconds=args.max_seconds)
 
 
 if __name__ == "__main__":
