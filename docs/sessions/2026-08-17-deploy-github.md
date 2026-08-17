@@ -419,3 +419,47 @@ bot_id_of(token) = "8933940541"                      →  판정은 숫자 ID로
 - `docs/traps.md` T57(폴더명↔editable) + 명명 규칙 절
 - T56과 그 세션 기록의 `heinmdallr` 표기는 **그대로 둔다** —
   두 철자의 대비 자체가 그 함정의 내용이라 통일하면 기록이 무의미해진다.
+
+---
+
+# 마무리 — 스케줄이 스스로 도는 것까지 확인
+
+세션 종료 직전, cron이 자동으로 돈 실행 두 건을 확인했다.
+**수동 디스패치가 아니라 `schedule` 이벤트다** — T55 수정이 실제 운영 경로에서 동작하는지는
+여기서만 증명된다(수동 실행은 `inputs`가 있어 다른 분기를 탄다).
+
+```
+telegram_listen   (schedule, 26초)  → 봇 8933940541 · 전용봇 True
+                                      허용 chat: [***] · LLM 분석 ON      ★ 핵심
+                                      처리 0건
+disclosure_poll   (schedule, 7초)   → 비시즌이라 30분 폴링을 건너뛴다 (SEASON_MODE=off)
+```
+
+`LLM 분석 ON`이 **schedule 경로에서** 찍혔다. 고치기 전이었다면 여기가 `OFF`였다.
+`disclosure_poll`은 7초 만에 끝났다 — 비시즌 건너뛰기가 Actions 분을 아끼는 것도 확인됐다.
+
+## 최종 상태
+
+| 항목 | 값 |
+|---|---|
+| repo | https://github.com/gotomirae/Heimdallr_Call (public) |
+| 대시보드 | https://heimdallr-call.vercel.app (7화면 · 미인증 200) |
+| 봇 | ID 8933940541 · 표시명 `아이언맨의 Heimdallr` |
+| Secrets / Variables | 8 / 2 — **전부 실행 검증** |
+| 워크플로 | 8개 active · schedule 자동 실행 확인 |
+| tests | **413 passed, 1 skipped** (로컬 · CI 동일) |
+| 커밋 | 9개 · 작업 트리 clean · origin/main 동기화 |
+| LLM 비용 | $0.0991 / 월 실링 $8 · 오늘 1/20 |
+
+## 다음 세션이 알아야 할 것 (최종)
+
+1. **코딩·배포 다 끝났다. 남은 건 시간이다** — D+20·D+60 표본이 쌓이는 것,
+   그리고 11월 3Q 시즌에 `gh variable set SEASON_MODE --body on`.
+2. **테스트 기준선 `413 passed, 1 skipped`.** venv에 `pip install -e ".[dev]"` 필수(T53).
+3. **로컬 `--watch` 금지.** `telegram_listen` cron이 살아 있다 — 동시에 켜면 서로 메시지를
+   뺏는다(T44). 즉답이 필요하면 그동안 `gh workflow disable telegram_listen`.
+4. **CI는 외부 사이트 탓에 가끔 빨개진다.** 실제로 KRX(kind.krx.co.kr) 일시 장애로
+   `test_universe` 3건이 실패한 적이 있다(다음 실행은 통과). collector 테스트를 모킹하지
+   않는 설계의 대가다 — **빨간 X를 보면 먼저 로그의 실패 테스트 이름을 확인하라.**
+   `test_universe`·`test_dart_*`가 `HTTP 조회 실패`로 죽었으면 코드 문제가 아니다.
+5. 명명은 `Heimdallr`(m). 봇 username만 예외이고 이유는 CLAUDE.md·traps.md에 있다.
