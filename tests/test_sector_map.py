@@ -11,10 +11,13 @@ import pytest
 
 from src.universe.sector_map import (
     ALL_SECTORS,
+    INDUSTRY_ONLY_KEYWORDS,
+    SECTOR_EXCLUDES,
     SECTOR_RULES,
     UNKNOWN_SECTOR,
     classify_sector,
 )
+from tests.sector_labels import LABELED_CASES
 
 
 #: (회사명, 업종, 제품, 기대 섹터) — **전부 실제 DB 값 그대로**(2026-08-17).
@@ -88,6 +91,108 @@ def test_keywords_are_lowercase():
     """`_haystack`이 소문자로 비교하므로 대문자 키워드는 **영원히 안 걸린다.**"""
     bad = [(s, k) for s, ks in SECTOR_RULES for k in ks if k != k.lower()]
     assert not bad, f"대문자가 섞인 키워드는 매칭되지 않는다: {bad}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 오분류율 — ★ 이 프로젝트에서 섹터에 관해 **유일하게 의미 있는 숫자**
+#
+# 미분류율(`기타` 비율)은 "못 가린 비율"이지 "틀리게 가린 비율"이 아니다.
+# 오분류는 에러를 내지 않아서, 재지 않으면 화면에만 조용히 남는다.
+# ═══════════════════════════════════════════════════════════════════
+#: 2026-08-20 실측. 규칙 개정 전 70.5%(23/78 오분류) → 개정 후 97.4%(2/78).
+#: **내리면 안 된다.** 올릴 수는 있다.
+MIN_LABEL_ACCURACY = 0.96
+
+#: 위 정답지 주석에 근거를 적어 둔 **알려진 한계**. 여기 없는 종목이 틀리면 회귀다.
+KNOWN_MISSES = {"포스코퓨처엠", "천보"}
+
+
+def test_labeled_accuracy_does_not_regress():
+    wrong = [
+        (name, expected, classify_sector(name, industry, products))
+        for name, industry, products, expected in LABELED_CASES
+        if classify_sector(name, industry, products) != expected
+    ]
+    accuracy = 1 - len(wrong) / len(LABELED_CASES)
+    assert accuracy >= MIN_LABEL_ACCURACY, (
+        f"섹터 정확도 {accuracy:.1%} < 기준 {MIN_LABEL_ACCURACY:.0%}\n"
+        + "\n".join(f"  {n}: 정답 {e} → 실제 {g}" for n, e, g in wrong)
+    )
+
+
+def test_no_new_misclassification():
+    """★ 알려진 한계 **밖에서** 틀리면 회귀다 — 총점만 보면 맞바꿈을 못 본다.
+
+    정확도만 감시하면 '하나 고치고 하나 망가뜨리는' 변경이 통과한다(T54와 같은 결).
+    """
+    wrong = {
+        name
+        for name, industry, products, expected in LABELED_CASES
+        if classify_sector(name, industry, products) != expected
+    }
+    assert not (wrong - KNOWN_MISSES), (
+        f"새로 틀린 종목: {sorted(wrong - KNOWN_MISSES)}"
+    )
+
+
+def test_position_beats_rule_order():
+    """★ 뒤에 곁다리로 붙은 한 단어가 본업을 덮어쓰면 안 된다 (2026-08-20 개정 ①)."""
+    # 기아 — '군수차량'이 방산·우주로 끌고 갔다.
+    assert classify_sector(None, None, "승용차,중대형버스,트럭,군수차량 제조") == "자동차"
+    # 이구산업 — 끝에 붙은 '/부동산 임대'가 본업(동판)을 이겼다.
+    assert classify_sector(None, None, "동판.조,황동판.조 제조,임가공/부동산 임대") == "철강·금속"
+
+
+def test_rule_order_still_breaks_ties():
+    """위치가 같으면 규칙 순서가 정한다 — 둘 다 0번째에서 걸리는 경우."""
+    assert classify_sector(None, None, "반도체 후공정장비") == "반도체장비"
+
+
+def test_excludes_kill_substring_collisions():
+    """★ 짧은 키워드가 긴 단어 안에 숨는 것을 막는다 (2026-08-20 개정 ②).
+
+    전부 실측으로 잡은 것들이다 — **에러 없이** 엉뚱한 섹터가 나왔다.
+    """
+    assert classify_sector(None, None, "바이러스백신 프로그램") == "소프트웨어·IT"
+    assert classify_sector(None, None, "연료전지") == "신재생에너지"
+    assert classify_sector(None, None, "고압 수소 어닐링 장비") == "반도체장비"
+    # '스테인리스'의 '리스'가 금융으로 갔다.
+    assert classify_sector(None, None, "열연코일,냉연강판,스테인리스 제조") == "철강·금속"
+
+
+def test_company_name_is_not_matched():
+    """★ 이름은 사업의 증거가 아니다 (2026-08-20 개정 ③).
+
+    '주성엔지니어링'의 '엔지니어링'이 건설로 끌고 갔다.
+    """
+    assert classify_sector("주성엔지니어링", "듣도보도못한 업종", None) == UNKNOWN_SECTOR
+    assert classify_sector("아무건설", None, None) == UNKNOWN_SECTOR
+
+
+def test_industry_only_keywords_ignored_in_products():
+    """★ 제품 칸에 업종명을 복사해 넣은 공시가 흔하다 — 그게 본업을 덮으면 안 된다."""
+    samsung = "통신 및 방송 장비 제조(무선) 제품, 반도체 제조(메모리) 제품"
+    assert classify_sector(None, "통신 및 방송 장비 제조업", samsung) == "반도체"
+    # 업종 칸에서는 여전히 근거가 된다.
+    assert classify_sector(None, "통신 및 방송 장비 제조업", None) == "통신·네트워크"
+
+
+def test_excludes_and_industry_only_reference_real_things():
+    """★ 오타가 나면 **조용히 아무것도 안 한다** — 검사기부터 검사한다(T54)."""
+    declared = {name for name, _ in SECTOR_RULES}
+    unknown = set(SECTOR_EXCLUDES) - declared
+    assert not unknown, f"실제 섹터에 없는 제외어 키(오타 의심): {sorted(unknown)}"
+
+    every_keyword = {k for _, ks in SECTOR_RULES for k in ks}
+    orphan = INDUSTRY_ONLY_KEYWORDS - every_keyword
+    assert not orphan, (
+        f"어느 규칙에도 없는 업종전용 키워드(오타 의심): {sorted(orphan)}"
+    )
+
+    bad_case = [k for k in INDUSTRY_ONLY_KEYWORDS if k != k.lower()] + [
+        k for ks in SECTOR_EXCLUDES.values() for k in ks if k != k.lower()
+    ]
+    assert not bad_case, f"대문자가 섞이면 매칭되지 않는다: {bad_case}"
 
 
 # ═══════════════════════════════════════════════════════════════════
