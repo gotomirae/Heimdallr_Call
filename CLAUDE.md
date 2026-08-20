@@ -147,6 +147,14 @@ python -m pytest tests/
   기준선 `MIN_LABEL_ACCURACY` + `KNOWN_MISSES` **둘이 짝이다**(총점만 보면 맞바꿈을 못 본다).
 - 신규 함정 **T78 ★**: 재시도 3회·**총 4.5초**라 KIND 딸꾹질에 `universe_daily`가 통째로 죽었다
   → 5회·지수백오프+지터(≈25초)·4xx 즉시 포기. **장애가 나야 드러나는 상수는 테스트로 못 박는다.**
+- 신규 함정 **T79 ★★★ (미수정)**: `disclosure_poll`의 `⚡ 즉시 알림`이 **스케줄에서 항상
+  skipped**다 — `inputs.notify != false`인데 schedule엔 `inputs`가 없다(**T55 재발**).
+  대상 68종목을 계산까지 해 놓고 안 보낸다. **11월 시즌에 알림이 통째로 안 나간다 — 먼저 고쳐라.**
+  `skipped`는 초록색이라 잡 성공만 보면 못 본다: `gh api .../jobs --jq '.jobs[].steps[]'`.
+- **2026.2Q 전면 전환 — 착수 직전 (2026-08-20)** — 막는 건 로직이 아니라 **재무 수집 누락**이다.
+  반기보고서 공시 1,067종목 중 **603종목이 2Q 재무 미수집**이라 화면에서 1Q로 보인다.
+  `backfill → enrich → screener --save`(무료) 후 LLM. **막힌 것은 예산뿐**: 신규 호출
+  ≈150~180건 ≈$5.3~6.3 vs 잔여 $3.50. 9/1 리셋되면 제약이 사라진다.
 
 - 신규 함정 **T74 ★★**: 시즌 화면이 **"재무를 수집했는가"로 "발표했는가"를 판정**했다.
   `disclosures`를 불러왔지만 캘린더에만 쓰고 판정에는 안 썼다 → **609종목(대한항공·
@@ -225,24 +233,18 @@ python -m pytest tests/
   `/api/cost` `available:true $0.0991`(DB 일치) · 7화면 실데이터 렌더. tests 413.
   **전 구성요소 실행 검증 완료 — 남은 건 시간뿐**(D+20·D+60 표본, 11월 `SEASON_MODE=on`).
 - 신규 함정 **T56 ★**: 배포 URL을 **이름에서 추론하지 마라** — 틀려도 링크만 죽는다. `curl`로 확정.
-- **폴더 rename 수습 (2026-08-17)** — `Heinmdallr_Call`→`Heimdallr_Call`로 **T57이 실제 발동**.
-  `pip install -e ".[dev]"` 재실행 후 **루트 밖 `import src`**로 검증(루트 안·pytest는 깨진 채로도
-  통과한다). tests **413 passed, 1 skipped** · 대시보드 빌드 10라우트 · 배포·cron 전부 정상.
 - ★ **실적 가속의 정의 확정 (2026-08-17)** — 매출 YoY **와** 영업이익 YoY가 **둘 다 가속**.
   G2에 `op_yoy(t) > op_yoy(t−1) AND op_yoy(t) > 0` 추가(G1과 대칭). **흑전은 통과 인정**,
   전분기 성장률 결측은 **판정 불가(None)**. 실측 통과 **343 → 238** · 발송 **80 → 67** (T60).
-- 신규 함정 **T59 ★★**: `dynamic = "force-dynamic"`은 **fetch 캐시를 막지 못한다.**
-  supabase-js 응답이 `.next/cache/fetch-cache`에 디스크로 남고 **Vercel이 배포 사이에 복원**해
-  배포 사이트가 이틀 전 숫자(80)를 200·MISS로 태연히 보여줬다 → 모든 `createClient`에
-  `NO_STORE_OPTIONS`. **검증은 캐시를 지우고 하지 말 것 — 남은 채로 최신이어야 고쳐진 것이다.**
+- 신규 함정 **T59 ★★**: `dynamic = "force-dynamic"`은 **fetch 캐시를 막지 못한다** —
+  supabase-js 응답이 디스크에 남고 Vercel이 배포 사이에 복원해 이틀 전 숫자를 200·MISS로
+  보여줬다 → 모든 `createClient`에 `NO_STORE_OPTIONS`. **검증할 때 캐시를 지우지 마라.**
 - 신규 함정 **T58 ★**: DART `dsab007/main.do?textCrpNm=`은 **검색을 실행하지 않는다**(빈 화면).
   원문은 `dsaf001/main.do?rcpNo=` 뿐이다 — `earnings_disclosures.rcept_no`를 쓰고,
   없으면 링크를 만들지 않는다(1,322 중 231종목). 링크 조립은 `notify/links.py`·`lib/links.ts`만.
-- **E2E 실측 (2026-08-17 · 042700 한미반도체 ★)** — 공시→재무→게이트→스코어→LLM→텔레그램
-  →대시보드 전 구간 확인. 스코어 89.4 · PRI 16.5 · LLM $0.0342 · 화면·알림 선행PER 일치.
 - 신규 함정 **T61 ★**: LLM이 `tool_use` **값 안쪽에** 닫는 태그와 다음 필드를 흘려 넣는다.
 - 신규 함정 **T63**: cron이 `screener --save`를 하루 4회 돈다 → **로직 변경 후 로컬 저장 전에 푸시.**
-- **투자 섹터 분류** — `src/universe/sector_map.py` 30섹터. KRX 업종명은 투자에 쓰는 말이
-  아니다('특수 목적용 기계' 93종목에 반도체장비·디스플레이·건설기계가 섞임). 개별 종목
-  하드코딩 금지(T68). 규칙을 고치면 **`python -m src.config.export_constants`를 반드시** 돌려라 —
-  안 돌리면 화면만 옛 답을 낸다. 파이썬↔TS는 `test_sector_map_parity.py`가 실제 값으로 대조한다.
+- **투자 섹터 분류** — `sector_map.py` 30섹터. KRX 업종명은 투자에 쓰는 말이 아니다
+  ('특수 목적용 기계' 93종목에 반도체장비·디스플레이·건설기계가 섞임). 개별 종목 하드코딩
+  금지(T68). 규칙을 고치면 **`python -m src.config.export_constants`를 반드시 돌려라** —
+  안 돌리면 화면만 옛 답을 낸다(파이썬↔TS는 `test_sector_map_parity.py`가 실값 대조).
