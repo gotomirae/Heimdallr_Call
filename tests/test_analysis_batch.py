@@ -275,3 +275,60 @@ def test_llm_batch_workflow_has_telegram_secrets():
     env = spec["jobs"]["run"]["env"]
     assert "HEIMDALLR_TELEGRAM_BOT_TOKEN" in env
     assert "HEIMDALLR_TELEGRAM_CHAT_ID" in env
+
+
+# ═══════════════════════════════════════════════════════════════════
+# T83 — 일 상한과 월 실링은 **해야 할 일이 정반대**다
+# ═══════════════════════════════════════════════════════════════════
+BATCH_SRC = (
+    Path(__file__).resolve().parents[1] / "src" / "analysis" / "batch.py"
+).read_text(encoding="utf-8")
+
+
+def test_daily_limit_and_monthly_ceiling_are_reported_differently():
+    """★★ T83 — 둘 다 "비용 상한"이지만 사람이 할 일이 반대다.
+
+    일 상한은 **내일이면 저절로 풀린다.** 월 실링은 상향하거나 다음 달을 기다려야 한다.
+    실측(2026-08-21): 일 상한 80/80에 걸렸는데 화면에는
+    `남은 66종목은 다음 달 또는 실링 상향 후에 이어서 한다`가 찍혔다.
+    그 달에 **$8.57가 남아 있었고** 다음 배치가 이어받을 상황이었다 —
+    읽은 사람은 실링을 또 올리거나 한 달을 기다리게 된다.
+
+    **조용히 틀리는 것보다 나쁠 수 있다. 사람을 틀린 행동으로 이끈다.**
+    """
+    assert 'daily = "daily" in (stopped_at or "")' in BATCH_SRC, (
+        "일 상한과 월 실링을 가르지 않는다 — 두 경우에 같은 안내가 나간다"
+    )
+    # 월 실링 전용 문구가 일 상한 경로로 새지 않아야 한다
+    where = BATCH_SRC.index('daily = "daily"')
+    tail = BATCH_SRC[where : where + 900]
+    assert "다음 배치(내일)가 이어서 한다" in tail, "일 상한일 때 '내일 이어서'를 안 알린다"
+    assert "다음 달 또는 실링 상향" in tail, "월 실링일 때 안내가 사라졌다"
+
+
+def test_daily_limit_does_not_send_telegram():
+    """★★ 따라잡기 기간에는 일 상한이 **매일** 걸린다 — 보내면 밤마다 같은 알림이 온다.
+
+    코드 주석이 스스로 "텔레그램은 매일 보내지 않는다"고 적어 놓고,
+    `stopped_at`이면 무조건 보내 **정확히 그 소음**을 만들고 있었다.
+    사람이 결정할 것이 있을 때만 알린다 — 월 실링만 해당한다.
+    """
+    assert 'elif stopped_at and "daily" not in stopped_at:' in BATCH_SRC, (
+        "일 상한에도 텔레그램을 보낸다 — 따라잡기 기간에 매일 알림이 간다"
+    )
+
+
+def test_stop_reason_strings_match_cost_guard():
+    """★ 검사기가 **실제 사유 문자열**에 걸려 있는지 본다(T54).
+
+    `cost_guard`가 사유를 바꾸면 `"daily" in stopped_at` 분기가 조용히 무력화되어
+    **전부 월 실링 취급**된다 — 에러 없이 안내만 틀린다.
+    """
+    guard = (
+        Path(__file__).resolve().parents[1] / "src" / "utils" / "cost_guard.py"
+    ).read_text(encoding="utf-8")
+    assert '"daily_limit_reached"' in guard, "일 상한 사유 문자열이 바뀌었다"
+    assert '"monthly_ceiling_reached"' in guard, "월 실링 사유 문자열이 바뀌었다"
+    # 분기 키('daily')가 일 상한에만 있고 월 실링에는 없어야 한다
+    assert "daily" in "daily_limit_reached"
+    assert "daily" not in "monthly_ceiling_reached"

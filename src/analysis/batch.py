@@ -278,8 +278,20 @@ def run(
         print(f"  ⏱ 시간 예산({max_seconds:.0f}초)에 걸려 멈췄다 — **실패가 아니다.**")
         print(f"    남은 {skipped}종목은 다음 실행에서 이어서 한다(멱등: 된 건 재호출 안 함).")
     if stopped_at:
-        print(f"  ⚠ 비용 상한에 걸려 중단했다: {stopped_at}")
-        print(f"    남은 {skipped}종목은 다음 달 또는 실링 상향 후에 이어서 한다.")
+        # ★★ **일 상한과 월 실링을 구분해서 말한다.** 둘 다 "비용 상한"이지만
+        #   해야 할 일이 정반대다 — 일 상한은 **내일이면 저절로 풀리고**,
+        #   월 실링은 사람이 결정(상향/대기)해야 한다.
+        #   실측(2026-08-21): 일 상한 80/80에 걸렸는데 "다음 달 또는 실링 상향 후에"라고
+        #   찍었다. 그 달에 $8.57가 남아 있었고 다음 날 배치가 이어받을 상황이었는데도
+        #   **실링을 또 올리거나 한 달을 기다리게 만드는 안내**였다.
+        #   메시지가 틀리면 사람이 틀린 행동을 한다 — 조용히 틀리는 것보다 나쁠 수 있다.
+        daily = "daily" in (stopped_at or "")
+        print(f"  ⚠ {'일 상한' if daily else '월 실링'}에 걸려 중단했다: {stopped_at}")
+        if daily:
+            print(f"    남은 {skipped}종목은 **다음 배치(내일)가 이어서 한다** — "
+                  f"실링은 아직 ${final.month_ceiling_usd - final.month_spent_usd:.2f} 남았다.")
+        else:
+            print(f"    남은 {skipped}종목은 다음 달 또는 실링 상향 후에 이어서 한다.")
 
     # ── 진행 리포트 ────────────────────────────────────────────────
     # ★ 배치는 DB에만 쓰므로 **커밋할 파일이 없다.** 진행 상황이 남는 곳을 따로 만든다.
@@ -297,7 +309,12 @@ def run(
         f"| 소요 | {elapsed:.0f}초" + (f" ({elapsed / ok:.0f}초/건)" if ok else "") + " |",
         f"| 누적 비용 | ${final.month_spent_usd:.4f} / ${final.month_ceiling_usd} |",
         f"| 멈춘 이유 | "
-        + ("시간 예산" if timed_out else "비용 상한" if stopped_at else "대상 소진")
+        + (
+            "시간 예산" if timed_out
+            else "일 상한 (내일 이어서)" if stopped_at and "daily" in stopped_at
+            else "월 실링 (상향 또는 다음 달)" if stopped_at
+            else "대상 소진"
+        )
         + " |",
         "",
         "배치는 멱등이라 다음 실행에서 이어서 한다(이미 분석된 건 재호출하지 않는다).",
@@ -312,11 +329,16 @@ def run(
             f"게이트 통과 {len(picked)}종목 해석을 전부 채웠다.\n"
             f"누적 비용 ${final.month_spent_usd:.2f}/${final.month_ceiling_usd}"
         )
-    elif stopped_at:
+    elif stopped_at and "daily" not in stopped_at:
+        # ★★ **일 상한으로는 보내지 않는다.** 따라잡기 기간에는 일 상한이 **매일** 걸리므로
+        #   보내면 밤마다 같은 💸 알림이 온다 — 바로 위에서 피하려던 그 소음이다.
+        #   사람이 결정할 것이 있을 때만 알린다: 월 실링은 상향/대기를 골라야 하지만
+        #   일 상한은 **내일이면 저절로 풀린다.**
         notify_progress(
-            f"💸 <b>LLM 배치 — 비용 상한</b>\n\n"
+            f"💸 <b>LLM 배치 — 월 실링 도달</b>\n\n"
             f"진행 {progress} · 남은 {remaining}종목\n"
-            f"${final.month_spent_usd:.2f}/${final.month_ceiling_usd}에서 멈췄다."
+            f"${final.month_spent_usd:.2f}/${final.month_ceiling_usd}에서 멈췄다.\n"
+            f"다음 달을 기다리거나 실링을 올려야 이어진다."
         )
     elif failed >= 5:
         notify_progress(
