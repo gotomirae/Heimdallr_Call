@@ -175,6 +175,125 @@ def test_telegram_listen_analyzes_on_schedule():
 
 
 # ═══════════════════════════════════════════════════════════════════
+# T79 — `schedule` 워크플로의 `if:`는 inputs를 보면 안 된다
+# ═══════════════════════════════════════════════════════════════════
+#: `inputs.x` 와 `github.event.inputs.x` 를 모두 잡는다.
+INPUTS_REF = re.compile(r"\binputs\s*\.")
+
+
+def _trigger_map(spec: dict) -> dict:
+    """`on:` 블록. PyYAML이 `on`을 **불리언 True로 파싱**하는 것에 주의한다."""
+    return spec.get(True) or spec.get("on") or {}
+
+
+def _if_conditions(spec: dict) -> list[tuple[str, str]]:
+    """워크플로 안의 모든 `if:` 조건식을 (위치, 식)으로 모은다.
+
+    잡 수준과 스텝 수준을 **둘 다** 본다 — 어느 쪽이든 같은 방식으로 틀린다.
+    """
+    found: list[tuple[str, str]] = []
+    for job_name, job in (spec.get("jobs") or {}).items():
+        if "if" in job:
+            found.append((job_name, str(job["if"])))
+        for index, step in enumerate(job.get("steps") or []):
+            if "if" in step:
+                label = step.get("name") or f"step[{index}]"
+                found.append((f"{job_name} · {label}", str(step["if"])))
+    return found
+
+
+@pytest.mark.parametrize("path", YAML_FILES, ids=lambda p: p.name)
+def test_scheduled_workflow_never_gates_on_inputs(path: Path):
+    """★★★ T79 — `schedule`이 붙은 워크플로의 `if:`에서 `inputs`를 보면 안 된다.
+
+    `disclosure_poll`의 `⚡ 즉시 알림`이 `inputs.notify != false`로 걸려 있었다.
+    schedule 이벤트에는 `inputs`가 **아예 없어** `inputs.notify`는 null인데,
+    GitHub 표현식은 타입이 다르면 숫자로 캐스팅한다 — null도 0, false도 0이라
+    `null != false`가 **false**가 된다. 즉 cron 경로에서 그 스텝은 **영영 skipped**였다.
+
+    이게 왜 안 보였나: 발송 대상(68종목)을 계산하는 앞 스텝들은 전부 성공하고,
+    `skipped`는 Actions UI에서 **초록색**이라 잡 성공만 보면 정상으로 읽힌다.
+    스텝 단위(`gh api …/jobs --jq '.jobs[].steps[]'`)를 봐야 드러난다.
+
+    **T55의 재발이다.** 그때는 `telegram_listen` 한 곳만 고치고 개별 테스트를 달았는데,
+    같은 실수가 다른 파일에서 그대로 다시 났다 — 그래서 검사를 **클래스 전체**로 올린다.
+    분기가 필요하면 `if:`가 아니라 **셸에서** 한다(빈 문자열을 기본값으로 떨군다).
+    """
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load(_text(path))
+    if "schedule" not in _trigger_map(spec):
+        return
+
+    offenders = [
+        f"{where}: {cond}" for where, cond in _if_conditions(spec) if INPUTS_REF.search(cond)
+    ]
+    assert not offenders, (
+        f"{path.name}은 schedule로도 도는데 `if:`가 inputs를 본다 — "
+        "cron 경로에서 그 스텝은 영영 skipped다(T79). 분기는 셸로 옮겨라:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_inputs_in_if_guard_actually_catches_it():
+    """★ 검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54).
+
+    이 검사기는 `_if_conditions`가 스텝을 못 찾거나 `_trigger_map`이 `on:`을
+    놓치면 **조용히 0건을 검사하고 통과**한다 — 가장 위험한 실패 모양이다.
+    """
+    yaml = pytest.importorskip("yaml")
+    buggy = yaml.safe_load(
+        "on:\n"
+        "  schedule:\n"
+        "    - cron: '0 0 * * *'\n"
+        "  workflow_dispatch:\n"
+        "    inputs:\n"
+        "      notify:\n"
+        "        type: boolean\n"
+        "jobs:\n"
+        "  poll:\n"
+        "    steps:\n"
+        "      - name: 알림\n"
+        "        if: inputs.notify != false\n"
+        "        run: echo hi\n"
+    )
+    # ① `on:`을 True 키로 읽어내는가 (PyYAML의 함정)
+    assert "schedule" in _trigger_map(buggy), "on: 블록을 못 읽으면 전 파일이 통과한다"
+    # ② 스텝의 if를 실제로 수집하는가
+    conditions = _if_conditions(buggy)
+    assert conditions and any(INPUTS_REF.search(c) for _, c in conditions), (
+        "걸려야 할 조건식을 못 잡았다 — 검사기가 무력화됐다"
+    )
+    # ③ 고친 형태(셸 분기)는 통과하는가 — 과잉 차단도 버그다
+    fixed = yaml.safe_load(
+        "on:\n"
+        "  schedule:\n"
+        "    - cron: '0 0 * * *'\n"
+        "jobs:\n"
+        "  poll:\n"
+        "    steps:\n"
+        "      - name: 알림\n"
+        "        if: steps.season.outputs.run == 'true'\n"
+        "        env:\n"
+        "          NOTIFY_INPUT: x\n"
+        "        run: echo hi\n"
+    )
+    assert not [c for _, c in _if_conditions(fixed) if INPUTS_REF.search(c)]
+
+
+def test_flash_notification_is_wired_on_schedule():
+    """★★ T79 — 즉시 알림이 **실제로 발송까지** 가는가.
+
+    위 검사는 "`if:`가 inputs를 안 본다"만 본다. 스텝이 통째로 사라져도 통과한다 —
+    그래서 발송 명령이 살아 있는지를 따로 못박는다.
+    11월 시즌에 이 한 줄이 없으면 알림이 통째로 안 나간다.
+    """
+    body = _text(WORKFLOWS / "disclosure_poll.yml")
+    assert "src.notify.batch --flash --send" in body, (
+        "disclosure_poll이 즉시 알림을 발송하지 않는다 — 시즌에 알림이 통째로 죽는다"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
 # 대시보드 정합성 — 화면은 CI에서 안 돌아보므로 소스로 검사한다
 # ═══════════════════════════════════════════════════════════════════
 DASHBOARD = Path(__file__).resolve().parents[1] / "dashboard"

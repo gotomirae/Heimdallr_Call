@@ -97,6 +97,25 @@ jobs:
         run: python -m src.analysis.batch --send --max-seconds 480
 
       # 중복은 `notifications` 테이블이 막는다 — 하루 38회 돌아도 같은 종목은 한 번만 나간다.
+      #
+      # ★★ T79 — 분기를 **셸로** 한다(T55와 같은 실패 모양이 여기서 재발했다).
+      #   원래는 `if: … && inputs.notify != false`였다. `schedule`에는 inputs가 없어
+      #   `inputs.notify`가 null인데, GitHub 표현식은 타입이 다르면 **숫자로 캐스팅**한다 —
+      #   null도 0, false도 0이라 `null != false`가 **false**가 된다.
+      #   즉 cron 경로에서 이 스텝은 **영영 skipped**였다. 대상 종목을 계산까지 다 해 놓고
+      #   발송만 안 한다. `skipped`는 UI에서 **초록색**이라 잡 성공만 보면 못 알아챈다
+      #   (`gh api …/jobs --jq '.jobs[].steps[]'`로 스텝 단위를 봐야 드러난다).
       - name: ⚡ 즉시 알림
-        if: steps.season.outputs.run == 'true' && inputs.notify != false
-        run: python -m src.notify.batch --flash --send
+        if: steps.season.outputs.run == 'true'
+        env:
+          # schedule에는 inputs가 없어 **빈 문자열**이 된다 → 아래에서 기본 ON이 된다.
+          NOTIFY_INPUT: ${{ inputs.notify }}
+        run: |
+          # ★ 끄더라도 드라이런은 돌린다 — 무엇이 나갔을 것인지 로그에 남는다.
+          #   조용히 건너뛰면 "발송 대상이 없었는지 스텝이 안 돌았는지"를 구분할 수 없다.
+          if [ "$NOTIFY_INPUT" = "false" ]; then
+            echo "즉시 알림 OFF — 수동 실행에서 명시적으로 껐다 (드라이런만 한다)"
+            python -m src.notify.batch --flash
+          else
+            python -m src.notify.batch --flash --send
+          fi
