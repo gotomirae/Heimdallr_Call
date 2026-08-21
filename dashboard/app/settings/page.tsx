@@ -15,6 +15,9 @@ interface NotificationRow {
   id: number;
   kind: string | null;
   sent_at: string | null;
+  // ★★ 억제분(`--suppress`)은 **보내지 않았는데도** 중복 차단을 위해 같은 표에 남는다.
+  //   payload의 표식을 안 보면 "발송 78건"으로 조용히 거짓말한다.
+  payload: { suppressed?: boolean; reason?: string } | null;
 }
 
 function Card({ title, note, children }: {
@@ -52,7 +55,7 @@ export default async function SettingsPage() {
     fetch(`${proto}://${host}/api/cost`, { cache: "no-store" })
       .then((r) => r.json() as Promise<CostSummary>)
       .catch(() => null),
-    selectAll<NotificationRow>("notifications", "id,kind,sent_at"),
+    selectAll<NotificationRow>("notifications", "id,kind,sent_at,payload"),
   ]);
 
   const ceiling = constants.cost.monthly_ceiling_usd;
@@ -60,11 +63,17 @@ export default async function SettingsPage() {
   const usedPct = ceiling > 0 ? (spent / ceiling) * 100 : 0;
   const monthKey = cost?.monthKey ?? "";
 
+  // ★ 실제 발송과 억제를 **갈라서** 센다. 합쳐 세면 보내지도 않은 건이
+  //   발송 건수로 잡힌다 — 화면은 멀쩡하고 숫자만 틀린다.
   const byKind = new Map<string, number>();
+  const suppressedByKind = new Map<string, number>();
   for (const n of notifications) {
     const k = n.kind ?? "기타";
-    byKind.set(k, (byKind.get(k) ?? 0) + 1);
+    const target = n.payload?.suppressed ? suppressedByKind : byKind;
+    target.set(k, (target.get(k) ?? 0) + 1);
   }
+  const suppressedTotal = [...suppressedByKind.values()].reduce((a, b) => a + b, 0);
+  const suppressedReason = notifications.find((n) => n.payload?.suppressed)?.payload?.reason;
 
   const axes = constants.score_axes as Record<string, number>;
   const items = constants.score_items as Record<string, number>;
@@ -148,6 +157,22 @@ export default async function SettingsPage() {
           </div>
         )}
       </Card>
+
+      {suppressedTotal > 0 && (
+        <Card
+          title="발송 억제"
+          note="발굴은 됐지만 알림을 보내지 않은 건. 대시보드에는 그대로 나온다 — 중복 차단 표에만 미리 채워 두었다."
+        >
+          <div className="grid gap-x-6 sm:grid-cols-2">
+            {[...suppressedByKind.entries()].map(([kind, n]) => (
+              <Row key={kind} label={kind} value={`${n}건`} />
+            ))}
+          </div>
+          {suppressedReason && (
+            <p className="mt-3 text-xs text-slate-400">사유: {suppressedReason}</p>
+          )}
+        </Card>
+      )}
 
       <Card
         title="스코어 배점"
