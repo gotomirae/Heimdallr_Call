@@ -35,6 +35,10 @@ jobs:
       # ★ LLM 배치가 쓴다. 없으면 `require_env`가 명시적으로 실패한다 —
       #   조용히 분석을 건너뛰지 않는다.
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # ★★ T82 — 넘기지 않으면 저장소 변수가 **에러 없이 무시**된다.
+      #   비었으면 `optional_env_int`가 코드 기본값으로 떨어진다(안전).
+      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
+      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
       HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
       # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
@@ -85,7 +89,9 @@ jobs:
 
       # ★ LLM 배치 — 알림 **전에** 돌린다. 분석이 먼저 있어야 알림에 해석이 실린다.
       #   이미 분석된 종목은 재호출하지 않으므로 하루 여러 번 돌아도 비용이 안 늘어난다.
-      #   상한은 코드가 건다(월 $8 · 일 80건). 실패해도 잡을 세우지 않는다 —
+      #   상한은 코드가 건다(월 실링·일 상한 — 값은 `src/config/constants.py`).
+      #   ★ 숫자를 여기 적지 않는다. 손으로 옮겨 적으면 조용히 어긋난다(T82).
+      #   실패해도 잡을 세우지 않는다 —
       #   해석이 없으면 숫자만 담긴 알림이 나갈 뿐이다.
       # ★ 시간 예산을 잡의 timeout(15분)보다 작게 준다 — 강제 종료되면 진행 상황이
       #   로그에 안 남는다. 배치는 멱등이라 여러 실행에 걸쳐 누적된다.

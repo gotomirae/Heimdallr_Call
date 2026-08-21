@@ -134,10 +134,16 @@ def test_guardrails_match_prd_document():
         ("DAILY_ANALYSIS_LIMIT", DAILY_ANALYSIS_LIMIT),
         ("max_tokens", LLM_MAX_TOKENS),
     ):
-        m = re.search(rf"^{re.escape(name)}\s*=\s*(\d+)", prd, re.M)
-        assert m, f"PRD에 {name} 줄이 없다"
-        assert int(m.group(1)) == value, (
-            f"PRD {name} = {m.group(1)} vs 코드 {value} — 두 곳이 어긋났다"
+        # ★★ `search`가 아니라 `findall`이다 — PRD는 같은 상수를 **두 곳**에 적는다
+        #   (§7.3 가드레일 · 부록 상수표). 첫 매치만 보면 뒤쪽이 낡아도 통과한다.
+        #   실측(2026-08-21): §7.3은 12로 갱신됐는데 부록은 **8인 채로 4일간** 남아
+        #   있었고 이 테스트는 초록불이었다. **첫 매치가 나머지를 가린다**(T50과 같은 모양).
+        found = re.findall(rf"^{re.escape(name)}\s*=\s*(\d+)", prd, re.M)
+        assert found, f"PRD에 {name} 줄이 없다"
+        mismatched = [n for n in found if int(n) != value]
+        assert not mismatched, (
+            f"PRD {name}: {found} 중 {mismatched}가 코드 {value}와 다르다 — "
+            f"PRD에 이 상수가 {len(found)}곳 있다. **전부** 고쳐라"
         )
 
 

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -164,3 +165,97 @@ def test_sector_guard_actually_catches_it():
     assert "터어빈" in _strip_ts_comments('const R = ["터어빈"];')
     assert "터어빈" not in _strip_ts_comments("// 터어빈은 예시다\nconst x = 1;")
     assert "터어빈" not in _strip_ts_comments("/* 터어빈 설명 */\nconst x = 1;")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# T82 — 상한은 세 곳에 흩어져 있다: constants.py · .env.example · 워크플로 env
+# ═══════════════════════════════════════════════════════════════════
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
+
+#: 상한을 실제로 쓰는(= LLM을 부르는) 워크플로. 판정은 파일명이 아니라
+#: **ANTHROPIC_API_KEY 보유**로 한다 — 새 워크플로가 생겨도 자동으로 걸린다.
+BUDGET_ENV_KEYS = ("MONTHLY_COST_CEILING_USD", "DAILY_ANALYSIS_LIMIT")
+
+
+def _llm_workflows() -> list[Path]:
+    return [
+        p for p in sorted(WORKFLOW_DIR.glob("*.yml"))
+        if "ANTHROPIC_API_KEY" in p.read_text(encoding="utf-8")
+    ]
+
+
+def test_env_example_matches_code_defaults():
+    """★★ T82 — `.env.example`이 낡으면 **로컬만** 다른 상한으로 돈다.
+
+    실측(2026-08-21): 코드 기본값이 12·80인데 `.env.example`은 **8·20**이었다.
+    이 파일을 복사해 `.env`를 만든 사람은 자기도 모르게 더 낮은 상한으로 돌고,
+    CI와 결과가 달라진다. 에러는 없고 "왜 로컬에서만 일찍 막히지"만 남는다.
+    """
+    from src.config import constants
+
+    body = (ROOT / ".env.example").read_text(encoding="utf-8")
+    for key in BUDGET_ENV_KEYS:
+        match = re.search(rf"^{key}=(\d+)$", body, re.M)
+        assert match, f".env.example에 {key}가 없다"
+        assert int(match.group(1)) == getattr(constants, key), (
+            f".env.example의 {key}={match.group(1)}가 코드 기본값 "
+            f"{getattr(constants, key)}와 다르다 — 로컬만 다른 상한으로 돈다"
+        )
+
+
+@pytest.mark.parametrize("path", _llm_workflows(), ids=lambda p: p.name)
+def test_llm_workflows_pass_budget_env(path: Path):
+    """★★ T82 — 워크플로가 상한 env를 넘기지 않으면 **저장소 변수가 무시된다.**
+
+    `optional_env_int`라 env로 조절되게 설계해 놓고, 정작 워크플로에서
+    안 넘기고 있었다(실측: LLM을 부르는 3개 워크플로 전부 누락).
+    GitHub Variable을 만들어도 **에러 없이** 코드 기본값이 쓰인다 —
+    "올렸는데 왜 그대로지"를 로그로는 알 수 없다.
+    """
+    body = path.read_text(encoding="utf-8")
+    for key in BUDGET_ENV_KEYS:
+        assert re.search(rf"^\s*{key}:\s*\$\{{\{{\s*vars\.{key}\s*\}}\}}", body, re.M), (
+            f"{path.name}이 LLM을 부르는데 {key}를 env로 넘기지 않는다 — "
+            "저장소 변수를 만들어도 조용히 무시된다"
+        )
+
+
+def test_budget_env_guard_actually_catches_it():
+    """★ 검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54).
+
+    `_llm_workflows()`가 빈 목록을 주면 parametrize가 0건이 되어
+    **아무것도 검사하지 않고 통과**한다 — 가장 위험한 실패 모양이다.
+    """
+    assert _llm_workflows(), "LLM 워크플로를 하나도 못 찾았다 — 검사기가 무력화됐다"
+
+    good = "    MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}\n"
+    bad = "    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}\n"
+    pattern = r"^\s*MONTHLY_COST_CEILING_USD:\s*\$\{\{\s*vars\.MONTHLY_COST_CEILING_USD\s*\}\}"
+    assert re.search(pattern, good, re.M)
+    assert not re.search(pattern, bad, re.M)
+    # secrets로 잘못 넘기는 형태도 걸러야 한다 — 상한은 비밀이 아니라 설정이다
+    assert not re.search(
+        pattern, "    MONTHLY_COST_CEILING_USD: ${{ secrets.MONTHLY_COST_CEILING_USD }}\n", re.M
+    )
+
+
+def test_workflow_comments_do_not_hardcode_budget_numbers():
+    """★ T65와 같은 부류 — 주석에 손으로 적은 상한은 조용히 어긋난다.
+
+    실측(2026-08-21): 같은 상한을 두고 세 워크플로 주석이 제각각
+    `월 $8` · `월 $8 · 일 20건` · `월 실링 $12`를 말하고 있었다.
+    코드는 12였다 — **셋 다 틀렸다.** 숫자 대신 출처를 가리키게 한다.
+    """
+    offenders = []
+    for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "#" not in line:
+                continue
+            comment = line.split("#", 1)[1]
+            if re.search(r"월\s*(실링\s*)?\$\d", comment) or re.search(r"일\s*\d+건", comment):
+                offenders.append(f"{path.name}:{lineno}{comment.strip()[:50]}")
+    assert not offenders, (
+        "워크플로 주석에 상한 숫자가 박혀 있다 — constants.py를 가리켜라(T82):\n"
+        + "\n".join(offenders)
+    )

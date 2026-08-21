@@ -597,7 +597,7 @@ CREATE TABLE cost_log (
 ### 7.3 가드레일
 
 ```
-MONTHLY_COST_CEILING_USD = 12     # 2026-08-17 개정 (8 → 12)
+MONTHLY_COST_CEILING_USD = 20     # 2026-08-21 개정 (12 → 20)
 DAILY_ANALYSIS_LIMIT     = 80     # 2026-08-17 개정 (20 → 80)
 max_tokens               = 12288  # 2026-08-17 개정 (8192 → 12288)
 ```
@@ -969,8 +969,8 @@ FLASH_DAILY_MAX           = 15
 NOTIFY_GRADES             = ("★", "○")
 
 # 비용
-MONTHLY_COST_CEILING_USD  = 8
-DAILY_ANALYSIS_LIMIT      = 20
+MONTHLY_COST_CEILING_USD  = 20
+DAILY_ANALYSIS_LIMIT      = 80
 SONNET_INPUT_PER_MTOK     = 2.0     # 날짜 분기 로직 금지
 SONNET_OUTPUT_PER_MTOK    = 10.0
 SONNET_CACHE_READ_PER_MTOK = 0.20

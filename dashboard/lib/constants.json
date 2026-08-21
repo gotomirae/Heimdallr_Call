@@ -624,7 +624,7 @@
     "min_estimates": 2
   },
   "cost": {
-    "monthly_ceiling_usd": 12,
+    "monthly_ceiling_usd": 20,
     "input_token_budget": 5000,
     "model": "claude-sonnet-5",
     "input_per_mtok": 2.0,
