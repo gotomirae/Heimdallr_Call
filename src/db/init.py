@@ -27,6 +27,7 @@ EXPECTED_TABLES = (
     "quarterly_fundamentals",
     "consensus_snapshots",
     "earnings_disclosures",
+    "disclosure_excerpts",
     "price_snapshots",
     "quarter_prices",
     "index_snapshots",

@@ -625,7 +625,7 @@
   },
   "cost": {
     "monthly_ceiling_usd": 20,
-    "input_token_budget": 5000,
+    "input_token_budget": 14000,
     "model": "claude-sonnet-5",
     "input_per_mtok": 2.0,
     "output_per_mtok": 10.0

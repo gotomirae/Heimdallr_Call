@@ -37,7 +37,65 @@ FUND_COLUMNS = (
 )
 
 
-def build_input(code: str, *, year: int, quarter: int) -> AnalysisInput:
+def load_excerpt(
+    code: str, year: int, quarter: int, *, allow_fetch: bool = False
+) -> str | None:
+    """저장된 정기보고서 발췌. 없으면 (허용 시) 그 자리에서 받는다.
+
+    ★ 실패해도 **None을 주고 넘어간다.** 발췌가 없다고 분석을 막지 않는다 —
+      숫자만으로도 실적 해석은 되고, 못 쓴 부분은 모델이 밝히게 돼 있다.
+    ★ 테이블이 아직 없을 수 있다(마이그레이션 전). 그때도 죽지 않는다.
+    """
+    rows: list[dict] = []
+    try:
+        rows = [
+            r for r in select_all(
+                "disclosure_excerpts",
+                "rcept_no,code,fiscal_year,fiscal_quarter,sections,full_chars",
+            )
+            if r["code"] == code
+        ]
+    except Exception:
+        rows = []  # 테이블 미생성 등 — 조용히 넘어간다
+
+    def render(sections: dict) -> str | None:
+        if not sections:
+            return None
+        return "\n\n".join(f"### {k}\n{v}" for k, v in sections.items())
+
+    # 그 분기 것이 있으면 우선, 없으면 가장 최근 것으로 물러선다.
+    same = [r for r in rows
+            if r.get("fiscal_year") == year and r.get("fiscal_quarter") == quarter]
+    if same:
+        return render(same[0].get("sections") or {})
+    if rows:
+        newest = max(rows, key=lambda r: (r.get("fiscal_year") or 0,
+                                          r.get("fiscal_quarter") or 0))
+        return render(newest.get("sections") or {})
+
+    if not allow_fetch:
+        return None
+
+    # ── 즉시 수집 (단건 분석 전용) ──
+    from src.collectors.dart_excerpt import excerpt_for
+    from src.collectors.excerpt_run import is_periodic
+
+    candidates = [
+        d for d in select_all(
+            "earnings_disclosures", "rcept_no,code,report_nm,disclosed_at"
+        )
+        if d["code"] == code and is_periodic(d.get("report_nm"))
+    ]
+    if not candidates:
+        return None
+    newest_disc = max(candidates, key=lambda d: d.get("disclosed_at") or "")
+    result = excerpt_for(newest_disc["rcept_no"])
+    return render(result.sections) if result else None
+
+
+def build_input(
+    code: str, *, year: int, quarter: int, allow_fetch: bool = False
+) -> AnalysisInput:
     uni = {u["code"]: u for u in select_all(
         "krx_universe", "code,name,board,industry,products,market_cap_krw,listed_at,sector_caveat"
     )}
@@ -112,6 +170,14 @@ def build_input(code: str, *, year: int, quarter: int) -> AnalysisInput:
         "pbr": price.get("pbr"),
     }
 
+    # ── 공시 원문 발췌 ────────────────────────────────────────────
+    # ★★ 여기가 비어 있으면 모델은 **숫자만 보고** 증설·신제품·수주를 써야 한다.
+    #   그러면 지어내거나 침묵한다(T93 실측: 트리거 0건). 원문을 넣어야 답이 나온다.
+    # ★ 원문 1건 받는 데 ~30초다. 배치(269종목)에서 즉시 수집하면 2시간이 더 붙으므로
+    #   **미리 받아 둔 것을 읽는다**(`python -m src.collectors.excerpt_run --save`).
+    #   단건 분석에서는 없으면 그 자리에서 받는다 — 30초는 감당할 만하다.
+    excerpt = load_excerpt(code, year, quarter, allow_fetch=allow_fetch)
+
     latest = quarters[-1] if quarters else {}
     return AnalysisInput(
         code=code,
@@ -145,7 +211,7 @@ def build_input(code: str, *, year: int, quarter: int) -> AnalysisInput:
         price=price,
         valuation=valuation,
         pri=screen.get("pri_detail") or {"pri": screen.get("pri")},
-        excerpt=None,
+        excerpt=excerpt,
         peers=[],
     )
 
@@ -163,7 +229,7 @@ def main() -> int:
     args = parser.parse_args()
 
     year, quarter = (int(x) for x in args.quarter.split("."))
-    data = build_input(args.code, year=year, quarter=quarter)
+    data = build_input(args.code, year=year, quarter=quarter, allow_fetch=True)
 
     line = "═" * 72
     print(line)

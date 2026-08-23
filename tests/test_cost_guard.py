@@ -168,7 +168,10 @@ def test_max_tokens_matches_prd():
     상한을 올려도 평균 비용은 거의 안 오른다.
     """
     assert LLM_MAX_TOKENS == 12288
-    assert LLM_INPUT_TOKEN_BUDGET == 5000
+    # ★ 2026-08-23: 5,000 → 14,000. 옛 값은 **아무 데서도 검사되지 않는 죽은 값**이었고
+    #   실제 입력은 발췌 없이도 이미 10,300토큰이었다(count_tokens 실측).
+    #   공시 발췌를 싣게 되면서 실측에 맞추고 `analyze()`가 실제로 강제하게 했다.
+    assert LLM_INPUT_TOKEN_BUDGET == 14000
 
 
 def test_guardrails_match_prd_document():

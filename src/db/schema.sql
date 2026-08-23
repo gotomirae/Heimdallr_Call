@@ -186,6 +186,23 @@ CREATE TABLE IF NOT EXISTS analyses (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
+-- 정기보고서 발췌 — LLM 입력용 (2026-08-23 신설)
+-- ★ 원문 XML은 3.5MB이고 1건 받는 데 ~30초 걸린다. 분석 때마다 받으면
+--   269종목 배치에 2시간이 더 붙는다 → **미리 받아 저장**해 두고 읽어 쓴다.
+-- ★ 발췌만 저장한다(원문 아님). 예산 안에서 자른 결과라 행이 가볍다.
+-- ═══════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS disclosure_excerpts (
+  rcept_no TEXT PRIMARY KEY,                -- DART 접수번호. 원문의 유일한 열쇠(T58)
+  code TEXT NOT NULL, fiscal_year INT, fiscal_quarter INT,
+  sections JSONB,                           -- {절 이름: 본문} — 부분 채움 가능
+  excerpt_chars INT,                        -- 실제로 담은 길이
+  full_chars INT,                           -- 원문 길이. 얼마나 잘랐는지 밝히기 위해
+  fetched_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_excerpt_code_quarter
+  ON disclosure_excerpts (code, fiscal_year, fiscal_quarter);
+
+-- ═══════════════════════════════════════════════════════════════════
 -- L7: 결과 추적 ★ v2 신설 — 이게 없으면 시스템을 검증할 수 없다
 -- ═══════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS outcome_tracking (
@@ -234,6 +251,7 @@ ALTER TABLE price_snapshots         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quarter_prices          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE index_snapshots         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE screen_results          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE disclosure_excerpts     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analyses                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outcome_tracking        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications           ENABLE ROW LEVEL SECURITY;
@@ -241,6 +259,10 @@ ALTER TABLE cost_log                ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS anon_select_krx_universe ON krx_universe;
 CREATE POLICY anon_select_krx_universe ON krx_universe
+  FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS anon_select_disclosure_excerpts ON disclosure_excerpts;
+CREATE POLICY anon_select_disclosure_excerpts ON disclosure_excerpts
   FOR SELECT TO anon USING (true);
 
 DROP POLICY IF EXISTS anon_select_quarterly_fundamentals ON quarterly_fundamentals;

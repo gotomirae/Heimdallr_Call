@@ -152,7 +152,41 @@ LLM_MAX_TOKENS = 12288
 #   출력 자리를 먹어 JSON이 잘린다. 해석 과제는 깊은 사고가 필요하지 않으므로 effort를
 #   낮게 고정한다 — 이게 이 Phase 비용 설계의 일부다.
 LLM_EFFORT = "low"
-LLM_INPUT_TOKEN_BUDGET = 5000  # PRD §7.1 — 초과 시 호출하지 않는다
+# ★★ 입력 토큰 상한. **실측 기준이다**(2026-08-23 · count_tokens API).
+#   그전에는 5,000이었는데 **아무 데서도 검사하지 않는 죽은 값**이었고,
+#   실제로는 발췌 없이도 이미 10,300토큰이었다 — 문서와 현실이 2배 어긋나 있었다.
+#     시스템 프롬프트            4,573
+#     도구 스키마(record_analysis) 3,765   ← 캐시되지만 토큰은 센다
+#     8분기 표 + 판정 + 시세      ~1,700
+#     공시 발췌(최대)            ~2,500   ← 여기만 가변이다
+#                               ─────────
+#                               ~12,500
+#   ★ 시스템+도구(8,338)는 **캐시된다** — 비용은 대부분 출력이다(T69).
+#     그래서 이 상한은 비용 방어가 아니라 **발췌 폭주 방어**다.
+LLM_INPUT_TOKEN_BUDGET = 14000
+
+# ═══ LLM 웹 서치 (사용자 지시 2026-08-23) ═══
+# ★★ **출처를 제한한다.** 종목 토론방·블로그·유튜브 요약이 섞이면 분석이 통째로
+#   오염된다 — 모델은 출처의 신빙성을 스스로 가리지 못한다.
+#   여기 없는 도메인은 검색 결과에 아예 오지 않는다(`allowed_domains`).
+# ★ 증권사 리포트 원문은 저작물이라 긁지 않는다. 공시·거래소·주요 경제지까지다.
+WEB_SEARCH_ALLOWED_DOMAINS = (
+    "dart.fss.or.kr",        # 전자공시 — 1차 출처
+    "kind.krx.co.kr",        # 거래소 공시
+    "krx.co.kr",
+    "www.hankyung.com",      # 경제지
+    "www.mk.co.kr",
+    "www.sedaily.com",
+    "www.etnews.com",        # 산업 전문지
+    "www.thelec.kr",
+    "biz.chosun.com",
+    "www.yna.co.kr",         # 통신사
+)
+#: 한 분석에서 허용할 검색 횟수. 늘리면 비용과 지연이 함께 는다.
+#: ★ 검색은 건당 과금이다($10/1,000회) — 월 실링을 쓰는 속도가 바뀐다.
+WEB_SEARCH_MAX_USES = 3
+#: 웹 서치를 켤 것인가. 기본은 **끔** — 비용이 붙으므로 명시적으로 켠다.
+ENABLE_WEB_SEARCH = optional_env("ENABLE_WEB_SEARCH", "").lower() in ("1", "true", "yes")
 
 # ═══ DART ═══
 DART_BASE_URL = "https://opendart.fss.or.kr/api"
