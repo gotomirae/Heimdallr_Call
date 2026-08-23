@@ -8,6 +8,13 @@
       G1  매출   revenue_yoy(t) > revenue_yoy(t−1)  AND  revenue_yoy(t) > 0
       G2  영업익  op_yoy(t)      > op_yoy(t−1)       AND  op_yoy(t)      > 0
                  (단, '흑전'은 %를 못 구할 뿐이므로 통과로 인정한다)
+      G4  OPM    opm_yoy_delta(t) > 0
+
+★ **G4는 2026-08-22에 추가됐다**(사용자 지시). 매출과 이익이 같이 가속해도 이익률이
+  전년보다 낮아졌다면 그건 '싸게 많이 판 것'이라 가속의 질이 다르다. 화면이
+  "매출 YoY 가속 + 영업이익 YoY 가속 + OPM YoY 상승"이라고 말하려면 게이트가
+  실제로 그 셋을 봐야 한다 — 라벨만 고치면 화면이 거짓말을 한다(T83).
+  **크기가 아니라 방향만 묻는다.** 얼마나 올랐는지는 스코어 B1이 점수로 잰다.
 
 전부 AND. 하나라도 실패하면 알림 대상이 아니다.
 
@@ -19,6 +26,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from src.config.constants import G4_OPM_DELTA_MIN_PP
 
 
 @dataclass(frozen=True)
@@ -39,6 +48,10 @@ class GateInput:
     #: 전분기 영업이익 YoY. **가속 판정에 반드시 필요하다** — 없으면 G2는 None이다.
     op_yoy_t1: float | None = None
     op_status_label: str | None = None  # 부호 전환 구간이면 op_yoy가 None이다
+    # G4 — 영업이익률 YoY 변화(%p). `quarterly_fundamentals.opm_yoy_delta`가 그대로 온다.
+    #: ★ 없으면 G4는 False가 아니라 None이다. 적자 구간에서 OPM이 계산되지 않는 종목을
+    #:   '탈락'으로 뭉개면 데이터 결측이 판정으로 둔갑한다.
+    opm_yoy_delta: float | None = None
     # 기저효과 보조 판정 (PRD §4.1)
     rev_2y_t: float | None = None
     rev_2y_t1: float | None = None
@@ -59,6 +72,8 @@ class GateResult:
     g1: bool | None = None
     g2: bool | None = None
     g3: bool | None = None
+    #: OPM YoY 상승 여부. 2026-08-22 추가 — 옛 행에는 없다.
+    g4: bool | None = None
     passed: bool | None = None
     turnaround: bool = False
     base_effect_warning: bool = False
@@ -145,8 +160,20 @@ def evaluate_gate(data: GateInput) -> GateResult:
     else:
         result.g3 = True
 
+    # ── G4: 영업이익률(OPM)이 전년 동기보다 올랐는가 ──
+    #
+    # ★ 매출·이익이 둘 다 가속해도 OPM이 내려갔다면 '싸게 많이 판 것'이다.
+    #   G1·G2가 속도를 보는 반면 G4는 **질**을 본다.
+    # ★ `opm_yoy_delta`가 없으면 None이다 — False(탈락)로 뭉개면 적자·결측 종목이
+    #   조용히 사라진다. G1·G2와 같은 규칙이다.
+    if data.opm_yoy_delta is None:
+        result.g4 = None
+    else:
+        result.g4 = data.opm_yoy_delta > G4_OPM_DELTA_MIN_PP
+        result.detail["opm_yoy_delta_pp"] = data.opm_yoy_delta
+
     # ── 종합: False가 하나라도 있으면 탈락, 없고 None이 있으면 판정 불가 ──
-    verdicts = (result.g1, result.g2, result.g3)
+    verdicts = (result.g1, result.g2, result.g3, result.g4)
     if False in verdicts:
         result.passed = False
     elif None in verdicts:

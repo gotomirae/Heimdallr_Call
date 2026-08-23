@@ -148,11 +148,14 @@ export const AXES = [
 ] as const;
 
 export const AXIS_ITEMS: Record<string, { key: string; label: string; max: number }[]> = {
+  // ★ 표시 순서는 배점 순이다(사용자 요청 2026-08-22) — 키 순서가 아니다.
+  //   raw_a3(TTM)와 raw_a4(연속 가속)의 자리가 바뀐 것은 의도한 것이다.
+  //   배점은 `constants.json`(파이썬 생성물)과 같아야 한다 — 테스트가 대조한다.
   a: [
-    { key: "raw_a1", label: "매출 YoY 델타", max: 14 },
-    { key: "raw_a2", label: "영업이익 YoY 델타", max: 10 },
-    { key: "raw_a3", label: "TTM 매출 추세", max: 6 },
-    { key: "raw_a4", label: "2분기 연속 가속", max: 5 },
+    { key: "raw_a1", label: "매출 YoY 델타", max: 10 },
+    { key: "raw_a2", label: "영업이익 YoY 델타", max: 15 },
+    { key: "raw_a4", label: "2분기 연속 가속", max: 6 },
+    { key: "raw_a3", label: "TTM 영업이익 상승", max: 4 },
   ],
   b: [
     { key: "raw_b1", label: "OPM YoY", max: 14 },

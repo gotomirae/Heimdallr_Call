@@ -124,3 +124,112 @@ export function toChartPoints(
 export function measuredCount(points: ChartPoint[], key: "revenueYoy" | "opYoy"): number {
   return points.filter((p) => p[key] != null).length;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// 차트 한 줄 해설 — **영업이익 YoY 가속이 핵심 포인트다** (사용자 지정 2026-08-22)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ChartVerdict {
+  /** 한 줄 결론. 차트 바로 아래에 굵게 놓는다. */
+  headline: string;
+  /** 그 근거가 된 실제 숫자. 문장만 있으면 검증할 수 없다. */
+  evidence: string;
+  /** 그래서 무엇을 보라는 것인가. */
+  action: string;
+  /** 강조 색 — 가속이면 노랑(주인공 선과 같은 색), 둔화면 회색. */
+  tone: "accel" | "flat" | "slow" | "unknown";
+}
+
+function fmtYoy(v: number | null): string {
+  return v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+}
+
+/**
+ * 9분기 차트에서 **투자 포인트 한 줄**을 뽑는다.
+ *
+ * ★ 규칙 기반이다 — LLM을 쓰지 않는다. 이 문장은 차트에 실제로 그려진 숫자에서
+ *   직접 나와야 하고, 값이 없으면 없다고 말해야 한다.
+ * ★ 보는 것은 **영업이익 YoY 하나**다. 매출·TTM·주가를 한 문장에 다 담으면
+ *   무엇이 핵심인지가 사라진다 — 나머지는 아래 표에서 본다.
+ * ★ 부호 전환 구간(흑전·적전)은 opYoy가 null이다(T25). 그 구간을 0으로 채워
+ *   기울기를 만들면 흑자전환이 '급감'으로 그려진다 — 측정된 점만 쓴다.
+ */
+export function chartVerdict(points: ChartPoint[]): ChartVerdict {
+  const measured = points.filter((p) => p.opYoy != null);
+  const last = measured[measured.length - 1];
+  const prev = measured[measured.length - 2];
+
+  // 최근 발표 분기가 흑자전환이면 %가 없다 — 그건 결측이 아니라 가장 강한 형태다.
+  const lastReported = [...points].reverse().find((p) => !p.isCurrentQuarter && p.op != null);
+  if (lastReported && lastReported.opYoy == null && lastReported.opStatusLabel) {
+    return {
+      headline: `영업이익이 ${lastReported.opStatusLabel}했다 — 성장률(%)로는 잴 수 없는 구간이다.`,
+      evidence: `${lastReported.label} 영업이익 ${lastReported.op == null ? "—" : lastReported.op.toFixed(0) + "억"}`,
+      action: "부호가 바뀌는 구간이라 %를 만들지 않는다. 다음 분기에 흑자가 이어지는지가 핵심이다.",
+      tone: "accel",
+    };
+  }
+
+  if (!last || !prev) {
+    return {
+      headline: "영업이익 YoY를 두 분기 이상 재지 못해 가속 여부를 판정할 수 없다.",
+      evidence: `측정된 분기 ${measured.length}개`,
+      action: "판정 불가는 '가속 없음'이 아니다. 분기가 쌓이면 자동으로 채워진다.",
+      tone: "unknown",
+    };
+  }
+
+  const delta = last.opYoy! - prev.opYoy!;
+
+  // 연속 가속 분기 수 — "이번만인가, 계속인가"가 지속성의 유일한 관측 가능한 단서다.
+  let streak = 0;
+  for (let i = measured.length - 1; i > 0; i--) {
+    if (measured[i].opYoy! > measured[i - 1].opYoy!) streak++;
+    else break;
+  }
+
+  const revDelta =
+    last.revenueYoy != null && prev.revenueYoy != null
+      ? last.revenueYoy - prev.revenueYoy
+      : null;
+
+  if (delta > 0) {
+    return {
+      headline:
+        streak >= 2
+          ? `영업이익 성장률이 **${streak}분기 연속 빨라지고 있다.**`
+          : "영업이익 성장률이 **전분기보다 빨라졌다** — 가속이 시작된 구간이다.",
+      evidence:
+        `${prev.label} ${fmtYoy(prev.opYoy)} → ${last.label} ${fmtYoy(last.opYoy)} ` +
+        `(${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%p)` +
+        (revDelta != null
+          ? ` · 매출 성장률 ${revDelta >= 0 ? "+" : ""}${revDelta.toFixed(1)}%p`
+          : ""),
+      action:
+        revDelta != null && delta > revDelta
+          ? "이익이 매출보다 빠르게 빨라졌다 — 마진이 벌어지는 구간이고, 이게 이 화면이 찾는 모양이다."
+          : "노란 선의 기울기가 다음 분기에도 유지되는지가 전부다. 꺾이면 이번 분기가 정점이다.",
+      tone: "accel",
+    };
+  }
+
+  if (Math.abs(delta) < 1) {
+    return {
+      headline: "영업이익 성장률이 **전분기와 비슷하다** — 가속도 둔화도 아니다.",
+      evidence: `${prev.label} ${fmtYoy(prev.opYoy)} → ${last.label} ${fmtYoy(last.opYoy)}`,
+      action: "성장률 수준 자체가 높은지를 함께 봐라. 높은 수준에서의 유지는 둔화와 다르다.",
+      tone: "flat",
+    };
+  }
+
+  return {
+    headline: "영업이익 성장률이 **전분기보다 낮아졌다** — 성장은 하되 속도가 줄었다.",
+    evidence:
+      `${prev.label} ${fmtYoy(prev.opYoy)} → ${last.label} ${fmtYoy(last.opYoy)} ` +
+      `(${delta.toFixed(1)}%p)`,
+    action:
+      "성장률이 낮아진 것이지 이익이 준 것은 아니다. 전년 기저가 높았던 것인지 " +
+      "실제로 꺾인 것인지 아래 분기 히스토리의 절대금액으로 확인하라.",
+    tone: "slow",
+  };
+}

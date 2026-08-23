@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, field
 from src.config.constants import (
     A1_DELTA_MAX_PP,
     A2_DELTA_MAX_PP,
-    A3_TTM_GROWTH_BONUS_PCT,
+    A3_TTM_OP_GROWTH_BONUS_PCT,
     A_WEIGHTS,
     B1_OPM_TIERS_PP,
     B2_TTM_OPM_TIERS_PP,
@@ -49,6 +49,10 @@ class ScoreInput:
     op_yoy_t1: float | None = None
     ttm_revenue_t: float | None = None
     ttm_revenue_t1: float | None = None
+    #: A3의 입력. **2026-08-22에 TTM 매출 → TTM 영업이익으로 바뀌었다.**
+    #: `ttm_revenue_*`는 게이트 기저효과 판정에서 계속 쓰이므로 지우지 않는다.
+    ttm_op_t: float | None = None
+    ttm_op_t1: float | None = None
     g1_t: bool | None = None
     g1_t1: bool | None = None
     # B 수익성
@@ -139,7 +143,7 @@ def _tiered(value: float | None, tiers: tuple[float, ...], scores: tuple[float, 
 def score_a(data: ScoreInput) -> dict[str, float | None]:
     out: dict[str, float | None] = {}
 
-    # A1 매출 YoY 델타 (14) — Δ≤0→0 · Δ≥20%p→14 · 선형
+    # A1 매출 YoY 델타 (10) — Δ≤0→0 · Δ≥20%p→만점 · 선형
     delta = (
         data.revenue_yoy_t - data.revenue_yoy_t1
         if data.revenue_yoy_t is not None and data.revenue_yoy_t1 is not None
@@ -147,7 +151,9 @@ def score_a(data: ScoreInput) -> dict[str, float | None]:
     )
     out["a1"] = _linear(delta, A1_DELTA_MAX_PP, A_WEIGHTS["a1"])
 
-    # A2 영업이익 YoY 델타 (10) — Δ≥40%p→10
+    # A2 영업이익 YoY 델타 (15) — Δ≥40%p→만점
+    # ★ A축에서 배점이 가장 큰 항목이다(2026-08-22 10→15). 이 시스템이 찾는 것은
+    #   '매출이 는 회사'가 아니라 '이익이 빨라지는 회사'다.
     # ★ 부호 전환 구간에서는 op_yoy가 None이라 여기도 None이 된다(T25). 그게 맞다.
     op_delta = (
         data.op_yoy_t - data.op_yoy_t1
@@ -156,19 +162,28 @@ def score_a(data: ScoreInput) -> dict[str, float | None]:
     )
     out["a2"] = _linear(op_delta, A2_DELTA_MAX_PP, A_WEIGHTS["a2"])
 
-    # A3 TTM 매출 추세 (6) — 증가→3 · 증가율 ≥5%→+3
-    if data.ttm_revenue_t is None or data.ttm_revenue_t1 is None or data.ttm_revenue_t1 <= 0:
+    # A3 TTM 영업이익 상승 (4) — 증가→절반 · 증가율 ≥5%→나머지 절반
+    #
+    # ★ 2026-08-22에 **TTM 매출 → TTM 영업이익**으로 바뀌었다(사용자 지시).
+    #   A축은 이제 매출 1항목·이익 3항목이다.
+    # ★ 증가 여부와 증가율은 **판정 가능 조건이 다르다.** 적자 구간(t−1 ≤ 0)에서도
+    #   "늘었는가"는 말할 수 있지만 "몇 % 늘었는가"는 부호가 바뀌어 계산할 수 없다
+    #   (CLAUDE.md 절대 금지). 그래서 증가 판정만 주고 보너스는 건너뛴다 —
+    #   여기서 %를 만들어내면 적자 축소가 수백 %의 '성장'으로 둔갑한다.
+    if data.ttm_op_t is None or data.ttm_op_t1 is None:
         out["a3"] = None
     else:
+        half = A_WEIGHTS["a3"] / 2
         earned = 0.0
-        if data.ttm_revenue_t > data.ttm_revenue_t1:
-            earned += 3.0
-            growth = (data.ttm_revenue_t - data.ttm_revenue_t1) / data.ttm_revenue_t1 * 100
-            if growth >= A3_TTM_GROWTH_BONUS_PCT:
-                earned += 3.0
+        if data.ttm_op_t > data.ttm_op_t1:
+            earned += half
+            if data.ttm_op_t1 > 0:
+                growth = (data.ttm_op_t - data.ttm_op_t1) / data.ttm_op_t1 * 100
+                if growth >= A3_TTM_OP_GROWTH_BONUS_PCT:
+                    earned += half
         out["a3"] = earned
 
-    # A4 연속 가속 (5) — 2분기 연속 G1 충족
+    # A4 연속 가속 (6) — 2분기 연속 G1 충족
     if data.g1_t is None or data.g1_t1 is None:
         out["a4"] = None
     else:

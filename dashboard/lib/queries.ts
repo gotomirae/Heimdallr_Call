@@ -306,6 +306,45 @@ export async function getAnalysis(
 }
 
 /**
+ * 그 종목의 **가장 최근** LLM 분석 — 분기를 가리지 않는다.
+ *
+ * ★★ `getAnalysis`는 스크리너가 평가한 **그 분기**의 분석만 가져온다. 그런데 분석은
+ *   게이트 통과 상위 종목만 돌리므로(비용 설계), 다음 분기 실적이 들어와 평가 분기가
+ *   옮겨가면 **직전 분기 분석이 화면에서 통째로 사라진다.**
+ *   실측(2026-08-22): 분석 보유 358종목 중 **63종목**이 그 상태였다 —
+ *   분석이 멀쩡히 있는데 "아직 분석하지 않았다"가 떴다.
+ * ★ 게다가 이 63종목이야말로 **내러티브를 검증할 수 있는** 유일한 대상이다.
+ *   분석 이후 실제 실적이 나온 종목이기 때문이다. 버리면 검증 기능이 영영 안 돈다.
+ * ★ 어느 분기 것인지를 **반드시 함께 돌려준다** — 분기를 모르면 화면이
+ *   옛 분석을 이번 분기 분석인 것처럼 보여주게 된다.
+ */
+export async function getLatestAnalysis(code: string): Promise<{
+  payload: Record<string, unknown>;
+  fiscal_year: number;
+  fiscal_quarter: number;
+} | null> {
+  const { data, error } = await supabase
+    .from("analyses")
+    .select("code,fiscal_year,fiscal_quarter,payload")
+    .eq("code", code)
+    .order("fiscal_year", { ascending: false })
+    .order("fiscal_quarter", { ascending: false })
+    .limit(1);
+  if (error) return null;
+  const row = ((data as unknown as {
+    payload: unknown;
+    fiscal_year: number;
+    fiscal_quarter: number;
+  }[]) ?? [])[0];
+  if (!row?.payload) return null;
+  return {
+    payload: row.payload as Record<string, unknown>,
+    fiscal_year: row.fiscal_year,
+    fiscal_quarter: row.fiscal_quarter,
+  };
+}
+
+/**
  * 섹터 실적 집계를 위한 **전 종목 분기 재무**. 특정 두 분기만 읽는다.
  *
  * ★ 종목당 전 분기를 다 읽으면 1만 행을 넘긴다 — 필요한 분기만 서버에서 걸러

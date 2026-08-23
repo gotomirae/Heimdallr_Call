@@ -10,6 +10,7 @@ from datetime import date
 
 import pytest
 
+from src.config import constants as C
 from src.config.constants import (
     SCORE_DENOM_FINAL_NO_CONSENSUS,
     SCORE_DENOM_FINAL_WITH_CONSENSUS,
@@ -35,6 +36,8 @@ def _healthy_gate(**overrides) -> GateInput:
         revenue_yoy_t=33.3, revenue_yoy_t1=11.1,
         # 영업이익 YoY도 가속해야 통과한다 (50.0 → 100.0)
         op_yoy_t=100.0, op_yoy_t1=50.0,
+        # G4 — OPM도 전년보다 올라야 통과한다 (2026-08-22 추가)
+        opm_yoy_delta=3.0,
         revenue_last4=(1000.0, 950.0, 920.0, 900.0),
     )
     base.update(overrides)
@@ -46,7 +49,7 @@ def _healthy_gate(**overrides) -> GateInput:
 # ═══════════════════════════════════════════════════════════════════
 def test_gate_case1_pass():
     r = evaluate_gate(_healthy_gate())
-    assert (r.g0, r.g1, r.g2, r.g3, r.passed) == (True, True, True, True, True)
+    assert (r.g0, r.g1, r.g2, r.g3, r.g4, r.passed) == (True, True, True, True, True, True)
 
 
 def test_gate_case2_revenue_not_accelerating():
@@ -135,6 +138,47 @@ def test_gate_op_undecidable_when_prev_growth_missing():
     assert r.passed is None
 
 
+def test_gate_g4_opm_must_rise():
+    """★ G4 — 매출·이익이 둘 다 가속해도 **OPM이 내려갔으면 탈락**이다.
+
+    2026-08-22 추가. 매출과 이익이 같이 빨라져도 이익률이 전년보다 낮아졌다면
+    '싸게 많이 판 것'이다. G1·G2는 속도를, G4는 질을 본다.
+    """
+    r = evaluate_gate(_healthy_gate(opm_yoy_delta=-0.5))
+    assert r.g1 is True and r.g2 is True  # 속도는 멀쩡하다
+    assert r.g4 is False
+    assert r.passed is False
+
+
+def test_gate_g4_is_direction_not_size():
+    """★ 게이트는 **방향만** 묻는다 — +0.1%p도 상승이다.
+
+    크기를 요구하면(예: +1.0%p) '조금 오른' 종목이 통째로 탈락한다. 얼마나
+    올랐는지는 스코어 B1이 점수로 잰다 — 같은 것을 두 번 재지 않는다.
+    """
+    assert C.G4_OPM_DELTA_MIN_PP == 0.0
+    assert evaluate_gate(_healthy_gate(opm_yoy_delta=0.1)).g4 is True
+    # 정확히 0.0은 '상승'이 아니다 (초과 조건)
+    assert evaluate_gate(_healthy_gate(opm_yoy_delta=0.0)).g4 is False
+
+
+def test_gate_g4_missing_is_none_not_false():
+    """★ OPM 결측은 **판정 불가(None)**다. 탈락이 아니다.
+
+    적자 구간 등에서 opm_yoy_delta가 비는 종목을 False로 뭉개면
+    데이터 결측이 판정으로 둔갑해 그 종목들이 조용히 사라진다 — G1·G2와 같은 규칙이다.
+    """
+    r = evaluate_gate(_healthy_gate(opm_yoy_delta=None))
+    assert r.g4 is None
+    assert r.passed is None  # False가 없고 None이 있으면 판정 불가
+
+
+def test_gate_g4_delta_recorded():
+    """상승폭을 detail에 남긴다 — 화면에서 '얼마나' 올랐는지 보여준다."""
+    r = evaluate_gate(_healthy_gate(opm_yoy_delta=2.5))
+    assert r.detail["opm_yoy_delta_pp"] == 2.5
+
+
 def test_gate_undecidable_when_growth_missing():
     r = evaluate_gate(_healthy_gate(revenue_yoy_t=None))
     assert r.g1 is None
@@ -198,10 +242,11 @@ def test_consensus_requires_two_estimates():
 
 def _score_base(**overrides) -> ScoreInput:
     base = dict(
-        revenue_yoy_t=30.0, revenue_yoy_t1=10.0,  # Δ = 20%p → a1 만점
-        op_yoy_t=60.0, op_yoy_t1=20.0,  # Δ = 40%p → a2 만점
-        ttm_revenue_t=1100.0, ttm_revenue_t1=1000.0,  # +10% → a3 6점
-        g1_t=True, g1_t1=True,  # a4 5점
+        revenue_yoy_t=30.0, revenue_yoy_t1=10.0,  # Δ = 20%p → a1 만점 10
+        op_yoy_t=60.0, op_yoy_t1=20.0,  # Δ = 40%p → a2 만점 15
+        # ★ a3는 2026-08-22부터 TTM **영업이익**을 본다 (TTM 매출이 아니다)
+        ttm_op_t=110.0, ttm_op_t1=100.0,  # +10% ≥ 5% → a3 만점 4
+        g1_t=True, g1_t1=True,  # a4 6점
         opm_yoy_delta=5.0,  # b1 만점 14
         ttm_opm_delta=2.0,  # b2 만점 7
         sector_opm_percentile=20.0,  # b4 5점 (상위 25% 이내)
@@ -274,18 +319,18 @@ def test_no_consensus_is_not_structurally_penalized():
 def test_hand_check_1_partial_axis_and_silent_penalty():
     """손계산 ①  A축 전부 + B축 일부만 측정 — **조용한 감점**을 드러낸다
 
-    a1: Δ = 25.0 − 15.0 = 10.0%p · 10/20 × 14      = 7.0
-    a2: Δ = 30.0 − 10.0 = 20.0%p · 20/40 × 10      = 5.0
-    a3: TTM 1050 > 1000 → 3 · 증가율 5.0% ≥ 5 → +3 = 6.0
-    a4: g1_t=True, g1_t1=False                     = 0.0
-    A = 7 + 5 + 6 + 0                              = 18.0
+    a1: Δ = 25.0 − 15.0 = 10.0%p · 10/20 × 10          = 5.0
+    a2: Δ = 30.0 − 10.0 = 20.0%p · 20/40 × 15          = 7.5
+    a3: TTM 영업익 105 > 100 → 2 · 증가율 5.0% ≥ 5 → +2 = 4.0
+    a4: g1_t=True, g1_t1=False                         = 0.0
+    A = 5 + 7.5 + 4 + 0                                = 16.5
 
-    b3: op_yoy 30 > rev_yoy 25 → 6                 = 6.0
-    b1·b2·b4는 입력이 없어 미측정 → **0점 처리**    (b1 14 + b2 7 + b4 5 = 26점 손실)
+    b3: op_yoy 30 > rev_yoy 25 → 6                     = 6.0
+    b1·b2·b4는 입력이 없어 미측정 → **0점 처리**        (b1 14 + b2 7 + b4 5 = 26점 손실)
     B = 6.0  ← 축이 '측정됨'이므로 32점이 분모에 그대로 들어간다
 
     분모 = A(35) + B(32) = 67 · C·D는 축 전체 미측정이라 제외
-    score_norm = (18 + 6) / 67 × 100 = 35.8208955...
+    score_norm = (16.5 + 6) / 67 × 100 = 33.5820895...
 
     ★ 정규화 단위는 '축'이므로 축 안의 결측은 분모에서 빠지지 않는다.
       그래서 missing_items에 기록해 화면에 드러내야 한다.
@@ -294,18 +339,18 @@ def test_hand_check_1_partial_axis_and_silent_penalty():
         ScoreInput(
             revenue_yoy_t=25.0, revenue_yoy_t1=15.0,
             op_yoy_t=30.0, op_yoy_t1=10.0,
-            ttm_revenue_t=1050.0, ttm_revenue_t1=1000.0,
+            ttm_op_t=105.0, ttm_op_t1=100.0,
             g1_t=True, g1_t1=False,
         )
     )
-    assert r.raw["a1"] == pytest.approx(7.0)
-    assert r.raw["a2"] == pytest.approx(5.0)
-    assert r.raw["a3"] == pytest.approx(6.0)
+    assert r.raw["a1"] == pytest.approx(5.0)
+    assert r.raw["a2"] == pytest.approx(7.5)
+    assert r.raw["a3"] == pytest.approx(4.0)
     assert r.raw["a4"] == pytest.approx(0.0)
-    assert r.score_a == pytest.approx(18.0)
+    assert r.score_a == pytest.approx(16.5)
     assert r.score_b == pytest.approx(6.0)
     assert r.denominator == 67
-    assert r.score_norm == pytest.approx(35.8208955, abs=1e-6)
+    assert r.score_norm == pytest.approx(33.5820895, abs=1e-6)
     # 조용한 감점이 기록됐는가
     assert r.missing_items == {"b1": 14, "b2": 7, "b4": 5}
     assert r.missing_item_points == 26
@@ -339,7 +384,7 @@ def test_hand_check_2_b_axis_interpolation():
 def test_hand_check_3_full_axes_with_d():
     """손계산 ③  확정 시점 · 컨센서스 있음 (분모 100)
 
-    A = 14 + 10 + 6 + 5                            = 35.0 (전 항목 만점)
+    A = 10 + 15 + 4 + 6                            = 35.0 (전 항목 만점)
     B = 14 + 7 + 6 + 5                             = 32.0 (전 항목 만점)
     c1: 영업이익 서프 +25% ≥ 20 → 9
     c2: 매출 서프 +12% ≥ 10 → 6                     C = 15.0

@@ -2,12 +2,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
-import { CHART_QUARTERS, SERIES_COLOR, measuredCount, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, chartVerdict, measuredCount, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
-import TriggerTimeline, { type TimelineItem } from "@/components/TriggerTimeline";
+import { type TimelineItem } from "@/components/TriggerTimeline";
+import AnalysisSection from "@/components/AnalysisSection";
 import { readAnalysis } from "@/lib/analysis";
+import { checkNarrative } from "@/lib/narrativeCheck";
 import { dartReportUrl, naverDisclosureUrl, naverStockUrl } from "@/lib/links";
 import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
@@ -17,6 +19,7 @@ import {
   getConsensus,
   getDisclosures,
   getFundamentals,
+  getLatestAnalysis,
   getLatestPrice,
   getQuarterPrices,
   getScreenForCode,
@@ -76,7 +79,20 @@ export default async function StockPage({ params }: { params: { code: string } }
     year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
     year ? getAnnualConsensus(code, year) : Promise.resolve(null),
   ]);
-  const analysis = readAnalysis(analysisPayload);
+
+  // ★★ 평가 분기의 분석이 없으면 **가장 최근 분석으로 물러선다.**
+  //   분석은 게이트 통과 상위만 돌리므로(비용 설계), 새 실적이 들어와 평가 분기가
+  //   옮겨가면 직전 분기 분석이 화면에서 통째로 사라졌다 — 실측 63종목이 그 상태로
+  //   "아직 분석하지 않았다"를 띄우고 있었다.
+  //   ★ 그리고 이 종목들이야말로 **내러티브를 검증할 수 있는 유일한 대상**이다.
+  //     분석 이후 실제 실적이 나왔기 때문이다.
+  //   ★ 어느 분기 분석인지를 화면에 반드시 밝힌다 — 안 밝히면 옛 해석을
+  //     이번 분기 해석으로 읽게 된다.
+  const fallback = analysisPayload ? null : await getLatestAnalysis(code);
+  const analysis = readAnalysis(analysisPayload ?? fallback?.payload ?? null);
+  const analysisYear = analysisPayload ? year : fallback?.fiscal_year ?? null;
+  const analysisQuarter = analysisPayload ? quarter : fallback?.fiscal_quarter ?? null;
+  const analysisIsStale = Boolean(fallback);
 
   // 스크리너가 평가한 바로 그 분기의 재무를 쓴다 — 최신 행과 다를 수 있다.
   const evaluated =
@@ -104,6 +120,16 @@ export default async function StockPage({ params }: { params: { code: string } }
     ...analysis.triggers3m.map((t) => ({ ...t, window: "3개월 내", tone: "near" as const })),
     ...analysis.triggers6m.map((t) => ({ ...t, window: "6개월 내", tone: "far" as const })),
   ];
+  // ★ 차트 한 줄 해설 — **영업이익 YoY 가속이 핵심**이다(사용자 지정).
+  //   규칙 기반이라 차트에 실제로 그려진 숫자에서만 나온다.
+  const verdict = chartVerdict(chartPoints);
+
+  // ★ LLM이 쓴 스토리가 그 뒤 실적으로 확인되는가. 분석 이후 발표된 분기와만 대조한다.
+  // ★★ 기준은 **분석이 실제로 본 분기**다(`analysisYear/Quarter`). 스크리너의 평가
+  //   분기를 넘기면, 옛 분석을 최신 분기 것으로 착각해 "검증 대기"만 나온다 —
+  //   검증이 가능한 종목에서 정확히 검증이 꺼지는 셈이다.
+  const narrative = checkNarrative(analysis, funds, analysisYear, analysisQuarter);
+
   const opYoyMeasured = measuredCount(chartPoints, "opYoy");
   const revYoyMeasured = measuredCount(chartPoints, "revenueYoy");
   const priceMeasured = chartPoints.filter((p) => p.close != null).length;
@@ -215,12 +241,40 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 3. 9분기 차트 — 성장률 라인이 주인공 */}
       <Card
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="노란 선 = 영업이익 YoY (가장 중요)"
+        note="핵심은 노란 선 — 영업이익 YoY가 빨라지고 있는가"
       >
         <QuarterlyChart points={chartPoints} />
+
+        {/* ★★ 핵심 투자 포인트 — **영업이익 YoY 가속 하나**만 말한다(사용자 지정).
+            매출·TTM·주가를 한 문장에 다 담으면 무엇이 핵심인지가 사라진다.
+            규칙 기반이라 차트에 실제로 그려진 숫자에서만 나온다 — LLM 미사용. */}
+        <div
+          className={`mt-3 rounded-lg border-l-4 p-3 ${
+            {
+              accel: "border-amber-400 bg-amber-950/25",
+              flat: "border-slate-500 bg-slate-900/40",
+              slow: "border-sky-500 bg-sky-950/20",
+              unknown: "border-slate-600 bg-slate-900/40",
+            }[verdict.tone]
+          }`}
+        >
+          <p className="text-sm font-semibold text-slate-100">
+            {verdict.headline.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+              part.startsWith("**") && part.endsWith("**") ? (
+                <strong key={i} className="text-amber-200">{part.slice(2, -2)}</strong>
+              ) : (
+                <span key={i}>{part}</span>
+              )
+            )}
+          </p>
+          <p className="mt-1 font-mono text-xs text-slate-200">{verdict.evidence}</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-300">→ {verdict.action}</p>
+        </div>
+
         <Note>
           <span className="text-slate-100">
-            선이 <strong className="text-amber-300">우상향</strong> = 가속 ·{" "}
+            <strong style={{ color: SERIES_COLOR.OP_LABEL }}>영업이익 YoY</strong> 노란 선이
+            주인공 · <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>매출 YoY</strong> 녹색 ·{" "}
             <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM</strong> 최근 4분기 합 ·{" "}
             <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>주가</strong> 현재까지 ·{" "}
             <code>*</code> 실적 미발표
@@ -286,7 +340,35 @@ export default async function StockPage({ params }: { params: { code: string } }
         </div>
       </Card>
 
-      {/* 5. 컨센서스 대비 */}
+      {/* ★★ 5. LLM 분석 — **분기 히스토리 바로 아래**다(사용자 지정 2026-08-22).
+          숫자를 본 직후에 해석을 읽어야 대조가 된다. 밸류에이션·컨센서스를 지나
+          맨 아래에 있으면 스크롤을 내리는 동안 방금 본 숫자를 잊는다. */}
+      <Card
+        title="LLM 분석"
+        note={
+          analysisYear && analysisQuarter
+            ? `${quarterLabel(analysisYear, analysisQuarter)} 기준`
+            : undefined
+        }
+      >
+        {analysisIsStale && analysisYear && analysisQuarter && (
+          <p className="mb-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+            ⚠ 이 해석은 <strong>{quarterLabel(analysisYear, analysisQuarter)}</strong> 기준이다 —
+            그 뒤 {year && quarter ? quarterLabel(year, quarter) : "새 분기"} 실적이 나왔지만
+            아직 다시 분석하지 않았다(게이트 통과 상위만 분석한다).{" "}
+            <strong className="text-amber-100">
+              그래서 아래 내러티브 검증이 실제로 대조를 수행한다.
+            </strong>
+          </p>
+        )}
+        <AnalysisSection
+          analysis={analysis}
+          narrative={narrative}
+          timelineItems={timelineItems}
+        />
+      </Card>
+
+      {/* 6. 컨센서스 대비 */}
       <Card title="컨센서스 대비">
         <Note>추정기관 2곳 이상만 인정 · 없으면 감점이 아니라 분모 제외</Note>
         <div className="mt-3" />
@@ -333,7 +415,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         )}
       </Card>
 
-      {/* 6. 밸류에이션 — 최근 4분기 → 향후 4분기 순. 후행 PER은 싣지 않는다. */}
+      {/* 7. 밸류에이션 — 최근 4분기 → 향후 4분기 순. 후행 PER은 싣지 않는다. */}
       <Card title="밸류에이션" note="이익 대비 지금 주가가 몇 배인가">
         <div className="grid gap-5 text-sm sm:grid-cols-2">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
@@ -386,164 +468,6 @@ export default async function StockPage({ params }: { params: { code: string } }
 
         {price?.pbr != null && (
           <Note>PBR {price.pbr.toFixed(2)}배 — 주가 ÷ 주당 순자산.</Note>
-        )}
-      </Card>
-
-      {/* 7. LLM 분석 */}
-      <Card title="LLM 분석">
-        {analysis.isEmpty ? (
-          <p className="text-sm text-slate-300">
-            아직 분석하지 않았다. 게이트 통과 상위 종목만 분석한다(비용 설계).
-          </p>
-        ) : (
-          <div className="space-y-4 text-sm">
-            {analysis.thesis && (
-              <p className="text-base font-medium text-slate-100">💡 {analysis.thesis}</p>
-            )}
-            {analysis.whyNow && (
-              <div>
-                <div className="text-xs font-semibold uppercase text-slate-300">왜 지금인가</div>
-                <p className="text-slate-100">{analysis.whyNow}</p>
-              </div>
-            )}
-
-            {/* ★ 실적 변화 — 원인 / 결과 / 전망 (사용자 요청).
-                2026-08-17 이전에 저장된 행에는 없다 → 있을 때만 그린다. */}
-            {(analysis.earningsChange.cause ||
-              analysis.earningsChange.effect ||
-              analysis.earningsChange.outlook) && (
-              <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold uppercase text-slate-200">
-                    실적 변화 — 원인 · 결과 · 전망
-                  </span>
-                  {analysis.earningsChange.confidence && (
-                    <span
-                      className={`rounded border px-1.5 py-0.5 text-[11px] ${
-                        {
-                          high: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
-                          medium: "border-amber-500/60 bg-amber-500/10 text-amber-200",
-                          low: "border-slate-600 bg-slate-700/30 text-slate-200",
-                        }[analysis.earningsChange.confidence]
-                      }`}
-                      title="전망의 확신도 — 근거가 약하면 모델이 스스로 낮춘다"
-                    >
-                      전망 확신도 {analysis.earningsChange.confidence}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 space-y-3">
-                  {analysis.earningsChange.cause && (
-                    <div className="border-l-2 border-sky-500/70 pl-3">
-                      <div className="text-xs font-bold text-sky-200">왜 이렇게 변했나 (원인)</div>
-                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.cause}</p>
-                    </div>
-                  )}
-                  {analysis.earningsChange.effect && (
-                    <div className="border-l-2 border-violet-500/70 pl-3">
-                      <div className="text-xs font-bold text-violet-200">무엇이 달라졌나 (결과)</div>
-                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.effect}</p>
-                    </div>
-                  )}
-                  {analysis.earningsChange.outlook && (
-                    <div className="border-l-2 border-amber-500/70 pl-3">
-                      <div className="text-xs font-bold text-amber-200">앞으로 어떻게 되나 (전망)</div>
-                      <p className="mt-0.5 text-slate-100">{analysis.earningsChange.outlook}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {(analysis.structuralDrivers.length > 0 || analysis.temporaryDrivers.length > 0) && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <div className="text-xs font-semibold uppercase text-slate-200">구조적 동인</div>
-                  <Note>계속 이어질 이유 · 많을수록 가속이 길다</Note>
-                  <ul className="mt-1 list-disc pl-4 text-slate-100">
-                    {analysis.structuralDrivers.map((d) => <li key={d}>{d}</li>)}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase text-slate-200">일시적 동인</div>
-                  <Note>이번만 통한 이유 · 쏠려 있으면 곧 꺾인다</Note>
-                  <ul className="mt-1 list-disc pl-4 text-slate-100">
-                    {analysis.temporaryDrivers.map((d) => <li key={d}>{d}</li>)}
-                  </ul>
-                </div>
-              </div>
-            )}
-            {analysis.sustainabilityQuarters != null && (
-              <p className="text-slate-100">
-                가속 지속 전망: <strong>{analysis.sustainabilityQuarters}개 분기</strong>
-              </p>
-            )}
-            {analysis.scenarios.length > 0 && (
-              <div>
-                <div className="text-xs font-semibold uppercase text-slate-300">시나리오</div>
-                <div className="mt-1 space-y-1">
-                  {analysis.scenarios.map((s) => (
-                    <div key={s.name} className="flex gap-2">
-                      <span className="w-12 shrink-0 uppercase text-slate-200">{s.name}</span>
-                      <span className="w-14 shrink-0 text-slate-100">
-                        {s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : DASH}
-                      </span>
-                      <span className="text-slate-200">{s.description ?? DASH}</span>
-                    </div>
-                  ))}
-                </div>
-                {analysis.probabilitySum != null &&
-                  Math.abs(analysis.probabilitySum - 1) > 0.01 && (
-                    <p className="mt-1 text-xs text-amber-400">
-                      ⚠ 확률 합이 {analysis.probabilitySum.toFixed(2)}다 (1.00이어야 한다)
-                    </p>
-                  )}
-              </div>
-            )}
-            {/* ★ 주가 상승 트리거 — 이 분석에서 가장 실행에 가까운 부분이라
-                목록이 아니라 **타임라인**으로 그린다. 시점 순서가 곧 판단이다. */}
-            {timelineItems.length > 0 && (
-              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-                <div className="text-xs font-semibold uppercase text-slate-200">
-                  주가 상승 트리거
-                </div>
-                <Note>확인 가능한 사건 + 예상 시점 · 확인 지표로 나중에 대조한다</Note>
-                <div className="mt-3">
-                  <TriggerTimeline items={timelineItems} />
-                </div>
-              </div>
-            )}
-            {analysis.risks.length > 0 && (
-              <div>
-                <div className="text-xs font-semibold uppercase text-slate-300">리스크</div>
-                <table className="mt-1 w-full text-left text-xs">
-                  <thead className="text-slate-300">
-                    <tr>
-                      <th className="py-1">리스크</th>
-                      <th className="py-1">발생</th>
-                      <th className="py-1">영향</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analysis.risks.map((r, i) => (
-                      <tr key={i} className="border-t border-slate-800/60">
-                        <td className="py-1 text-slate-100">{r.risk ?? DASH}</td>
-                        <td className="py-1 text-slate-200">{r.likelihood ?? DASH}</td>
-                        <td className="py-1 text-slate-200">{r.impact ?? DASH}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {analysis.whyIMightBeWrong && (
-              <div>
-                <div className="text-xs font-semibold uppercase text-slate-300">
-                  내가 틀릴 수 있는 이유
-                </div>
-                <p className="text-slate-100">{analysis.whyIMightBeWrong}</p>
-              </div>
-            )}
-          </div>
         )}
       </Card>
 

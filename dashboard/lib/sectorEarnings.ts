@@ -139,7 +139,15 @@ export function aggregateSectors(
       opYoyDelta: op != null && prevOp != null ? op - prevOp : null,
     });
   }
-  return out.sort((a, b) => (b.revenueYoy ?? -Infinity) - (a.revenueYoy ?? -Infinity));
+  // ★★ 정렬 순서는 **영업이익 YoY → 매출 YoY → 가속 비율**이다(사용자 지정 2026-08-22).
+  //   매출 우선에서 바꿨다 — 이 시스템이 찾는 것은 '많이 판 섹터'가 아니라
+  //   '이익이 빨라진 섹터'다. 결측은 항상 맨 뒤로 보낸다(-Infinity).
+  return out.sort(
+    (a, b) =>
+      ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
+      ((b.revenueYoy ?? -Infinity) - (a.revenueYoy ?? -Infinity)) ||
+      ((b.accelRate ?? -Infinity) - (a.accelRate ?? -Infinity))
+  );
 }
 
 /** 결론에 쓸 수 있는 섹터만. */

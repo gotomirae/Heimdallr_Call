@@ -1,7 +1,7 @@
 // PRD Ref: §2 검토⑥, §9 /outcome — 결과 추적
 //
 // ★★ **이 화면이 답해야 하는 질문(사용자 지정):**
-//   "과거 실적 시즌으로 돌아간다면 어떤 특징의 섹터·종목을 언제 샀어야 최고였나?"
+//   "실적발표 전으로 돌아간다면 어떤 특징의 섹터·종목을 언제 샀어야 최고였나?"
 //   "그래서 이번 시즌엔 무엇을 해야 하나?"
 //
 // ★ 표본이 없으면 **결론을 내지 않는다.** 2건으로 "반도체가 최고"라고 쓰면
@@ -14,13 +14,15 @@ import {
   buildInsights,
   crosstab,
   enrich,
-  seasonPlaybook,
+  seasonConclusion,
+  sectorTiming,
   timingProfile,
   topGroups,
   type Cell,
   type Insight,
   type Row,
 } from "@/lib/retrospect";
+import { discoveryHref } from "@/lib/discoveryFilters";
 import { getAllScreens, getFundamentalsForQuarters, getUniverse } from "@/lib/queries";
 import {
   MIN_SECTOR_SAMPLE,
@@ -184,8 +186,13 @@ export default async function OutcomePage() {
   const outlookRows = outlook(sectorRows);
 
   const { insights, bestTiming, caveats } = buildInsights(rows, tables);
-  const playbook = seasonPlaybook(insights);
   const profile = timingProfile(rows);
+
+  // ★ 섹터별로 "발표일 기준 언제가 가장 좋았나 · 왜"를 낸다(사용자 지정 2026-08-22).
+  const timing = sectorTiming(rows);
+  // ★ 흩어진 관찰을 **한 덩어리 결론**으로 종합한다. 화면 맨 위에서 필요한 건
+  //   축별 관찰이 아니라 이미 종합된 한 문장이다.
+  const conclusion = seasonConclusion(rows, tables, timing);
 
   const quarters = [...new Set(rows.map((r) => `${r.fiscal_year}.${r.fiscal_quarter}Q`))].sort();
   const dates = rows.map((r) => r.announce_date).filter(Boolean).sort();
@@ -215,31 +222,52 @@ export default async function OutcomePage() {
         </p>
       )}
 
-      {/* ═══ ① 이번 시즌 전략 — 이 화면에서 가장 위에 와야 한다 ═══ */}
-      <section className="rounded-lg border-2 border-amber-600/70 bg-amber-950/20 p-4">
-        <h2 className="text-lg font-bold text-amber-200">이번 실적 시즌 투자 전략</h2>
-        <p className="mt-0.5 text-sm text-slate-100">
-          표본이 충분한 결론만 (아래 회고 분석 근거)
+      {/* ═══ ⓪ 시즌 결론 — **이 화면 전체의 최종 답**이다 (사용자 지정 2026-08-22) ═══
+          ★ 아래 카드들은 축별로 흩어진 관찰이다. 사람이 읽고 종합해야 하는데
+            맨 위에서 필요한 건 이미 종합된 한 문장이다. 표본이 없으면
+            결론을 지어내지 않고 그 사실을 말한다. */}
+      <section className="rounded-lg border-2 border-indigo-500/70 bg-indigo-950/25 p-4">
+        <h2 className="text-lg font-bold text-indigo-100">이번 실적 시즌 결론</h2>
+        <p className="mt-2 text-base leading-relaxed text-slate-100">
+          <Emphasized text={conclusion.verdict} />
         </p>
-        {playbook.length > 0 ? (
-          <ol className="mt-3 space-y-2">
-            {playbook.map((line, i) => (
-              <li key={i} className="flex gap-3 text-sm">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/25 text-xs font-bold text-amber-200">
-                  {i + 1}
-                </span>
-                {/* ★ Emphasized를 거쳐야 한다 — 그냥 넣으면 `**강조**`의 별표가
-                    화면에 그대로 보인다(실측). */}
-                <span className="text-slate-100"><Emphasized text={line} /></span>
-              </li>
+
+        {conclusion.evidence.length > 0 && (
+          <div className="mt-3 space-y-1 rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
+            <div className="text-xs font-semibold uppercase text-slate-300">근거 (실측)</div>
+            {conclusion.evidence.map((e, i) => (
+              <p key={i} className="font-mono text-xs text-slate-200">{e}</p>
             ))}
-          </ol>
-        ) : (
-          <p className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-sm text-slate-100">
-            <strong className="text-white">아직 전략을 제시할 수 없다.</strong>{" "}
-            결론을 내려면 시점별로 최소 {MIN_SAMPLE}건의 측정 표본이 필요한데 아직 모자란다.
-            거래일이 쌓이면 자동으로 채워진다 —{" "}
-            <strong className="text-amber-300">없는 근거로 조언을 만들지 않는다.</strong>
+          </div>
+        )}
+
+        {conclusion.nextSeason.length > 0 && (
+          <div className="mt-4">
+            <div className="text-sm font-bold text-amber-200">다음 시즌 투자 전략</div>
+            <ol className="mt-2 space-y-2">
+              {conclusion.nextSeason.map((line, i) => (
+                <li key={i} className="flex gap-3 text-sm">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/25 text-xs font-bold text-amber-200">
+                    {i + 1}
+                  </span>
+                  <span className="text-slate-100"><Emphasized text={line} /></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {conclusion.caution && (
+          <p className="mt-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+            ⚠ <Emphasized text={conclusion.caution} />
+          </p>
+        )}
+
+        {!conclusion.grounded && (
+          <p className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-slate-100">
+            표본이 모자라 결론을 만들지 않았다 —{" "}
+            <strong className="text-amber-300">없는 근거로 조언을 만들지 않는다.</strong>{" "}
+            거래일이 쌓이면 이 자리에 자동으로 채워진다.
           </p>
         )}
       </section>
@@ -287,7 +315,7 @@ export default async function OutcomePage() {
 
       {/* ═══ ③ 회고 분석 — 무엇을 샀어야 했나 ═══ */}
       <Card
-        title="과거 시즌으로 돌아간다면 — 무엇을 샀어야 했나"
+        title="실적발표 전으로 돌아간다면 — 무엇을 샀어야 했나"
         note="숫자에서 직접 뽑은 결론 (LLM 미사용)"
       >
         {insights.length > 0 ? (
@@ -314,7 +342,9 @@ export default async function OutcomePage() {
                 <p className="mt-1.5 pl-1 font-mono text-xs text-slate-200">{ins.evidence}</p>
                 {ins.action && (
                   <p className="mt-1.5 border-l-2 border-amber-500/60 pl-2 text-sm text-amber-100">
-                    → {ins.action}
+                    {/* ★ Emphasized를 거쳐야 한다 — 그냥 넣으면 `**강조**`의 별표가
+                        화면에 그대로 보인다. headline만 거치고 action은 빠져 있었다. */}
+                    → <Emphasized text={ins.action} />
                   </p>
                 )}
               </div>
@@ -336,10 +366,93 @@ export default async function OutcomePage() {
         )}
       </Card>
 
+      {/* ═══ ③-2 섹터별 매수 타이밍 — 발표일 기준 언제가 좋았나, **왜** ═══
+          ★ 사용자 지정(2026-08-22). '언제 샀어야 했나'는 전체 평균이라 섹터가
+            섞여 있다. 섹터마다 반영 속도가 다른데 한 숫자로 뭉개면 실행이 안 된다.
+          ★ '왜'는 지어내지 않는다 — 최고 시점의 위치, 그 섹터의 반영도 중앙값,
+            컨센서스 보유 비율 셋으로만 문장을 만든다(`sectorTiming`). */}
+      <Card
+        title="섹터별 매수 타이밍 — 발표일 기준 언제가 가장 좋았나"
+        note={`섹터마다 반영 속도가 다르다 · 시점별 측정 표본 ${MIN_SAMPLE}건 이상만 결론을 낸다`}
+      >
+        {timing.some((t) => t.best != null) ? (
+          <div className="space-y-3">
+            {timing
+              .filter((t) => t.best != null)
+              .map((t) => (
+                <div key={t.sector} className="rounded border border-slate-700 bg-slate-950/40 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* ★ 섹터 이름을 누르면 발굴 목록에서 그 섹터만 본다(사용자 지정). */}
+                    <Link
+                      href={discoveryHref({ sectors: [t.sector] })}
+                      className="text-sm font-bold text-sky-300 hover:underline"
+                      title={`발굴 목록에서 ${t.sector} 종목만 보기`}
+                    >
+                      {t.sector} →
+                    </Link>
+                    <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-200">
+                      최적 {horizonLabel(t.best as Horizon)}
+                    </span>
+                    <span className={`text-sm font-semibold tabular-nums ${toneOf(t.bestCell?.median ?? null)}`}>
+                      {pp(t.bestCell?.median ?? null)}%p
+                    </span>
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-xs ${CONFIDENCE_STYLE[t.confidence]}`}
+                      title={`측정 ${t.bestCell?.n ?? 0}건`}
+                    >
+                      {t.confidence}
+                    </span>
+                    <span className="text-xs text-slate-300">
+                      종목 {t.total}
+                      {t.medianPri != null && ` · 발표시점 반영도 중앙값 ${t.medianPri.toFixed(0)}`}
+                      {t.coverageRate != null &&
+                        ` · 컨센 보유 ${(t.coverageRate * 100).toFixed(0)}%`}
+                    </span>
+                  </div>
+
+                  {/* 시점별 성적을 나란히 — "왜 그 시점인가"를 눈으로 확인할 수 있어야 한다. */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {HORIZONS.map((d) => {
+                      const cell = t.cells.get(d);
+                      const isBest = d === t.best;
+                      return (
+                        <span
+                          key={d}
+                          className={`rounded px-2 py-0.5 text-xs tabular-nums ${
+                            isBest ? "bg-amber-500/20 font-bold text-amber-100" : "bg-slate-800 text-slate-200"
+                          }`}
+                          title={HORIZON_MEANING[d]}
+                        >
+                          {horizonLabel(d)} {cell && cell.n > 0 ? `${pp(cell.median)}%p` : DASH}
+                          <span className="ml-1 text-slate-300">({cell?.n ?? 0})</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <p className="mt-2 text-sm leading-relaxed text-slate-100">
+                    <Emphasized text={t.why} />
+                  </p>
+                  <p className="mt-1.5 border-l-2 border-amber-500/60 pl-2 text-sm text-amber-100">
+                    → <Emphasized text={t.action} />
+                  </p>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-slate-100">
+            <strong className="text-white">섹터별로 결론을 낼 표본이 아직 없다.</strong>{" "}
+            어느 섹터도 한 시점에서 측정 {MIN_SAMPLE}건을 넘기지 못했다. 전체 기준 타이밍은
+            위 <strong className="text-slate-200">언제 샀어야 했나</strong> 표를 보라 —{" "}
+            <strong className="text-amber-300">표본 2건으로 섹터 순위를 만들지 않는다.</strong>
+          </p>
+        )}
+      </Card>
+
       {/* ═══ ④ 섹터별 실적 — 어디가 잘 나왔나 (사용자 요청) ═══ */}
       <Card
         title={`섹터별 실적 — ${curQ ? `${curQ.year}.${curQ.quarter}Q` : "—"}`}
-        note={`성장률 중앙값 + 가속 종목 비율(= 이 시스템의 서프라이즈) · 종목 ${MIN_SECTOR_SAMPLE}개 미만 섹터 제외`}
+        note={`영업이익 YoY → 매출 YoY → 가속 비율 순 · 종목 ${MIN_SECTOR_SAMPLE}개 미만 섹터 제외 · 섹터를 누르면 발굴 목록에서 그 섹터만 본다`}
       >
         {sectorUsable.length > 0 ? (
           <div className="max-h-[60vh] overflow-auto rounded border border-slate-700">
@@ -348,8 +461,14 @@ export default async function OutcomePage() {
                 <tr>
                   <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
                   <th scope="col" className="px-3 py-2 text-right font-medium">종목</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">매출 YoY</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">영업익 YoY</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium text-amber-200"
+                      title="정렬 1순위 — 이 시스템이 찾는 것은 '많이 판 섹터'가 아니라 '이익이 빨라진 섹터'다">
+                    영업익 YoY
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium"
+                      title="정렬 2순위">
+                    매출 YoY
+                  </th>
                   <th scope="col" className="px-3 py-2 text-right font-medium"
                       title="매출·이익 성장률이 둘 다 가속한 종목 비율">
                     가속 비율
@@ -364,17 +483,26 @@ export default async function OutcomePage() {
                 {sectorUsable.map((r, i) => (
                   <tr key={r.sector} className="border-t border-slate-800">
                     <td className="whitespace-nowrap px-3 py-1.5">
-                      <span className={i < 3 ? "font-bold text-amber-200" : "text-slate-100"}>
+                      {/* ★ 섹터를 누르면 발굴 목록으로 가서 그 섹터만 본다(사용자 지정).
+                          정렬은 발굴 목록이 늘 쓰는 기준 그대로다 —
+                          최신 분기 → 스코어 → 영업이익 YoY → 시총. */}
+                      <Link
+                        href={discoveryHref({ sectors: [r.sector] })}
+                        className={`hover:underline ${
+                          i < 3 ? "font-bold text-amber-200" : "text-sky-300"
+                        }`}
+                        title={`발굴 목록에서 ${r.sector} 종목만 보기`}
+                      >
                         {i < 3 && <span className="mr-1">{["①", "②", "③"][i]}</span>}
-                        {r.sector}
-                      </span>
+                        {r.sector} →
+                      </Link>
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{r.n}</td>
-                    <td className={`px-3 py-1.5 text-right font-semibold tabular-nums ${toneOf(r.revenueYoy)}`}>
-                      {r.revenueYoy == null ? DASH : `${r.revenueYoy >= 0 ? "+" : ""}${r.revenueYoy.toFixed(1)}%`}
-                    </td>
-                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.opYoy)}`}>
+                    <td className={`px-3 py-1.5 text-right font-semibold tabular-nums ${toneOf(r.opYoy)}`}>
                       {r.opYoy == null ? DASH : `${r.opYoy >= 0 ? "+" : ""}${r.opYoy.toFixed(1)}%`}
+                    </td>
+                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.revenueYoy)}`}>
+                      {r.revenueYoy == null ? DASH : `${r.revenueYoy >= 0 ? "+" : ""}${r.revenueYoy.toFixed(1)}%`}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-100">
                       {r.accelRate == null ? DASH : `${(r.accelRate * 100).toFixed(0)}%`}
@@ -407,8 +535,10 @@ export default async function OutcomePage() {
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {rising.map((r, i) => (
-                <span key={r.sector}
-                      className={`rounded px-2 py-1 text-sm ${
+                <Link key={r.sector}
+                      href={discoveryHref({ sectors: [r.sector] })}
+                      title={`발굴 목록에서 ${r.sector} 종목만 보기`}
+                      className={`rounded px-2 py-1 text-sm hover:ring-1 hover:ring-emerald-400/60 ${
                         i === 0
                           ? "bg-emerald-500/25 font-bold text-emerald-100"
                           : "bg-slate-800 text-slate-100"
@@ -420,7 +550,7 @@ export default async function OutcomePage() {
                   <span className="ml-1 text-xs text-emerald-200">
                     ({r.accelRateDelta! >= 0 ? "+" : ""}{r.accelRateDelta!.toFixed(0)}%p)
                   </span>
-                </span>
+                </Link>
               ))}
             </div>
           </div>

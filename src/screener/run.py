@@ -25,7 +25,7 @@ from src.utils.console import enable_utf8_stdout
 
 FUND_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label,"
-    "opm,opm_yoy_delta,ttm_revenue,ttm_opm_delta,rev_2y_stack"
+    "opm,opm_yoy_delta,ttm_revenue,ttm_op,ttm_opm_delta,rev_2y_stack"
 )
 UNI_COLUMNS = "code,name,board,industry,is_excluded,exclude_reason,sector_caveat,listed_at,market_cap_krw"
 PRICE_COLUMNS = "code,snap_date,close,high_52w,low_52w,rel_ret_3m,per,pbr,per_pctile_3y,avg_value_20d"
@@ -161,6 +161,9 @@ def build_inputs(
         rev_2y_t=_f(t, "rev_2y_stack"), rev_2y_t1=_f(t1, "rev_2y_stack"),
         ttm_revenue_t=_f(t, "ttm_revenue"), ttm_revenue_history=ttm_history,
         revenue_last4=last4,
+        # ★ G4(OPM YoY 상승). 안 넘기면 **전 종목이 판정 불가**가 되어 게이트 통과가
+        #   0이 된다 — op_yoy_t1을 빠뜨렸을 때와 같은 모양의 사고다.
+        opm_yoy_delta=_f(t, "opm_yoy_delta"),
         is_excluded=bool(universe_row.get("is_excluded")),
         exclude_reason=universe_row.get("exclude_reason"),
         fiscal_quarter=(t or {}).get("fiscal_quarter"),
@@ -180,6 +183,10 @@ def build_inputs(
         revenue_yoy_t=_f(t, "revenue_yoy"), revenue_yoy_t1=_f(t1, "revenue_yoy"),
         op_yoy_t=_f(t, "op_yoy"), op_yoy_t1=_f(t1, "op_yoy"),
         ttm_revenue_t=_f(t, "ttm_revenue"), ttm_revenue_t1=_f(t1, "ttm_revenue"),
+        # ★ A3는 2026-08-22부터 **TTM 영업이익**을 본다. 빠뜨리면 A3가 전 종목 None이
+        #   되고, A축은 나머지 항목으로 '측정됨'이라 분모에서 빠지지도 않는다 —
+        #   에러 없이 4점씩 조용히 감점된다.
+        ttm_op_t=_f(t, "ttm_op"), ttm_op_t1=_f(t1, "ttm_op"),
         g1_t=None, g1_t1=gate_t1.g1,  # g1_t는 아래에서 채운다
         opm_yoy_delta=_f(t, "opm_yoy_delta"), ttm_opm_delta=_f(t, "ttm_opm_delta"),
         opm=_f(t, "opm"), sector_opm_percentile=pct,
@@ -299,7 +306,8 @@ def _report(rows: list, latest: int | None) -> None:
     fails = collections.Counter()
     for g in (r[2] for r in rows):
         if g.passed is False:
-            for name, v in (("G1 매출가속", g.g1), ("G2 이익성장", g.g2), ("G3 업종/상장", g.g3)):
+            for name, v in (("G1 매출가속", g.g1), ("G2 이익가속", g.g2),
+                            ("G3 업종/상장", g.g3), ("G4 OPM상승", g.g4)):
                 if v is False:
                     fails[name] += 1
     print("    탈락 사유(중복 가능):")
@@ -395,6 +403,7 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
             "gate_passed": gate.passed,
             "gate_detail": {
                 "g0": gate.g0, "g1": gate.g1, "g2": gate.g2, "g3": gate.g3,
+                "g4": gate.g4,
                 "detail": gate.detail,
                 "base_effect_checks": gate.base_effect_checks,
                 "base_effect_measurable": gate.base_effect_measurable,
