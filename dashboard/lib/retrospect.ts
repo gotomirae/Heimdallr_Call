@@ -443,18 +443,6 @@ export function buildInsights(
   return { insights, bestTiming: best?.days ?? null, caveats };
 }
 
-/**
- * "이번 시즌 전략" — 위 인사이트에서 **실행 문장**만 추린다.
- *
- * ★ 근거가 '불충분'인 인사이트의 action은 내보내지 않는다.
- *   표본 2건에서 나온 조언이 확신에 찬 문장으로 보이면 안 된다.
- */
-export function seasonPlaybook(insights: Insight[]): string[] {
-  return insights
-    .filter((i) => i.confidence !== "불충분" && i.action)
-    .map((i) => i.action as string);
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // 섹터 × 발표일 타이밍 — "그 섹터는 발표 전·당일·후 중 언제가 좋았나, 왜"
 //                          (사용자 지정 2026-08-22)
