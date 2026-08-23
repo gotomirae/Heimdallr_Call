@@ -46,10 +46,15 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
         )
         if is_periodic(d.get("report_nm"))
     ]
+    # ★★ 중복 판정은 **접수번호가 아니라 종목** 기준이다.
+    #   한 종목에 `반기보고서`와 `[기재정정]반기보고서`가 함께 있으면 접수번호가
+    #   달라, 접수번호로만 거르면 **같은 종목을 30초씩 계속 다시 받는다**
+    #   (실측 2026-08-23: 이미 받은 롯데정밀화학·한화시스템이 다시 대상에 잡혔다).
+    #   읽는 쪽(`load_excerpt`)도 종목당 하나만 쓰므로 하나면 충분하다.
     have = {
-        r["rcept_no"] for r in select_all("disclosure_excerpts", "rcept_no")
+        r["code"] for r in select_all("disclosure_excerpts", "code")
     }
-    disclosures = [d for d in disclosures if d["rcept_no"] not in have]
+    disclosures = [d for d in disclosures if d["code"] not in have]
 
     if codes:
         wanted = set(codes)
@@ -68,10 +73,33 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
         prev = newest.get(d["code"])
         if prev is None or (d.get("disclosed_at") or "") > (prev.get("disclosed_at") or ""):
             newest[d["code"]] = d
+
+    # ★★ **분석과 같은 순서로 받는다**(매력도 순).
+    #   실측(2026-08-23): 공시일 순으로 받았더니 매력도 상위 80종목 중 **40종목만**
+    #   발췌를 갖고 있었다 — 정작 먼저 분석되는 종목이 숫자표만 보게 된다.
+    #   수집이 중간에 끊겨도(시간 예산) **중요한 종목이 먼저** 채워져야 한다.
+    rank = attractiveness_rank()
     ordered = sorted(
-        newest.values(), key=lambda d: d.get("disclosed_at") or "", reverse=True
+        newest.values(),
+        # 매력도가 없는 종목(스크린 행 없음)은 뒤로. 그 안에서는 최신 공시 순.
+        key=lambda d: (-(rank.get(d["code"], float("-inf"))), d.get("disclosed_at") or ""),
     )
     return ordered[:limit]
+
+
+def attractiveness_rank() -> dict[str, float]:
+    """종목 → 매력도. **분석 배치와 같은 기준**을 쓴다(`analysis.batch`).
+
+    ★ 여기서 따로 계산하면 두 순서가 조용히 갈라져, 고친 뒤에도 같은 문제가 남는다.
+    """
+    from src.analysis.batch import attractiveness, targets as analysis_targets
+
+    out: dict[str, float] = {}
+    for row in analysis_targets(2000, min_score=0):
+        value = attractiveness(row)
+        if value is not None:
+            out[row["code"]] = value
+    return out
 
 
 def main() -> int:
