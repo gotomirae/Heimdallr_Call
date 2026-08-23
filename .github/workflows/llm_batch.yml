@@ -71,6 +71,16 @@ jobs:
           cache: pip
       - run: pip install -e .
 
+      # ★★ 분석 **전에** 공시 발췌를 모은다. 이게 없으면 모델은 숫자표만 보고
+      #   증설·신제품·수주를 써야 하고, 그러면 지어내거나 비운다(T93).
+      # ★ 원문 1건이 3~6MB에 ~30초라 전부 받으면 두 시간이 넘는다 —
+      #   **시간으로 끊고 여러 밤에 걸쳐 누적**한다(LLM 배치와 같은 방식).
+      # ★ 실패해도 분석은 계속한다(`continue-on-error`). 발췌는 있으면 좋은 것이지
+      #   없다고 분석을 막을 것은 아니다.
+      - name: 공시 발췌 수집 (따라잡기)
+        continue-on-error: true
+        run: python -m src.collectors.excerpt_run --limit 300 --max-seconds 1500 --save
+
       # ★ 분기를 셸로 정한다. GitHub 삼항 `${{ x && 'A' || 'B' }}`는 x가 false일 때도
       #   B를 주고, schedule에는 inputs 자체가 없어 늘 B다 — 양방향으로 조용히 틀린다(T55).
       - name: LLM 배치 (따라잡기)

@@ -162,11 +162,24 @@ def notify_progress(text: str) -> bool:
         return False
 
 
-def already_analyzed() -> set[tuple[str, int, int]]:
-    return {
-        (a["code"], a["fiscal_year"], a["fiscal_quarter"])
-        for a in select_all("analyses", "code,fiscal_year,fiscal_quarter")
-    }
+def already_analyzed(before: str | None = None) -> set[tuple[str, int, int]]:
+    """이미 분석된 (종목, 분기).
+
+    ★ `before`(ISO 날짜)를 주면 **그 시점 이후에 분석된 것만** '완료'로 친다.
+      그보다 오래된 분석은 대상에 다시 넣는다 — 프롬프트를 고쳤을 때
+      옛 결과를 갈아엎기 위한 장치다.
+    ★ `created_at`이 없는 행은 **오래된 것으로 본다**(안전한 쪽). 새 프롬프트로
+      다시 도는 것은 비용이 들 뿐 틀린 결과를 만들지 않는다.
+    """
+    rows = select_all("analyses", "code,fiscal_year,fiscal_quarter,created_at")
+    out = set()
+    for a in rows:
+        if before:
+            created = (a.get("created_at") or "")[:10]
+            if not created or created < before:
+                continue  # 낡았다 — 다시 분석 대상
+        out.add((a["code"], a["fiscal_year"], a["fiscal_quarter"]))
+    return out
 
 
 def run(
@@ -175,10 +188,11 @@ def run(
     send: bool,
     min_score: float,
     max_seconds: float = DEFAULT_MAX_SECONDS,
+    refresh_before: str | None = None,
 ) -> int:
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     picked = targets(top, min_score=min_score)
-    done = already_analyzed()
+    done = already_analyzed(refresh_before)
 
     pending = [
         r for r in picked
@@ -195,6 +209,10 @@ def run(
           f"오늘 {status.today_count}/{status.daily_limit} · "
           f"{'호출 가능' if status.allowed else status.reason}")
     print(f"이미 분석됨 {len(picked) - len(pending)}종목 · 호출 대상 {len(pending)}종목")
+    if refresh_before:
+        # ★ 재분석은 **돈이 새로 나간다.** 몇 건이 왜 대상이 됐는지 반드시 밝힌다.
+        print(f"  ↻ {refresh_before} 이전 분석은 낡은 것으로 보고 다시 돌린다 "
+              f"(재분석분 포함 {len(pending)}건 · 건당 약 $0.05)")
 
     if not pending:
         print("\n새로 분석할 종목이 없다.")
@@ -360,9 +378,15 @@ def main() -> int:
                         help=f"이번 실행 시간 예산(초, 기본 {DEFAULT_MAX_SECONDS:.0f}) — "
                              f"워크플로 timeout보다 작게 준다")
     parser.add_argument("--send", action="store_true", help="실제 API 호출")
+    # ★ 프롬프트나 입력(공시 발췌)을 고친 뒤 옛 결과를 갈아엎기 위한 것이다.
+    #   **비용이 새로 나가므로** 기본은 꺼져 있고 날짜를 명시해야 한다.
+    parser.add_argument("--refresh-before", metavar="YYYY-MM-DD",
+                        help="이 날짜 이전에 분석된 종목을 다시 분석한다(비용 발생)")
     args = parser.parse_args()
     return run(args.top, send=args.send, min_score=args.min_score,
-               max_seconds=args.max_seconds)
+               max_seconds=args.max_seconds,
+        refresh_before=args.refresh_before,
+    )
 
 
 if __name__ == "__main__":

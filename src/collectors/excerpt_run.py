@@ -80,6 +80,10 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=20, help="최대 건수")
     parser.add_argument("--codes", help="쉼표로 구분한 종목코드(지정하면 그것만)")
     parser.add_argument("--save", action="store_true", help="DB에 저장")
+    # ★ 건수가 아니라 **시간**으로 끊는다. 원문 크기가 종목마다 3~6MB로 달라
+    #   건수만으로는 워크플로가 얼마나 걸릴지 예측할 수 없다.
+    parser.add_argument("--max-seconds", type=float, default=0,
+                        help="이 시간을 넘기면 남은 건은 다음 실행으로 넘긴다(0=무제한)")
     args = parser.parse_args()
 
     codes = [c.strip() for c in args.codes.split(",")] if args.codes else None
@@ -90,7 +94,14 @@ def main() -> int:
 
     db = get_client() if args.save else None
     ok = failed = 0
+    started = time.monotonic()
     for i, d in enumerate(rows, 1):
+        # ★ 시간이 다 되면 **남았다는 사실을 밝히고** 멈춘다. 조용히 끝내면
+        #   다음 사람이 "다 모였다"고 착각한다.
+        if args.max_seconds and time.monotonic() - started > args.max_seconds:
+            print(f"  ⏱ 시간 예산 {args.max_seconds:.0f}초 도달 — "
+                  f"남은 {len(rows) - i + 1}건은 다음 실행으로 넘긴다")
+            break
         label = f"{d['code']} {d.get('report_nm')}"
         try:
             xml = fetch_report_xml(d["rcept_no"])
