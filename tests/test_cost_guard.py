@@ -107,6 +107,58 @@ def test_schema_is_strict_compatible():
     assert ANALYSIS_SCHEMA["additionalProperties"] is False
 
 
+def _walk_schema(node, path="root"):
+    """스키마의 모든 하위 노드를 (경로, dict)로 훑는다. $defs 안까지 들어간다."""
+    if isinstance(node, dict):
+        yield path, node
+        for key, value in node.items():
+            yield from _walk_schema(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            yield from _walk_schema(value, f"{path}[{i}]")
+
+
+def test_schema_has_no_unsupported_array_bounds():
+    """★★ Anthropic tool 스키마는 `minItems`를 **0과 1만** 받는다.
+
+    실측(2026-08-22): 트리거를 여러 개 받으려고 `"minItems": 2`를 넣었더니
+    배치 호출이 **전부** 400으로 죽었다.
+
+        tools.0.custom: For 'array' type, 'minItems' values other than 0 or 1
+        are not supported
+
+    ★ 이 버그는 **파이썬에서 아무 문제가 없다.** 스키마는 멀쩡히 직렬화되고
+      다른 테스트도 전부 통과한다 — 실제로 API를 불러야만 드러났다.
+      그래서 여기서 못박는다: 개수 요구는 스키마가 아니라 **프롬프트 문장**으로 한다.
+
+    ★ `maxItems`도 같이 막는다. 상한을 두면 모델이 가장 뻔한 항목부터 채우고 멈춘다.
+    """
+    offenders = []
+    for path, node in _walk_schema(ANALYSIS_SCHEMA):
+        if "minItems" in node and node["minItems"] not in (0, 1):
+            offenders.append(f"{path}.minItems={node['minItems']}")
+        if "maxItems" in node:
+            offenders.append(f"{path}.maxItems={node['maxItems']}")
+    assert not offenders, (
+        "Anthropic tool 스키마가 받지 않는 배열 제약이다 — 호출이 400으로 전부 죽는다: "
+        + ", ".join(offenders)
+    )
+
+
+def test_unsupported_bounds_checker_actually_catches():
+    """★ 검사기는 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54).
+
+    위 테스트가 조용히 무력화되면 같은 사고가 그대로 재발한다.
+    """
+    bad = {"type": "object", "properties": {"xs": {"type": "array", "minItems": 2}}}
+    found = [
+        path
+        for path, node in _walk_schema(bad)
+        if "minItems" in node and node["minItems"] not in (0, 1)
+    ]
+    assert found, "검사기가 minItems=2를 못 잡는다 — 위 테스트는 초록불만 내고 있다"
+
+
 def test_max_tokens_matches_prd():
     """★ PRD §7.3과 코드가 같아야 한다. 한쪽만 고치면 두 문서가 조용히 어긋난다.
 
