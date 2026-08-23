@@ -21,12 +21,19 @@ from src.analysis.analyze import (
 )
 from src.config.constants import LLM_INPUT_TOKEN_BUDGET
 from src.db.supabase_client import select_all
+from src.finance.valuation import (
+    forward_per_annual,
+    trailing_4q_per,
+    ttm_net_income,
+)
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import ENV_DEV, ENV_PROD, check_budget
 
 FUND_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,opm,opm_yoy_delta,"
-    "ttm_revenue,ttm_opm,op_status_label,is_estimate"
+    # ★ `np`(순이익)가 없으면 최근 4분기 PER이 **전 종목 계산 불가**가 된다 —
+    #   에러 없이 "계산 불가"만 뜨므로 데이터가 없는 것처럼 보인다(2026-08-23 실측).
+    "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,opm,opm_yoy_delta,"
+    "ttm_revenue,ttm_op,ttm_opm,op_status_label,is_estimate"
 )
 
 
@@ -63,9 +70,47 @@ def build_input(code: str, *, year: int, quarter: int) -> AnalysisInput:
             break
 
     price_rows = [p for p in select_all(
-        "price_snapshots", "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,per,pbr"
+        "price_snapshots",
+        "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,per,pbr,"
+        "market_cap_krw,rel_ret_3m,per_pctile_3y"
     ) if p["code"] == code]
     price = max(price_rows, key=lambda p: p["snap_date"]) if price_rows else {}
+
+    # ── 밸류에이션 재계산 ──────────────────────────────────────────
+    # ★★ 후행 PER(`price_snapshots.per`)은 직전 사업연도 EPS 기준이라 가속 구간에서
+    #   2~3배 과대평가된다 — 이 시스템이 겨냥하는 구간이 정확히 거기다.
+    #   `src/finance/valuation.py`가 `dashboard/lib/valuation.ts`와 같은 규칙으로 다시 잰다.
+    # ★ 선행 PER은 **연간 컨센서스**(`fiscal_quarter = 0`)로만 만든다.
+    #   분기 컨센은 한 분기뿐이라 '향후 4분기'를 만들 수 없다.
+    annual_consensus = None
+    for c in select_all(
+        "consensus_snapshots", "code,fiscal_year,fiscal_quarter,np_est,n_estimates"
+    ):
+        if c["code"] == code and c.get("fiscal_quarter") == 0 and c["fiscal_year"] >= year:
+            if annual_consensus is None or c["fiscal_year"] < annual_consensus["fiscal_year"]:
+                annual_consensus = c
+
+    cap = price.get("market_cap_krw") or row.get("market_cap_krw")
+    ttm_np = ttm_net_income(funds, year, quarter)
+    fwd_per, fwd_basis = forward_per_annual(
+        (annual_consensus or {}).get("np_est"),
+        (annual_consensus or {}).get("fiscal_year"),
+        funds,
+        cap,
+    )
+    valuation = {
+        "market_cap_krw": cap,
+        "ttm_np": ttm_np,
+        "per_trailing_4q": trailing_4q_per(cap, ttm_np),
+        "per_trailing_reason": (
+            None if ttm_np and ttm_np > 0
+            else ("4개 분기 순이익이 다 모이지 않았다" if ttm_np is None
+                  else "누적 순이익이 0 이하다")
+        ),
+        "per_forward": fwd_per,
+        "per_forward_basis": fwd_basis,
+        "pbr": price.get("pbr"),
+    }
 
     latest = quarters[-1] if quarters else {}
     return AnalysisInput(
@@ -98,6 +143,7 @@ def build_input(code: str, *, year: int, quarter: int) -> AnalysisInput:
         },
         consensus=consensus,
         price=price,
+        valuation=valuation,
         pri=screen.get("pri_detail") or {"pri": screen.get("pri")},
         excerpt=None,
         peers=[],

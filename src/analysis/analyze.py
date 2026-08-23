@@ -57,6 +57,8 @@ class AnalysisInput:
     score: dict = field(default_factory=dict)
     consensus: dict | None = None
     price: dict = field(default_factory=dict)
+    #: ★ 다시 계산한 밸류에이션. `price['per']`(후행)을 대신한다 — 아래 주석 참고.
+    valuation: dict = field(default_factory=dict)
     pri: dict = field(default_factory=dict)
     excerpt: str | None = None
     peers: list[dict] = field(default_factory=list)
@@ -103,6 +105,46 @@ def _fmt_quarters(quarters: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _fmt_valuation(v: dict) -> str:
+    """밸류에이션 두 배수를 **라벨과 함께** 준다.
+
+    ★ 숫자만 주면 모델이 어느 쪽을 말하는지 섞는다. 무엇 기준인지와
+      못 구했으면 왜 못 구했는지를 문장으로 붙인다.
+    ★ 없는 값을 만들지 않는다 — 4개 분기가 안 모였으면 '계산 불가'라고 말한다.
+    """
+    if not v:
+        return "- 밸류에이션: (계산 불가 — 시가총액 또는 순이익 데이터가 없다)"
+    lines = ["- 밸류에이션 (**후행 PER은 쓰지 마라. 아래 두 개만 쓴다**)"]
+
+    per4q = v.get("per_trailing_4q")
+    if per4q is not None:
+        lines.append(
+            f"  · 최근 4개 분기 순이익 기준 PER: **{per4q:.1f}배** "
+            f"(분모 {v['ttm_np'] / 1e8:,.0f}억 · 실제로 번 돈, 추정 없음)"
+        )
+    else:
+        lines.append(
+            "  · 최근 4개 분기 순이익 기준 PER: **계산 불가** "
+            f"({v.get('per_trailing_reason', '4개 분기가 모이지 않았거나 누적 순이익이 0 이하')}) "
+            "— 연율화해서 만들어내지 마라"
+        )
+
+    fwd = v.get("per_forward")
+    if fwd is not None:
+        lines.append(
+            f"  · 향후 4개 분기 선행 PER: **{fwd:.1f}배** ({v.get('per_forward_basis')})"
+        )
+    else:
+        lines.append(
+            "  · 향후 4개 분기 선행 PER: **계산 불가** (연간 컨센서스가 없다) "
+            "— 커버리지 공백이 이 시스템의 표적 구간이다"
+        )
+
+    if v.get("pbr") is not None:
+        lines.append(f"  · PBR: {v['pbr']:.2f}배 (주가 ÷ 주당 순자산)")
+    return "\n".join(lines)
+
+
 def build_user_message(data: AnalysisInput) -> str:
     """PRD §7.1의 7개 블록. **공시 원문 전체를 넣지 않는다.**"""
     cap = (
@@ -134,10 +176,16 @@ def build_user_message(data: AnalysisInput) -> str:
             "C축(서프라이즈)은 0점이 아니라 분모에서 제외되어 정규화됐다. "
             "서프라이즈를 논하지 마라."
         )
+    # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
+    #   기준이라 실적이 급가속하면 2~3배 과대평가된다(실측: 고영 131.6 vs 실제 40.5).
+    #   이 시스템은 정확히 그런 종목만 고르므로 왜곡이 항상 최악으로 걸린다.
+    #   대신 **다시 계산한 두 배수**를 라벨과 함께 준다.
+    price_for_llm = {k: v for k, v in (data.price or {}).items() if k != "per"}
     parts += [
         "",
         "## 5. 주가",
-        f"- 시세: {json.dumps(data.price, ensure_ascii=False)}",
+        f"- 시세: {json.dumps(price_for_llm, ensure_ascii=False)}",
+        _fmt_valuation(data.valuation),
         f"- 주가반영도(PRI) 분해: {json.dumps(data.pri, ensure_ascii=False)}",
         "",
         "## 6. 공시 발췌",

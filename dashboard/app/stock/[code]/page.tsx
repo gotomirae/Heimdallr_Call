@@ -8,6 +8,7 @@ import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
 import { type TimelineItem } from "@/components/TriggerTimeline";
 import AnalysisSection from "@/components/AnalysisSection";
+import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { dartReportUrl, naverDisclosureUrl, naverStockUrl } from "@/lib/links";
@@ -245,11 +246,11 @@ export default async function StockPage({ params }: { params: { code: string } }
       >
         <QuarterlyChart points={chartPoints} />
 
-        {/* ★★ 핵심 투자 포인트 — **영업이익 YoY 가속 하나**만 말한다(사용자 지정).
-            매출·TTM·주가를 한 문장에 다 담으면 무엇이 핵심인지가 사라진다.
-            규칙 기반이라 차트에 실제로 그려진 숫자에서만 나온다 — LLM 미사용. */}
+        {/* ★★ 핵심 투자 포인트 — **모양이 무엇을 뜻하는가**(사용자 지정 2026-08-23).
+            "성장률이 빨라졌다"는 차트를 보면 누구나 아는 사실이다. 화면이 보태야 하는
+            것은 그 다음 — 왜 그 모양이 중요한가. 규칙 기반이라 LLM을 쓰지 않는다. */}
         <div
-          className={`mt-3 rounded-lg border-l-4 p-3 ${
+          className={`mt-3 rounded-lg border-l-4 p-4 ${
             {
               accel: "border-amber-400 bg-amber-950/25",
               flat: "border-slate-500 bg-slate-900/40",
@@ -258,17 +259,26 @@ export default async function StockPage({ params }: { params: { code: string } }
             }[verdict.tone]
           }`}
         >
-          <p className="text-sm font-semibold text-slate-100">
-            {verdict.headline.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-              part.startsWith("**") && part.endsWith("**") ? (
-                <strong key={i} className="text-amber-200">{part.slice(2, -2)}</strong>
-              ) : (
-                <span key={i}>{part}</span>
-              )
-            )}
+          <p className="text-base font-bold leading-relaxed text-slate-100">
+            <Emphasized text={verdict.headline} tone={verdict.tone} />
           </p>
-          <p className="mt-1 font-mono text-xs text-slate-200">{verdict.evidence}</p>
-          <p className="mt-1.5 text-xs leading-relaxed text-slate-300">→ {verdict.action}</p>
+          <p className="mt-1.5 font-mono text-xs text-slate-200">{verdict.evidence}</p>
+
+          <div className="mt-3 border-t border-slate-700/70 pt-3">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-amber-300">
+              이 모양이 뜻하는 것
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-slate-100">
+              <Emphasized text={verdict.meaning} tone={verdict.tone} />
+            </p>
+          </div>
+
+          <div className="mt-2.5 rounded bg-slate-950/50 px-3 py-2">
+            <span className="mr-1.5 text-[11px] font-bold text-sky-300">다음에 볼 것</span>
+            <span className="text-sm text-slate-100">
+              <Emphasized text={verdict.watch} tone={verdict.tone} />
+            </span>
+          </div>
         </div>
 
         <Note>
@@ -365,6 +375,14 @@ export default async function StockPage({ params }: { params: { code: string } }
           analysis={analysis}
           narrative={narrative}
           timelineItems={timelineItems}
+          /* ★ 배수는 **화면이 계산한 값**을 넘긴다 — LLM 본문의 PER은 믿지 않는다. */
+          valuation={{
+            per4q,
+            perForward: fwd.per,
+            forwardBasis: fwd.basis,
+            pbr: price?.pbr ?? null,
+            ttmNp,
+          }}
         />
       </Card>
 

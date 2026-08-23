@@ -101,6 +101,8 @@ export interface Scenario {
 export interface PricePosition {
   verdict: string | null;
   reason: string | null;
+  /** 과거부터 지금까지 주가가 왜 이렇게 움직였는가 — 구간별 원인. 2026-08-23 추가. */
+  priceHistory: string | null;
   pricedIn: string[];
   notPricedIn: string[];
 }
@@ -219,6 +221,8 @@ function readPricePosition(node: unknown): PricePosition {
   return {
     verdict: n ? asString(n.verdict) : null,
     reason: n ? asString(n.reason) : null,
+    // ★ 2026-08-23 추가 — 그 전에 저장된 행에는 없다. 없으면 null이고 화면이 안 그린다.
+    priceHistory: n ? asString(n.price_history) : null,
     pricedIn: n ? readStrings(n, "priced_in") : [],
     notPricedIn: n ? readStrings(n, "not_priced_in") : [],
   };

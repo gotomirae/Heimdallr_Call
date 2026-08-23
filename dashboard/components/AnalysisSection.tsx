@@ -10,22 +10,31 @@
 //   "그래서 그게 실적으로 확인됐나"를 먼저 보여준다. 순서를 바꾸면
 //   그럴듯한 서술을 읽은 뒤에 검증을 보게 되어 이미 설득된 상태가 된다.
 import TriggerTimeline, { type TimelineItem } from "@/components/TriggerTimeline";
+import Emphasized, { Highlighted } from "@/components/Emphasized";
 import type { AnalysisView } from "@/lib/analysis";
 import type { NarrativeCheck, Verdict } from "@/lib/narrativeCheck";
 import { DASH } from "@/lib/format";
 
-/** `**굵게**`를 실제 굵게로. 안 거치면 별표가 화면에 그대로 보인다. */
-function Emphasized({ text }: { text: string }) {
+/** 밸류에이션 두 배수. 화면이 계산해 넘긴다 — LLM 문장의 숫자를 믿지 않는다. */
+export interface ValuationView {
+  per4q: number | null;
+  perForward: number | null;
+  forwardBasis: string | null;
+  pbr: number | null;
+  ttmNp: number | null;
+}
+
+/**
+ * LLM 산문 한 문단. **숫자와 방향어를 굵게** 집어 준다.
+ *
+ * ★ 모델은 `**`를 잘 쓰지 않는다. 그렇다고 문단을 통째로 굵게 하면 강조가 죽으므로
+ *   `Highlighted`가 숫자·단위·방향어만 집는다(문장은 그대로 둔다).
+ */
+function Prose({ text }: { text: string }) {
   return (
-    <>
-      {text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <strong key={i} className="text-white">{part.slice(2, -2)}</strong>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
+    <p className="mt-1 text-sm leading-relaxed text-slate-100">
+      <Highlighted text={text} />
+    </p>
   );
 }
 
@@ -129,10 +138,13 @@ export default function AnalysisSection({
   analysis,
   narrative,
   timelineItems,
+  valuation,
 }: {
   analysis: AnalysisView;
   narrative: NarrativeCheck;
   timelineItems: TimelineItem[];
+  /** ★ 화면이 직접 계산한 배수. LLM 문장에 적힌 PER은 믿지 않는다. */
+  valuation: ValuationView;
 }) {
   if (analysis.isEmpty) {
     return (
@@ -154,7 +166,7 @@ export default function AnalysisSection({
       {analysis.whyNow && (
         <div>
           <div className="text-xs font-semibold uppercase text-slate-300">왜 지금인가</div>
-          <p className="text-slate-100">{analysis.whyNow}</p>
+          <Prose text={analysis.whyNow} />
         </div>
       )}
 
@@ -184,22 +196,27 @@ export default function AnalysisSection({
             )}
           </div>
           <div className="mt-3 space-y-3">
+            {/* ★ 원인과 전망이 이 분석의 핵심이다(사용자 지정) — 테두리를 굵게 준다. */}
             {analysis.earningsChange.cause && (
-              <div className="border-l-2 border-sky-500/70 pl-3">
-                <div className="text-xs font-bold text-sky-200">왜 이렇게 변했나 (원인)</div>
-                <p className="mt-0.5 text-slate-100">{analysis.earningsChange.cause}</p>
+              <div className="rounded border-l-4 border-sky-400 bg-sky-950/25 py-2 pl-3 pr-2">
+                <div className="text-xs font-bold uppercase tracking-wide text-sky-200">
+                  ① 이번 분기 숫자가 왜 그렇게 나왔나 (원인)
+                </div>
+                <Prose text={analysis.earningsChange.cause} />
               </div>
             )}
             {analysis.earningsChange.effect && (
               <div className="border-l-2 border-violet-500/70 pl-3">
                 <div className="text-xs font-bold text-violet-200">무엇이 달라졌나 (결과)</div>
-                <p className="mt-0.5 text-slate-100">{analysis.earningsChange.effect}</p>
+                <Prose text={analysis.earningsChange.effect} />
               </div>
             )}
             {analysis.earningsChange.outlook && (
-              <div className="border-l-2 border-amber-500/70 pl-3">
-                <div className="text-xs font-bold text-amber-200">앞으로 어떻게 되나 (전망)</div>
-                <p className="mt-0.5 text-slate-100">{analysis.earningsChange.outlook}</p>
+              <div className="rounded border-l-4 border-amber-400 bg-amber-950/25 py-2 pl-3 pr-2">
+                <div className="text-xs font-bold uppercase tracking-wide text-amber-200">
+                  ② 다음 분기 실적 전망
+                </div>
+                <Prose text={analysis.earningsChange.outlook} />
               </div>
             )}
           </div>
@@ -239,7 +256,7 @@ export default function AnalysisSection({
             </div>
           )}
           {analysis.growthEngine.evidence && (
-            <p className="mt-1.5 text-slate-100">{analysis.growthEngine.evidence}</p>
+            <Prose text={analysis.growthEngine.evidence} />
           )}
         </div>
       )}
@@ -260,7 +277,7 @@ export default function AnalysisSection({
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-slate-100">{analysis.baseEffectAssessment}</p>
+          <Prose text={analysis.baseEffectAssessment} />
         </div>
       )}
 
@@ -296,17 +313,36 @@ export default function AnalysisSection({
                     <div className="mt-2 space-y-1.5 text-sm">
                       <p className="text-slate-100">
                         <span className="mr-1.5 text-xs font-bold text-slate-300">조건</span>
-                        {s.condition ?? DASH}
+                        {s.condition ? <Highlighted text={s.condition} /> : DASH}
                       </p>
                       <p className="text-slate-200">
                         <span className="mr-1.5 text-xs font-bold text-slate-300">함의</span>
-                        {s.implication ?? DASH}
+                        {s.implication ? <Highlighted text={s.implication} /> : DASH}
                       </p>
                     </div>
                   </div>
                 );
               })}
           </div>
+        </div>
+      )}
+
+      {/* ★ 트리거가 하나도 없을 때 **그냥 사라지면 안 된다** — 읽는 사람은
+          "분석이 덜 됐나" 하고 만다. 왜 비었는지를 밝힌다(2026-08-23).
+          실제 원인: LLM 입력에 공시 원문 발췌가 들어가지 않아 증설·신제품 같은
+          사건을 알 방법이 없다. 숫자표만으로 사건을 쓰라고 하면 지어내게 된다. */}
+      {timelineItems.length === 0 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
+          <div className="text-xs font-semibold uppercase text-slate-200">주가 상승 트리거</div>
+          <p className="mt-1.5 text-sm text-slate-100">
+            <strong className="text-amber-300">확인 가능한 상승 이벤트를 찾지 못했다.</strong>{" "}
+            이 분석의 입력은 분기 실적 표가 중심이라 CAPA 증설·신제품 출시·고객사 협업 같은
+            사건은 공시 원문을 읽어야 알 수 있다.
+          </p>
+          <Note>
+            비어 있는 것은 <strong className="text-slate-200">이벤트가 없다는 뜻이 아니라
+            이 입력으로는 알 수 없다는 뜻</strong>이다 — 없는 사건을 지어내지 않는다.
+          </Note>
         </div>
       )}
 
@@ -342,15 +378,67 @@ export default function AnalysisSection({
               </span>
             )}
           </div>
-          {analysis.pricePosition.reason && (
-            <p className="mt-1.5 text-slate-100">{analysis.pricePosition.reason}</p>
+          {/* ★★ PER은 **화면이 계산한 값**을 먼저 보여준다(사용자 지적 2026-08-23).
+              `price_snapshots.per`는 직전 사업연도 EPS 기준이라 가속 구간에서 2~3배
+              과대평가된다 — 실측: 고영 스냅샷 131.6 vs 실제 40.5.
+              2026-08-23 이전에 저장된 분석 본문에는 그 틀린 숫자가 남아 있다. */}
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
+              <div className="text-[11px] text-slate-300">① 최근 4개 분기 순이익 기준 PER</div>
+              <div className="mt-0.5 text-xl font-bold text-white">
+                {valuation.per4q != null ? `${valuation.per4q.toFixed(1)}배` : DASH}
+              </div>
+              <div className="text-[11px] text-slate-300">
+                {valuation.per4q != null
+                  ? "실제로 번 돈 기준 (추정 없음)"
+                  : "4개 분기가 안 모였거나 누적 순이익 0 이하"}
+              </div>
+            </div>
+            <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
+              <div className="text-[11px] text-slate-300">② 향후 4개 분기 선행 PER</div>
+              <div className="mt-0.5 text-xl font-bold text-amber-200">
+                {valuation.perForward != null ? `${valuation.perForward.toFixed(1)}배` : DASH}
+              </div>
+              <div className="text-[11px] text-slate-300">
+                {valuation.forwardBasis ?? "연간 컨센서스 없음"}
+              </div>
+            </div>
+            <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
+              <div className="text-[11px] text-slate-300">PBR</div>
+              <div className="mt-0.5 text-xl font-bold text-white">
+                {valuation.pbr != null ? `${valuation.pbr.toFixed(2)}배` : DASH}
+              </div>
+              <div className="text-[11px] text-slate-300">주가 ÷ 주당 순자산</div>
+            </div>
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-300">
+            위 세 숫자는 <strong className="text-slate-200">화면이 직접 계산한 값</strong>이다.
+            아래 해석 본문의 PER과 다르면{" "}
+            <strong className="text-amber-300">위 숫자가 맞다</strong> — 증권사 화면의 후행 PER은
+            직전 사업연도 이익 기준이라 실적이 급가속하면 2~3배 부풀려진다.
+          </p>
+
+          {analysis.pricePosition.reason && <Prose text={analysis.pricePosition.reason} />}
+
+          {/* ★ 과거부터 지금까지 주가가 왜 이렇게 움직였나 — 2026-08-23 추가.
+              그 전 분석에는 없는 필드라 있을 때만 그린다. */}
+          {analysis.pricePosition.priceHistory && (
+            <div className="mt-3 rounded border-l-4 border-indigo-400 bg-indigo-950/25 py-2 pl-3 pr-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-indigo-200">
+                주가는 왜 지금 이 자리에 있나 — 구간별 원인
+              </div>
+              <Prose text={analysis.pricePosition.priceHistory} />
+            </div>
           )}
+
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <div>
               <div className="text-xs font-bold text-slate-300">이미 반영된 것</div>
               <ul className="mt-1 list-disc pl-4 text-slate-200">
                 {analysis.pricePosition.pricedIn.length > 0
-                  ? analysis.pricePosition.pricedIn.map((v) => <li key={v}>{v}</li>)
+                  ? analysis.pricePosition.pricedIn.map((v) => (
+                      <li key={v}><Highlighted text={v} /></li>
+                    ))
                   : <li className="list-none text-slate-300">{DASH}</li>}
               </ul>
             </div>
@@ -358,7 +446,9 @@ export default function AnalysisSection({
               <div className="text-xs font-bold text-amber-200">아직 반영되지 않은 것</div>
               <ul className="mt-1 list-disc pl-4 text-slate-100">
                 {analysis.pricePosition.notPricedIn.length > 0
-                  ? analysis.pricePosition.notPricedIn.map((v) => <li key={v}>{v}</li>)
+                  ? analysis.pricePosition.notPricedIn.map((v) => (
+                      <li key={v}><Highlighted text={v} /></li>
+                    ))
                   : <li className="list-none text-slate-300">{DASH}</li>}
               </ul>
             </div>
@@ -408,7 +498,7 @@ export default function AnalysisSection({
           <div className="text-xs font-semibold uppercase text-slate-300">
             내가 틀릴 수 있는 이유
           </div>
-          <p className="text-slate-100">{analysis.howICouldBeWrong}</p>
+          <Prose text={analysis.howICouldBeWrong} />
         </div>
       )}
     </div>
