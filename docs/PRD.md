@@ -612,7 +612,7 @@ CREATE TABLE cost_log (
 ### 7.3 가드레일
 
 ```
-MONTHLY_COST_CEILING_USD = 20     # 2026-08-21 개정 (12 → 20)
+MONTHLY_COST_CEILING_USD = 24     # 2026-08-24 개정 (20 → 24 · 발췌로 출력 +42%)
 DAILY_ANALYSIS_LIMIT     = 80     # 2026-08-17 개정 (20 → 80)
 max_tokens               = 12288  # 2026-08-17 개정 (8192 → 12288)
 EXCERPT_BUDGET_CHARS = 2400       # 수집기 예산
@@ -992,7 +992,7 @@ FLASH_DAILY_MAX           = 15
 NOTIFY_GRADES             = ("★", "○")
 
 # 비용
-MONTHLY_COST_CEILING_USD  = 20
+MONTHLY_COST_CEILING_USD  = 24
 DAILY_ANALYSIS_LIMIT      = 80
 EXCERPT_BUDGET_CHARS = 2400
 EXCERPT_MAX_CHARS = 2600
