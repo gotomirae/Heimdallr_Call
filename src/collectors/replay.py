@@ -18,6 +18,7 @@ from src.collectors.dart_disclosure import (
     DOC_PL_CHANGE,
     DOC_PROVISIONAL,
     PollStats,
+    period_of,
     poll,
 )
 from src.collectors.provisional_parser import (
@@ -168,6 +169,10 @@ def _save(found: list) -> int:
             "doc_type": d.doc_type,
             "disclosed_at": f"{d.disclosed_at[:4]}-{d.disclosed_at[4:6]}-{d.disclosed_at[6:]}",
             "processed": False,
+            # ★★ 이 두 칸을 안 채우면 발췌가 **어느 분기 것인지 모르는 채로** 저장되고,
+            #   읽는 쪽이 "가장 최근 것"으로 물러서 **남의 분기 원문을 LLM에 싣는다**(T99).
+            #   잠정실적 공시는 이름에 기간이 없어 None이 정상이다.
+            **dict(zip(("fiscal_year", "fiscal_quarter"), period_of(d.report_nm))),
         }
         for d in found
     ]

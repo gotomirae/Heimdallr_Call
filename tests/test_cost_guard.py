@@ -13,6 +13,8 @@ from src.config.constants import (
     DAILY_ANALYSIS_LIMIT,
     MONTHLY_COST_CEILING_USD,
     ANALYSIS_MODEL,
+    EXCERPT_BUDGET_CHARS,
+    EXCERPT_MAX_CHARS,
     FALLBACK_MODEL,
     LLM_INPUT_TOKEN_BUDGET,
     LLM_MAX_TOKENS,
@@ -188,6 +190,9 @@ def test_guardrails_match_prd_document():
         ("MONTHLY_COST_CEILING_USD", MONTHLY_COST_CEILING_USD),
         ("DAILY_ANALYSIS_LIMIT", DAILY_ANALYSIS_LIMIT),
         ("max_tokens", LLM_MAX_TOKENS),
+        # 2026-08-24 추가 — 이 둘이 어긋나 발췌 94%가 잘리고 있었다(T100).
+        ("EXCERPT_BUDGET_CHARS", EXCERPT_BUDGET_CHARS),
+        ("EXCERPT_MAX_CHARS", EXCERPT_MAX_CHARS),
     ):
         # ★★ `search`가 아니라 `findall`이다 — PRD는 같은 상수를 **두 곳**에 적는다
         #   (§7.3 가드레일 · 부록 상수표). 첫 매치만 보면 뒤쪽이 낡아도 통과한다.
@@ -263,9 +268,14 @@ def test_missing_nested_is_genuine_detected():
 
 # ═══ 입력 조립 — 공시 원문 전체를 넣지 않는다 (ADR 4) ═══
 def test_excerpt_is_truncated():
+    """★ 상한을 **숫자로 박지 않는다** — 상수가 움직이면 검사도 같이 움직여야 한다(T100).
+
+    2,000을 박아 두는 바람에 수집기가 2,400으로 올라간 뒤에도 초록불이었다.
+    """
     data = AnalysisInput(code="A", name="N", board="KOSPI", excerpt="x" * 10_000)
     message = build_user_message(data)
-    assert "x" * 2_001 not in message
+    assert "x" * (EXCERPT_MAX_CHARS + 1) not in message
+    assert "x" * EXCERPT_MAX_CHARS in message
 
 
 def test_no_consensus_is_stated_explicitly():

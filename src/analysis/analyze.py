@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from src.config.constants import (
     ANALYSIS_MODEL,
     ENABLE_WEB_SEARCH,
+    EXCERPT_MAX_CHARS,
     LLM_EFFORT,
     LLM_INPUT_TOKEN_BUDGET,
     LLM_MAX_TOKENS,
@@ -30,7 +31,8 @@ from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME, SYSTEM_PRO
 from src.utils.cost_guard import ENV_PROD, check_budget, record_usage
 from src.utils.env import require_env
 
-EXCERPT_MAX_CHARS = 2000  # PRD §7.1 — 공시 발췌 상한
+# ★ `EXCERPT_MAX_CHARS`는 `constants.py`에서 온다 — 여기서 다시 정의하지 마라(T100).
+#   수집기 예산(2,400)보다 작게 두면 저장해 둔 발췌를 **말없이 버린다.**
 
 
 class AnalysisError(RuntimeError):

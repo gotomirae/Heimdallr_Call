@@ -11,6 +11,7 @@ from src.collectors.dart_disclosure import (
     DOC_PROVISIONAL,
     classify,
     is_correction,
+    period_of,
 )
 from src.collectors.provisional_parser import (
     check_period_plausible,
@@ -217,3 +218,54 @@ def test_period_plausible_flags_future():
 def test_period_plausible_skips_when_unknown():
     assert check_period_plausible(None, None, "20260813") is None
     assert check_period_plausible(2026, 2, None) is None
+
+
+# ── 정기보고서 기간 파싱 (T99) ──────────────────────────────────────────
+# 손계산 대조: 이름의 `(YYYY.MM)`은 **보고 기간 종료월**이다.
+#   분기보고서 (2026.03) → 1~3월  → 2026 Q1
+#   반기보고서 (2026.06) → 1~6월  → 2026 Q2 (급소: Q2 = 반기 − Q1)
+#   분기보고서 (2026.09) → 7~9월  → 2026 Q3
+#   사업보고서 (2025.12) → 1~12월 → 2025 Q4
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("분기보고서 (2026.03)", (2026, 1)),
+        ("반기보고서 (2026.06)", (2026, 2)),
+        ("분기보고서 (2026.09)", (2026, 3)),
+        ("사업보고서 (2025.12)", (2025, 4)),
+        # 정정공시도 같은 기간이다 — 접수번호만 다르다.
+        ("[기재정정]반기보고서 (2026.06)", (2026, 2)),
+        ("[첨부추가]반기보고서 (2026.06)", (2026, 2)),
+        ("[첨부정정]사업보고서 (2025.12)", (2025, 4)),
+    ],
+)
+def test_period_of_reads_periodic_reports(name, expected):
+    assert period_of(name) == expected
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ★ 결산월이 12월이 아닌 회사(현대약품·JTC 실측). 5월을 2분기라고 우기지 않는다.
+        "반기보고서 (2026.05)",
+        "분기보고서 (2026.05)",
+        # 잠정실적 공정공시에는 기간이 이름에 없다.
+        "연결재무제표기준영업(잠정)실적(공정공시)",
+        "매출액또는손익구조30%(대규모법인은15%)이상변경",
+        "",
+        None,
+    ],
+)
+def test_period_of_returns_none_when_unreadable(name):
+    assert period_of(name) == (None, None)
+
+
+def test_period_of_never_guesses_a_quarter_it_cannot_prove():
+    """★ 분기를 못 읽으면 **연도만 채우지도 않는다.**
+
+    연도만 있고 분기가 비면 읽는 쪽의 `(year, quarter)` 비교가 조용히 어긋난다.
+    """
+    year, quarter = period_of("반기보고서 (2026.05)")
+    assert year is None and quarter is None

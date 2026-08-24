@@ -25,6 +25,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 
+from src.config.constants import EXCERPT_BUDGET_CHARS
 from src.utils.env import require_env
 from src.utils.http import http_get
 
@@ -42,10 +43,11 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
     ("기타 참고사항", r"기타\s*참고사항"),
 ]
 
-#: 발췌 총 상한(자). ADR 4의 2,000자를 기준으로 하되 절별로 고르게 담는다.
-#: ★ 늘리기 전에 `LLM_INPUT_TOKEN_BUDGET`(5,000토큰)을 먼저 보라 —
+#: 발췌 총 상한(자). **값은 `constants.py`에 있다** — 여기서 정의하지 마라(T100).
+#: 읽는 쪽(`analyze.EXCERPT_MAX_CHARS`)과 어긋나면 뽑아 놓고 버리게 된다.
+#: ★ 늘리기 전에 `LLM_INPUT_TOKEN_BUDGET`(14,000토큰)을 먼저 보라 —
 #:   한글은 대략 1자 ≈ 0.96토큰이라 2,400자면 이미 2,300토큰이다.
-DEFAULT_BUDGET_CHARS = 2_400
+DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
 

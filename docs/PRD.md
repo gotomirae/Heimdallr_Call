@@ -560,7 +560,9 @@ CREATE TABLE cost_log (
                  + base_effect_warning + sector_caveat
   4) 컨센서스    매출/영업이익/EPS 추정치와 서프라이즈 % (없으면 "커버리지 없음" 명시)
   5) 주가        현재가·52주 위치·3/6/12M 수익률·지수 대비 초과수익·PER·PBR·PRI 분해
-  6) 공시 발췌   가이던스·특이사항 중심 2,000자 이내
+  6) 공시 발췌   매출·수주 / 원재료·설비 / 주요제품 / 주요계약·연구개발 4개 절
+                 길이 상한은 §7.3 가드레일을 보라 (여기에 숫자를 적지 마라 — T82)
+                 맨 앞에 [출처: YYYY년 N분기 정기보고서] 라벨을 붙인다 (T99)
   7) 업종 비교   동일 KRX 업종 상위 5개사 매출YoY·OPM·PER·스코어
 ```
 
@@ -613,7 +615,15 @@ CREATE TABLE cost_log (
 MONTHLY_COST_CEILING_USD = 20     # 2026-08-21 개정 (12 → 20)
 DAILY_ANALYSIS_LIMIT     = 80     # 2026-08-17 개정 (20 → 80)
 max_tokens               = 12288  # 2026-08-17 개정 (8192 → 12288)
+EXCERPT_BUDGET_CHARS = 2400       # 수집기 예산
+EXCERPT_MAX_CHARS = 2600          # 2026-08-24 개정 (2000 → 2600 · T100)
 ```
+
+**2026-08-24 개정 근거 (실측)** — 수집기 2,400자 / 분석기 2,000자로 **두 값이 어긋나
+있어** 저장된 발췌 453건 중 **428건(94%)이 평균 432자씩 버려지고 있었다.** 잘려나간
+것은 언제나 마지막 절 `주요계약 및 연구개발활동` — 수주계약·국책과제가 적힌,
+발췌를 도입한 이유 그 자체인 절이다. 두 값을 `constants.py` 한 곳에서 유도하고
+`tests/test_excerpt_budget.py`가 `분석기 상한 > 수집기 예산` 부등식을 지킨다.
 
 **2026-08-17 개정 근거 (실측)** — 세 값을 함께 고쳤다. `src/config/constants.py`가
 유일한 출처이고 `tests/test_cost_guard.py`가 이 문서와 대조한다.
@@ -984,6 +994,8 @@ NOTIFY_GRADES             = ("★", "○")
 # 비용
 MONTHLY_COST_CEILING_USD  = 20
 DAILY_ANALYSIS_LIMIT      = 80
+EXCERPT_BUDGET_CHARS = 2400
+EXCERPT_MAX_CHARS = 2600
 SONNET_INPUT_PER_MTOK     = 2.0     # 날짜 분기 로직 금지
 SONNET_OUTPUT_PER_MTOK    = 10.0
 SONNET_CACHE_READ_PER_MTOK = 0.20

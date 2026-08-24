@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -85,6 +86,46 @@ def classify(report_nm: str) -> tuple[str | None, str | None]:
     # "연결재무제표기준영업실적등에대한전망" — 실적이 아니라 전망이다.
     if _FORECAST_TOKEN in name and "영업실적" in name:
         return None, "forecast"
+
+    return None, None
+
+
+#: 정기보고서 이름 끝의 `(YYYY.MM)` — 보고 **기간 종료월**이다.
+_PERIOD_RE = re.compile(r"\((\d{4})[.\-/](\d{1,2})\)")
+
+#: 보고서 종류별로 **허용되는 종료월 → 분기**.
+#: 결산월이 12월인 회사만 이 표에 맞는다. 어긋나면 추측하지 않고 판정 불가로 둔다.
+_PERIOD_BY_REPORT: dict[str, dict[int, int]] = {
+    "분기보고서": {3: 1, 9: 3},
+    "반기보고서": {6: 2},
+    "사업보고서": {12: 4},
+}
+
+
+def period_of(report_nm: str | None) -> tuple[int | None, int | None]:
+    """정기보고서 이름에서 (회계연도, 분기). 못 읽으면 (None, None).
+
+    ★★ 이 값이 없으면 **발췌가 어느 분기 것인지 알 수 없다.** 그래도 읽는 쪽은
+      "가장 최근 것"으로 물러서므로 **에러 없이 남의 분기 발췌를 쓰게 된다**(T99).
+
+    ★ **결산월이 12월이 아닌 회사는 판정 불가(None)로 둔다.** `반기보고서 (2026.05)`
+      (현대약품·JTC 실측)를 5월이니 2분기라고 우기면 달력분기와 어긋난 값이 들어간다.
+      단위를 못 읽으면 곱하지 않는 것과 같은 규칙이다 — 모르면 비운다.
+
+    ★ 잠정실적 공정공시에는 기간이 이름에 없다 — (None, None)이 정상이다.
+    """
+    if not report_nm:
+        return None, None
+    match = _PERIOD_RE.search(report_nm)
+    if match is None:
+        return None, None
+
+    for token, months in _PERIOD_BY_REPORT.items():
+        if token in report_nm:
+            year, month = int(match.group(1)), int(match.group(2))
+            quarter = months.get(month)
+            # 종료월이 그 보고서에 맞지 않으면 12월 결산이 아니다 — 추측하지 않는다.
+            return (year, quarter) if quarter is not None else (None, None)
 
     return None, None
 
