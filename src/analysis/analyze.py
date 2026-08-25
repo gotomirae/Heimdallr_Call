@@ -67,6 +67,16 @@ class AnalysisInput:
     pri: dict = field(default_factory=dict)
     excerpt: str | None = None
     peers: list[dict] = field(default_factory=list)
+    #: 분기말 종가 시계열. ★ 이게 없으면 `price_position.price_history`를 쓰라고
+    #  시켜 놓고 **주가 궤적을 안 주는** 셈이 된다 — 모델은 52주 고저만 보고
+    #  "왜 이 가격인가"를 지어내야 한다(T101).
+    quarter_prices: list[dict] = field(default_factory=list)
+    #: 최근 공시 목록(공시명 + 접수일). 정기보고서 발췌와 별개다 —
+    #  발췌는 **내용**이고 이건 **무엇이 언제 나왔는가**다.
+    disclosures: list[dict] = field(default_factory=list)
+    #: 데이터 기준일(YYYY-MM-DD). 모델이 "지금이 언제인지" 알아야
+    #  다음 분기 전망과 트리거 시점을 제대로 잡는다.
+    as_of: str | None = None
 
 
 @dataclass
@@ -150,12 +160,67 @@ def _fmt_valuation(v: dict) -> str:
     return "\n".join(lines)
 
 
+#: 최근 공시를 몇 건까지 보여줄 것인가. 오래된 것은 이번 분기 해석에 쓰이지 않는다.
+DISCLOSURE_MAX_ROWS = 12
+
+
+def _fmt_quarter_prices(rows: list[dict]) -> str:
+    """분기말 종가 시계열 + 분기별 등락률.
+
+    ★★ 이게 없으면 `price_position.price_history`를 쓰라고 시켜 놓고 **주가 궤적을
+      주지 않는** 셈이다(T101). 모델은 52주 고저만 보고 "왜 이 가격인가"를
+      지어내거나 침묵한다 — 숫자만 주고 사건을 쓰라는 T93과 같은 모양이다.
+    ★ 등락률을 **여기서 계산해 준다.** 모델에게 산수를 시키면 틀린 값이 본문에 인용된다.
+    """
+    if not rows:
+        return "- 분기말 주가: (없음)"
+    ordered = sorted(rows, key=lambda r: (r.get("fiscal_year") or 0,
+                                          r.get("fiscal_quarter") or 0))
+    out = ["- 분기말 종가 추이 (마지막 행은 현재가):"]
+    prev = None
+    for r in ordered:
+        close = r.get("close")
+        if close is None:
+            continue
+        delta = ""
+        if prev:
+            pct = (close - prev) / prev * 100
+            delta = f"  {pct:+.1f}%"
+        out.append(f"    {r['fiscal_year']}.{r['fiscal_quarter']}Q "
+                   f"({r.get('trade_date', '—')})  {close:,.0f}원{delta}")
+        prev = close
+    return "\n".join(out)
+
+
+def _fmt_disclosures(rows: list[dict]) -> str:
+    """최근 공시 목록. 발췌가 '내용'이면 이건 '무엇이 언제 나왔는가'다.
+
+    ★ 실적 발표일을 모르면 모델은 트리거의 `expected_date`를 엉뚱하게 잡는다.
+    ★ 정정공시가 있었는지도 여기서만 보인다 — 숫자표는 정정 후 값만 담는다.
+    """
+    if not rows:
+        return "- (수집된 공시 없음)"
+    ordered = sorted(rows, key=lambda r: r.get("disclosed_at") or "", reverse=True)
+    out = []
+    for r in ordered[:DISCLOSURE_MAX_ROWS]:
+        day = (r.get("disclosed_at") or "—")[:10]
+        out.append(f"- {day}  {r.get('report_nm', '—')}")
+    if len(ordered) > DISCLOSURE_MAX_ROWS:
+        out.append(f"- … 외 {len(ordered) - DISCLOSURE_MAX_ROWS}건 (오래된 것은 생략)")
+    return "\n".join(out)
+
+
 def build_user_message(data: AnalysisInput) -> str:
     """PRD §7.1의 7개 블록. **공시 원문 전체를 넣지 않는다.**"""
     cap = (
         f"{data.market_cap_krw / 1e12:.2f}조" if data.market_cap_krw else "—"
     )
     parts = [
+        # ★ 모델은 "지금이 언제인지" 모른다. 기준일이 없으면 다음 분기 전망과
+        #   트리거 시점(`expected_date`)을 학습 시점 기준으로 잡는다(T101).
+        f"※ 데이터 기준일: {data.as_of or '—'} — "
+        "이 날짜 이후의 사건은 입력에 없다. 모르는 것은 모른다고 써라.",
+        "",
         "## 1. 기본정보",
         f"- {data.name} ({data.code} · {data.board})",
         f"- 업종: {data.industry or '—'}",
@@ -192,9 +257,13 @@ def build_user_message(data: AnalysisInput) -> str:
         f"- 시세: {json.dumps(price_for_llm, ensure_ascii=False)}",
         _fmt_valuation(data.valuation),
         f"- 주가반영도(PRI) 분해: {json.dumps(data.pri, ensure_ascii=False)}",
+        _fmt_quarter_prices(data.quarter_prices),
         "",
         "## 6. 공시 발췌",
         (data.excerpt or "(발췌 없음)")[:EXCERPT_MAX_CHARS],
+        "",
+        "## 6-1. 최근 공시 (무엇이 언제 나왔는가)",
+        _fmt_disclosures(data.disclosures),
         "",
         "## 7. 업종 비교 (동일 업종 상위)",
         json.dumps(data.peers, ensure_ascii=False) if data.peers else "(비교군 없음)",

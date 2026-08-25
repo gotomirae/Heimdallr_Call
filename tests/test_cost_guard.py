@@ -173,7 +173,9 @@ def test_max_tokens_matches_prd():
     # ★ 2026-08-23: 5,000 → 14,000. 옛 값은 **아무 데서도 검사되지 않는 죽은 값**이었고
     #   실제 입력은 발췌 없이도 이미 10,300토큰이었다(count_tokens 실측).
     #   공시 발췌를 싣게 되면서 실측에 맞추고 `analyze()`가 실제로 강제하게 했다.
-    assert LLM_INPUT_TOKEN_BUDGET == 14000
+    # ★ 2026-08-24: 14,000 → 16,000. 주가 궤적·공시 목록·기준일을 실으면서
+    #   실측 최대가 13,768이 됐다 — 여유 232로는 긴 발췌 종목이 통째로 실패한다(T101).
+    assert LLM_INPUT_TOKEN_BUDGET == 16000
 
 
 def test_guardrails_match_prd_document():
@@ -193,6 +195,8 @@ def test_guardrails_match_prd_document():
         # 2026-08-24 추가 — 이 둘이 어긋나 발췌 94%가 잘리고 있었다(T100).
         ("EXCERPT_BUDGET_CHARS", EXCERPT_BUDGET_CHARS),
         ("EXCERPT_MAX_CHARS", EXCERPT_MAX_CHARS),
+        # ★ PRD §7.1 제목이 5,000으로 4일 넘게 낡아 있었다(T97) — 이제 대조한다.
+        ("LLM_INPUT_TOKEN_BUDGET", LLM_INPUT_TOKEN_BUDGET),
     ):
         # ★★ `search`가 아니라 `findall`이다 — PRD는 같은 상수를 **두 곳**에 적는다
         #   (§7.3 가드레일 · 부록 상수표). 첫 매치만 보면 뒤쪽이 낡아도 통과한다.

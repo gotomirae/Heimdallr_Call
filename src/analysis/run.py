@@ -206,6 +206,28 @@ def build_input(
     #   단건 분석에서는 없으면 그 자리에서 받는다 — 30초는 감당할 만하다.
     excerpt = load_excerpt(code, year, quarter, allow_fetch=allow_fetch)
 
+    # ── 분기말 주가 시계열 · 최근 공시 목록 (T101) ──────────────────
+    # ★★ 둘 다 DB에 있는데 입력에 넣은 적이 없었다. 그 결과
+    #   `price_position.price_history`는 **주가 궤적 없이** 쓰였고,
+    #   트리거의 `expected_date`는 **실적 발표일을 모른 채** 잡혔다.
+    quarter_price_rows = [
+        p for p in select_all(
+            "quarter_prices", "code,fiscal_year,fiscal_quarter,close,trade_date"
+        ) if p["code"] == code
+    ]
+    disclosure_rows = [
+        d for d in select_all(
+            "earnings_disclosures", "code,report_nm,disclosed_at,doc_type"
+        ) if d["code"] == code
+    ]
+    # 기준일 — 가진 데이터 중 가장 최근 날짜를 쓴다. 오늘 날짜를 쓰면
+    # 시세가 어제 것인데 "오늘 기준"이라고 말하는 셈이 된다.
+    as_of = max(
+        [p.get("snap_date") or "" for p in price_rows]
+        + [str(q.get("trade_date") or "") for q in quarter_price_rows]
+        + [""]
+    ) or None
+
     latest = quarters[-1] if quarters else {}
     return AnalysisInput(
         code=code,
@@ -241,6 +263,9 @@ def build_input(
         pri=screen.get("pri_detail") or {"pri": screen.get("pri")},
         excerpt=excerpt,
         peers=[],
+        quarter_prices=quarter_price_rows,
+        disclosures=disclosure_rows,
+        as_of=as_of,
     )
 
 
