@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from src.analysis.analyze import sanitize_payload, strip_tag_leakage
+from src.analysis.analyze import sanitize_payload, strip_tag_leakage, validate_payload
 
 
 #: 실측 그대로 (042700 한미반도체 2026.2Q · 2026-08-17)
@@ -68,3 +68,46 @@ def test_sanitize_handles_non_string_scalars():
     assert sanitize_payload(None) is None
     assert sanitize_payload(3) == 3
     assert sanitize_payload([1, "a</b>c"]) == [1, "a"]
+
+
+# ── 타입 검증 (T103) ────────────────────────────────────────────────────
+
+
+def _payload_with(**over):
+    from tests.test_cost_guard import _good_payload
+    p = _good_payload()
+    p.update(over)
+    return p
+
+
+def test_wrong_typed_object_is_caught():
+    """★★ 있고 비어 있지 않다고 정상인 게 아니다.
+
+    실측(금강공업 2026.2Q): `earnings_change`가 객체가 아니라
+    `'{"cause":">skip'` 15자 **문자열**로 왔는데 검증을 그대로 통과했다 —
+    `None`도 `""`도 아니기 때문이다. 화면은 그대로 빈칸이 됐다(T95 모양).
+    """
+    problems = validate_payload(_payload_with(earnings_change='{"cause":">skip'))
+    assert any(p.startswith("type:earnings_change") for p in problems), problems
+
+
+def test_wrong_typed_array_is_caught():
+    problems = validate_payload(_payload_with(risks="위험이 있다"))
+    assert any(p.startswith("type:risks") for p in problems), problems
+
+
+def test_validator_does_not_crash_on_broken_structure():
+    """★ 검증기가 터지면 배치는 그 종목을 '실패'로만 남기고 **이유는 안 남는다.**
+
+    구조가 깨진 payload에서 `AttributeError`로 죽는 일이 없어야 한다.
+    """
+    for broken in ("문자열", 123, [], ["a"]):
+        for key in ("scenarios", "triggers", "acceleration_quality"):
+            problems = validate_payload(_payload_with(**{key: broken}))
+            assert isinstance(problems, list)
+
+
+def test_correct_payload_has_no_type_complaints():
+    """정상 payload에 타입 불평이 붙으면 안 된다 — 검사기가 과하면 신호가 죽는다."""
+    problems = validate_payload(_payload_with())
+    assert not [p for p in problems if p.startswith("type:")], problems

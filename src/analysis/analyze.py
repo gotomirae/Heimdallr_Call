@@ -482,11 +482,29 @@ def validate_payload(payload: dict) -> list[str]:
     for key in ANALYSIS_SCHEMA["required"]:
         if key not in payload or payload[key] in (None, "", [], {}):
             problems.append(f"missing:{key}")
+            continue
+        # ★★ **타입까지 본다**(T103). 있고 비어 있지 않다고 정상인 게 아니다 —
+        #   실측(금강공업 2026.2Q): `earnings_change`가 객체가 아니라
+        #   `'{"cause":">skip'` 15자 문자열로 왔는데 **검증을 그대로 통과**했다.
+        #   `None`도 `""`도 아니기 때문이다. 그래서 화면이 조용히 빈칸이 됐다(T95 모양).
+        expected = (ANALYSIS_SCHEMA["properties"].get(key) or {}).get("type")
+        actual = payload[key]
+        if expected == "object" and not isinstance(actual, dict):
+            problems.append(f"type:{key} — object가 아니라 {type(actual).__name__}")
+        elif expected == "array" and not isinstance(actual, list):
+            problems.append(f"type:{key} — array가 아니라 {type(actual).__name__}")
+        elif expected == "string" and not isinstance(actual, str):
+            problems.append(f"type:{key} — string이 아니라 {type(actual).__name__}")
 
-    scenarios = payload.get("scenarios") or {}
+    # ★ 아래 검사들은 **검증기 자신이 터지지 않게** 타입을 먼저 좁힌다.
+    #   구조가 깨진 payload에서 `AttributeError`로 죽으면 배치가 그 종목을
+    #   '실패'로 처리하고 **무엇이 잘못됐는지는 영영 안 남는다.**
+    scenarios = payload.get("scenarios")
+    scenarios = scenarios if isinstance(scenarios, dict) else {}
     probs = []
     for name in ("bull", "base", "bear"):
-        node = scenarios.get(name) or {}
+        node = scenarios.get(name)
+        node = node if isinstance(node, dict) else {}
         if "probability" not in node:
             problems.append(f"missing:scenarios.{name}.probability")
         else:
@@ -494,12 +512,15 @@ def validate_payload(payload: dict) -> list[str]:
     if len(probs) == 3 and not (0.9 <= sum(probs) <= 1.1):
         problems.append(f"scenarios.probability_sum={sum(probs):.2f} (1.0 근처여야 한다)")
 
-    triggers = payload.get("triggers") or {}
+    triggers = payload.get("triggers")
+    triggers = triggers if isinstance(triggers, dict) else {}
     for window in ("within_3m", "within_6m"):
         if not triggers.get(window):
             problems.append(f"empty:triggers.{window}")
 
-    if "is_genuine" not in (payload.get("acceleration_quality") or {}):
+    quality = payload.get("acceleration_quality")
+    quality = quality if isinstance(quality, dict) else {}
+    if "is_genuine" not in quality:
         problems.append("missing:acceleration_quality.is_genuine")
 
     return problems
