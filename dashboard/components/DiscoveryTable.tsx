@@ -22,6 +22,8 @@ import {
   type ConsensusFilter,
   type DiscoveryFilters,
   type GateFilter,
+  type SortDir,
+  type SortKey,
 } from "@/lib/discoveryFilters";
 
 export interface DiscoveryRow {
@@ -53,6 +55,97 @@ export interface DiscoveryRow {
   ret5d: number | null;
   /** 발표일 기준 초과수익(%p). 키는 Horizon. */
   excess: Partial<Record<(typeof HORIZONS)[number], number | null>>;
+}
+
+/** 정렬 상태를 글로 알릴 때 쓰는 이름. 머리글 라벨과 **같은 말**이어야 한다. */
+const SORT_LABEL: Partial<Record<SortKey, string>> = {
+  score: "스코어",
+  revenueYoy: "매출 YoY",
+  opYoy: "영업익 YoY",
+  opmYoyDelta: "OPM YoY",
+  pri: "반영도",
+  ret5d: "최근 5일",
+  ...Object.fromEntries(
+    HORIZONS.map((d) => [
+      `d${d}`,
+      d < 0 ? `전 ${Math.abs(d)}일` : d === 0 ? "당일" : `후 ${d}일`,
+    ])
+  ),
+};
+
+/** 기본 정렬 — 최신 분기 → 스코어 → 영업익 YoY → 시총. 결측은 맨 뒤. */
+function byDefault(a: DiscoveryRow, b: DiscoveryRow): number {
+  return (
+    (b.quarterIndex - a.quarterIndex) ||
+    ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
+    ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
+    ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
+  );
+}
+
+/**
+ * 정렬 키 → 그 행의 값. **없으면 `null`이지 0이 아니다.**
+ *
+ * ★ 0으로 바꾸면 미측정 종목이 '0%'인 것처럼 다른 종목 사이에 끼어 앉는다.
+ *   이 프로젝트는 결측과 0을 반드시 구분한다(`False`와 `None`을 가르는 것과 같은 규칙).
+ */
+function sortValue(r: DiscoveryRow, key: SortKey): number | null {
+  switch (key) {
+    case "score": return r.score;
+    case "revenueYoy": return r.revenueYoy;
+    case "opYoy": return r.opYoy;
+    case "opmYoyDelta": return r.opmYoyDelta;
+    case "pri": return r.pri;
+    case "ret5d": return r.ret5d;
+    default: {
+      // `d-5`·`d0`·`d5`… — 실적 발표일 기준 초과수익
+      const day = Number(key.slice(1));
+      if (!Number.isFinite(day)) return null;
+      return r.excess[day as (typeof HORIZONS)[number]] ?? null;
+    }
+  }
+}
+
+/**
+ * 정렬 가능한 머리글 한 칸.
+ *
+ * ★ `<button>`이어야 한다. `<th onClick>`은 키보드로 닿지 않고 스크린리더가
+ *   누를 수 있는 것으로 읽지 않는다. `aria-sort`는 `<th>`에 붙인다.
+ */
+function SortableTh({
+  label, sortKey, active, dir, onSort, title, className = "", tone = "",
+}: {
+  label: string;
+  sortKey: SortKey;
+  active: boolean;
+  dir: SortDir;
+  onSort: (k: SortKey) => void;
+  title?: string;
+  className?: string;
+  tone?: string;
+}) {
+  const arrow = !active ? "↕" : dir === "desc" ? "▼" : "▲";
+  return (
+    <th
+      scope="col"
+      aria-sort={!active ? "none" : dir === "desc" ? "descending" : "ascending"}
+      className={`px-3 py-2 text-right font-medium ${tone} ${className}`}
+      title={title}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex w-full items-center justify-end gap-1 hover:text-white"
+        // ★ 지금 상태와 **다음에 무슨 일이 일어나는지**를 함께 읽어 준다.
+        aria-label={`${label} 기준 정렬${active ? (dir === "desc" ? " (내림차순)" : " (오름차순)") : ""}`}
+      >
+        <span>{label}</span>
+        <span className={active ? "text-sky-300" : "text-slate-500"} aria-hidden="true">
+          {arrow}
+        </span>
+      </button>
+    </th>
+  );
 }
 
 const GATE_LABEL: Record<GateFilter, string> = {
@@ -143,7 +236,20 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
     setFilters((f) => ({ ...f, ...next }));
   }
 
-  const { query, gate, grades, sectors, cap, consensus, quarter } = filters;
+  const { query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir } = filters;
+
+  /**
+   * 머리글 클릭. 같은 열을 다시 누르면 방향이 뒤집히고, **세 번째로 누르면
+   * 기본 정렬로 돌아온다** — 눌러서 바꾼 상태에서 빠져나올 길이 있어야 한다.
+   *
+   * ★ 새 열을 처음 누르면 **내림차순**이다. 이 표에서 궁금한 것은 거의 언제나
+   *   "가장 높은 종목"이므로, 오름차순으로 시작하면 매번 두 번씩 눌러야 한다.
+   */
+  function toggleSort(key: SortKey) {
+    if (sort !== key) return patch({ sort: key, sortDir: "desc" });
+    if (sortDir === "desc") return patch({ sortDir: "asc" });
+    return patch({ sort: "default", sortDir: "desc" });
+  }
 
   const sectorOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -194,18 +300,29 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
         }
         return true;
       })
-      // ★★ 정렬은 **필터와 무관하게 항상 같다**(사용자 지정 2026-08-22):
+      // ★★ 기본 정렬은 **필터와 무관하게 항상 같다**(사용자 지정 2026-08-22):
       //    ① 최신 분기 ② 스코어 높은 순 ③ 영업이익 증가율 높은 순 ④ 시총 큰 순
       //    등급으로 먼저 묶지 않는다 — 등급은 스코어×반영도의 파생값이라
       //    등급을 1순위로 두면 "스코어가 더 높은데 아래에 있는" 줄이 생긴다.
       //    결측은 항상 맨 뒤로 보낸다(−Infinity). 0으로 채우면 미측정이 '0%'로 섞인다.
-      .sort((a, b) =>
-        (b.quarterIndex - a.quarterIndex) ||
-        ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
-        ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
-        ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
-      );
-  }, [rows, query, gate, grades, sectors, cap, consensus, quarter]);
+      .sort((a, b) => {
+        if (sort !== "default") {
+          const av = sortValue(a, sort);
+          const bv = sortValue(b, sort);
+          // ★★ **결측은 방향과 무관하게 언제나 맨 뒤다**(사용자 지정 2026-08-26).
+          //   오름차순에서 부호만 뒤집으면 미측정 종목이 **맨 위로 올라온다** —
+          //   "가장 낮은 종목"을 찾으려고 누른 사람에게 **측정조차 안 된 종목**이
+          //   1등으로 보인다. 그건 답이 아니라 빈칸이다(T25·결측은 0이 아니다).
+          if (av == null && bv == null) return byDefault(a, b);
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          const diff = sortDir === "asc" ? av - bv : bv - av;
+          // 같은 값이면 기본 정렬로 갈라 **순서가 흔들리지 않게** 한다.
+          return diff || byDefault(a, b);
+        }
+        return byDefault(a, b);
+      });
+  }, [rows, query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir]);
 
   const shown = filtered.slice(0, MAX_ROWS);
   const select =
@@ -279,8 +396,23 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
         <span className="text-slate-300"> / 전체 {rows.length.toLocaleString("ko-KR")}</span>
+        {/* ★ 화면이 지금 무슨 순서인지 **글로도** 말한다. 화살표만으로는
+            스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
         <span className="ml-2 text-xs text-slate-300">
-          정렬: 최신 분기 → 스코어 → 영업이익 YoY → 시총
+          {sort === "default" ? (
+            "정렬: 최신 분기 → 스코어 → 영업이익 YoY → 시총"
+          ) : (
+            <>
+              정렬: <strong className="text-sky-300">{SORT_LABEL[sort] ?? sort}</strong>{" "}
+              {sortDir === "desc" ? "높은 순" : "낮은 순"}
+              <span className="text-slate-400"> · 미측정은 맨 뒤</span>
+              <button type="button"
+                      onClick={() => patch({ sort: "default", sortDir: "desc" })}
+                      className="ml-2 underline hover:text-white">
+                기본 정렬로
+              </button>
+            </>
+          )}
         </span>
       </p>
 
@@ -293,37 +425,39 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
               <th scope="col" className="px-3 py-2 text-left font-medium">종목명</th>
               <th scope="col" className="px-3 py-2 text-center font-medium">등급</th>
               <th scope="col" className="px-3 py-2 text-left font-medium">분기</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">스코어</th>
+              <SortableTh label="스코어" sortKey="score" active={sort === "score"}
+                          dir={sortDir} onSort={toggleSort} />
               {/* ★ 사용자 요청(2026-08-22): 게이트가 보는 성장률을 표에 직접 싣는다.
                   스코어만 있으면 "왜 이 점수인가"를 상세 화면에 들어가야 안다. */}
-              <th scope="col" className="px-3 py-2 text-right font-medium"
-                  title="평가 분기의 매출 성장률(전년 동기 대비) — G1이 보는 값">
-                매출 YoY
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-medium text-amber-200"
-                  title="평가 분기의 영업이익 성장률(전년 동기 대비) — G2가 보는 값이자 정렬 기준">
-                영업익 YoY
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-medium"
-                  title="영업이익률의 전년 동기 대비 변화(%p) — G4가 보는 값">
-                OPM YoY
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-medium"
-                  title="주가가 이 실적을 이미 아는 정도 — 낮을수록 아직 안 올랐다">
-                반영도
-              </th>
+              <SortableTh label="매출 YoY" sortKey="revenueYoy" active={sort === "revenueYoy"}
+                          dir={sortDir} onSort={toggleSort}
+                          title="평가 분기의 매출 성장률(전년 동기 대비) — G1이 보는 값" />
+              <SortableTh label="영업익 YoY" sortKey="opYoy" active={sort === "opYoy"}
+                          dir={sortDir} onSort={toggleSort} tone="text-amber-200"
+                          title="평가 분기의 영업이익 성장률(전년 동기 대비) — G2가 보는 값이자 기본 정렬 기준" />
+              <SortableTh label="OPM YoY" sortKey="opmYoyDelta" active={sort === "opmYoyDelta"}
+                          dir={sortDir} onSort={toggleSort}
+                          title="영업이익률의 전년 동기 대비 변화(%p) — G4가 보는 값" />
+              <SortableTh label="반영도" sortKey="pri" active={sort === "pri"}
+                          dir={sortDir} onSort={toggleSort}
+                          title="주가가 이 실적을 이미 아는 정도 — 낮을수록 아직 안 올랐다" />
               <th scope="col" className="px-3 py-2 text-right font-medium">시총</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium"
-                  title="최근 5거래일 주가 상승률">
-                최근 5일
-              </th>
+              <SortableTh label="최근 5일" sortKey="ret5d" active={sort === "ret5d"}
+                          dir={sortDir} onSort={toggleSort}
+                          title="최근 5거래일 주가 상승률" />
               {showTracking
                 ? HORIZONS.map((d) => (
-                    <th key={d} scope="col"
-                        className="bg-slate-800/80 px-3 py-2 text-right font-medium text-indigo-200"
-                        title={`실적 발표일 기준 ${horizonLabel(d)} 지수 대비 초과수익(영업일)`}>
-                      {d < 0 ? `전 ${Math.abs(d)}일` : d === 0 ? "당일" : `후 ${d}일`}
-                    </th>
+                    <SortableTh
+                      key={d}
+                      label={d < 0 ? `전 ${Math.abs(d)}일` : d === 0 ? "당일" : `후 ${d}일`}
+                      sortKey={`d${d}` as SortKey}
+                      active={sort === `d${d}`}
+                      dir={sortDir}
+                      onSort={toggleSort}
+                      tone="text-indigo-200"
+                      className="bg-slate-800/80"
+                      title={`실적 발표일 기준 ${horizonLabel(d)} 지수 대비 초과수익(영업일)`}
+                    />
                   ))
                 : <th scope="col" className="px-3 py-2 text-left font-medium">탈락 사유</th>}
             </tr>

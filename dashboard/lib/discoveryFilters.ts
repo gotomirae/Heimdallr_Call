@@ -16,6 +16,26 @@ export type GateFilter = "passed" | "failed" | "undecided" | "all";
 export type CapFilter = "all" | "large" | "mid" | "small";
 export type ConsensusFilter = "all" | "yes" | "no";
 
+/**
+ * 사용자가 머리글을 눌러 정렬할 수 있는 열.
+ *
+ * ★ `"default"`는 **"아무것도 안 눌렀다"**는 뜻이지 특정 열이 아니다.
+ *   기본 정렬(최신 분기 → 스코어 → 영업익 YoY → 시총)은 여러 열을 순서대로 보므로
+ *   단일 열로 표현할 수 없다. 눌러서 되돌아올 자리를 남기려면 별도 값이어야 한다.
+ * ★ `d-5`/`d0`/`d5`…는 실적 발표일 기준 초과수익(`HORIZONS`)이다.
+ */
+export type SortKey =
+  | "default"
+  | "score"
+  | "revenueYoy"
+  | "opYoy"
+  | "opmYoyDelta"
+  | "pri"
+  | "ret5d"
+  | `d${number}`;
+
+export type SortDir = "asc" | "desc";
+
 /** 발굴 목록의 화면 상태 전부. 여기 없는 값은 저장되지도 복원되지도 않는다. */
 export interface DiscoveryFilters {
   query: string;
@@ -27,6 +47,9 @@ export interface DiscoveryFilters {
   cap: CapFilter;
   consensus: ConsensusFilter;
   quarter: string;
+  /** 머리글 클릭 정렬. `"default"`면 고정 정렬(최신 분기 → 스코어 → 영업익 → 시총). */
+  sort: SortKey;
+  sortDir: SortDir;
 }
 
 export const DEFAULT_FILTERS: DiscoveryFilters = {
@@ -37,7 +60,18 @@ export const DEFAULT_FILTERS: DiscoveryFilters = {
   cap: "all",
   consensus: "all",
   quarter: "all",
+  sort: "default",
+  sortDir: "desc",
 };
+
+/** 정렬 가능한 열인지. **모르는 값은 받지 않는다** — URL로 아무 문자열이나 올 수 있다. */
+export function isSortKey(value: string | null): value is SortKey {
+  if (!value) return false;
+  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "ret5d"].includes(value)) {
+    return true;
+  }
+  return /^d-?\d+$/.test(value);
+}
 
 /** sessionStorage 키. **session**인 것이 중요하다 — 탭을 닫으면 초기화되는 게 맞다. */
 export const STORAGE_KEY = "heimdallr.discovery.filters.v1";
@@ -95,6 +129,11 @@ export function fromQuery(
   const quarter = p.get("quarter");
   if (quarter) { next.quarter = quarter; hadAny = true; }
 
+  const sort = p.get("sort");
+  if (isSortKey(sort)) { next.sort = sort; hadAny = true; }
+  const dir = oneOf(p.get("dir"), ["asc", "desc"] as SortDir[]);
+  if (dir) { next.sortDir = dir; hadAny = true; }
+
   return { filters: next, hadAny };
 }
 
@@ -112,6 +151,12 @@ export function toQuery(f: DiscoveryFilters): string {
   if (f.cap !== DEFAULT_FILTERS.cap) p.set("cap", f.cap);
   if (f.consensus !== DEFAULT_FILTERS.consensus) p.set("consensus", f.consensus);
   if (f.quarter !== DEFAULT_FILTERS.quarter) p.set("quarter", f.quarter);
+  // ★ 기본 정렬일 때는 방향도 넣지 않는다 — `dir`만 남으면 아무 효과 없는
+  //   파라미터가 주소에 붙어 "내가 뭘 걸어 뒀나"를 흐린다.
+  if (f.sort !== DEFAULT_FILTERS.sort) {
+    p.set("sort", f.sort);
+    p.set("dir", f.sortDir);
+  }
   return p.toString();
 }
 
@@ -138,6 +183,8 @@ export function loadStored(): DiscoveryFilters | null {
       cap: oneOf(parsed.cap ?? null, CAPS) ?? DEFAULT_FILTERS.cap,
       consensus: oneOf(parsed.consensus ?? null, CONSENSUS) ?? DEFAULT_FILTERS.consensus,
       quarter: typeof parsed.quarter === "string" ? parsed.quarter : DEFAULT_FILTERS.quarter,
+      sort: isSortKey(parsed.sort ?? null) ? (parsed.sort as SortKey) : DEFAULT_FILTERS.sort,
+      sortDir: oneOf(parsed.sortDir ?? null, ["asc", "desc"] as SortDir[]) ?? DEFAULT_FILTERS.sortDir,
     };
   } catch {
     return null;
