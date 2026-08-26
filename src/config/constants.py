@@ -110,12 +110,18 @@ DASHBOARD_URL_DEFAULT = "https://heimdallr-call.vercel.app"
 #   비용의 대부분이 출력이라(T69) 입력 증가분보다 출력 증가분이 훨씬 크다.
 #   → 게이트 통과 262종목 분기 비용도 $9.5 → **약 $16.5**로 다시 잡아야 한다.
 #   **일시 증액이 아니라 상시 값이다** — 다음 달에 되돌리지 마라.
-#   ($8 → $12 → $20 → $24. **종목 수와 건당 단가를 같이** 본다.)
+#
+# ★★ 2026-08-24 $24 → **$27** (사용자 지시: "발송등급 88종목 전부 채워줘").
+#   T101로 프롬프트를 상세화하면서 단가가 한 번 더 올랐다 —
+#   실측 43건 **평균 $0.0622** · 중앙 $0.0599 · 최대 $0.1336(꼬리가 길다).
+#   $24로는 88종목 중 40건에서 멈춘다. 남은 48건 × $0.0622 ≈ $3.0 →
+#   누적 $25.1 예상이고, 꼬리를 감안해 **$27**로 여유를 준다.
+#   ($8 → $12 → $20 → $24 → $27. **종목 수와 건당 단가를 같이** 본다.)
 #
 # ★ 이 값이 진짜 방어선이다. `DAILY_ANALYSIS_LIMIT`은 하루 배치 크기를 정할 뿐이다.
 # ★ env로 낮출 수 있다 — 워크플로가 `MONTHLY_COST_CEILING_USD`를 넘긴다.
 #   넘기지 않으면 저장소 변수를 만들어도 **에러 없이 무시된다**(T82).
-MONTHLY_COST_CEILING_USD = optional_env_int("MONTHLY_COST_CEILING_USD", 24)
+MONTHLY_COST_CEILING_USD = optional_env_int("MONTHLY_COST_CEILING_USD", 27)
 
 # 일 상한 — 하루에 몇 건까지 부를 것인가.
 #
@@ -126,8 +132,12 @@ MONTHLY_COST_CEILING_USD = optional_env_int("MONTHLY_COST_CEILING_USD", 24)
 #   상한 80은 "하루에 태울 수 있는 최대"이고 실제로는 시간 예산이 먼저 걸린다.
 #
 # ★ 이 값이 비용을 결정하지 않는다 — **월 실링이 결정한다.**
-#   상한 80 × $0.0344 = 하루 최대 $2.75이므로 실링($20)을 하루에 태울 수 없다.
-DAILY_ANALYSIS_LIMIT = optional_env_int("DAILY_ANALYSIS_LIMIT", 80)
+#   이 상한을 올려도 실링($27)을 넘을 수 없다. 둘을 헷갈리지 마라(T83).
+#
+# ★★ 2026-08-24 80 → **120**. 발송등급 88종목을 하루에 끝내려면 80으로는 모자랐다
+#   (41건 소진 후 50건이 남아 11건이 다음 날로 밀린다). 일 상한은 **배치 크기
+#   조절 장치**이지 비용 방어가 아니므로, 실링을 올린 마당에 여기서 막을 이유가 없다.
+DAILY_ANALYSIS_LIMIT = optional_env_int("DAILY_ANALYSIS_LIMIT", 120)
 
 # 단가 ($/MTok). 2026-08-13 Anthropic 공식 pricing 페이지 실측 확인.
 #   "The $2/$10 pricing for Claude Sonnet 5 ... is now the standard price.
