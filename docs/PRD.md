@@ -625,7 +625,7 @@ CREATE TABLE cost_log (
 ```
 MONTHLY_COST_CEILING_USD = 24     # 2026-08-24 개정 (20 → 24 · 발췌로 출력 +42%)
 DAILY_ANALYSIS_LIMIT     = 80     # 2026-08-17 개정 (20 → 80)
-max_tokens               = 12288  # 2026-08-17 개정 (8192 → 12288)
+max_tokens               = 16384  # 2026-08-24 개정 (12288 → 16384 · 출력 중앙 4,989)
 EXCERPT_BUDGET_CHARS = 2400       # 수집기 예산
 EXCERPT_MAX_CHARS = 2600          # 2026-08-24 개정 (2000 → 2600 · T100)
 LLM_INPUT_TOKEN_BUDGET = 16000    # 2026-08-24 개정 (14000 → 16000 · 실측 최대 13,768)

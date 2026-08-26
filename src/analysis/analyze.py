@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from src.config.constants import (
     ANALYSIS_MODEL,
@@ -515,6 +516,13 @@ def save(result: AnalysisResult) -> None:
             "model": result.model,
             "cost_usd": result.cost_usd,
             "payload": result.payload,
+            # ★★ **반드시 직접 넣는다.** DB 기본값은 INSERT에만 걸리므로 upsert로
+            #   덮어쓸 때는 `created_at`이 **처음 분석한 날짜에 머문다**(T102).
+            #   `--refresh-before`가 이 칸으로 "낡았는가"를 판정하는데, 값이 안
+            #   움직이면 **방금 다시 돌린 종목이 계속 다시 대상이 된다** —
+            #   배치가 끊겼다 재개될 때마다 상위 종목만 반복 결제한다.
+            #   즉 의미는 '생성일'이 아니라 **'마지막으로 분석한 시각'**이다.
+            "created_at": datetime.now(timezone.utc).isoformat(),
         },
         on_conflict="code,fiscal_year,fiscal_quarter",
     ).execute()

@@ -144,3 +144,51 @@ def test_every_narrative_field_has_its_evidence_in_the_input():
     }
     for field, marker in required_blocks.items():
         assert marker in message, f"{field}: 근거 블록 '{marker}'가 입력에 없다"
+
+
+# ── 재분석 판정: `created_at`은 '마지막으로 분석한 시각'이다 (T102) ─────────
+
+
+def test_save_stamps_the_time_it_actually_ran(monkeypatch):
+    """★★ upsert는 DB 기본값을 다시 걸지 않는다 — 직접 넣지 않으면 **처음 날짜에 머문다.**
+
+    `--refresh-before`가 이 칸으로 "낡았는가"를 판정하므로, 값이 안 움직이면
+    **방금 다시 돌린 종목이 계속 다시 대상이 된다** — 배치가 끊겼다 재개될
+    때마다 상위 종목만 반복 결제한다. 예산이 빠듯할수록 치명적이다.
+    """
+    from datetime import datetime, timezone
+
+    from src.analysis import analyze as mod
+
+    captured: list[dict] = []
+
+    class _Table:
+        def upsert(self, payload, **_kw):
+            captured.append(payload)
+            return self
+
+        def execute(self):
+            return None
+
+    monkeypatch.setattr(
+        mod, "get_client",
+        lambda: type("D", (), {"table": lambda s, n: _Table()})(),
+        raising=False,
+    )
+    import src.db.supabase_client as sc
+    monkeypatch.setattr(
+        sc, "get_client",
+        lambda: type("D", (), {"table": lambda s, n: _Table()})(),
+    )
+
+    mod.save(mod.AnalysisResult(
+        code="005930", fiscal_year=2026, fiscal_quarter=2, payload={"x": 1},
+        model="claude-sonnet-5", cost_usd=0.05,
+        input_tokens=1, cache_read_tokens=0, cache_write_tokens=0, output_tokens=1,
+    ))
+
+    stamped = captured[0]["created_at"]
+    assert stamped, "created_at을 안 넣었다 — 재분석 판정이 영영 낡은 값을 본다"
+    # 방금 찍힌 시각이어야 한다 (몇 초 이내)
+    delta = datetime.now(timezone.utc) - datetime.fromisoformat(stamped)
+    assert abs(delta.total_seconds()) < 60

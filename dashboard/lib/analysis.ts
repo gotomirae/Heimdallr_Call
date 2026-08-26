@@ -142,13 +142,36 @@ export interface AnalysisView {
  * ★ 이 필드는 2026-08-17에 추가됐다. **그 전에 저장된 행에는 없다** —
  *   없으면 전부 null을 주고 화면이 그 사실을 밝힌다(빈 문자열로 채우지 않는다).
  */
+/**
+ * 저장 구조가 깨진 분석에 붙이는 표시. 읽는 사람이 **투자 판단에 쓰지 않도록** 밝힌다.
+ */
+const CORRUPT_NOTICE =
+  "⚠ 이 분석은 저장 구조가 깨져 있습니다(모델이 객체 대신 문자열을 반환). " +
+  "아래 원문은 참고용이며 재분석 대기 중입니다 — 투자 판단에 쓰지 마십시오.";
+
+/**
+ * ★★ 객체가 아니라 **문자열로 저장된 행이 있다**(T95 실측 7건 · 2026 2Q).
+ *   지저분한 입력이 모델 출력 구조를 무너뜨린 흔적이다. `asRecord`가 null을 주면
+ *   cause/effect/outlook이 전부 null이 되어 **화면이 통째로 빈칸**이 됐다 —
+ *   본문은 멀쩡히 들어 있는데 읽는 쪽이 버린 것이다.
+ *   ★ 구조가 깨졌다고 **내용까지 버리지 않는다.** 문자열이면 원인 자리에 그대로 싣는다.
+ */
 function readEarningsChange(node: unknown): EarningsChange {
   const n = asRecord(node);
+  if (!n) {
+    const raw = asString(node);
+    // ★ 내용을 버리지도, **정상인 척 보여주지도** 않는다. 실측(동부건설)에서 이
+    //   문자열은 `{"cause":","` 로 시작하는 JSON 파편에 한국어까지 뭉개져 있었다 —
+    //   그대로 '원인'으로 내보내면 독자가 분석 결과로 읽는다. 깨졌다고 밝힌다.
+    return raw
+      ? { cause: `${CORRUPT_NOTICE}\n\n${raw}`, effect: null, outlook: null, confidence: null }
+      : { cause: null, effect: null, outlook: null, confidence: null };
+  }
   return {
-    cause: n ? asString(n.cause) : null,
-    effect: n ? asString(n.effect) : null,
-    outlook: n ? asString(n.outlook) : null,
-    confidence: n ? (asString(n.confidence) as EarningsChange["confidence"]) : null,
+    cause: asString(n.cause),
+    effect: asString(n.effect),
+    outlook: asString(n.outlook),
+    confidence: asString(n.confidence) as EarningsChange["confidence"],
   };
 }
 
@@ -206,13 +229,17 @@ function readStrings(node: unknown, key: string): string[] {
     .filter((v): v is string => v !== null);
 }
 
+/** `readEarningsChange`와 같은 이유 — 문자열로 온 행의 내용을 버리지 않는다(T95). */
 function readGrowthEngine(node: unknown): GrowthEngine {
   const n = asRecord(node);
-  const nature = n ? asString(n.structural_or_temporary) : null;
+  if (!n) {
+    return { drivers: [], nature: null, evidence: asString(node) };
+  }
+  const nature = asString(n.structural_or_temporary);
   return {
-    drivers: n ? readStrings(n, "drivers") : [],
+    drivers: readStrings(n, "drivers"),
     nature: nature === "structural" || nature === "temporary" ? nature : null,
-    evidence: n ? asString(n.evidence) : null,
+    evidence: asString(n.evidence),
   };
 }
 
