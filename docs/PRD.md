@@ -623,8 +623,8 @@ CREATE TABLE cost_log (
 ### 7.3 가드레일
 
 ```
-MONTHLY_COST_CEILING_USD = 27     # 2026-08-24 개정 (24 → 27 · 발송등급 88종목 완주)
-DAILY_ANALYSIS_LIMIT     = 120    # 2026-08-24 개정 (80 → 120 · 88종목 당일 완주)
+MONTHLY_COST_CEILING_USD = 27     # 2026-08-26 개정 (24 → 27 · 발송등급 88종목 완주)
+DAILY_ANALYSIS_LIMIT     = 120    # 2026-08-26 개정 (80 → 120 · 88종목 당일 완주)
 max_tokens               = 16384  # 2026-08-24 개정 (12288 → 16384 · 출력 중앙 4,989)
 EXCERPT_BUDGET_CHARS = 2400       # 수집기 예산
 EXCERPT_MAX_CHARS = 2600          # 2026-08-24 개정 (2000 → 2600 · T100)
