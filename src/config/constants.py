@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from src.utils.env import optional_env, optional_env_int
+from src.utils.env import optional_env, optional_env_float, optional_env_int
 
 # ═══ 유니버스 ═══
 MARKET_CAP_FLOOR_KRW = 100_000_000_000  # 1,000억원
@@ -155,6 +155,16 @@ HAIKU_CACHE_READ_PER_MTOK = 0.10
 # ═══ LLM 호출 ═══
 ANALYSIS_MODEL = "claude-sonnet-5"  # PRD §5.1 L6 — 해석 전용
 FALLBACK_MODEL = "claude-haiku-4-5"  # PRD §5.1 L2' — 잠정실적 규칙 파서 실패 시만
+# Provider 전환은 코드 수정이 아니라 명시적 설정으로 한다. 기본값은 현재 운영 중인
+# Anthropic을 보존한다. OpenAI는 동일 replay 검증 뒤 이 값만 바꿔 Primary로 전환한다.
+ANALYSIS_LLM_PROVIDER = optional_env("ANALYSIS_LLM_PROVIDER", "anthropic").lower()
+OPENAI_ANALYSIS_MODEL = optional_env("OPENAI_ANALYSIS_MODEL")
+# OpenAI 단가는 모델마다 다르고 바뀔 수 있다. 추측한 기본값을 두지 않는다.
+# 네 값이 모두 없으면 OpenAI 호출 **전에** UnknownModelError로 차단한다.
+OPENAI_INPUT_PER_MTOK = optional_env_float("OPENAI_INPUT_PER_MTOK")
+OPENAI_OUTPUT_PER_MTOK = optional_env_float("OPENAI_OUTPUT_PER_MTOK")
+OPENAI_CACHE_WRITE_PER_MTOK = optional_env_float("OPENAI_CACHE_WRITE_PER_MTOK")
+OPENAI_CACHE_READ_PER_MTOK = optional_env_float("OPENAI_CACHE_READ_PER_MTOK")
 # 출력 상한. `stop_reason == "max_tokens"`이면 **저장하지 않고 명시적 실패** 처리한다
 # (잘린 JSON을 저장하면 화면이 조용히 반쪽 분석을 보여준다).
 # ★ 실측(2026-08-17, 78건): 출력 중앙 2,928토큰 · 상한에 닿은 것 2건(3%).

@@ -2,13 +2,15 @@
 
 KOSPI/KOSDAQ 시가총액 1,000억원 이상 약 1,300종목을 대상으로,
 **분기실적이 실제로 가속되고 있으면서 그 사실이 아직 주가에 반영되지 않은 종목**을
-매 분기 자동 발굴해 텔레그램(🛡️ @Invest_EarningCallBot)과 전용 대시보드로 전달한다.
+매 분기 자동 발굴해 전용 텔레그램 봇(🛡️ 아이언맨의 Heimdallr)과 대시보드로 전달한다.
 
 - 설계 문서: [`docs/PRD.md`](docs/PRD.md) — **구현 전에 해당 절을 읽는다**
 - 함정 목록: [`docs/traps.md`](docs/traps.md) — **새 모듈 만들기 전 필독**
-- Phase 프롬프트: [`docs/phases.md`](docs/phases.md) · 작업 지침: [`CLAUDE.md`](CLAUDE.md)
+- 현재 작업 지침: [`AGENTS.md`](AGENTS.md) · 과거 Phase 기록: [`docs/phases.md`](docs/phases.md)
 
-현재 상태: **P8 텔레그램 완료** (유니버스 1,322 · 분기재무 9,743 · 스크리닝 1,111 · 공시 639 · 컨센서스 207 · 시세 1,112 · 분석 1 · 알림 1 · P9 대시보드 대기)
+현재 상태: **P0~P11 및 대시보드 운영 구현 완료**. 2026-08-27에 기존 UI와 분석 payload를
+유지한 채 Anthropic/OpenAI Provider Adapter를 추가했다. 운영 기본 Provider는 동일 replay와
+canary 검증 전까지 Anthropic이다.
 
 ---
 
@@ -106,6 +108,7 @@ src/
   finance/                P2 quarterize.py ★급소 · P2.5 파생지표
   screener/               P3 순수 함수 (외부 I/O 금지)
   analysis/               P7 LLM 해석 · cost guard
+  llm/                    Provider 중립 계약 · Anthropic/OpenAI Adapter
   notify/                 P8 텔레그램 (발송 전용)
   universe/               P1 유니버스
 tests/

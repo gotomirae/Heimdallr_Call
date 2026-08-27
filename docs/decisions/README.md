@@ -15,5 +15,6 @@
 | 6 | 모든 테이블의 앵커는 `code` — watchlist 개념 없음 | PRD §6 |
 | 7 | QoQ를 점수에 쓰지 않는다 (TTM 추세로 대체) | PRD §2 검토 ② |
 | 8 | Supabase는 HermesCall과 분리된 신규 프로젝트 | PRD §6 · traps.md T16 |
+| 9 | LLM Provider SDK를 분석 도메인에서 분리하고 자동 폴백하지 않는다 | [`009-provider-neutral-llm-layer.md`](009-provider-neutral-llm-layer.md) |
 
 새 ADR을 쓸 때는 **무엇을 / 왜 / 되돌리면 무엇이 무너지는가**를 반드시 포함한다.

@@ -100,6 +100,17 @@ def optional_env_int(name: str, default: int) -> int:
         raise DirtyEnvError(f"{name}는 정수여야 한다: {value!r}") from exc
 
 
+def optional_env_float(name: str, default: float | None = None) -> float | None:
+    """선택 실수 설정. 단가를 잘못 읽으면 비용 가드가 조용히 틀리므로 즉시 실패한다."""
+    value = optional_env(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise DirtyEnvError(f"{name}는 실수여야 한다: {value!r}") from exc
+
+
 def optional_env_bool(name: str, default: bool) -> bool:
     """'true'/'1'/'yes'/'on' → True, 'false'/'0'/'no'/'off' → False.
 

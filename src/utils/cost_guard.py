@@ -29,11 +29,17 @@ from src.config.constants import (
     HAIKU_INPUT_PER_MTOK,
     HAIKU_OUTPUT_PER_MTOK,
     MONTHLY_COST_CEILING_USD,
+    OPENAI_ANALYSIS_MODEL,
+    OPENAI_CACHE_READ_PER_MTOK,
+    OPENAI_CACHE_WRITE_PER_MTOK,
+    OPENAI_INPUT_PER_MTOK,
+    OPENAI_OUTPUT_PER_MTOK,
     SONNET_CACHE_READ_PER_MTOK,
     SONNET_CACHE_WRITE_PER_MTOK,
     SONNET_INPUT_PER_MTOK,
     SONNET_OUTPUT_PER_MTOK,
 )
+from src.llm.provider import NormalizedUsage
 
 ENV_PROD = "prod"
 ENV_DEV = "dev"
@@ -63,6 +69,22 @@ _RATES: dict[str, PricingRates] = {
         output=HAIKU_OUTPUT_PER_MTOK,
     ),
 }
+
+if OPENAI_ANALYSIS_MODEL and all(
+    rate is not None
+    for rate in (
+        OPENAI_INPUT_PER_MTOK,
+        OPENAI_OUTPUT_PER_MTOK,
+        OPENAI_CACHE_WRITE_PER_MTOK,
+        OPENAI_CACHE_READ_PER_MTOK,
+    )
+):
+    _RATES[OPENAI_ANALYSIS_MODEL] = PricingRates(
+        input=OPENAI_INPUT_PER_MTOK,
+        cache_write=OPENAI_CACHE_WRITE_PER_MTOK,
+        cache_read=OPENAI_CACHE_READ_PER_MTOK,
+        output=OPENAI_OUTPUT_PER_MTOK,
+    )
 
 
 class UnknownModelError(ValueError):
@@ -155,14 +177,14 @@ def check_budget(*, env: str = ENV_PROD, now: datetime | None = None) -> BudgetS
     return BudgetStatus(spent, MONTHLY_COST_CEILING_USD, count, DAILY_ANALYSIS_LIMIT, True)
 
 
-def record_usage(model: str, usage, *, env: str = ENV_PROD) -> float:
-    """Anthropic 응답의 usage로 비용을 계산해 `cost_log`에 기록하고 비용을 돌려준다."""
+def record_usage(model: str, usage: NormalizedUsage, *, env: str = ENV_PROD) -> float:
+    """Provider 중립 usage로 비용을 계산해 `cost_log`에 기록한다."""
     from src.db.supabase_client import get_client
 
-    input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-    cache_write = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
-    cache_read = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
-    output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    input_tokens = usage.input_tokens
+    cache_write = usage.cache_write_tokens
+    cache_read = usage.cache_read_tokens
+    output_tokens = usage.output_tokens
 
     cost = compute_cost_usd(
         model,

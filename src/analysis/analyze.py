@@ -4,7 +4,7 @@
 비용 설계가 이 모듈의 전부다:
 
 1. **공시 원문 전체를 넣지 않는다.** 숫자는 이미 DB에 정확히 있다.
-   입력은 PRD §7.1의 구조화 블록 + 발췌 2,000자, 총 5,000토큰 이내.
+   입력은 PRD §7.1의 구조화 블록 + 제한된 발췌이며, 길이는 `constants.py`가 정한다.
 2. **시스템 프롬프트에 `cache_control: ephemeral`.** 종목마다 바뀌는 내용을
    시스템 프롬프트에 넣으면 캐시가 통째로 깨진다(ADR 4).
 3. **`stop_reason == "max_tokens"`는 명시적 실패.** 잘린 JSON을 저장하면
@@ -29,8 +29,9 @@ from src.config.constants import (
     WEB_SEARCH_MAX_USES,
 )
 from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME, SYSTEM_PROMPT
-from src.utils.cost_guard import ENV_PROD, check_budget, record_usage
-from src.utils.env import require_env
+from src.llm.provider import LLMRequest, StructuredLLMProvider
+from src.llm.registry import resolve_provider
+from src.utils.cost_guard import ENV_PROD, check_budget, get_pricing, record_usage
 
 # ★ `EXCERPT_MAX_CHARS`는 `constants.py`에서 온다 — 여기서 다시 정의하지 마라(T100).
 #   수집기 예산(2,400)보다 작게 두면 저장해 둔 발췌를 **말없이 버린다.**
@@ -272,62 +273,46 @@ def build_user_message(data: AnalysisInput) -> str:
     return "\n".join(parts)
 
 
-def _client():
-    import anthropic
-
-    return anthropic.Anthropic(api_key=require_env("ANTHROPIC_API_KEY"))
-
-
-def count_input_tokens(data: AnalysisInput, *, web_search: bool = False) -> int:
-    """호출 전 입력 토큰을 센다. 5,000토큰을 넘으면 호출하지 않는다(PRD §7.1).
-
-    ★ 웹 서치가 **가져올** 본문은 여기에 안 잡힌다 — 검색 결과는 호출 중에 붙는다.
-      예산은 '보내는 입력'만 재는 것이고, 검색분은 실제 사용량에 나타난다.
-    """
-    client = _client()
-    resp = client.messages.count_tokens(
-        model=ANALYSIS_MODEL,
-        system=[{"type": "text", "text": SYSTEM_PROMPT}],
-        messages=[{"role": "user", "content": build_user_message(data)}],
-        tools=_tools(web_search=web_search),
+def _llm_request(
+    data: AnalysisInput,
+    *,
+    model: str,
+    web_search: bool,
+    user_message: str | None = None,
+) -> LLMRequest:
+    """Canonical 분석 요청. Provider별 SDK 옵션은 Adapter가 책임진다."""
+    return LLMRequest(
+        model=model,
+        system_prompt=SYSTEM_PROMPT,
+        user_message=user_message if user_message is not None else build_user_message(data),
+        schema_name=ANALYSIS_TOOL_NAME,
+        schema=ANALYSIS_SCHEMA,
+        max_output_tokens=LLM_MAX_TOKENS,
+        effort=LLM_EFFORT,
+        web_search=web_search,
+        web_search_allowed_domains=tuple(WEB_SEARCH_ALLOWED_DOMAINS),
+        web_search_max_uses=WEB_SEARCH_MAX_USES,
+        # 종목별 값은 넣지 않는다. 고정 프롬프트 캐시를 종목마다 깨지 않기 위해서다.
+        prompt_cache_key="heimdallr-analysis-v1",
     )
-    return int(resp.input_tokens)
 
 
-def _tool_definition() -> dict:
-    return {
-        "name": ANALYSIS_TOOL_NAME,
-        "description": "분석 결과를 구조화해 기록한다. 반드시 이 도구로만 응답한다.",
-        "input_schema": ANALYSIS_SCHEMA,
-        "strict": True,  # 스키마를 정확히 지키도록 강제한다
-    }
-
-
-def _web_search_tool() -> dict:
-    """Anthropic 서버 툴. **출처를 화이트리스트로 묶는다.**
-
-    ★ `allowed_domains`가 없으면 종목 토론방·블로그가 섞여 분석이 오염된다 —
-      모델은 출처의 신빙성을 스스로 가리지 못한다.
-    ★ 서버 툴 오류는 **예외로 오지 않는다.** HTTP 200에 오류 블록으로 온다
-      (`web_search_tool_result.content`가 리스트가 아니라 오류 객체).
-      그래서 여기서 잡을 것이 없고, 결과가 없으면 모델이 그냥 못 쓴다.
-    """
-    return {
-        "type": "web_search_20260209",
-        "name": "web_search",
-        "max_uses": WEB_SEARCH_MAX_USES,
-        "allowed_domains": list(WEB_SEARCH_ALLOWED_DOMAINS),
-    }
-
-
-def _tools(*, web_search: bool) -> list[dict]:
-    """★ 도구 목록은 캐시 프리픽스의 **맨 앞**이다(tools → system → messages).
-    종목마다 목록이 달라지면 캐시가 통째로 깨진다 — 그래서 **실행 내내 고정**한다.
-    """
-    tools = [_tool_definition()]
-    if web_search:
-        tools.append(_web_search_tool())
-    return tools
+def count_input_tokens(
+    data: AnalysisInput,
+    *,
+    web_search: bool = False,
+    provider: StructuredLLMProvider | None = None,
+    provider_name: str | None = None,
+    model: str | None = None,
+) -> int:
+    """Provider의 공식 token-count 경로로 생성 호출 전에 입력 크기를 잰다."""
+    if provider is None:
+        provider, selected_model = resolve_provider(provider_name, model)
+    else:
+        selected_model = model or ANALYSIS_MODEL
+    return provider.count_input_tokens(
+        _llm_request(data, model=selected_model, web_search=web_search)
+    )
 
 
 def analyze(
@@ -337,6 +322,9 @@ def analyze(
     enforce_budget: bool = True,
     token_budget: int = LLM_INPUT_TOKEN_BUDGET,
     web_search: bool | None = None,
+    provider: StructuredLLMProvider | None = None,
+    provider_name: str | None = None,
+    model: str | None = None,
 ) -> AnalysisResult:
     """웹 서치를 쓸지는 `ENABLE_WEB_SEARCH`가 정한다(인자로 덮어쓸 수 있다)."""
     if web_search is None:
@@ -349,67 +337,57 @@ def analyze(
                 f"${status.month_ceiling_usd} · 오늘 {status.today_count}/{status.daily_limit}"
             )
 
+    if provider is None:
+        provider, selected_model = resolve_provider(provider_name, model)
+    else:
+        selected_model = model or ANALYSIS_MODEL
+
+    # 단가가 없는 모델은 유료 호출 전에 차단한다. 임의의 가격으로 비용 실링을
+    # 계산하면 가드가 있어도 없는 것과 같다.
+    get_pricing(selected_model)
     user_message = build_user_message(data)
-    client = _client()
+    request = _llm_request(
+        data,
+        model=selected_model,
+        web_search=web_search,
+        user_message=user_message,
+    )
 
     # ★★ 예산을 **실제로 검사한다.** 이 파라미터는 오래 선언만 돼 있고 아무 데서도
     #   쓰이지 않았다 — PRD가 "초과 시 호출하지 않는다"고 적어 둔 규칙이
     #   코드에는 없었다. 발췌를 싣기 시작했으므로 이제 진짜 방어가 필요하다.
     # ★ count_tokens는 무료이고 1초쯤 걸린다. 45초짜리 호출 앞에 붙일 만하다.
     if token_budget:
-        tokens = count_input_tokens(data, web_search=web_search)
+        tokens = provider.count_input_tokens(request)
         if tokens > token_budget:
             raise AnalysisError(
                 f"{data.code}: 입력 {tokens:,}토큰이 상한 {token_budget:,}을 넘었다. "
                 f"공시 발췌가 너무 길다 — 호출하지 않는다(비용 0)."
             )
 
-    response = client.messages.create(
-        model=ANALYSIS_MODEL,
-        max_tokens=LLM_MAX_TOKENS,
-        # ★ 시스템 프롬프트만 캐시한다. 유저 메시지는 종목마다 바뀌므로 캐시 밖이다.
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        # ★ 사고가 출력 자리를 먹지 않도록 effort를 낮게 고정한다(constants 참조).
-        thinking={"type": "adaptive"},
-        output_config={"effort": LLM_EFFORT},
-        tools=_tools(web_search=web_search),
-        # ★★ **강제 tool_choice와 웹 서치는 함께 못 쓴다.**
-        #   `{"type": "tool", ...}`는 모델에게 "지금 당장 이 도구를 불러라"라고 시키는
-        #   것이라 검색할 틈이 없다 — 도구를 목록에 넣어 둬도 **한 번도 안 불린다.**
-        #   그래서 검색을 켜면 `auto`로 풀고, 대신 시스템 프롬프트가
-        #   "반드시 record_analysis로 끝내라"고 못박는다.
-        #   ★ 그 대가로 모델이 도구를 안 부르고 글만 쓸 수 있다 — 아래에서 잡아 올린다.
-        tool_choice=(
-            {"type": "auto"} if web_search
-            else {"type": "tool", "name": ANALYSIS_TOOL_NAME}
-        ),
-        messages=[{"role": "user", "content": user_message}],
-    )
-
-    cost = record_usage(ANALYSIS_MODEL, response.usage, env=env)
+    response = provider.generate_structured(request)
+    cost = record_usage(selected_model, response.usage, env=env)
 
     # ★ 잘린 응답을 저장하지 않는다 (PRD §7.3).
-    if response.stop_reason == "max_tokens":
+    if response.stop_reason in ("max_tokens", "max_output_tokens"):
         raise AnalysisError(
             f"{data.code}: max_tokens({LLM_MAX_TOKENS})에 걸려 잘렸다. "
             f"비용 ${cost:.4f}는 이미 발생했다(cost_log 기록됨). 저장하지 않는다."
         )
     if response.stop_reason == "refusal":
         raise AnalysisError(f"{data.code}: 모델이 응답을 거부했다 (stop_reason=refusal)")
+    if response.stop_reason and (
+        response.stop_reason.startswith("error:")
+        or response.stop_reason in {"failed", "cancelled", "incomplete", "in_progress", "queued"}
+    ):
+        raise AnalysisError(f"{data.code}: 모델 응답 실패 (status={response.stop_reason})")
 
-    payload = next(
-        (b.input for b in response.content
-         if getattr(b, "type", None) == "tool_use" and b.name == ANALYSIS_TOOL_NAME),
-        None,
-    )
+    payload = response.payload
     if payload is None:
-        raise AnalysisError(f"{data.code}: tool_use 블록이 없다 (stop_reason={response.stop_reason})")
+        detail = f" · {response.parse_error}" if response.parse_error else ""
+        raise AnalysisError(
+            f"{data.code}: 구조화 payload가 없다 (stop_reason={response.stop_reason}){detail}"
+        )
 
     # ★ 저장 전에 태그 누출을 걷어낸다(T61). 스키마 검증은 이걸 못 잡는다 —
     #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
@@ -421,12 +399,12 @@ def analyze(
         fiscal_year=data.fiscal_year,
         fiscal_quarter=data.fiscal_quarter,
         payload=payload,
-        model=ANALYSIS_MODEL,
+        model=response.model,
         cost_usd=cost,
-        input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
-        cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
-        cache_write_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
-        output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+        input_tokens=usage.input_tokens,
+        cache_read_tokens=usage.cache_read_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
+        output_tokens=usage.output_tokens,
     )
 
 

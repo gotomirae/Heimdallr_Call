@@ -305,7 +305,7 @@ score_norm = raw_sum / (100 - sum(미측정축_배점)) * 100
 | L3 컨센서스 | FnGuide/네이버 **사전 스냅샷** | 주 1회(시즌 전~중) | ✗ | $0 |
 | L4 시세 | **한국투자증권 KIS Open API** (1차) / 네이버 시세 API (폴백) + 지수 | 1일 1회 | ✗ | $0 |
 | L5 스크리닝 | 순수 함수 (게이트·스코어·PRI·매트릭스) | 이벤트 시 | ✗ | **$0** |
-| L6 해석 | Anthropic Sonnet 5, **구조화 입력만** | ★○ 종목만 | ✓ | ~$0.042/종목 |
+| L6 해석 | Provider Adapter(OpenAI Responses / Anthropic), **구조화 입력만** | ★○ 종목만 | ✓ | Provider·모델별 실측 |
 | L7 결과 추적 | 네이버 시세 (D+1/5/20/60) | 1일 1회 | ✗ | $0 |
 
 **설계 원칙 3개**
@@ -579,7 +579,7 @@ CREATE TABLE cost_log (
 
 > **공시 원문 전체를 넣지 마라.** 숫자는 이미 우리가 정확히 갖고 있다. LLM에게 숫자를 다시 읽히면 비용과 오류가 함께 늘어난다. LLM의 역할은 **"이 숫자 패턴이 무엇을 의미하고, 다음 1~4개 분기에 무엇이 숫자로 확인되어야 하는가"**다.
 
-### 7.2 출력 스키마 (tool-forced JSON)
+### 7.2 출력 스키마 (Provider 강제 Structured JSON)
 
 ```jsonc
 {
@@ -619,6 +619,11 @@ CREATE TABLE cost_log (
 ```
 
 > 사용자의 15단 분석 프레임 중 **정량 부분(분기 실적·경쟁사 비교·밸류에이션)은 DB에서 이미 계산되어 대시보드에 그대로 표시**되고, LLM은 정성 해석(투자 아이디어·트리거·주가 위치·시나리오·리스크)만 담당한다. 비용과 신뢰도를 동시에 잡는 방법이다.
+
+**Provider 경계(ADR 9)** — Canonical 스키마와 화면 payload는 Provider와 무관하다.
+OpenAI는 Responses API Structured Outputs, Anthropic은 tool use로 같은 계약을 만든다.
+현재 운영 기본값은 Anthropic이며, OpenAI는 동일 replay와 승인된 canary 뒤 Primary로
+전환한다. 모델명·단가가 없으면 호출 전에 차단하고 Provider 실패를 조용히 폴백하지 않는다.
 
 ### 7.3 가드레일
 

@@ -22,6 +22,7 @@ dependencies = [
     "supabase>=2.15",
     "python-dotenv>=1.0",
     "anthropic>=0.40",
+    "openai>=3.5,<4",
     "tzdata>=2024.1",       # Windows에 IANA tz DB가 없어 ZoneInfo("Asia/Seoul")가 죽는다
 ]
 
