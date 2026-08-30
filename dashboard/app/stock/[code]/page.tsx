@@ -10,6 +10,7 @@ import { type TimelineItem } from "@/components/TriggerTimeline";
 import AnalysisSection from "@/components/AnalysisSection";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
+import { deriveOrderDisclosureSignal } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { dartReportUrl, naverDisclosureUrl, naverStockUrl } from "@/lib/links";
 import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
@@ -19,6 +20,7 @@ import {
   getAnnualConsensus,
   getConsensus,
   getDisclosures,
+  getDisclosureExcerpt,
   getFundamentals,
   getLatestAnalysis,
   getLatestPrice,
@@ -75,11 +77,19 @@ export default async function StockPage({ params }: { params: { code: string } }
   const year = screen?.fiscal_year ?? latestFund?.fiscal_year ?? null;
   const quarter = screen?.fiscal_quarter ?? latestFund?.fiscal_quarter ?? null;
 
-  const [consensus, analysisPayload, annualConsensus] = await Promise.all([
+  const [consensus, analysisPayload, annualConsensus, disclosureExcerpt] = await Promise.all([
     year && quarter ? getConsensus(code, year, quarter) : Promise.resolve(null),
     year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
     year ? getAnnualConsensus(code, year) : Promise.resolve(null),
+    year && quarter ? getDisclosureExcerpt(code, year, quarter) : Promise.resolve(null),
   ]);
+
+  // ★ 한 분기 발췌이므로 변화율을 만들지 않는다. 평가 분기와 같은 원문만
+  //   "다음 보고서에서 다시 볼 확인 포인트"로 쓴다(T99/T100).
+  const orderSignal =
+    year && quarter
+      ? deriveOrderDisclosureSignal(disclosureExcerpt, year, quarter)
+      : null;
 
   // ★★ 평가 분기의 분석이 없으면 **가장 최근 분석으로 물러선다.**
   //   분석은 게이트 통과 상위만 돌리므로(비용 설계), 새 실적이 들어와 평가 분기가
@@ -385,6 +395,38 @@ export default async function StockPage({ params }: { params: { code: string } }
           }}
         />
       </Card>
+
+      {/* 공시에서 실제 수주 언어가 잡힌 종목에만 보인다. 목록 QoQ 컬럼이 아니다. */}
+      {orderSignal && (
+        <Card title="수주 확인 포인트" note={orderSignal.sourceLabel}>
+          <div className="rounded-lg border border-sky-800/70 bg-sky-950/25 p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded border border-sky-600/70 bg-sky-900/30 px-2 py-0.5 text-xs font-semibold text-sky-100">
+                다음 정기보고서에서 재확인
+              </span>
+              {orderSignal.status === "limited" && (
+                <span className="rounded border border-amber-600/70 bg-amber-900/30 px-2 py-0.5 text-xs text-amber-200">
+                  비공개·판정 제한
+                </span>
+              )}
+              {orderSignal.truncated && (
+                <span className="rounded border border-amber-600/70 bg-amber-900/30 px-2 py-0.5 text-xs text-amber-200">
+                  발췌 잘림
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-slate-100">
+              <Emphasized text={orderSignal.evidence} />
+            </p>
+            <Note>
+              이 문장은 <strong className="text-slate-100">같은 분기 DART 발췌</strong>에서
+              찾은 확인 신호다. 발췌가 한 분기뿐이라 <strong className="text-amber-200">QoQ나
+              증가 판정이 아니며</strong>, 다음 보고서에서 수주잔고·신규 계약이 실제로
+              이어지는지 원문으로 대조한다.
+            </Note>
+          </div>
+        </Card>
+      )}
 
       {/* 6. 컨센서스 대비 */}
       <Card title="컨센서스 대비">

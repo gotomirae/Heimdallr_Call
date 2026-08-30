@@ -10,6 +10,7 @@ import type {
   ScreenRow,
   UniverseRow,
 } from "./types";
+import type { DisclosureExcerptRow } from "./orderSignals";
 
 // ★ 배열 — `sector`는 마이그레이션 전까지 없어서 통째 조회가 42703으로 죽는다(T18).
 const UNIVERSE_COLUMNS = [
@@ -245,6 +246,28 @@ export async function getDisclosures(
     .limit(limit);
   if (error) return [];
   return (data as unknown as DisclosureRow[]) ?? [];
+}
+
+/** 종목 상세용 정기보고서 발췌 — 평가 분기와 정확히 같은 행만 읽는다(T99). */
+export async function getDisclosureExcerpt(
+  code: string,
+  year: number,
+  quarter: number
+): Promise<DisclosureExcerptRow | null> {
+  try {
+    const { data, error } = await supabase
+      .from("disclosure_excerpts")
+      .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
+      .eq("code", code)
+      .eq("fiscal_year", year)
+      .eq("fiscal_quarter", quarter)
+      .order("fetched_at", { ascending: false })
+      .limit(1);
+    if (error) return null;
+    return ((data as unknown as DisclosureExcerptRow[]) ?? [])[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
