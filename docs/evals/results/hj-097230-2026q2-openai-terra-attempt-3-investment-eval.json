@@ -1,0 +1,82 @@
+{
+  "suite": "hj-097230-2026q2-openai-canary",
+  "synthetic": false,
+  "comparison_ready": false,
+  "provider_average_scores": {
+    "openai": 92.14
+  },
+  "winner": null,
+  "criteria": {
+    "weights": {
+      "schema": 25,
+      "factual_grounding": 25,
+      "evidence_coverage": 20,
+      "trigger_timing": 15,
+      "actionability": 15
+    },
+    "min_score": 80.0,
+    "min_evidence_coverage": 0.75,
+    "min_dimension_evidence_coverage": 0.5,
+    "canary_max_cost_usd": 0.15
+  },
+  "casebook_coverage": {
+    "ready": false,
+    "case_count": 1,
+    "minimum_case_count": 4,
+    "industry_count": 1,
+    "minimum_industry_count": 3,
+    "industries": ["토목 건설업"],
+    "grades": ["★"],
+    "consensus_states": [false],
+    "turnaround_states": [false],
+    "grade_consensus_cells": ["★/false"],
+    "missing_grade_consensus_cells": ["○/false", "○/true", "★/true"],
+    "missing_turnaround_states": [true],
+    "missing_investment_dimensions": [],
+    "cases_missing_investment_dimensions": {},
+    "invalid_cases": []
+  },
+  "cases": [
+    {
+      "case_id": "hj-097230-2026q2",
+      "source": "Heimdallr Supabase read-only replay b9a984ab25a68c1c1f22832a5db89c7418f13f5092d4d13ff260f4b86b7b6f3c",
+      "candidate_count": 1,
+      "results": [
+        {
+          "case_id": "hj-097230-2026q2",
+          "candidate_id": "openai-terra-attempt-3",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "score": 92.14,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 20.0,
+            "evidence_coverage": 17.14,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.8571,
+          "evidence_coverage_by_dimension": {
+            "improvement": 1.0,
+            "sustainability": 0.6667,
+            "price_reflection": 0.6667,
+            "catalyst": 1.0,
+            "risk": 1.0
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": ["267억"],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": ["ttm_opm", "price_peak_to_current"],
+          "cost_usd": 0.092068,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "31e049a73506bd132b912651a81319a578702cdbec3c5c9e76ff59518407d05f"
+        }
+      ]
+    }
+  ]
+}

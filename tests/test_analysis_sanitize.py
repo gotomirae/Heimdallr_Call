@@ -111,3 +111,27 @@ def test_correct_payload_has_no_type_complaints():
     """정상 payload에 타입 불평이 붙으면 안 된다 — 검사기가 과하면 신호가 죽는다."""
     problems = validate_payload(_payload_with())
     assert not [p for p in problems if p.startswith("type:")], problems
+
+
+def test_nested_wrong_types_are_caught_before_storage():
+    """Strict JSON도 내부 값을 잘못된 형태로 만들 수 있다는 실 canary 회귀(T125)."""
+    payload = _payload_with()
+    payload["growth_engine"]["drivers"] = "물량 증가"
+    payload["scenarios"]["bull"] = "조건 문자열"
+
+    problems = validate_payload(payload)
+
+    assert any("growth_engine.drivers" in p and "expected array" in p for p in problems)
+    assert any("scenarios.bull" in p and "expected object" in p for p in problems)
+
+
+def test_placeholder_filler_is_caught_recursively():
+    """형식만 맞춘 placeholder가 운영 분석으로 저장되면 조용히 빈 화면이 된다(T125)."""
+    payload = _payload_with()
+    payload["earnings_change"]["cause"] = "placeholder"
+    payload["price_position"]["reason"] = "  PLACEHOLDER  "
+
+    problems = validate_payload(payload)
+
+    assert "placeholder:$.earnings_change.cause" in problems
+    assert "placeholder:$.price_position.reason" in problems

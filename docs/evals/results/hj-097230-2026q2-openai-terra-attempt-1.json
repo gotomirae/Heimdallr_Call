@@ -1,0 +1,31 @@
+{
+  "record_kind": "manual-attempt-record",
+  "date": "2026-08-28",
+  "input_path": "docs/evals/replays/hj-097230-2026q2.json",
+  "model": "gpt-5.6-terra",
+  "status": "provider_error",
+  "requests": {
+    "input_token_count": 1,
+    "generation": 1,
+    "automatic_retries": 0
+  },
+  "preflight": {
+    "passed": true,
+    "counted_input_tokens": null,
+    "worst_case_cost_usd": null,
+    "note": "T108 수정 전이라 성공한 token-count 수치가 생성 예외 전에 파일로 보존되지 않았다. 복구 목적으로 재호출하지 않는다."
+  },
+  "generation": {
+    "http_status": 429,
+    "error_type": "insufficient_quota",
+    "error_code": "credit_balance_exhausted",
+    "response_id": null,
+    "usage": null,
+    "cost_usd": null
+  },
+  "external_writes": {
+    "supabase": 0,
+    "telegram": 0,
+    "dart": 0
+  }
+}

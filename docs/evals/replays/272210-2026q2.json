@@ -1,0 +1,341 @@
+{
+  "synthetic": false,
+  "source": "Heimdallr Supabase read-only casebook Stage B export",
+  "input": {
+    "code": "272210",
+    "name": "한화시스템",
+    "board": "KOSPI",
+    "industry": "전자부품 제조업",
+    "products": "정밀기기(육해공군관련전자제어시스템,열영상감시장비,탐지추적장치,전투지휘체계시스템) 제조",
+    "market_cap_krw": 14206738052800,
+    "listed_at": "2019-11-13",
+    "fiscal_year": 2026,
+    "fiscal_quarter": 2,
+    "is_estimate": true,
+    "quarters": [
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 3,
+        "revenue": 639172022980,
+        "op": 56998701226,
+        "np": 8144570457,
+        "revenue_yoy": null,
+        "op_yoy": null,
+        "opm": 8.91758387049796,
+        "opm_yoy_delta": null,
+        "ttm_revenue": null,
+        "ttm_op": null,
+        "ttm_opm": null,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 4,
+        "revenue": 932831627060,
+        "op": 43244934840,
+        "np": 359874875509,
+        "revenue_yoy": null,
+        "op_yoy": null,
+        "opm": 4.635877856789098,
+        "opm_yoy_delta": null,
+        "ttm_revenue": 2803686058274.0,
+        "ttm_op": 219345297682.0,
+        "ttm_opm": 7.823461440509247,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 1,
+        "revenue": 690100705524,
+        "op": 58164352303,
+        "np": 40969845433,
+        "revenue_yoy": 26.77197867454812,
+        "op_yoy": 48.13519250133089,
+        "opm": 8.428386152544977,
+        "opm_yoy_delta": 1.2154938509287438,
+        "ttm_revenue": 2949423007123.0,
+        "ttm_op": 238245278487.0,
+        "ttm_opm": 8.077691057255134,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 2,
+        "revenue": 768190548880,
+        "op": 33451471776,
+        "np": 47009425828,
+        "revenue_yoy": 11.766288771236393,
+        "op_yoy": -58.10044187802652,
+        "opm": 4.354579970395535,
+        "opm_yoy_delta": -7.261180774189278,
+        "ttm_revenue": 3030294904444.0,
+        "ttm_op": 191859460145.0,
+        "ttm_opm": 6.331379162590199,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 3,
+        "revenue": 807736584417,
+        "op": 22520994537,
+        "np": 151796401220,
+        "revenue_yoy": 26.372330980806158,
+        "op_yoy": -60.48858298068197,
+        "opm": 2.7881607657098977,
+        "opm_yoy_delta": -6.129423104788063,
+        "ttm_revenue": 3198859465881.0,
+        "ttm_op": 157381753456.0,
+        "ttm_opm": 4.919933342950262,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 4,
+        "revenue": 1398122729199,
+        "op": 5761906739,
+        "np": -30630397063,
+        "revenue_yoy": 49.87943039682898,
+        "op_yoy": -86.67611187224996,
+        "opm": 0.41211737844366925,
+        "opm_yoy_delta": -4.223760478345429,
+        "ttm_revenue": 3664150568020.0,
+        "ttm_op": 119898725355.0,
+        "ttm_opm": 3.2722106564466253,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 1,
+        "revenue": 807099186689,
+        "op": 34284490078,
+        "np": -95751914040,
+        "revenue_yoy": 16.953827206445464,
+        "op_yoy": -41.055837947959624,
+        "opm": 4.247865769589836,
+        "opm_yoy_delta": -4.180520382955141,
+        "ttm_revenue": 3781149049185.0,
+        "ttm_op": 96018863130.0,
+        "ttm_opm": 2.539409631331412,
+        "op_status_label": null,
+        "is_estimate": false
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "revenue": 1117552000000,
+        "op": 103670000000,
+        "np": 52743000000,
+        "revenue_yoy": 45.47848858975928,
+        "op_yoy": 209.91162569528194,
+        "opm": 9.276525835039443,
+        "opm_yoy_delta": 4.9219458646439085,
+        "ttm_revenue": 4130510500305.0,
+        "ttm_op": 166237391354.0,
+        "ttm_opm": 4.024620960090161,
+        "op_status_label": null,
+        "is_estimate": true
+      }
+    ],
+    "gate": {
+      "passed": true,
+      "base_effect_warning": false,
+      "turnaround": false,
+      "detail": {
+        "op_yoy_delta_pp": 250.96746364324156,
+        "opm_yoy_delta_pp": 4.9219458646439085,
+        "rev_yoy_delta_pp": 28.524661383313816
+      },
+      "base_effect_checks": {
+        "rev_2y_accel": true,
+        "ttm_revenue_high": true,
+        "quarter_revenue_high": false
+      },
+      "sector_caveat": false
+    },
+    "score": {
+      "score_flash": 88.37941699915993,
+      "score_a": 29.0,
+      "score_b": 28.471121939311146,
+      "has_consensus": true,
+      "grade": "★",
+      "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨"
+    },
+    "consensus": {
+      "code": "272210",
+      "fiscal_year": 2026,
+      "fiscal_quarter": 2,
+      "revenue_est": 945000000000,
+      "op_est": 58800000000,
+      "n_estimates": 15,
+      "snapshot_at": "2026-08-16T09:13:26.811496+00:00"
+    },
+    "price": {
+      "code": "272210",
+      "snap_date": "2026-08-28",
+      "close": 75000.0,
+      "chg_pct": -3.72,
+      "high_52w": 184000.0,
+      "low_52w": 44750.0,
+      "pos_52w": 0.21723518850987433,
+      "per": 58.5,
+      "pbr": 2.89,
+      "market_cap_krw": 14169000000000,
+      "rel_ret_3m": -14.358361987272772,
+      "per_pctile_3y": null
+    },
+    "valuation": {
+      "market_cap_krw": 14169000000000,
+      "ttm_np": 78157090117.0,
+      "per_trailing_4q": 181.28873501801587,
+      "per_trailing_reason": null,
+      "per_forward": 48.78832712741359,
+      "per_forward_basis": "2026년 컨센 1,022억 기준",
+      "pbr": 2.89
+    },
+    "pri": {
+      "parts": {
+        "p1": 0.0,
+        "p2": 5.430879712746858,
+        "p3": null,
+        "p4": null
+      },
+      "raw_sum": 5.430879712746858,
+      "excluded": [
+        "p3",
+        "p4"
+      ],
+      "denominator": 65,
+      "pri": 8.355199558072089
+    },
+    "excerpt": "[출처: 2026년 2분기 정기보고서]\n\n### 매출 및 수주상황\n가. 사업부문별 매출 (단위 : 백만원)\n사업부문 | 매출유형 | 제27기 2분기 | 제26기 2분기 | 제26기 | 제25기\n방산 | 상 품 | - | - | - | -\n제 품 | 1,171,350 | 899,847 | 2,438,092 | 2,098,440\n용 역 | - | - | - | -\n기 타 | 438 | 689 | 758 | 404\n소 계 | 1,171,788 | 900,536 | 2,438,850 | 2,098,844\nICT | 상 품 | 31,419 | 29,524 | 57,494 | 103,300\n제 품 | - | - | - | -\n용 역 | 328,174 | 258,994 | 595,142 | 591,489\n기 타 | - | - | - | -\n소 계 | 359,593 | 288,518 | 652,636 | 694,789\n기타 | 상 품 | - | - | - | -\n제 품 | 392,581 | 265,092 | 565,458 | -\n용 역 | 2,860 | 4,942 | 10,030 | 10,502\n기 타 | - | - | - | -\n소 계 | 395,441 | 270,034 | 575,488 | 10,502\n합계(연결조정 전) | 1,926,822 | 1,459,088 | 3,666,974 | 2,804,135\n합계(연결조정 후) | 1,924,651 | 1,458,291 | 3,664,151 | 2,803,686 …(이하 2,640자 생략)\n\n### 원재료 및 생산설비\n가. 주요 원재료 (단위 : 백만원)\n사업부문 | 해당 회사 | 원재료명 | 매입액 | 주요 매입처 | 주요 매입처와회사의 특수관계 여부 | 공급시장 독과점 정도 및공급의 안정성 관련 특이사항\n2026년 상반기 | 2025년 | 2024년\n방산 | 한화시스템(주) | 송수신모듈(4채널)피아식별기용 신호처리기전술용 컴퓨터헤드 광학 센서정비장비 | 753,727 | 1,592,561 | 1,395,860 | (주)브로던(주)빅텍(주)서울스탠다드Leorardo SpA(주)제노코 | 특수관계 없음 | 특이사항 없음\n기타 | Hanwha Philly Shipyard Inc. | 강재, 기자재, 의장재 등 | 199,813 (주2) | 264,408 (주1) | - | DSEC Cleveland Cliffs Kongsberg Maritime Cummins | 특수관계 없음 | 특이사항 없음\n※ ICT부문은 IT서비스 용역의 제공이 주된 매출로 프로젝트 내의 상품 매입액의 비중을 별도로 산정할 수 없습니다.\n주1) | 2025.12.31 매매기준율(1,434.90원/USD)을 적용하여 원화 환산한 금액입니다.\n주2) | 2026.06.30 매매기준율(1,541.50원/USD)을 적용하여 원화 환산한 금액입니다.\n나. 생산 및 설비 (1) 생산능력, 생산실적 및 가동률 (단위 : 백만원, MH)\n사업부문 | 해당회사 | 품 목 | 사업소 | 구분  …(이하 4,587자 생략)\n\n### 주요 제품 및 서비스\n(단위 : 백만원)\n사업부문 | 회사 | 매출유형 | 품목 | 구체적용도 | 매출액 | 비중\n방산 | 한화시스템 | 제품용역기타매출등 | 지상무기체계,해양무기체계,항공우주체계,종합군수지원 | 군수장비 | 1,171,788 | 60.9%\nICT | 한화시스템 | 상품용역 | 전산시스템 설계 및 구축,전산시스템 위탁운영,IT 융합 엔지니어링 서비스 등 | IT 서비스 | 359,593 | 18.7%\n기타 | H FOUNDATION PTE. LTD. Hanwha Systems USA Corporation 바닐라스튜디오 주식회사 Hanwh …(이하 3,332자 생략)\n\n### 주요계약 및 연구개발활동\n가. 경영상의 주요계약 등 공시서류작성기준일 현재 해당사항 없습니다. 나. 연구개발활동 (1) 연구개발 활동의 개요 [방산부문] 전자광학, 레이다, 지휘통제ㆍ통신, 해양시스템, 항공전자 및 위성 분야에서 주요 연구개발을 진행하고 있으며, 각 분야별 핵심 기술을 확보하여 고품질 첨단복합 무기체계 연구개발을 수행하고 있습니다.당사 방산부문의 연구개발인력 중 석/박사 인원의 구성은 약 43%를 차지하고 있습니다. 이는 고학력 우수인력의 채용을 통해 최첨단 무기체계 연구개발을 지속하기 위함입니다. 방산부문 연구개발 인력 현황 (단위 : 명, %)\n구분 | 인원수 | 구성비\n박사 | 156 | 6.5\n석사 | 874 | 36.3\n학사 | 1,217 | 50.6\n기타 | 160 | 6.6\n합계 | 2,407 | 100\n방산부문 연구개발 담당 조직 역할 연구개발 담당조직 | 역할\n전자광학연구소 | 탐지/대응체계, 유/무인기 탑재장비, 무인기체계, 항공기성능개량 등 연구개발\n레이다연구소 | 다기능레이다, 근거리방어용레이다, 특수레이다 등 연구개발\n통신연구소 | C4I체계(지휘통제, 교전통제, 통합관제), 통신체계(데이터링크, 전술통신) 등 연구개발\n지상연구소 | 기동전투체계, 유무인복합전투체계, 워리어플랫폼 등 연구개발\n레이저사업센터 | 레이저대공무기, 레이저폭발물제거장비, 레이저발진기, 레이저포발사장치 등 연구개발\n해양연구소 | 함정전투체계, 해 …(이하 3,920자 생략)",
+    "peers": [],
+    "quarter_prices": [
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 4,
+        "close": 54400.0,
+        "trade_date": "2025-12-30"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 1,
+        "close": 114100.0,
+        "trade_date": "2026-03-31"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "close": 73000.0,
+        "trade_date": "2026-06-30"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 3,
+        "close": 75100.0,
+        "trade_date": "2026-08-28"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2023,
+        "fiscal_quarter": 3,
+        "close": 12270.0,
+        "trade_date": "2023-09-27"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2023,
+        "fiscal_quarter": 4,
+        "close": 17360.0,
+        "trade_date": "2023-12-28"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 1,
+        "close": 17170.0,
+        "trade_date": "2024-03-29"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 2,
+        "close": 18860.0,
+        "trade_date": "2024-06-28"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 3,
+        "close": 17880.0,
+        "trade_date": "2024-09-30"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2024,
+        "fiscal_quarter": 4,
+        "close": 22600.0,
+        "trade_date": "2024-12-30"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 1,
+        "close": 32100.0,
+        "trade_date": "2025-03-31"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 2,
+        "close": 58000.0,
+        "trade_date": "2025-06-30"
+      },
+      {
+        "code": "272210",
+        "fiscal_year": 2025,
+        "fiscal_quarter": 3,
+        "close": 59500.0,
+        "trade_date": "2025-09-30"
+      }
+    ],
+    "disclosures": [
+      {
+        "code": "272210",
+        "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)",
+        "disclosed_at": "2026-07-28T00:00:00+00:00",
+        "doc_type": "provisional"
+      },
+      {
+        "code": "272210",
+        "report_nm": "[기재정정]반기보고서 (2026.06)",
+        "disclosed_at": "2026-08-20T00:00:00+00:00",
+        "doc_type": "periodic"
+      },
+      {
+        "code": "272210",
+        "report_nm": "반기보고서 (2026.06)",
+        "disclosed_at": "2026-08-13T00:00:00+00:00",
+        "doc_type": "periodic"
+      }
+    ],
+    "as_of": "2026-08-28"
+  }
+}

@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from src.config.constants import (
     ANALYSIS_MODEL,
@@ -28,8 +29,25 @@ from src.config.constants import (
     WEB_SEARCH_ALLOWED_DOMAINS,
     WEB_SEARCH_MAX_USES,
 )
-from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME, SYSTEM_PROMPT
-from src.llm.provider import LLMRequest, StructuredLLMProvider
+from src.analysis.prompts import (
+    ANALYSIS_SCHEMA,
+    ANALYSIS_TOOL_NAME,
+    FACT_REFERENCE_INSTRUCTIONS,
+    SYSTEM_PROMPT,
+)
+from src.analysis.schema_validation import schema_problems
+from src.analysis.numeric_grounding import (
+    annotate_factual_numbers,
+    resolve_factual_references,
+    unsupported_factual_numbers,
+)
+from src.finance.narrative_changes import (
+    AmountChange,
+    PeriodComparison,
+    calculate_narrative_changes,
+)
+from src.finance.price_history import canonicalize_price_history
+from src.llm.provider import LLMRequest, LLMResponse, StructuredLLMProvider
 from src.llm.registry import resolve_provider
 from src.utils.cost_guard import ENV_PROD, check_budget, get_pricing, record_usage
 
@@ -122,6 +140,53 @@ def _fmt_quarters(quarters: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _fmt_amount_change(label: str, change: AmountChange) -> str:
+    """원 단위 계산값을 억원 한 자리로 표시한다.
+
+    세 숫자는 각각 표시 반올림되므로 모델이 표시값끼리 다시 빼지 않게 입력에 밝힌다.
+    """
+    if change.current_krw is None or change.base_krw is None or change.delta_krw is None:
+        return f"  · {label}: 계산 불가 (대상 또는 정확한 비교 분기 값이 없음)"
+    eok = Decimal("100000000")
+    status = f" · 상태 {change.status_label}" if change.status_label else ""
+    return (
+        f"  · {label}: {change.base_krw / eok:,.1f}억 → "
+        f"{change.current_krw / eok:,.1f}억 · "
+        f"증감 {change.delta_krw / eok:+,.1f}억{status}"
+    )
+
+
+def _fmt_period_comparison(comparison: PeriodComparison) -> list[str]:
+    by, bq = comparison.base_period
+    cy, cq = comparison.current_period
+    lines = [
+        f"- {comparison.kind} ({by}.{bq}Q → {cy}.{cq}Q)",
+        _fmt_amount_change("매출", comparison.revenue),
+        _fmt_amount_change("영업이익", comparison.op),
+    ]
+    if comparison.opm_delta_pp is None:
+        lines.append("  · 영업이익률 변화: 계산 불가 (대상 또는 정확한 비교 분기 값이 없음)")
+    else:
+        lines.append(f"  · 영업이익률 변화: {comparison.opm_delta_pp:+.1f}%p")
+    return lines
+
+
+def _fmt_narrative_changes(data: AnalysisInput) -> str:
+    """모델이 직접 뺄셈하지 않도록 검증된 절대 증감액을 제공한다(T110)."""
+    if data.fiscal_year is None or data.fiscal_quarter is None:
+        return "- 계산 불가 — 대상 분기가 없다. 가까운 분기로 대체하지 마라."
+    changes = calculate_narrative_changes(
+        data.quarters, data.fiscal_year, data.fiscal_quarter
+    )
+    lines = [
+        "※ 원 단위로 계산한 뒤 억원 단위로 표시 반올림했다. "
+        "아래 증감액을 그대로 쓰고 표시값끼리 다시 빼지 마라."
+    ]
+    lines.extend(_fmt_period_comparison(changes.yoy))
+    lines.extend(_fmt_period_comparison(changes.qoq))
+    return "\n".join(lines)
+
+
 def _fmt_valuation(v: dict) -> str:
     """밸류에이션 두 배수를 **라벨과 함께** 준다.
 
@@ -166,7 +231,7 @@ def _fmt_valuation(v: dict) -> str:
 DISCLOSURE_MAX_ROWS = 12
 
 
-def _fmt_quarter_prices(rows: list[dict]) -> str:
+def _fmt_quarter_prices(rows: list[dict], price_snapshot: dict | None = None) -> str:
     """분기말 종가 시계열 + 분기별 등락률.
 
     ★★ 이게 없으면 `price_position.price_history`를 쓰라고 시켜 놓고 **주가 궤적을
@@ -174,11 +239,18 @@ def _fmt_quarter_prices(rows: list[dict]) -> str:
       지어내거나 침묵한다 — 숫자만 주고 사건을 쓰라는 T93과 같은 모양이다.
     ★ 등락률을 **여기서 계산해 준다.** 모델에게 산수를 시키면 틀린 값이 본문에 인용된다.
     """
-    if not rows:
+    canonical = canonicalize_price_history(rows, price_snapshot)
+    if not canonical:
         return "- 분기말 주가: (없음)"
-    ordered = sorted(rows, key=lambda r: (r.get("fiscal_year") or 0,
-                                          r.get("fiscal_quarter") or 0))
-    out = ["- 분기말 종가 추이 (마지막 행은 현재가):"]
+    ordered = sorted(canonical, key=lambda r: (r.get("fiscal_year") or 0,
+                                               r.get("fiscal_quarter") or 0))
+    has_current = bool(ordered[-1].get("is_current"))
+    label = (
+        "마지막 행은 시세 스냅샷 기준 현재가"
+        if has_current
+        else "현재가 스냅샷 없음; 마지막 행은 최신 수집 종가"
+    )
+    out = [f"- 분기말 종가 추이 ({label}):"]
     prev = None
     for r in ordered:
         close = r.get("close")
@@ -212,6 +284,30 @@ def _fmt_disclosures(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
+def _fmt_trigger_month_limits(as_of: str | None) -> str:
+    """기준월에서 3개월·6개월 뒤를 결정론적으로 계산한다.
+
+    ``expected_date``는 월 단위인데 이 달력 계산을 모델에 맡기면 6개월 창에 7개월 뒤
+    날짜를 넣어도 구조화 응답 자체는 정상이라 조용히 통과한다(T109).
+    """
+    try:
+        current = datetime.fromisoformat((as_of or "")[:10])
+    except ValueError:
+        return "※ 트리거 월 상한: 계산 불가 — 기준일이 없으므로 날짜를 추측하지 마라."
+
+    def month_after(offset: int) -> str:
+        month_index = current.year * 12 + current.month - 1 + offset
+        year, zero_based_month = divmod(month_index, 12)
+        return f"{year:04d}-{zero_based_month + 1:02d}"
+
+    return (
+        "※ 트리거 월 상한(달력 계산 완료): "
+        f"within_3m expected_date는 {month_after(3)} 이하 · "
+        f"within_6m expected_date는 {month_after(6)} 이하. "
+        "이 범위를 다시 계산하거나 넘기지 마라."
+    )
+
+
 def build_user_message(data: AnalysisInput) -> str:
     """PRD §7.1의 7개 블록. **공시 원문 전체를 넣지 않는다.**"""
     cap = (
@@ -222,6 +318,7 @@ def build_user_message(data: AnalysisInput) -> str:
         #   트리거 시점(`expected_date`)을 학습 시점 기준으로 잡는다(T101).
         f"※ 데이터 기준일: {data.as_of or '—'} — "
         "이 날짜 이후의 사건은 입력에 없다. 모르는 것은 모른다고 써라.",
+        _fmt_trigger_month_limits(data.as_of),
         "",
         "## 1. 기본정보",
         f"- {data.name} ({data.code} · {data.board})",
@@ -233,6 +330,9 @@ def build_user_message(data: AnalysisInput) -> str:
         "",
         "## 2. 분기 실적 (최근 8분기)",
         _fmt_quarters(data.quarters),
+        "",
+        "## 2-1. 결정론적 절대 증감",
+        _fmt_narrative_changes(data),
         "",
         "## 3. 판정 결과",
         f"- 게이트: {json.dumps(data.gate, ensure_ascii=False)}",
@@ -259,7 +359,7 @@ def build_user_message(data: AnalysisInput) -> str:
         f"- 시세: {json.dumps(price_for_llm, ensure_ascii=False)}",
         _fmt_valuation(data.valuation),
         f"- 주가반영도(PRI) 분해: {json.dumps(data.pri, ensure_ascii=False)}",
-        _fmt_quarter_prices(data.quarter_prices),
+        _fmt_quarter_prices(data.quarter_prices, data.price),
         "",
         "## 6. 공시 발췌",
         (data.excerpt or "(발췌 없음)")[:EXCERPT_MAX_CHARS],
@@ -273,21 +373,34 @@ def build_user_message(data: AnalysisInput) -> str:
     return "\n".join(parts)
 
 
-def _llm_request(
+def build_llm_request(
     data: AnalysisInput,
     *,
     model: str,
     web_search: bool,
     user_message: str | None = None,
+    max_output_tokens: int = LLM_MAX_TOKENS,
+    factual_references: bool = False,
 ) -> LLMRequest:
     """Canonical 분석 요청. Provider별 SDK 옵션은 Adapter가 책임진다."""
+    raw_user_message = (
+        user_message if user_message is not None else build_user_message(data)
+    )
     return LLMRequest(
         model=model,
-        system_prompt=SYSTEM_PROMPT,
-        user_message=user_message if user_message is not None else build_user_message(data),
+        system_prompt=(
+            SYSTEM_PROMPT + FACT_REFERENCE_INSTRUCTIONS
+            if factual_references
+            else SYSTEM_PROMPT
+        ),
+        user_message=(
+            annotate_factual_numbers(raw_user_message)
+            if factual_references
+            else raw_user_message
+        ),
         schema_name=ANALYSIS_TOOL_NAME,
         schema=ANALYSIS_SCHEMA,
-        max_output_tokens=LLM_MAX_TOKENS,
+        max_output_tokens=max_output_tokens,
         effort=LLM_EFFORT,
         web_search=web_search,
         web_search_allowed_domains=tuple(WEB_SEARCH_ALLOWED_DOMAINS),
@@ -311,7 +424,7 @@ def count_input_tokens(
     else:
         selected_model = model or ANALYSIS_MODEL
     return provider.count_input_tokens(
-        _llm_request(data, model=selected_model, web_search=web_search)
+        build_llm_request(data, model=selected_model, web_search=web_search)
     )
 
 
@@ -346,7 +459,7 @@ def analyze(
     # 계산하면 가드가 있어도 없는 것과 같다.
     get_pricing(selected_model)
     user_message = build_user_message(data)
-    request = _llm_request(
+    request = build_llm_request(
         data,
         model=selected_model,
         web_search=web_search,
@@ -367,12 +480,30 @@ def analyze(
 
     response = provider.generate_structured(request)
     cost = record_usage(selected_model, response.usage, env=env)
+    return analysis_result_from_response(
+        data,
+        response,
+        cost_usd=cost,
+        max_output_tokens=request.max_output_tokens,
+        request_user_message=request.user_message,
+    )
+
+
+def analysis_result_from_response(
+    data: AnalysisInput,
+    response: LLMResponse,
+    *,
+    cost_usd: float,
+    max_output_tokens: int,
+    request_user_message: str,
+) -> AnalysisResult:
+    """Provider 응답을 저장 가능한 Canonical 결과로 검증·정규화한다."""
 
     # ★ 잘린 응답을 저장하지 않는다 (PRD §7.3).
     if response.stop_reason in ("max_tokens", "max_output_tokens"):
         raise AnalysisError(
-            f"{data.code}: max_tokens({LLM_MAX_TOKENS})에 걸려 잘렸다. "
-            f"비용 ${cost:.4f}는 이미 발생했다(cost_log 기록됨). 저장하지 않는다."
+            f"{data.code}: max_tokens({max_output_tokens})에 걸려 잘렸다. "
+            f"비용 ${cost_usd:.4f}는 이미 발생했다. 저장하지 않는다."
         )
     if response.stop_reason == "refusal":
         raise AnalysisError(f"{data.code}: 모델이 응답을 거부했다 (stop_reason=refusal)")
@@ -393,6 +524,27 @@ def analyze(
     #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
     payload = sanitize_payload(payload)
 
+    # ★ schema가 정상이어도 모델이 공시 숫자를 다른 단위로 환산하면 재무 숫자를
+    # 생성한 것이다(T114). 실제 요청에 같은 단위로 없는 사실 숫자는 저장하지 않는다.
+    try:
+        payload = resolve_factual_references(
+            payload,
+            user_message=request_user_message,
+        )
+    except ValueError as exc:
+        raise AnalysisError(f"{data.code}: {exc} — 저장하지 않는다") from exc
+
+    unsupported = unsupported_factual_numbers(
+        data,
+        payload,
+        user_message=request_user_message,
+    )
+    if unsupported:
+        raise AnalysisError(
+            f"{data.code}: 입력에 없는 사실 숫자: {', '.join(unsupported)} — "
+            "LLM 계산·단위 환산 결과는 저장하지 않는다"
+        )
+
     usage = response.usage
     return AnalysisResult(
         code=data.code,
@@ -400,7 +552,7 @@ def analyze(
         fiscal_quarter=data.fiscal_quarter,
         payload=payload,
         model=response.model,
-        cost_usd=cost,
+        cost_usd=cost_usd,
         input_tokens=usage.input_tokens,
         cache_read_tokens=usage.cache_read_tokens,
         cache_write_tokens=usage.cache_write_tokens,
@@ -456,7 +608,9 @@ def sanitize_payload(payload):
 
 def validate_payload(payload: dict) -> list[str]:
     """저장 전 필드 단위 검증 (T18). 상위 객체만 보면 대시보드가 나중에 500을 낸다."""
-    problems: list[str] = []
+    # SC: strict Provider 응답도 형식만 맞춘 placeholder를 낼 수 있으므로 저장 경계에서
+    # Canonical schema 전체와 명백한 filler를 같은 순수 검증기로 다시 검사한다(T125).
+    problems: list[str] = schema_problems(payload)
     for key in ANALYSIS_SCHEMA["required"]:
         if key not in payload or payload[key] in (None, "", [], {}):
             problems.append(f"missing:{key}")

@@ -1,0 +1,69 @@
+{
+  "status": "completed",
+  "stage": "casebook_candidate_metadata",
+  "project_ref": "drpxciqkbjlruximqbox",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "external_reads": {
+    "http_gets": 2,
+    "table_pages": {
+      "screen_results": 1,
+      "krx_universe": 1
+    },
+    "screen_rows": 81,
+    "universe_rows": 81
+  },
+  "external_writes": 0,
+  "candidate_pool_by_cell": {
+    "○/false": 42,
+    "○/true": 13,
+    "★/false": 21,
+    "★/true": 5
+  },
+  "selected": [
+    {
+      "code": "290650",
+      "cell": "○/false",
+      "grade": "○",
+      "has_consensus": false,
+      "turnaround": true,
+      "industry": "의약품 제조업",
+      "score_flash": 67.62793061922066,
+      "pri": 20.309282842025205
+    },
+    {
+      "code": "004000",
+      "cell": "○/true",
+      "grade": "○",
+      "has_consensus": true,
+      "turnaround": false,
+      "industry": "기초 화학물질 제조업",
+      "score_flash": 97.5609756097561,
+      "pri": 48.37156900484037
+    },
+    {
+      "code": "272210",
+      "cell": "★/true",
+      "grade": "★",
+      "has_consensus": true,
+      "turnaround": false,
+      "industry": "전자부품 제조업",
+      "score_flash": 88.37941699915993,
+      "pri": 8.355199558072089
+    }
+  ],
+  "not_selected_by_cell": {
+    "○/false": 41,
+    "○/true": 12,
+    "★/false": 21,
+    "★/true": 4
+  },
+  "coverage": {
+    "ready": true,
+    "missing_cells": [],
+    "industry_count": 4,
+    "turnaround_states": [false, true]
+  },
+  "stage_b_executed": false,
+  "provider_calls": 0
+}

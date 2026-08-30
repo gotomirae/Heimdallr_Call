@@ -1,0 +1,2133 @@
+{
+  "suite": "heimdallr-2026q2-investment-casebook",
+  "synthetic": false,
+  "purpose": "Provider 호출 전 실제 4종목 투자판단 evidence-anchor 사례집. 모든 case는 평가 계약만 확정됐고 Provider 후보는 원본 결과 파일에서 별도로 관리한다.",
+  "cases": [
+    {
+      "id": "hj-097230-2026q2",
+      "source": "Heimdallr Supabase read-only replay b9a984ab25a68c1c1f22832a5db89c7418f13f5092d4d13ff260f4b86b7b6f3c",
+      "input": {
+        "code": "097230",
+        "name": "HJ중공업",
+        "board": "KOSPI",
+        "industry": "토목 건설업",
+        "products": "선박건조,기계플랜트 제조/토목공사,건축공사,조경공사,전기공사,가스공사,준설공사,기계설비공사",
+        "market_cap_krw": 1552176963360,
+        "listed_at": "2007-08-31",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "is_estimate": false,
+        "quarters": [
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "revenue": 453768000000,
+            "op": 32907000000,
+            "np": 51994000000,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 7.251943724546464,
+            "opm_yoy_delta": null,
+            "ttm_revenue": null,
+            "ttm_op": null,
+            "ttm_opm": null,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "revenue": 479813000000,
+            "op": 1990000000,
+            "np": -19530000000,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 0.41474491103825867,
+            "opm_yoy_delta": null,
+            "ttm_revenue": 1885962000000,
+            "ttm_op": 7252000000,
+            "ttm_opm": 0.38452524494130846,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "revenue": 410066000000,
+            "op": 5454000000,
+            "np": 5556000000,
+            "revenue_yoy": -12.300542579788315,
+            "op_yoy": -54.16421548029247,
+            "opm": 1.3300298000809625,
+            "opm_yoy_delta": -1.2147699244587429,
+            "ttm_revenue": 1828447000000,
+            "ttm_op": 807000000,
+            "ttm_opm": 0.04413581580434106,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "revenue": 507777000000,
+            "op": 5339000000,
+            "np": -6615000000,
+            "revenue_yoy": 4.739480198019802,
+            "op_yoy": null,
+            "opm": 1.0514458118426002,
+            "opm_yoy_delta": 9.208211488410257,
+            "ttm_revenue": 1851424000000,
+            "ttm_op": 45690000000,
+            "ttm_opm": 2.467830167481895,
+            "op_status_label": "흑전",
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "revenue": 452208000000,
+            "op": 5794000000,
+            "np": 3941000000,
+            "revenue_yoy": -0.34378801502089174,
+            "op_yoy": -82.39280396268272,
+            "opm": 1.281268796659944,
+            "opm_yoy_delta": -5.97067492788652,
+            "ttm_revenue": 1849864000000,
+            "ttm_op": 18577000000,
+            "ttm_opm": 1.0042359870779691,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "revenue": 629654000000,
+            "op": 50487000000,
+            "np": 48562000000,
+            "revenue_yoy": 31.22904131401192,
+            "op_yoy": 2437.035175879397,
+            "opm": 8.01821317739584,
+            "opm_yoy_delta": 7.603468266357581,
+            "ttm_revenue": 1999705000000,
+            "ttm_op": 67074000000,
+            "ttm_opm": 3.3541947437246993,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "revenue": 541400000000,
+            "op": 24581000000,
+            "np": 25513000000,
+            "revenue_yoy": 32.02752727609702,
+            "op_yoy": 350.69673634030073,
+            "opm": 4.540265977096417,
+            "opm_yoy_delta": 3.2102361770154544,
+            "ttm_revenue": 2131039000000,
+            "ttm_op": 86201000000,
+            "ttm_opm": 4.045022169936825,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "revenue": 729908000000,
+            "op": 64853000000,
+            "np": 62543000000,
+            "revenue_yoy": 43.745778166399816,
+            "op_yoy": 1114.703127926578,
+            "opm": 8.885092367805257,
+            "opm_yoy_delta": 7.833646555962656,
+            "ttm_revenue": 2353170000000,
+            "ttm_op": 145715000000,
+            "ttm_opm": 6.19228530025455,
+            "op_status_label": null,
+            "is_estimate": false
+          }
+        ],
+        "gate": {
+          "passed": true,
+          "base_effect_warning": false,
+          "turnaround": false,
+          "detail": {
+            "op_yoy_delta_pp": 764.0063915862772,
+            "opm_yoy_delta_pp": 7.833646555962656,
+            "rev_yoy_delta_pp": 11.718250890302798
+          },
+          "base_effect_checks": {
+            "rev_2y_accel": true,
+            "ttm_revenue_high": true,
+            "quarter_revenue_high": true
+          },
+          "sector_caveat": true
+        },
+        "score": {
+          "score_flash": 93.81959021664387,
+          "score_a": 30.8591254451514,
+          "score_b": 32,
+          "has_consensus": false,
+          "grade": "★",
+          "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨"
+        },
+        "consensus": null,
+        "price": {
+          "code": "097230",
+          "snap_date": "2026-08-27",
+          "close": 17160,
+          "chg_pct": 0.59,
+          "high_52w": 34350,
+          "low_52w": 12910,
+          "pos_52w": 0.1982276119402985,
+          "per": 28.36,
+          "pbr": 2.31,
+          "market_cap_krw": 1549500000000,
+          "rel_ret_3m": -10.155950980262308,
+          "per_pctile_3y": null
+        },
+        "valuation": {
+          "market_cap_krw": 1549500000000,
+          "ttm_np": 140559000000,
+          "per_trailing_4q": 11.02384052248522,
+          "per_trailing_reason": null,
+          "per_forward": null,
+          "per_forward_basis": null,
+          "pbr": 2.31
+        },
+        "pri": {
+          "parts": {
+            "p1": 0,
+            "p2": 4.955690298507463,
+            "p3": null,
+            "p4": null
+          },
+          "raw_sum": 4.955690298507463,
+          "excluded": [
+            "p3",
+            "p4"
+          ],
+          "denominator": 65,
+          "pri": 7.624138920780712
+        },
+        "excerpt": "[출처: 2026년 2분기 정기보고서]\n\n### 매출 및 수주상황\n가. 매출실적 (단위: 백만원) 사업부문 | 매출유형 | 품 목 | 제20기 2분기 | 제19기 | 제18기\n조선 | 용 역(주문제작) | 신조선 | 수 출 | 492,752 | 370,135 | 337,557\n내 수 | - | 155,734 | 175,097\n합 계 | 492,752 | 525,869 | 512,654\n특수선 | 수 출 | - |  | -\n내 수 | 159,074 | 407,420 | 311,860\n합 계 | 159,074 | 407,420 | 311,860\n용 역(유지보수) | 수리선 | 수 출 | 12,728 | - | -\n내 수 | 14,009 | 6,711 | 1\n합 계 | 26,737 | 6,711 | 1\n건설 | 용 역(건설공사) | 토목공사 | 수 출 | 49,865 | 31,109 | 16,796\n내 수 | 169,732 | 308,908 | 286,354\n합 계 | 219,597 | 340,017 | 303,150\n건축공사 | 수 출 | - | - | -\n내 수 | 277,661 | 470,591 | 597,657\n합 계 | 277,661 | 470,591 | 597,657\n플랜트공사 | 수 출 | - | - | -\n내 수 | 87,095 | 231,217 | 133,727\n합 계 | 87,095 | 231,217 | 133,727\n기타 | 상 품 | 기타(*1) | 수 출 | - | - | -\n내  …(이하 10,284자 생략)\n\n### 원재료 및 생산설비\n가. 주요 원재료 등의 현황 [조선부문] (단위: 백만원) 품목 | 구체적용도 | 매입액 | 비율(%) | 비고\n강판 | 선박 제조 | 51,758 | 85.5 | 포스코, 현대제철, 동국제강, 화인인터내셔날 등\n형강류 | 선박 제조 | 8,800 | 14.5\n계 | 60,558 | 100.0\n※ 매입액은 주문실적 기준※ 적용기간 : 2026.01.01~2026.06.30 [건설부문] (단위: 백만원) 품목 | 구체적 용도 | 매입액 | 비율(%) | 주요매입처 | 비고\n철근 | 구조물공사 | 7,191 | 10.45% | 에이원철강 외 | SD400, 10㎜외\n시멘트 | 기초공사 | 572 | 0.83% | 신일알앤씨 외 | 1종, 도착도 기준\n레미콘 | 철근콘크리트 | 3,038 | 4.41% | 유진기업 외 | 25-240-15 외\n골재류 | 토공/포장공사 | 995 | 1.45% | 씨엔씨해양개발 외 | 모래, 혼합골재 외\n아스콘 | 도로포장공사 | 46 | 0.07% | 한솔에이앤에이 | #467(기층) 외\n강관 파일류 | 지반보강공사 | 101 | 0.15% | 명인스틸 | 현장 도착도\n기계 | 기계 자재/설치 | 18,051 | 26.23% | 효성중공업 외 | 125건\n전기 | 전기 자재/설치 | 16,531 | 24.02% | 서호전기 외 | 93건\n건축마감 | 건축 자재/설치 | 6,333 | 9.20% | 리니트코 …(이하 3,391자 생략)\n\n### 주요 제품 및 서비스\n가. 주요 제품 등의 현황 [2026.01.01 부터 2026.06.30 까지] (단위: 억원) 사업부문 | 분류 | 주요 제품/서비스 | 회사 | 제20기 2분기 | 제19기 | 제18기\n매출액 | 비율 | 매출액 | 비율 | 매출액 | 비율\n조선 | 신조선 | 컨테이너선 등 | (주)HJ중공업 | 4,928 | 38.77% | 5,259 | 26.30% | 5,126 | 27.18%\n특수선 | 해군 함정 등 | (주)HJ중공업 | 1,591 | 12.51% | 4,074 | 20.37% | 3,119 | 16.54%\n수리선 |  …(이하 645자 생략)\n\n### 주요계약 및 연구개발활동\n가. 경영상의 주요계약 등 당사는 보고서 작성 기준일 현재 아래와 같은 비경상적 중요계약을 체결하였습니다. 계약명 | 계약상대방 | 계약의 목적 | 계약체결일(계약기간) | 계약금액(억원)\n경영정상화계획의 이행 약정(MOU) | 채권금융기관협의회(주채권은행:산업은행) | 당사의 경영정상화를 도모하기 위해채권금융기관과 MOU체결('기촉법'에 따른 워크아웃에 해당되지 않음) | 2016.05.10~ 2018.12.31 | -\n경영정상화계획의 이행 약정(MOU)변경약정서 체결 | 채권금융기관협의회(주채권은행:산업은행) | 기존약정기간 연장 외 | ~ 2020.12.31 | -\n동서울터미널 개발 합작투자계약 | (주)신세계프라퍼티 | 동서울터미널 개발을 위한 합작투자계약 체결자산매각을 통한 재무구조 개선 | 2019.07.26 | -\n동서울터미널 부지 매각 계약 | (주)신세계동서울피에프브이 | 차입금 상환 및 현금 유동성 확보를 통한 재무구조 개선 | 2019.10.22 | 4,025\n경영정상화계획의 이행 약정(MOU)변경약정서 체결 | 채권금융기관협의회(주채권은행:산업은행) | 기존약정기간 연장 외 | ~ 2022.12.31 | -\n채권금융기관 여신(협약채권) 일괄변경약정 체결 | 채권금융기관협의회(주채권은행:산업은행) | 기존약정기간 연장 외 | ~ 2024.06.30 | -\n인천광역시 서구 원창동381-73, 381-74번지 | (주 …(이하 8,339자 생략)",
+        "peers": [],
+        "quarter_prices": [
+          {
+            "code": "097230",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 3,
+            "close": 3650,
+            "trade_date": "2023-09-27"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 4,
+            "close": 4450,
+            "trade_date": "2023-12-28"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 1,
+            "close": 3295,
+            "trade_date": "2024-03-29"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 2,
+            "close": 3585,
+            "trade_date": "2024-06-28"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "close": 2655,
+            "trade_date": "2024-09-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "close": 5930,
+            "trade_date": "2024-12-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "close": 5900,
+            "trade_date": "2025-03-31"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "close": 7950,
+            "trade_date": "2025-06-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "close": 28000,
+            "trade_date": "2025-09-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "close": 21050,
+            "trade_date": "2025-12-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "close": 21750,
+            "trade_date": "2026-03-31"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "close": 20150,
+            "trade_date": "2026-06-30"
+          },
+          {
+            "code": "097230",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 3,
+            "close": 17120,
+            "trade_date": "2026-08-27"
+          }
+        ],
+        "disclosures": [
+          {
+            "code": "097230",
+            "report_nm": "반기보고서 (2026.06)",
+            "disclosed_at": "2026-08-12T00:00:00+00:00",
+            "doc_type": "periodic"
+          }
+        ],
+        "as_of": "2026-08-27"
+      },
+      "evidence_anchors": [
+        {
+          "id": "latest_revenue",
+          "dimension": "improvement",
+          "paths": [
+            "one_line_thesis",
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "매출 7,299억원",
+            "매출7,299억원"
+          ]
+        },
+        {
+          "id": "latest_operating_profit",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 649억원",
+            "영업이익649억원",
+            "영업이익 648.5억원"
+          ]
+        },
+        {
+          "id": "latest_opm",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "OPM 8.9%",
+            "OPM8.9%"
+          ]
+        },
+        {
+          "id": "latest_revenue_yoy",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "전년동기 대비 43.7%",
+            "YoY +43.7%",
+            "YoY 43.7%"
+          ]
+        },
+        {
+          "id": "latest_opm_yoy_delta",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "7.8%p 상승",
+            "OPM +7.8%p",
+            "OPM이 1.1%에서 8.9%"
+          ]
+        },
+        {
+          "id": "ttm_revenue",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM 매출은 2조3,532억원",
+            "TTM 매출은 2조 3,532억원",
+            "TTM 매출 2조3,532억원"
+          ]
+        },
+        {
+          "id": "ttm_opm",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM OPM도 6.2%",
+            "TTM OPM은 6.2%",
+            "TTM OPM 6.2%"
+          ]
+        },
+        {
+          "id": "price_peak_to_current",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "2만8,000원 이후 2026년 8월 27일 1만7,160원",
+            "2만8,000원에서 1만7,160원"
+          ]
+        },
+        {
+          "id": "pri",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now"
+          ],
+          "aliases": [
+            "PRI 7.6",
+            "PRI는 7.6"
+          ]
+        },
+        {
+          "id": "consensus_absent",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now",
+            "scenarios"
+          ],
+          "aliases": [
+            "컨센서스 부재",
+            "컨센서스 없음",
+            "컨센서스가 없어"
+          ]
+        },
+        {
+          "id": "disclosure_timing",
+          "dimension": "catalyst",
+          "paths": [
+            "why_now"
+          ],
+          "aliases": [
+            "2026년 8월 12일 반기보고서",
+            "2026-08-12 반기보고서",
+            "2026-08-12 접수된 「반기보고서"
+          ]
+        },
+        {
+          "id": "business_mix",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "신조선(컨테이너선 등) 4,928억원",
+            "신조선 4,928억원"
+          ]
+        },
+        {
+          "id": "next_report_catalyst",
+          "dimension": "catalyst",
+          "paths": [
+            "triggers"
+          ],
+          "aliases": [
+            "2026년 3분기 정기보고서",
+            "3분기 정기보고서",
+            "2026년 3Q 정기보고서"
+          ]
+        },
+        {
+          "id": "margin_repeatability_risk",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "공정률 및 원가 재추정",
+            "공정률 집중",
+            "고마진 분기의 반복성",
+            "공정률 변동으로 2Q 매출과 이익이 다음 분기에 반복되지 않을 위험"
+          ]
+        }
+      ],
+      "candidates": [],
+      "anchor_review": {
+        "status": "reviewed",
+        "basis": "기존 HJ Attempt 3 사람 대조 및 투자판단 영역별 rubric",
+        "reviewed_at": "2026-08-28"
+      }
+    },
+    {
+      "id": "lnc-bio-290650-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/290650-2026q2.json",
+      "input": {
+        "code": "290650",
+        "name": "엘앤씨바이오",
+        "board": "KOSDAQ",
+        "industry": "의약품 제조업",
+        "products": "인체조직(피부, 뼈, 연골)",
+        "market_cap_krw": 1448273104800,
+        "listed_at": "2018-11-01",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "is_estimate": true,
+        "quarters": [
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "revenue": 18546035487,
+            "op": 174823232,
+            "np": -5790675805,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 0.9426447615855358,
+            "opm_yoy_delta": null,
+            "ttm_revenue": null,
+            "ttm_op": null,
+            "ttm_opm": null,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "revenue": 19087015633,
+            "op": -622336387,
+            "np": 143755117245,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": -3.2605222260311226,
+            "opm_yoy_delta": null,
+            "ttm_revenue": 72093323401,
+            "ttm_op": 2542071249,
+            "ttm_opm": 3.5260841490971395,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "revenue": 17756351704,
+            "op": -433110640,
+            "np": -642269705,
+            "revenue_yoy": 7.21039219823712,
+            "op_yoy": null,
+            "opm": -2.4391870989040645,
+            "opm_yoy_delta": -12.486065214326441,
+            "ttm_revenue": 73287519758,
+            "ttm_op": 444981048,
+            "ttm_opm": 0.6071716568787638,
+            "op_status_label": "적전",
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "revenue": 20495785226,
+            "op": -1457229,
+            "np": -14276452750,
+            "revenue_yoy": 14.513640186724686,
+            "op_yoy": null,
+            "opm": -0.007109895931927639,
+            "opm_yoy_delta": -7.41350269070592,
+            "ttm_revenue": 75885188050,
+            "ttm_op": -882081024,
+            "ttm_opm": -1.1623889281513087,
+            "op_status_label": "적전",
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "revenue": 22555957084,
+            "op": 2895731265,
+            "np": -51338333564,
+            "revenue_yoy": 21.62144896040336,
+            "op_yoy": 1556.3766908279101,
+            "opm": 12.83798889231829,
+            "opm_yoy_delta": 11.895344130732754,
+            "ttm_revenue": 79895109647,
+            "ttm_op": 1838827009,
+            "ttm_opm": 2.301551392975711,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "revenue": 24668320984,
+            "op": 1954550187,
+            "np": -71989650168,
+            "revenue_yoy": 29.2413725556464,
+            "op_yoy": null,
+            "opm": 7.92332071675138,
+            "opm_yoy_delta": 11.183842942782503,
+            "ttm_revenue": 85476414998,
+            "ttm_op": 4415713583,
+            "ttm_opm": 5.166002321345976,
+            "op_status_label": "흑전",
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "revenue": 30294573520,
+            "op": 5998943183,
+            "np": 2725519792,
+            "revenue_yoy": 70.61260119766324,
+            "op_yoy": null,
+            "opm": 19.802038734889575,
+            "opm_yoy_delta": 22.24122583379364,
+            "ttm_revenue": 98014636814,
+            "ttm_op": 10847767406,
+            "ttm_opm": 11.067497425497322,
+            "op_status_label": "흑전",
+            "is_estimate": false
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "revenue": 38785000000,
+            "op": 8580000000,
+            "np": -28123000000,
+            "revenue_yoy": 89.23402822741893,
+            "op_yoy": null,
+            "opm": 22.121954363800437,
+            "opm_yoy_delta": 22.129064259732367,
+            "ttm_revenue": 116303851588,
+            "ttm_op": 19429224635,
+            "ttm_opm": 16.705572833328823,
+            "op_status_label": "흑전",
+            "is_estimate": true
+          }
+        ],
+        "gate": {
+          "passed": true,
+          "base_effect_warning": false,
+          "turnaround": true,
+          "detail": {
+            "opm_yoy_delta_pp": 22.129064259732367,
+            "rev_yoy_delta_pp": 18.621427029755694
+          },
+          "base_effect_checks": {
+            "rev_2y_accel": true,
+            "ttm_revenue_high": true,
+            "quarter_revenue_high": true
+          },
+          "sector_caveat": true
+        },
+        "score": {
+          "score_flash": 67.62793061922066,
+          "score_a": 19.310713514877847,
+          "score_b": 26,
+          "has_consensus": false,
+          "grade": "○",
+          "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨"
+        },
+        "consensus": null,
+        "price": {
+          "code": "290650",
+          "snap_date": "2026-08-28",
+          "close": 53200,
+          "chg_pct": 5.56,
+          "high_52w": 125000,
+          "low_52w": 29150,
+          "pos_52w": 0.2509128847157016,
+          "per": -9.2,
+          "pbr": 6.55,
+          "market_cap_krw": 1434800000000,
+          "rel_ret_3m": -6.535894135288078,
+          "per_pctile_3y": null
+        },
+        "valuation": {
+          "market_cap_krw": 1434800000000,
+          "ttm_np": -148725463940,
+          "per_trailing_4q": null,
+          "per_trailing_reason": "누적 순이익이 0 이하다",
+          "per_forward": null,
+          "per_forward_basis": null,
+          "pbr": 6.55
+        },
+        "pri": {
+          "parts": {
+            "p1": 6.928211729423843,
+            "p2": 6.27282211789254,
+            "p3": null,
+            "p4": null
+          },
+          "raw_sum": 13.201033847316383,
+          "excluded": [
+            "p3",
+            "p4"
+          ],
+          "denominator": 65,
+          "pri": 20.309282842025205
+        },
+        "excerpt": "[출처: 2026년 2분기 정기보고서]\n\n### 매출 및 수주상황\n가. 매출실적 (단위 : 백만원)\n품목 | 매출유형 | 2026년 반기 (제16기 반기) | 2025년 (제15기) | 2024년 (제14기)\n매출액 | 비율(%) | 매출액 | 비율(%) | 매출액 | 비율(%)\n인체조직이식재 | 수출 | 2,116 | 3.82 | 2,800 | 4.03 | 2,637 | 4.69\n내수 | 45,969 | 82.99 | 52,773 | 76.02 | 43,920 | 78.20\n소계 | 48,085 | 86.81 | 55,573 | 80.05 | 46,557 | 82.89\n의료기기 | 수출 | 1,964 | 3.55 | 3,022 | 4.35 | 1,619 | 2.88\n내수 | 3,585 | 6.47 | 7,104 | 10.23 | 4,561 | 8.12\n소계 | 5,549 | 10.02 | 10,126 | 14.59 | 6,180 | 11.00\n코스메슈티컬 | 수출 | - | - | - | - | - | -\n내수 | 205 | 0.37 | 669 | 0.96 | 292 | 0.52\n소계 | 205 | 0.37 | 669 | 0.96 | 292 | 0.52\n제약 | 수출 | - | - | - | - | - | -\n내수 | 1,799 | 3.25 | 3,116 | 4.49 | 3,461 | 6.16\n소계 | 1,799 | 3.25 | 3,116 | 4.49 | 3,461 | 6.16\n기타 | 수출 |  …(이하 1,101자 생략)\n\n### 원재료 및 생산설비\n가. 원재료 매입현황 | (단위 : 천원)\n매입유형 | 품 목 | 구 분 | 2026년 반기 (제16기 반기) | 2025년 (제15기) | 2024년 (제14기)\n원재료 | 원재료 냉동 (MS) | 국 내 | 41,296 | 40,673 | 193,531\n수 입 | 1,484,027 ($998,999) | 4,067,199 ($2,868,374) | 2,767,228 ($2,014,324)\n소 계 | 1,525,323 ($998,999) | 4,107,872 ($2,868,374) | 2,960,759 ($2,014,324)\n원재료 냉동 (피부) | 국 내 | 3,010 | 4,000 | 18,268\n수 입 | 5,602,881 ($3,783,901) | 6,597,630 ($4,644,604) | 9,813,944 ($7,232,943)\n소 계 | 5,605,891 ($3,783,901) | 6,601,630 ($4,644,604) | 9,832,212 ($7,232,943)\n원재료 냉동 (연골) | 국 내 | - | - | -\n수 입 | 105,712 ($71,200) | 496,464 ($348,000) | 877,910 ($642,440)\n소 계 | 105,712 ($71,200) | 496,464 ($348,000) | 877,910 ($642,440)\n기타 원재료 | 국 내 | 1,741,967 | 2,476,252 |  …(이하 2,240자 생략)\n\n### 주요 제품 및 서비스\nㅇ 주요 제ㆍ상품의 매출현황 | (단위 : 백만원)\n구분 | 주요상표 | 2026년 반기(제16기 반기) | 2025년 (제15기) | 2024년 (제14기) | 비고\n매출액 | 매출비중 | 매출액 | 매출비중 | 매출액 | 매출비중\n인체조직 이식재 | MegaDerm, Re2O 등 | 48,085 | 86.81% | 55,573 | 80.05% | 46,557 | 82.89% | -\n의료기기 | MegaDerm Plus 등 | 5,549 | 10.02% | 10,126 | 14.59% | 6,181 | 11.00% | -\n기능성화 …(이하 388자 생략)\n\n### 주요계약 및 연구개발활동\n가.연구개발활동의 개요당사는 주요 제품군인 인체조직이식재의 지속적인 성장과 점유율 확대를 바탕으로 인체조직을 기반으로한 의료기기 제품 개발을 진행해왔으며, 성장과 수익성 향상을 목표함과 동시에 인체조직 기반하의 재생의료공학 바이오 플랫폼 업체로 거듭나고 있습니다. 나. 연구개발 담당조직 1) 엘앤씨바이오(1) 엘앤씨바이오 연구개발 조직 개요① 조직 형태 : 기업부설연구소② 조직도 : 당사의 연구개발 조직은 임상학술본부, 연구개발실, 품질관리부 3개 부서로 구성되어 있습니다. 그 현황은 다음과 같습니다. 구분 | 주요 업무\n임상학술본부 | 제품인허가, 임상 및 산학 연구 기획/관리, IRB 심의, 학술지원, 심평원 급여 평가 업무\n연구개발실 | 인체조직 기반 의료기기 연구개발, 정부과제 진행 및 기획, 지적재산권 확보\n품질관리부 | 원료 및 제품 시험관리, 정도관리, GMP적합인증 및 유지관리\n(2) 엘앤씨바이오 연구개발인력현황 연구소 조직도.jpg 연구소 조직도 (단위 : 명)\n구분 | 박사 | 석사 | 학사 | 합 계\n연구개발 총괄 | 1 | - | - | 1\n임상RA본부 | - | 1 | 7 | 8\n연구개발본부 | 연구개발본부장 | 1 | - | - | 1\n연구개발1실 | - | 4 | - | 4\n연구개발2실 | - | 3 | - | 3\n품질관리본부 | - | - | 14 | 14\n합 계 | 2 | 8 | 21 | 31\n(3) 엘 …(이하 20,581자 생략)",
+        "peers": [],
+        "quarter_prices": [
+          {
+            "code": "290650",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 4,
+            "close": 29000,
+            "trade_date": "2023-12-28"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 3,
+            "close": 33700,
+            "trade_date": "2023-09-27"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 1,
+            "close": 23300,
+            "trade_date": "2024-03-29"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "close": 24100,
+            "trade_date": "2024-12-30"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "close": 20100,
+            "trade_date": "2025-03-31"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "close": 27750,
+            "trade_date": "2025-06-30"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "close": 54000,
+            "trade_date": "2025-09-30"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "close": 61100,
+            "trade_date": "2025-12-30"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "close": 67300,
+            "trade_date": "2026-03-31"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "close": 90400,
+            "trade_date": "2026-06-30"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 3,
+            "close": 52600,
+            "trade_date": "2026-08-28"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 2,
+            "close": 24600,
+            "trade_date": "2024-06-28"
+          },
+          {
+            "code": "290650",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "close": 20550,
+            "trade_date": "2024-09-30"
+          }
+        ],
+        "disclosures": [
+          {
+            "code": "290650",
+            "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)",
+            "disclosed_at": "2026-08-11T00:00:00+00:00",
+            "doc_type": "provisional"
+          },
+          {
+            "code": "290650",
+            "report_nm": "영업(잠정)실적(공정공시)",
+            "disclosed_at": "2026-08-11T00:00:00+00:00",
+            "doc_type": "provisional"
+          },
+          {
+            "code": "290650",
+            "report_nm": "반기보고서 (2026.06)",
+            "disclosed_at": "2026-08-14T00:00:00+00:00",
+            "doc_type": "periodic"
+          }
+        ],
+        "as_of": "2026-08-28"
+      },
+      "evidence_anchors": [
+        {
+          "id": "latest_revenue",
+          "dimension": "improvement",
+          "paths": [
+            "one_line_thesis",
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "매출 388억원",
+            "매출 387.8억원",
+            "매출은 388억원",
+            "매출은 387.8억원",
+            "387.8억원"
+          ]
+        },
+        {
+          "id": "latest_operating_profit",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 86억원",
+            "영업이익 85.8억원",
+            "영업이익은 85.8억원",
+            "85.8억원"
+          ]
+        },
+        {
+          "id": "latest_opm",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "OPM 22.1%",
+            "영업이익률 22.1%"
+          ]
+        },
+        {
+          "id": "turnaround",
+          "dimension": "improvement",
+          "paths": [
+            "one_line_thesis",
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 흑전",
+            "영업이익이 흑자전환",
+            "흑자전환",
+            "흑전"
+          ]
+        },
+        {
+          "id": "ttm_revenue",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM 매출 1,163억원",
+            "TTM매출 1,163억원"
+          ]
+        },
+        {
+          "id": "ttm_opm",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM OPM 16.7%",
+            "TTM 영업이익률 16.7%",
+            "TTM OPM도 16.7%",
+            "16.7%"
+          ]
+        },
+        {
+          "id": "human_tissue_mix",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "인체조직 이식재 86.81%",
+            "인체조직이식재 86.81%",
+            "인체조직 이식재 48,085백만원",
+            "매출 비중 86.81%"
+          ]
+        },
+        {
+          "id": "price_decline",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "90,400원에서 53,200원",
+            "9만400원에서 5만3,200원",
+            "2026년 6월 30일 90,400원 이후 53,200원",
+            "-41.2% 급락"
+          ]
+        },
+        {
+          "id": "pri",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now"
+          ],
+          "aliases": [
+            "PRI 20.3",
+            "PRI는 20.3"
+          ]
+        },
+        {
+          "id": "consensus_absent",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now",
+            "scenarios"
+          ],
+          "aliases": [
+            "컨센서스 부재",
+            "컨센서스 없음",
+            "컨센서스가 없어"
+          ]
+        },
+        {
+          "id": "latest_disclosure",
+          "dimension": "catalyst",
+          "paths": [
+            "why_now"
+          ],
+          "aliases": [
+            "2026년 8월 14일 반기보고서",
+            "2026-08-14 반기보고서"
+          ]
+        },
+        {
+          "id": "next_report",
+          "dimension": "catalyst",
+          "paths": [
+            "triggers"
+          ],
+          "aliases": [
+            "2026년 3분기 정기보고서",
+            "3분기 정기보고서",
+            "2026년 3Q 정기보고서",
+            "3Q 정기 실적 공시",
+            "2026.3Q 영업(잠정)실적"
+          ]
+        },
+        {
+          "id": "negative_ttm_net_income",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "누적 순이익이 0 이하",
+            "최근 4개 분기 순이익 적자",
+            "TTM 순이익 -1,487억원"
+          ]
+        },
+        {
+          "id": "product_concentration_risk",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "인체조직 이식재 매출 비중 86.81%",
+            "인체조직이식재 의존도 86.81%",
+            "인체조직 이식재 집중",
+            "인체조직이식재 판매 증가"
+          ]
+        }
+      ],
+      "candidates": [],
+      "anchor_review": {
+        "status": "reviewed",
+        "reviewed_at": "2026-08-29",
+        "basis": "2026.2Q 분기표·결정론 증감·동분기 정기보고서 발췌·canonical 현재가·최근 공시 수동 교차대조",
+        "caution": "2026.2Q 실적은 잠정치이며 공시 발췌의 반기 누적 사업부문 수치와 분기 단독 실적을 혼용하지 않는다."
+      }
+    },
+    {
+      "id": "lotte-fine-chemical-004000-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/004000-2026q2.json",
+      "input": {
+        "code": "004000",
+        "name": "롯데정밀화학",
+        "board": "KOSPI",
+        "industry": "기초 화학물질 제조업",
+        "products": "염소·셀룰로스계열, 암모니아 계열, 전자재료 등 화학제품 제조",
+        "market_cap_krw": 1239690000000,
+        "listed_at": "1976-04-15",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "is_estimate": true,
+        "quarters": [
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "revenue": 420414721173,
+            "op": 10327366175,
+            "np": -71559042422,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 2.456471111712167,
+            "opm_yoy_delta": null,
+            "ttm_revenue": null,
+            "ttm_op": null,
+            "ttm_opm": null,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "revenue": 428613936767,
+            "op": 12164361146,
+            "np": -18750813782,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 2.838069437908339,
+            "opm_yoy_delta": null,
+            "ttm_revenue": 1670545189888,
+            "ttm_op": 50372565787,
+            "ttm_opm": 3.0153369146737763,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "revenue": 445589676645,
+            "op": 18778918213,
+            "np": 28385551325,
+            "revenue_yoy": 11.552435263744213,
+            "op_yoy": 74.32472987194902,
+            "opm": 4.214397055693261,
+            "opm_yoy_delta": 1.5175550466663719,
+            "ttm_revenue": 1716690716711,
+            "ttm_op": 58379106365,
+            "ttm_opm": 3.400677000039254,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "revenue": 424673817977,
+            "op": 8711987833,
+            "np": 15524391249,
+            "revenue_yoy": 0.6163482760697195,
+            "op_yoy": -49.077898245445034,
+            "opm": 2.0514539545905874,
+            "opm_yoy_delta": -2.001988430060077,
+            "ttm_revenue": 1719292152562,
+            "ttm_op": 49982633367,
+            "ttm_opm": 2.9071634679724716,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "revenue": 443363087559,
+            "op": 27571797301,
+            "np": 35217083784,
+            "revenue_yoy": 5.4585068576979685,
+            "op_yoy": 166.97801582502714,
+            "opm": 6.218785026241256,
+            "opm_yoy_delta": 3.7623139145290887,
+            "ttm_revenue": 1742240518948,
+            "ttm_op": 67227064493,
+            "ttm_opm": 3.858655780408153,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "revenue": 439056065577,
+            "op": 19298449471,
+            "np": 26965915660,
+            "revenue_yoy": 2.4362550804493495,
+            "op_yoy": 58.64745578805754,
+            "opm": 4.3954408067767625,
+            "opm_yoy_delta": 1.5573713688684236,
+            "ttm_revenue": 1752682647758,
+            "ttm_op": 74361152818,
+            "ttm_opm": 4.242704913700232,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "revenue": 510654014171,
+            "op": 32664949261,
+            "np": 44691359941,
+            "revenue_yoy": 14.601850297765443,
+            "op_yoy": 73.94478686417185,
+            "opm": 6.396689021240448,
+            "opm_yoy_delta": 2.1822919655471873,
+            "ttm_revenue": 1817746985284,
+            "ttm_op": 88247183866,
+            "ttm_opm": 4.854756166860731,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "revenue": 586300000000,
+            "op": 61900000000,
+            "np": 94200000000,
+            "revenue_yoy": 38.058899602742535,
+            "op_yoy": 610.5152255324551,
+            "opm": 10.557734947978851,
+            "opm_yoy_delta": 8.506280993388263,
+            "ttm_revenue": 1979373167307,
+            "ttm_op": 141435196033,
+            "ttm_opm": 7.145453842108361,
+            "op_status_label": null,
+            "is_estimate": true
+          }
+        ],
+        "gate": {
+          "passed": true,
+          "base_effect_warning": false,
+          "turnaround": false,
+          "detail": {
+            "op_yoy_delta_pp": 536.5704386682833,
+            "opm_yoy_delta_pp": 8.506280993388263,
+            "rev_yoy_delta_pp": 23.45704930497709
+          },
+          "base_effect_checks": {
+            "rev_2y_accel": true,
+            "ttm_revenue_high": true,
+            "quarter_revenue_high": true
+          },
+          "sector_caveat": false
+        },
+        "score": {
+          "score_flash": 97.5609756097561,
+          "score_a": 35,
+          "score_b": 30,
+          "has_consensus": true,
+          "grade": "○",
+          "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨"
+        },
+        "consensus": {
+          "code": "004000",
+          "fiscal_year": 2026,
+          "fiscal_quarter": 2,
+          "revenue_est": 522300000000,
+          "op_est": 39700000000,
+          "n_estimates": 6,
+          "snapshot_at": "2026-08-13T12:26:58.501946+00:00"
+        },
+        "price": {
+          "code": "004000",
+          "snap_date": "2026-08-28",
+          "close": 48000,
+          "chg_pct": 1.69,
+          "high_52w": 71800,
+          "low_52w": 41000,
+          "pos_52w": 0.22727272727272727,
+          "per": 11.67,
+          "pbr": 0.5,
+          "market_cap_krw": 1238400000000,
+          "rel_ret_3m": 8.639552506992088,
+          "per_pctile_3y": null
+        },
+        "valuation": {
+          "market_cap_krw": 1238400000000,
+          "ttm_np": 201074359385,
+          "per_trailing_4q": 6.158915556353048,
+          "per_trailing_reason": null,
+          "per_forward": null,
+          "per_forward_basis": null,
+          "pbr": 0.5
+        },
+        "pri": {
+          "parts": {
+            "p1": 25.75970167132806,
+            "p2": 5.681818181818182,
+            "p3": null,
+            "p4": null
+          },
+          "raw_sum": 31.44151985314624,
+          "excluded": [
+            "p3",
+            "p4"
+          ],
+          "denominator": 65,
+          "pri": 48.37156900484037
+        },
+        "excerpt": "[출처: 2026년 2분기 정기보고서]\n\n### 매출 및 수주상황\n가. 매출실적 (단위 : 원)\n부문 | 매출유형 | 품 목 | 2026년 반기 | 2025년 | 2024년\n케미칼사업부문 | 제품 | ECH, 가성소다, 유록스 등 | 내수 | 358,513,514,192 | 583,014,706,194 | 494,913,284,688\n수출 | 130,852,761,458 | 247,167,216,516 | 258,881,826,170\n합계 | 489,366,275,650 | 830,181,922,710 | 753,795,110,858\n상품 | 암모니아 등 | 내수 | 209,669,284,739 | 310,179,889,700 | 301,912,692,999\n수출 | 102,234,625,744 | 92,680,834,416 | 86,968,336,589\n합계 | 311,903,910,483 | 402,860,724,116 | 388,881,029,588\n그린소재사업부문 | 제품 | 메셀로스, 애니코트 등 | 내수 | 12,264,103,012 | 31,074,484,819 | 28,886,113,344\n수출 | 323,276,742,289 | 548,231,458,153 | 562,106,414,032\n합계 | 335,540,845,301 | 579,305,942,972 | 590,992,527,376\n상품 | - | 내수 | - | - | -\n수출 | - | - | -\n합계 | - | - | - …(이하 964자 생략)\n\n### 원재료 및 생산설비\n가. 주요 원재료 등의 매입금액 당사가 당기 중 주요 원재료 등의 매입에 사용한 총 금액은 271,179백만원이며그 세부내역은 다음과 같습니다. (단위 : 백만원)\n매입유형 | 구체적용도 | 품 목 | 2026년 반기 | 2025년 | 2024년\n매입액 | 비율 | 매입액 | 비율 | 매입액 | 비율\n원재료 | 원재료 | 프로필렌, 펄프, 소금, 메탄올 등 | 238,679 | 88.0% | 384,975 | 86.5% | 412,339 | 86.7%\n화공약품 | 원재료 외 부원료 등 | 13,974 | 5.2% | 26,158 | 5.9% | 29,637 | 6.2%\n포장용품 | 제품 포장재 등 | 13,703 | 5.0% | 23,943 | 5.4% | 23,694 | 5.0%\n기타 | 유틸리티(LNG 등) 등 | 4,823 | 1.8% | 10,105 | 2.2% | 9,743 | 2.1%\n합 계 | 271,179 | 100.0% | 445,181 | 100.0% | 475,413 | 100.0%\n나. 주요 원재료 등의 현황 당사의 주요 원재료 매입처 및 특수관계 여부와 공급시장의 독과점 정도, 공급의 안정성은 아래와 같습니다. 원재료 | 주요 매입처 | 해당 매입처와회사와의 특수한 관계여부 | 공급시장의독과점 정도 | 공급의안정성\n메탄올 | Methanex | 해당사항 없음 | 일부업체의 과점형태 | 안정\n소금 | Riotin …(이하 2,969자 생략)\n\n### 주요 제품 및 서비스\n가. 주요 제품 등의 현황 (단위 : 백만원)\n부문 | 매출유형 | 품 목 | 구체적용도 | 주요상표등 | 2026년 반기 | 2025년 | 2024년\n매출액 | 비율 | 매출액 | 비율 | 매출액 | 비율\n케미칼사업부문 | 제품 | ECH, 가성소다, 유록스, TMAC 등 | 세정제, 매연 저감제 등 | EUROX® | 489,366 | 44.6% | 830,182 | 47.4% | 753,795 | 45.1%\n상품 | 암모니아 등 | 비료, 카프로락탐 등 | - | 311,904 | 28.4% | 402,861 | 23.0% | …(이하 921자 생략)\n\n### 주요계약 및 연구개발활동\n가. 연구개발 활동의 개요 1) 연구개발 담당조직 부서명 | 인원 | 주요업무\n연구개발부문 | 1 | 연구개발 업무 총괄(연구개발 및 관리)\n연구전략팀 | 14 | 연구 기획 및 지원 / 지적재산권 확보 및 보호 / 연구개발 관련 통합 분석\n신소재연구팀 | 8 | 신규 스페셜티 케미칼&셀룰로스계 품목 선행 연구 및 제조기술 개발 / 케미칼 생산 현장지원\n그린소재연구팀 | 15 | MECELLOSE®&HECELLOSE® 신규 Grade 개발 및 용도 발굴 / 고객 기술 지원 / 생산&품질 현장 지원\n공정연구팀 | 8 | 셀룰로스 유도체의 반제품 개발 및 품질개선 / 그린소재 제품 제조공정 기술 개발 등\n식의약연구팀 | 24 | AnyCoat®/AnyAddy®응용 기술 및 제품 개발 / 식의약소재 기반기술 연구 및 고객 기술지원 / 신규 용도 개발\n총합계 | 70 | -\n※ 상기 연구개발 담당조직은 2026년 반기말 기준입니다. 2) 연구개발 담당 조직도 연구개발 조직도(2025년 3월말 기준).jpg 연구개발담당 조직도 ※ 2026년 반기말 기준입니다. 3) 연구개발비용 (단위 : 천원)\n과 목 | 2026년 반기 | 2025년 | 2024년\nⅠ. 연구개발비용 총액 | 9,380,428 | 19,938,236 | 20,476,200\n정부보조금 | - | (174,365) | (279,352)\nⅡ. 연구개발비용 계 | 9,380,428  …(이하 696자 생략)",
+        "peers": [],
+        "quarter_prices": [
+          {
+            "code": "004000",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 3,
+            "close": 58500,
+            "trade_date": "2023-09-27"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 4,
+            "close": 58000,
+            "trade_date": "2023-12-28"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "close": 48850,
+            "trade_date": "2026-03-31"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "close": 44050,
+            "trade_date": "2026-06-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 1,
+            "close": 46850,
+            "trade_date": "2024-03-29"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 2,
+            "close": 44500,
+            "trade_date": "2024-06-28"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "close": 48000,
+            "trade_date": "2024-09-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "close": 39350,
+            "trade_date": "2024-12-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "close": 37150,
+            "trade_date": "2025-03-31"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "close": 39450,
+            "trade_date": "2025-06-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "close": 46300,
+            "trade_date": "2025-09-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "close": 44550,
+            "trade_date": "2025-12-30"
+          },
+          {
+            "code": "004000",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 3,
+            "close": 47900,
+            "trade_date": "2026-08-28"
+          }
+        ],
+        "disclosures": [
+          {
+            "code": "004000",
+            "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)",
+            "disclosed_at": "2026-07-30T00:00:00+00:00",
+            "doc_type": "provisional"
+          },
+          {
+            "code": "004000",
+            "report_nm": "반기보고서 (2026.06)",
+            "disclosed_at": "2026-08-14T00:00:00+00:00",
+            "doc_type": "periodic"
+          },
+          {
+            "code": "004000",
+            "report_nm": "[기재정정]사업보고서 (2025.12)",
+            "disclosed_at": "2026-08-14T00:00:00+00:00",
+            "doc_type": "periodic"
+          }
+        ],
+        "as_of": "2026-08-28"
+      },
+      "evidence_anchors": [
+        {
+          "id": "latest_revenue",
+          "dimension": "improvement",
+          "paths": [
+            "one_line_thesis",
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "매출 5,863억원",
+            "매출 5,863.0억원",
+            "매출은 5,863.0억원",
+            "5,863.0억원"
+          ]
+        },
+        {
+          "id": "latest_operating_profit",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 619억원",
+            "영업이익 619.0억원",
+            "영업이익은 619.0억원",
+            "619.0억원"
+          ]
+        },
+        {
+          "id": "latest_opm",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "OPM 10.6%",
+            "영업이익률 10.6%"
+          ]
+        },
+        {
+          "id": "revenue_yoy",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "매출 YoY 38.1%",
+            "매출은 전년동기 대비 38.1%",
+            "매출 +38.1%"
+          ]
+        },
+        {
+          "id": "ttm_revenue",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM 매출 1조9,794억원",
+            "TTM 매출 19,794억원",
+            "19,794억원"
+          ]
+        },
+        {
+          "id": "ttm_opm",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM OPM 7.1%",
+            "TTM 영업이익률 7.1%",
+            "7.1%"
+          ]
+        },
+        {
+          "id": "chemical_product_mix",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "케미칼사업부문 제품 489,366백만원",
+            "케미칼 제품 매출 489,366백만원",
+            "ECH, 가성소다, 유록스",
+            "ECH·가성소다·유록스"
+          ]
+        },
+        {
+          "id": "price_to_52w_high",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "52주 고가 71,800원 대비 48,000원",
+            "52주 고점 71,800원 대비 48,000원",
+            "71,800원에서 48,000원",
+            "현재가 48,000원"
+          ]
+        },
+        {
+          "id": "pri",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now"
+          ],
+          "aliases": [
+            "PRI 48.4",
+            "PRI는 48.4"
+          ]
+        },
+        {
+          "id": "valuation",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "최근 4개 분기 PER 6.2배",
+            "후행 4개 분기 PER 6.2배",
+            "PBR 0.50배"
+          ]
+        },
+        {
+          "id": "latest_disclosure",
+          "dimension": "catalyst",
+          "paths": [
+            "why_now"
+          ],
+          "aliases": [
+            "2026년 8월 14일 반기보고서",
+            "2026-08-14 반기보고서"
+          ]
+        },
+        {
+          "id": "next_report",
+          "dimension": "catalyst",
+          "paths": [
+            "triggers"
+          ],
+          "aliases": [
+            "2026년 3분기 정기보고서",
+            "3분기 정기보고서",
+            "2026년 3Q 정기보고서",
+            "2026년 3Q 분기보고서",
+            "2026년 3Q 잠정실적"
+          ]
+        },
+        {
+          "id": "raw_material_concentration",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "원재료 매입 238,679백만원, 88.0%",
+            "원재료 비중 88.0%",
+            "원재료 매입액의 88.0%"
+          ]
+        },
+        {
+          "id": "feedstock_supplier_risk",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "메탄올 공급시장 과점",
+            "Methanex",
+            "프로필렌·펄프·소금·메탄올"
+          ]
+        }
+      ],
+      "candidates": [],
+      "anchor_review": {
+        "status": "reviewed",
+        "reviewed_at": "2026-08-29",
+        "basis": "2026.2Q 분기표·결정론 증감·동분기 정기보고서 발췌·canonical 현재가·최근 공시 수동 교차대조",
+        "caution": "공시의 사업부문 매출은 2026년 반기 누적이고 2026.2Q 단독 매출과 다른 기간이므로 같은 값처럼 서술하지 않는다."
+      }
+    },
+    {
+      "id": "hanwha-systems-272210-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/272210-2026q2.json",
+      "input": {
+        "code": "272210",
+        "name": "한화시스템",
+        "board": "KOSPI",
+        "industry": "전자부품 제조업",
+        "products": "정밀기기(육해공군관련전자제어시스템,열영상감시장비,탐지추적장치,전투지휘체계시스템) 제조",
+        "market_cap_krw": 14206738052800,
+        "listed_at": "2019-11-13",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "is_estimate": true,
+        "quarters": [
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "revenue": 639172022980,
+            "op": 56998701226,
+            "np": 8144570457,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 8.91758387049796,
+            "opm_yoy_delta": null,
+            "ttm_revenue": null,
+            "ttm_op": null,
+            "ttm_opm": null,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "revenue": 932831627060,
+            "op": 43244934840,
+            "np": 359874875509,
+            "revenue_yoy": null,
+            "op_yoy": null,
+            "opm": 4.635877856789098,
+            "opm_yoy_delta": null,
+            "ttm_revenue": 2803686058274,
+            "ttm_op": 219345297682,
+            "ttm_opm": 7.823461440509247,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "revenue": 690100705524,
+            "op": 58164352303,
+            "np": 40969845433,
+            "revenue_yoy": 26.77197867454812,
+            "op_yoy": 48.13519250133089,
+            "opm": 8.428386152544977,
+            "opm_yoy_delta": 1.2154938509287438,
+            "ttm_revenue": 2949423007123,
+            "ttm_op": 238245278487,
+            "ttm_opm": 8.077691057255134,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "revenue": 768190548880,
+            "op": 33451471776,
+            "np": 47009425828,
+            "revenue_yoy": 11.766288771236393,
+            "op_yoy": -58.10044187802652,
+            "opm": 4.354579970395535,
+            "opm_yoy_delta": -7.261180774189278,
+            "ttm_revenue": 3030294904444,
+            "ttm_op": 191859460145,
+            "ttm_opm": 6.331379162590199,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "revenue": 807736584417,
+            "op": 22520994537,
+            "np": 151796401220,
+            "revenue_yoy": 26.372330980806158,
+            "op_yoy": -60.48858298068197,
+            "opm": 2.7881607657098977,
+            "opm_yoy_delta": -6.129423104788063,
+            "ttm_revenue": 3198859465881,
+            "ttm_op": 157381753456,
+            "ttm_opm": 4.919933342950262,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "revenue": 1398122729199,
+            "op": 5761906739,
+            "np": -30630397063,
+            "revenue_yoy": 49.87943039682898,
+            "op_yoy": -86.67611187224996,
+            "opm": 0.41211737844366925,
+            "opm_yoy_delta": -4.223760478345429,
+            "ttm_revenue": 3664150568020,
+            "ttm_op": 119898725355,
+            "ttm_opm": 3.2722106564466253,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "revenue": 807099186689,
+            "op": 34284490078,
+            "np": -95751914040,
+            "revenue_yoy": 16.953827206445464,
+            "op_yoy": -41.055837947959624,
+            "opm": 4.247865769589836,
+            "opm_yoy_delta": -4.180520382955141,
+            "ttm_revenue": 3781149049185,
+            "ttm_op": 96018863130,
+            "ttm_opm": 2.539409631331412,
+            "op_status_label": null,
+            "is_estimate": false
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "revenue": 1117552000000,
+            "op": 103670000000,
+            "np": 52743000000,
+            "revenue_yoy": 45.47848858975928,
+            "op_yoy": 209.91162569528194,
+            "opm": 9.276525835039443,
+            "opm_yoy_delta": 4.9219458646439085,
+            "ttm_revenue": 4130510500305,
+            "ttm_op": 166237391354,
+            "ttm_opm": 4.024620960090161,
+            "op_status_label": null,
+            "is_estimate": true
+          }
+        ],
+        "gate": {
+          "passed": true,
+          "base_effect_warning": false,
+          "turnaround": false,
+          "detail": {
+            "op_yoy_delta_pp": 250.96746364324156,
+            "opm_yoy_delta_pp": 4.9219458646439085,
+            "rev_yoy_delta_pp": 28.524661383313816
+          },
+          "base_effect_checks": {
+            "rev_2y_accel": true,
+            "ttm_revenue_high": true,
+            "quarter_revenue_high": false
+          },
+          "sector_caveat": false
+        },
+        "score": {
+          "score_flash": 88.37941699915993,
+          "score_a": 29,
+          "score_b": 28.471121939311146,
+          "has_consensus": true,
+          "grade": "★",
+          "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨"
+        },
+        "consensus": {
+          "code": "272210",
+          "fiscal_year": 2026,
+          "fiscal_quarter": 2,
+          "revenue_est": 945000000000,
+          "op_est": 58800000000,
+          "n_estimates": 15,
+          "snapshot_at": "2026-08-16T09:13:26.811496+00:00"
+        },
+        "price": {
+          "code": "272210",
+          "snap_date": "2026-08-28",
+          "close": 75000,
+          "chg_pct": -3.72,
+          "high_52w": 184000,
+          "low_52w": 44750,
+          "pos_52w": 0.21723518850987433,
+          "per": 58.5,
+          "pbr": 2.89,
+          "market_cap_krw": 14169000000000,
+          "rel_ret_3m": -14.358361987272772,
+          "per_pctile_3y": null
+        },
+        "valuation": {
+          "market_cap_krw": 14169000000000,
+          "ttm_np": 78157090117,
+          "per_trailing_4q": 181.28873501801587,
+          "per_trailing_reason": null,
+          "per_forward": 48.78832712741359,
+          "per_forward_basis": "2026년 컨센 1,022억 기준",
+          "pbr": 2.89
+        },
+        "pri": {
+          "parts": {
+            "p1": 0,
+            "p2": 5.430879712746858,
+            "p3": null,
+            "p4": null
+          },
+          "raw_sum": 5.430879712746858,
+          "excluded": [
+            "p3",
+            "p4"
+          ],
+          "denominator": 65,
+          "pri": 8.355199558072089
+        },
+        "excerpt": "[출처: 2026년 2분기 정기보고서]\n\n### 매출 및 수주상황\n가. 사업부문별 매출 (단위 : 백만원)\n사업부문 | 매출유형 | 제27기 2분기 | 제26기 2분기 | 제26기 | 제25기\n방산 | 상 품 | - | - | - | -\n제 품 | 1,171,350 | 899,847 | 2,438,092 | 2,098,440\n용 역 | - | - | - | -\n기 타 | 438 | 689 | 758 | 404\n소 계 | 1,171,788 | 900,536 | 2,438,850 | 2,098,844\nICT | 상 품 | 31,419 | 29,524 | 57,494 | 103,300\n제 품 | - | - | - | -\n용 역 | 328,174 | 258,994 | 595,142 | 591,489\n기 타 | - | - | - | -\n소 계 | 359,593 | 288,518 | 652,636 | 694,789\n기타 | 상 품 | - | - | - | -\n제 품 | 392,581 | 265,092 | 565,458 | -\n용 역 | 2,860 | 4,942 | 10,030 | 10,502\n기 타 | - | - | - | -\n소 계 | 395,441 | 270,034 | 575,488 | 10,502\n합계(연결조정 전) | 1,926,822 | 1,459,088 | 3,666,974 | 2,804,135\n합계(연결조정 후) | 1,924,651 | 1,458,291 | 3,664,151 | 2,803,686 …(이하 2,640자 생략)\n\n### 원재료 및 생산설비\n가. 주요 원재료 (단위 : 백만원)\n사업부문 | 해당 회사 | 원재료명 | 매입액 | 주요 매입처 | 주요 매입처와회사의 특수관계 여부 | 공급시장 독과점 정도 및공급의 안정성 관련 특이사항\n2026년 상반기 | 2025년 | 2024년\n방산 | 한화시스템(주) | 송수신모듈(4채널)피아식별기용 신호처리기전술용 컴퓨터헤드 광학 센서정비장비 | 753,727 | 1,592,561 | 1,395,860 | (주)브로던(주)빅텍(주)서울스탠다드Leorardo SpA(주)제노코 | 특수관계 없음 | 특이사항 없음\n기타 | Hanwha Philly Shipyard Inc. | 강재, 기자재, 의장재 등 | 199,813 (주2) | 264,408 (주1) | - | DSEC Cleveland Cliffs Kongsberg Maritime Cummins | 특수관계 없음 | 특이사항 없음\n※ ICT부문은 IT서비스 용역의 제공이 주된 매출로 프로젝트 내의 상품 매입액의 비중을 별도로 산정할 수 없습니다.\n주1) | 2025.12.31 매매기준율(1,434.90원/USD)을 적용하여 원화 환산한 금액입니다.\n주2) | 2026.06.30 매매기준율(1,541.50원/USD)을 적용하여 원화 환산한 금액입니다.\n나. 생산 및 설비 (1) 생산능력, 생산실적 및 가동률 (단위 : 백만원, MH)\n사업부문 | 해당회사 | 품 목 | 사업소 | 구분  …(이하 4,587자 생략)\n\n### 주요 제품 및 서비스\n(단위 : 백만원)\n사업부문 | 회사 | 매출유형 | 품목 | 구체적용도 | 매출액 | 비중\n방산 | 한화시스템 | 제품용역기타매출등 | 지상무기체계,해양무기체계,항공우주체계,종합군수지원 | 군수장비 | 1,171,788 | 60.9%\nICT | 한화시스템 | 상품용역 | 전산시스템 설계 및 구축,전산시스템 위탁운영,IT 융합 엔지니어링 서비스 등 | IT 서비스 | 359,593 | 18.7%\n기타 | H FOUNDATION PTE. LTD. Hanwha Systems USA Corporation 바닐라스튜디오 주식회사 Hanwh …(이하 3,332자 생략)\n\n### 주요계약 및 연구개발활동\n가. 경영상의 주요계약 등 공시서류작성기준일 현재 해당사항 없습니다. 나. 연구개발활동 (1) 연구개발 활동의 개요 [방산부문] 전자광학, 레이다, 지휘통제ㆍ통신, 해양시스템, 항공전자 및 위성 분야에서 주요 연구개발을 진행하고 있으며, 각 분야별 핵심 기술을 확보하여 고품질 첨단복합 무기체계 연구개발을 수행하고 있습니다.당사 방산부문의 연구개발인력 중 석/박사 인원의 구성은 약 43%를 차지하고 있습니다. 이는 고학력 우수인력의 채용을 통해 최첨단 무기체계 연구개발을 지속하기 위함입니다. 방산부문 연구개발 인력 현황 (단위 : 명, %)\n구분 | 인원수 | 구성비\n박사 | 156 | 6.5\n석사 | 874 | 36.3\n학사 | 1,217 | 50.6\n기타 | 160 | 6.6\n합계 | 2,407 | 100\n방산부문 연구개발 담당 조직 역할 연구개발 담당조직 | 역할\n전자광학연구소 | 탐지/대응체계, 유/무인기 탑재장비, 무인기체계, 항공기성능개량 등 연구개발\n레이다연구소 | 다기능레이다, 근거리방어용레이다, 특수레이다 등 연구개발\n통신연구소 | C4I체계(지휘통제, 교전통제, 통합관제), 통신체계(데이터링크, 전술통신) 등 연구개발\n지상연구소 | 기동전투체계, 유무인복합전투체계, 워리어플랫폼 등 연구개발\n레이저사업센터 | 레이저대공무기, 레이저폭발물제거장비, 레이저발진기, 레이저포발사장치 등 연구개발\n해양연구소 | 함정전투체계, 해 …(이하 3,920자 생략)",
+        "peers": [],
+        "quarter_prices": [
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 4,
+            "close": 54400,
+            "trade_date": "2025-12-30"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 1,
+            "close": 114100,
+            "trade_date": "2026-03-31"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "close": 73000,
+            "trade_date": "2026-06-30"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2026,
+            "fiscal_quarter": 3,
+            "close": 75100,
+            "trade_date": "2026-08-28"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 3,
+            "close": 12270,
+            "trade_date": "2023-09-27"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2023,
+            "fiscal_quarter": 4,
+            "close": 17360,
+            "trade_date": "2023-12-28"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 1,
+            "close": 17170,
+            "trade_date": "2024-03-29"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 2,
+            "close": 18860,
+            "trade_date": "2024-06-28"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 3,
+            "close": 17880,
+            "trade_date": "2024-09-30"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2024,
+            "fiscal_quarter": 4,
+            "close": 22600,
+            "trade_date": "2024-12-30"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 1,
+            "close": 32100,
+            "trade_date": "2025-03-31"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "close": 58000,
+            "trade_date": "2025-06-30"
+          },
+          {
+            "code": "272210",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 3,
+            "close": 59500,
+            "trade_date": "2025-09-30"
+          }
+        ],
+        "disclosures": [
+          {
+            "code": "272210",
+            "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)",
+            "disclosed_at": "2026-07-28T00:00:00+00:00",
+            "doc_type": "provisional"
+          },
+          {
+            "code": "272210",
+            "report_nm": "[기재정정]반기보고서 (2026.06)",
+            "disclosed_at": "2026-08-20T00:00:00+00:00",
+            "doc_type": "periodic"
+          },
+          {
+            "code": "272210",
+            "report_nm": "반기보고서 (2026.06)",
+            "disclosed_at": "2026-08-13T00:00:00+00:00",
+            "doc_type": "periodic"
+          }
+        ],
+        "as_of": "2026-08-28"
+      },
+      "evidence_anchors": [
+        {
+          "id": "latest_revenue",
+          "dimension": "improvement",
+          "paths": [
+            "one_line_thesis",
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "매출 1조1,176억원",
+            "매출 11,176억원",
+            "매출 11,175.5억원",
+            "매출은 1조1,175.5억원",
+            "1조1,175.5억원"
+          ]
+        },
+        {
+          "id": "latest_operating_profit",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 1,037억원",
+            "영업이익 1,036.7억원",
+            "영업이익은 1,036.7억원",
+            "1,036.7억원"
+          ]
+        },
+        {
+          "id": "latest_opm",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "OPM 9.3%",
+            "영업이익률 9.3%"
+          ]
+        },
+        {
+          "id": "operating_profit_yoy",
+          "dimension": "improvement",
+          "paths": [
+            "why_now",
+            "earnings_change"
+          ],
+          "aliases": [
+            "영업이익 YoY 209.9%",
+            "영업이익은 전년동기 대비 209.9%",
+            "영업이익 +209.9%"
+          ]
+        },
+        {
+          "id": "ttm_revenue",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM 매출 4조1,305억원",
+            "TTM 매출 41,305억원",
+            "4조1,305억원"
+          ]
+        },
+        {
+          "id": "ttm_opm",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "earnings_change",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "TTM OPM 4.0%",
+            "TTM 영업이익률 4.0%",
+            "4.0%"
+          ]
+        },
+        {
+          "id": "defense_mix",
+          "dimension": "sustainability",
+          "paths": [
+            "growth_engine",
+            "acceleration_quality",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "방산 매출 1,171,788백만원, 60.9%",
+            "방산부문 60.9%",
+            "방산 매출 비중 60.9%"
+          ]
+        },
+        {
+          "id": "price_peak_to_current",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "114,100원에서 75,000원",
+            "11만4,100원에서 7만5,000원",
+            "2026년 3월 31일 114,100원 이후 75,000원",
+            "11만4,100원으로 +109.7%",
+            "7만3,000원으로 -36.0%"
+          ]
+        },
+        {
+          "id": "pri",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position",
+            "why_now"
+          ],
+          "aliases": [
+            "PRI 8.4",
+            "PRI는 8.4",
+            "PRI 8.36",
+            "PRI는 8.36"
+          ]
+        },
+        {
+          "id": "valuation",
+          "dimension": "price_reflection",
+          "paths": [
+            "price_position"
+          ],
+          "aliases": [
+            "최근 4개 분기 PER 181.3배",
+            "선행 PER 48.8배",
+            "2026년 컨센 1,022억 기준"
+          ]
+        },
+        {
+          "id": "latest_disclosure",
+          "dimension": "catalyst",
+          "paths": [
+            "why_now"
+          ],
+          "aliases": [
+            "2026년 8월 20일 기재정정 반기보고서",
+            "2026-08-20 기재정정 반기보고서",
+            "2026-08-20 [기재정정]반기보고서",
+            "2026-08-20 접수"
+          ]
+        },
+        {
+          "id": "next_report",
+          "dimension": "catalyst",
+          "paths": [
+            "triggers"
+          ],
+          "aliases": [
+            "2026년 3분기 정기보고서",
+            "3분기 정기보고서",
+            "2026년 3Q 정기보고서",
+            "2026년 3분기 실적",
+            "2026년 3분기 연결재무제표기준영업(잠정)실적"
+          ]
+        },
+        {
+          "id": "margin_repeatability",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "분기 OPM 9.3% 대비 TTM OPM 4.0%",
+            "TTM OPM 4.0%",
+            "2분기 마진의 반복성",
+            "2분기 OPM 9.3%",
+            "OPM 9.3%가 반복"
+          ]
+        },
+        {
+          "id": "valuation_risk",
+          "dimension": "risk",
+          "paths": [
+            "risks",
+            "how_i_could_be_wrong"
+          ],
+          "aliases": [
+            "최근 4개 분기 PER 181.3배",
+            "선행 PER 48.8배",
+            "높은 밸류에이션"
+          ]
+        }
+      ],
+      "candidates": [],
+      "anchor_review": {
+        "status": "reviewed",
+        "reviewed_at": "2026-08-29",
+        "basis": "2026.2Q 분기표·결정론 증감·동분기 정기보고서 발췌·canonical 현재가·최근 공시 수동 교차대조",
+        "caution": "공시 사업부문 값은 상반기 누적이다. 분기 OPM 9.3%와 TTM OPM 4.0%의 차이는 지속성 위험으로 별도 평가한다."
+      }
+    }
+  ]
+}

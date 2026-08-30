@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from src.analysis.analyze import AnalysisInput, build_user_message
+from src.analysis.prompts import SYSTEM_PROMPT
 
 
 def _input(**kw) -> AnalysisInput:
@@ -61,6 +62,24 @@ def test_quarter_price_moves_are_precomputed():
 def test_missing_quarter_prices_say_so_rather_than_vanish():
     message = build_user_message(_input(quarter_prices=[]))
     assert "분기말 주가: (없음)" in message
+
+
+def test_price_snapshot_is_the_only_current_price_in_llm_history():
+    """같은 날 KIS/Naver 값이 달라도 모델에는 canonical 현재가 하나만 준다(T115)."""
+    message = build_user_message(_input(
+        price={"code": "097230", "snap_date": "2026-08-27", "close": 17_160.0},
+        quarter_prices=_PRICES[:-1] + [{
+            "fiscal_year": 2026,
+            "fiscal_quarter": 3,
+            "close": 17_120.0,
+            "trade_date": "2026-08-27",
+        }],
+    ))
+
+    assert '"close": 17160.0' in message
+    assert message.count("17,160원") == 1
+    assert "17,120원" not in message
+    assert "시세 스냅샷 기준 현재가" in message
 
 
 # ── 최근 공시 목록 ───────────────────────────────────────────────────
@@ -118,6 +137,26 @@ def test_as_of_tells_the_model_what_it_cannot_know():
     assert "이 날짜 이후의 사건은 입력에 없다" in message
 
 
+def test_trigger_month_limits_are_precomputed_across_year_boundary():
+    """트리거 범위의 달력 계산도 LLM에게 맡기지 않는다(T109)."""
+    message = build_user_message(_input(as_of="2026-11-30"))
+    assert "within_3m expected_date는 2027-02 이하" in message
+    assert "within_6m expected_date는 2027-05 이하" in message
+
+
+def test_missing_as_of_makes_trigger_limits_explicitly_unavailable():
+    message = build_user_message(_input(as_of=None))
+    assert "트리거 월 상한: 계산 불가" in message
+
+
+def test_prompt_forbids_new_arithmetic_and_requires_latest_disclosure_citation():
+    assert "차액·증가액·변화율을 새로 계산하지 마라" in SYSTEM_PROMPT
+    assert "결정론적 절대 증감" in SYSTEM_PROMPT
+    assert "최신 공시명과 접수일" in SYSTEM_PROMPT
+    assert "트리거 월 상한" in SYSTEM_PROMPT
+    assert "[[F001]]" not in SYSTEM_PROMPT
+
+
 # ── 회귀 방어: 스키마가 요구하는 것 ↔ 입력이 주는 것 ──────────────────
 
 
@@ -136,6 +175,7 @@ def test_every_narrative_field_has_its_evidence_in_the_input():
     ))
     required_blocks = {
         "earnings_change.cause → 분기 실적표": "## 2. 분기 실적",
+        "earnings_change 절대금액 → Python 증감액": "## 2-1. 결정론적 절대 증감",
         "price_position.reason → 주가·밸류에이션": "## 5. 주가",
         "price_position.price_history → 분기말 주가 궤적": "분기말 종가 추이",
         "triggers → 공시 원문 발췌": "## 6. 공시 발췌",

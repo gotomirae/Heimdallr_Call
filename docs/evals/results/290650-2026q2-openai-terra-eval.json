@@ -1,0 +1,124 @@
+{
+  "suite": "heimdallr-2026q2-investment-casebook",
+  "synthetic": false,
+  "comparison_ready": false,
+  "provider_average_scores": {
+    "openai": 93.57
+  },
+  "winner": null,
+  "criteria": {
+    "weights": {
+      "schema": 25,
+      "factual_grounding": 25,
+      "evidence_coverage": 20,
+      "trigger_timing": 15,
+      "actionability": 15
+    },
+    "min_score": 80.0,
+    "min_evidence_coverage": 0.75,
+    "min_dimension_evidence_coverage": 0.5,
+    "canary_max_cost_usd": 0.15
+  },
+  "casebook_coverage": {
+    "ready": true,
+    "case_count": 4,
+    "minimum_case_count": 4,
+    "industry_count": 4,
+    "minimum_industry_count": 3,
+    "industries": [
+      "기초 화학물질 제조업",
+      "의약품 제조업",
+      "전자부품 제조업",
+      "토목 건설업"
+    ],
+    "grades": [
+      "○",
+      "★"
+    ],
+    "consensus_states": [
+      false,
+      true
+    ],
+    "turnaround_states": [
+      false,
+      true
+    ],
+    "grade_consensus_cells": [
+      "○/false",
+      "○/true",
+      "★/false",
+      "★/true"
+    ],
+    "missing_grade_consensus_cells": [],
+    "missing_turnaround_states": [],
+    "missing_investment_dimensions": [],
+    "cases_missing_investment_dimensions": {},
+    "invalid_cases": []
+  },
+  "cases": [
+    {
+      "case_id": "hj-097230-2026q2",
+      "source": "Heimdallr Supabase read-only replay b9a984ab25a68c1c1f22832a5db89c7418f13f5092d4d13ff260f4b86b7b6f3c",
+      "candidate_count": 0,
+      "results": []
+    },
+    {
+      "case_id": "lnc-bio-290650-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/290650-2026q2.json",
+      "candidate_count": 1,
+      "results": [
+        {
+          "case_id": "lnc-bio-290650-2026q2",
+          "candidate_id": "openai-terra-canary",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "execution_status": "failed",
+          "score": 93.57,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 20.0,
+            "evidence_coverage": 18.57,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.9286,
+          "evidence_coverage_by_dimension": {
+            "improvement": 1.0,
+            "sustainability": 1.0,
+            "price_reflection": 1.0,
+            "catalyst": 1.0,
+            "risk": 0.5
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "480.9억"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "negative_ttm_net_income"
+          ],
+          "cost_usd": 0.082939,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "9c8723c9f42f255ca9e04e76e215eb9edcb8648f3efe125982469ca17d8d389a"
+        }
+      ]
+    },
+    {
+      "case_id": "lotte-fine-chemical-004000-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/004000-2026q2.json",
+      "candidate_count": 0,
+      "results": []
+    },
+    {
+      "case_id": "hanwha-systems-272210-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/272210-2026q2.json",
+      "candidate_count": 0,
+      "results": []
+    }
+  ]
+}

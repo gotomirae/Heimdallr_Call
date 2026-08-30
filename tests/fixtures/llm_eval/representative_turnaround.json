@@ -1,0 +1,174 @@
+{
+  "suite": "representative-turnaround-smoke",
+  "synthetic": true,
+  "cases": [
+    {
+      "id": "synthetic-turnaround-2026q2",
+      "source": "synthetic-hand-checked; provider 품질 비교 근거로 사용 금지",
+      "input": {
+        "code": "000001",
+        "name": "리플레이산업",
+        "board": "KOSPI",
+        "industry": "산업재",
+        "products": "정밀 설비",
+        "market_cap_krw": 500000000000,
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "quarters": [
+          {
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
+            "revenue": 100000000000,
+            "revenue_yoy": 5.0,
+            "op": -5000000000,
+            "op_yoy": null,
+            "opm": -5.0,
+            "opm_yoy_delta": -2.0,
+            "ttm_revenue": 390000000000,
+            "ttm_opm": -1.0,
+            "op_status_label": "적자확대"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_quarter": 2,
+            "revenue": 150000000000,
+            "revenue_yoy": 50.0,
+            "op": 12000000000,
+            "op_yoy": null,
+            "opm": 8.0,
+            "opm_yoy_delta": 13.0,
+            "ttm_revenue": 480000000000,
+            "ttm_opm": 4.0,
+            "op_status_label": "흑전"
+          }
+        ],
+        "gate": {"passed": true, "turnaround": true},
+        "score": {"score_norm": 82.0, "grade": "★", "has_consensus": false},
+        "consensus": null,
+        "price": {"current_price": 9500, "relative_return_3m": -8.0},
+        "valuation": {"per_trailing_4q": 12.0, "ttm_np": 40000000000, "pbr": 1.2},
+        "pri": {"score": 32.0},
+        "excerpt": "[출처: 2026년 2분기 정기보고서]\n신규 설비는 2026-10 상업 가동 예정이다. 수주잔고는 3,000억원이다.",
+        "peers": [],
+        "quarter_prices": [
+          {"fiscal_year": 2026, "fiscal_quarter": 1, "close": 10000, "trade_date": "2026-03-31"},
+          {"fiscal_year": 2026, "fiscal_quarter": 2, "close": 9000, "trade_date": "2026-06-30"},
+          {"fiscal_year": 2026, "fiscal_quarter": 3, "close": 9500, "trade_date": "2026-08-24"}
+        ],
+        "disclosures": [
+          {"report_nm": "반기보고서 (2026.06)", "disclosed_at": "2026-08-12T00:00:00+00:00"}
+        ],
+        "as_of": "2026-08-24"
+      },
+      "evidence_anchors": [
+        {
+          "id": "latest_revenue",
+          "dimension": "improvement",
+          "paths": ["one_line_thesis", "why_now", "earnings_change"],
+          "aliases": ["매출 1,500억", "매출1,500억원"]
+        },
+        {
+          "id": "latest_opm",
+          "dimension": "improvement",
+          "paths": ["why_now", "earnings_change"],
+          "aliases": ["OPM 8%", "OPM8.0%"]
+        },
+        {
+          "id": "turnaround",
+          "dimension": "improvement",
+          "paths": ["one_line_thesis", "why_now", "earnings_change"],
+          "aliases": ["흑전", "흑자 전환"]
+        },
+        {
+          "id": "order_backlog",
+          "dimension": "sustainability",
+          "paths": ["growth_engine", "acceleration_quality"],
+          "aliases": ["수주잔고 3,000억", "수주잔고3,000억원"]
+        },
+        {
+          "id": "price_recovery",
+          "dimension": "price_reflection",
+          "paths": ["price_position"],
+          "aliases": ["+5.6%", "5.6% 반등"]
+        },
+        {
+          "id": "commercial_operation",
+          "dimension": "catalyst",
+          "paths": ["triggers"],
+          "aliases": ["신규 설비 상업 가동", "가동 개시"]
+        },
+        {
+          "id": "operation_delay",
+          "dimension": "risk",
+          "paths": ["risks", "how_i_could_be_wrong"],
+          "aliases": ["가동 지연"]
+        }
+      ],
+      "candidates": [
+        {
+          "id": "synthetic-reference",
+          "provider": "fixture-reference",
+          "model": "offline",
+          "cost_usd": null,
+          "payload": {
+            "one_line_thesis": "매출 1,500억과 흑전이 확인됐지만 주가는 아직 회복 초기다.",
+            "why_now": "2026.2Q 매출 1,500억, OPM 8%로 전환됐다. 수주잔고 3,000억이 후속 매출의 근거다.",
+            "earnings_change": {
+              "cause": "매출 1,500억과 OPM 8%가 확인됐고 흑전했다.",
+              "effect": "적자 구조에서 흑자 구조로 바뀌었다.",
+              "outlook": "신규 설비가 가동되면 다음 분기 물량 지속 여부를 확인해야 한다.",
+              "confidence": "medium"
+            },
+            "growth_engine": {
+              "drivers": ["CAPA 확대", "물량 증가"],
+              "structural_or_temporary": "structural",
+              "evidence": "수주잔고 3,000억원과 2026-10 상업 가동 계획이 있다."
+            },
+            "acceleration_quality": {
+              "is_genuine": true,
+              "base_effect_assessment": "전년 동기 OPM -5%의 낮은 기저가 있으므로 후속 확인이 필요하다.",
+              "sustainability_quarters": 2
+            },
+            "triggers": {
+              "within_3m": [
+                {
+                  "event": "신규 설비 상업 가동",
+                  "verifiable_metric": "가동 개시 공시와 가동률",
+                  "expected_date": "2026-10",
+                  "impact": "high",
+                  "kind": "증설"
+                }
+              ],
+              "within_6m": [
+                {
+                  "event": "수주잔고의 매출 전환",
+                  "verifiable_metric": "다음 정기보고서 수주잔고와 매출",
+                  "expected_date": "2027-01",
+                  "impact": "medium",
+                  "kind": "수주"
+                }
+              ]
+            },
+            "price_position": {
+              "verdict": "매력적",
+              "reason": "최근 4개 분기 PER 12배이며 2026.2Q 9,000원에서 현재 9,500원으로 +5.6% 회복했다.",
+              "price_history": "2026.1Q 10,000원에서 2026.2Q 9,000원으로 -10% 하락한 뒤 9,500원으로 +5.6% 반등했다.",
+              "priced_in": ["흑전 기대의 일부는 +5.6% 반등에 반영됐다."],
+              "not_priced_in": ["수주잔고 3,000억원의 설비 가동 후 매출 전환은 미반영이다."]
+            },
+            "scenarios": {
+              "bull": {"probability": 0.25, "condition": "OPM 10% 이상", "implication": "재평가 가능"},
+              "base": {"probability": 0.55, "condition": "OPM 8% 유지", "implication": "완만한 재평가"},
+              "bear": {"probability": 0.20, "condition": "OPM 4% 미만", "implication": "턴어라운드 훼손"}
+            },
+            "risks": [
+              {"risk": "가동 지연", "likelihood": "중간", "impact": "큼", "watch_metric": "가동 개시 공시"}
+            ],
+            "next_data_to_watch": ["가동률", "수주잔고", "OPM"],
+            "how_i_could_be_wrong": "낮은 기저와 가동 지연으로 흑전이 이어지지 않을 수 있다."
+          }
+        }
+      ]
+    }
+  ]
+}

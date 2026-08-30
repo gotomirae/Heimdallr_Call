@@ -1,0 +1,62 @@
+{
+  "suite": "hj-097230-2026q2-openai-canary",
+  "synthetic": false,
+  "comparison_ready": false,
+  "provider_average_scores": {
+    "openai": 75.83
+  },
+  "winner": null,
+  "criteria": {
+    "weights": {
+      "schema": 25,
+      "factual_grounding": 25,
+      "evidence_coverage": 20,
+      "trigger_timing": 15,
+      "actionability": 15
+    },
+    "min_score": 80.0,
+    "min_evidence_coverage": 0.75,
+    "canary_max_cost_usd": 0.15
+  },
+  "cases": [
+    {
+      "case_id": "hj-097230-2026q2",
+      "source": "Heimdallr Supabase read-only replay b9a984ab25a68c1c1f22832a5db89c7418f13f5092d4d13ff260f4b86b7b6f3c",
+      "candidate_count": 1,
+      "results": [
+        {
+          "case_id": "hj-097230-2026q2",
+          "candidate_id": "openai-terra-attempt-2",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "score": 75.83,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 10.0,
+            "evidence_coverage": 18.33,
+            "trigger_timing": 7.5,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.9167,
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "1885억",
+            "2221억",
+            "596억"
+          ],
+          "trigger_timing_problems": [
+            "within_6m:2026년 4분기까지 신조선·특수선 중심 매출이 유지돼 TTM OPM이 6% 이상에서 확장되면, 2025년 1~3분기 1%대 OPM을 벗어난 수익구조 재평가의 근거가 된다.: 2027-03는 6개월 범위 밖(+7개월)"
+          ],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "disclosure_timing"
+          ],
+          "cost_usd": 0.086823
+        }
+      ]
+    }
+  ]
+}

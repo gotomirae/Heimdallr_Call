@@ -207,6 +207,41 @@ LLM_EFFORT = "low"
 #   ★ 늘릴 때는 반드시 **실측 최대**를 다시 재라. 짐작으로 올리면 T97이 되돌아온다.
 LLM_INPUT_TOKEN_BUDGET = 16000
 
+# ═══ LLM offline eval · canary 승인 기준 ═══
+# Provider 결과를 같은 replay 입력으로 비교하는 **결정론적** 평가다. LLM judge를
+# 쓰면 평가 자체가 Provider·모델에 따라 흔들리고 비용도 생기므로 사용하지 않는다.
+LLM_EVAL_WEIGHTS = {
+    "schema": 25,
+    "factual_grounding": 25,
+    "evidence_coverage": 20,
+    "trigger_timing": 15,
+    "actionability": 15,
+}
+LLM_EVAL_MIN_SCORE = 80.0
+LLM_EVAL_MIN_EVIDENCE_COVERAGE = 0.75
+LLM_EVAL_MIN_DIMENSION_EVIDENCE_COVERAGE = 0.50
+# 실제 투자판단 사례집의 최소 횡단면. ★/○ × 컨센서스 유/무 네 셀을 채우려면
+# 최소 4건이 필요하며, 한 업종의 우연한 문체 적합성을 일반화하지 않도록 3개 업종을 요구한다.
+LLM_EVAL_CASEBOOK_MIN_CASES = 4
+LLM_EVAL_CASEBOOK_MIN_INDUSTRIES = 3
+LLM_EVAL_INVESTMENT_DIMENSIONS = (
+    "improvement",
+    "sustainability",
+    "price_reflection",
+    "catalyst",
+    "risk",
+)
+# 승인 요청 전 제시할 단건 canary 하드캡. 최근 Anthropic 실측 최대 $0.1336보다
+# 약 12% 높은 값이다. 이 값은 실행 승인이 아니며, 모델·공식 단가가 없으면 호출 전 차단된다.
+LLM_CANARY_MAX_COST_USD = 0.15
+# canary 전용 출력 상한. Terra에서 입력 16,000토큰이 전부 가장 비싼 cache-write
+# 단가($2.50/M)로 잡혀도 16,000×2.5/M + 9,100×12/M = $0.1492다(T106).
+# 공통 운영 상한(16,384)을 낮추지 않는다 — canary 요청에만 명시적으로 주입한다.
+LLM_CANARY_MAX_OUTPUT_TOKENS = 9_100
+# 같은 단위의 한 자리 소수를 정수로 표시 반올림해도 의미가 유지되는 큰 성장률 하한.
+# OPM·마진 차이는 0.1%p도 판정을 바꾸므로 이 하한 아래 비율은 정확한 표기를 요구한다(T87).
+LLM_NUMERIC_WHOLE_ROUNDING_MIN_PERCENT = 100
+
 # ═══ 공시 발췌 길이 — **여기 한 곳만이다** ═══
 # ★★ 이 값이 두 곳에 흩어져 조용히 어긋나 있었다(T100 · 2026-08-24 실측).
 #   수집기는 2,400자로 뽑는데 분석기가 2,000자에서 잘라, 저장된 발췌 453건 중

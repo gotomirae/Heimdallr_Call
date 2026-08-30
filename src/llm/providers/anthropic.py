@@ -10,15 +10,19 @@ from src.utils.env import require_env
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, *, max_retries: int | None = None):
         self._provided_client = client
+        self._max_retries = max_retries
 
     def _client(self):
         if self._provided_client is not None:
             return self._provided_client
         import anthropic
 
-        return anthropic.Anthropic(api_key=require_env("ANTHROPIC_API_KEY"))
+        kwargs = {"api_key": require_env("ANTHROPIC_API_KEY")}
+        if self._max_retries is not None:
+            kwargs["max_retries"] = self._max_retries
+        return anthropic.Anthropic(**kwargs)
 
     @staticmethod
     def _analysis_tool(request: LLMRequest) -> dict:

@@ -563,9 +563,13 @@ CREATE TABLE cost_log (
   0) 데이터 기준일  이 날짜 이후의 사건은 입력에 없다고 모델에게 명시 (T101)
   1) 기본정보    종목명·코드·업종·주요제품·시총·상장일
   2) 8분기 표    매출/YoY/QoQ · 영업이익/YoY · OPM/YoY%p · EPS · TTM 매출·OPM · FCF
+ 2-1) 절대 증감   대상 분기의 매출·영업이익 YoY/QoQ 원 단위 차액(Python 계산)
+                 정확한 비교 분기가 없으면 None. 가까운 분기로 대체하지 않는다.
   3) 판정 결과   게이트 통과 여부 + A/B/C/D 축별 점수와 근거 수치
                  + base_effect_warning + sector_caveat
   4) 컨센서스    매출/영업이익/EPS 추정치와 서프라이즈 % (없으면 "커버리지 없음" 명시)
+                 시점 이력 중 `snapshot_at` 최신 행만 사용한다. PostgREST 첫 행은 순서 계약이
+                 아니므로 replay 입력으로 쓰지 않는다.
   5) 주가        현재가·52주 위치·3/6/12M 수익률·지수 대비 초과수익·PER·PBR·PRI 분해
                  + **분기말 종가 추이**(등락률을 우리가 계산해 준다 — 모델에게
                  산수를 시키면 틀린 값이 본문에 인용된다 · T101)
@@ -578,6 +582,31 @@ CREATE TABLE cost_log (
 ```
 
 > **공시 원문 전체를 넣지 마라.** 숫자는 이미 우리가 정확히 갖고 있다. LLM에게 숫자를 다시 읽히면 비용과 오류가 함께 늘어난다. LLM의 역할은 **"이 숫자 패턴이 무엇을 의미하고, 다음 1~4개 분기에 무엇이 숫자로 확인되어야 하는가"**다.
+
+분기 입력은 DB의 단순 최신 8개가 아니라 **요청 분기를 끝점으로 하는 최근 8개**다.
+요청 분기 행이 없으면 분석을 중단한다. 과거 replay에 요청일 이후 분기가 섞이면 모델이
+당시 알 수 없던 실적을 보고도 정상 응답을 만들어 미래정보 누수가 드러나지 않는다(T112).
+절대 증감액은 원 단위로 계산한 뒤 표시만 억원으로 반올림하며, LLM은 표시된 원값끼리
+다시 빼지 않는다(T110).
+
+canary 실험 요청의 과거·현재 사실 숫자는 `[[F001:+595.1억원]]`처럼 인라인 참조를 붙인다.
+모델은 전체 표식을 그대로 복사하거나 `[[F001]]`만 반환하며, 저장 전 프로그램이 입력의
+정확한 표시값으로 복원한다. 입력에 없는 참조와 값이 바뀐 전체 표식은 실패다. 참조 없이
+직접 쓴 숫자는 기존 동일 단위 grounding gate에서 입력과 정확히 같거나 허용된 표시 반올림인지
+검사하며, 단위 환산과 새 계산은 계속 실패다. 미래 시나리오 조건과 risk watch
+metric의 임계값은 투자 판단이므로 이 참조 계약에서 제외한다(ADR 10). 참조 계약이 없던
+과거 request snapshot은 재현성을 위해 그대로 평가하고 소급 변환하지 않는다(T111).
+OPM YoY·QoQ 변화처럼 서술에 필요한 계산값은 모델이 새로 계산하지 않도록 Python이 결정론적으로
+입력에 제공한다. 첫 실제 Anthropic 검증에서 발견된 미근거 `+4.2%p`도 이 경계로 옮겼다.
+세 차례 canary가 모두 quality=false였으므로 참조 계약은 운영 `analyze()` 기본 요청에 적용하지
+않는다. 운영은 기존 직접 숫자 입력+동일 단위 grounding gate를 유지하고, 참조 구현은 canary에서만
+명시적으로 활성화한다.
+
+LLM의 **현재가**는 PRI·52주 위치와 같은 시점 계약을 가진 최신 `price_snapshots` 한 값을
+canonical source로 쓴다. `quarter_prices`는 과거 분기말 종가만 제공하고, 현재 달력분기 행은
+snapshot의 `close`·`snap_date`로 대체한다. `quarter_prices.trade_date`가 snapshot보다 더
+최신이면 어느 값을 맞다고 추측하지 않고 분석을 차단한다(T115). 이는 DB·대시보드 표시를
+바꾸는 규칙이 아니라 LLM 입력의 DATA→VALIDATION 경계다.
 
 ### 7.2 출력 스키마 (Provider 강제 Structured JSON)
 
@@ -657,9 +686,88 @@ LLM_INPUT_TOKEN_BUDGET = 16000    # 2026-08-24 개정 (14000 → 16000 · 실측
   모델은 필요한 만큼만 쓴다.
 
 - `stop_reason == "max_tokens"`면 **명시적으로 실패 처리**한다. 잘린 JSON을 저장하면 대시보드가 나중에 500을 낸다.
+- Provider의 strict structured output 뒤에도 Canonical schema를 전 깊이 재검사한다. 중첩 타입·
+  required·enum·추가 필드뿐 아니라 정확한 `placeholder` filler도 저장하지 않는다(T125).
 - 월 실링 도달 시 큐로 이월하고 텔레그램으로 통지한다.
 - `check_budget()`은 `cost_log where env='prod'`만 집계한다.
 - **가격 상수**: Sonnet 5 입력 $2 / 출력 $10 / 캐시읽기 $0.20 per MTok (2026-08-13 확인). **날짜 기준 가격 전환 로직을 넣지 마라** — HermesCall이 2026-09-01 $3/$15 전환을 넣어 두었으나 Anthropic 공식 확인 결과 인상은 시행되지 않았다.
+
+### 7.4 Provider offline replay 평가
+
+Provider 전환은 같은 `AnalysisInput`·시스템 프롬프트·JSON Schema로 생성된 **저장 결과**를
+`src.analysis.eval_run`에서 비교한 뒤에만 검토한다. 평가기는 외부 API·DB·LLM judge를
+호출하지 않는다. synthetic fixture는 평가기 회귀 검증용일 뿐 Provider 우열의 근거가 아니다.
+
+| 축 | 배점 | 실패 예시 |
+|---|---:|---|
+| 재귀 스키마 | 25 | 중첩 객체가 문자열로 반환됨(T103) |
+| 사실 숫자 근거 | 25 | 입력에 없는 과거 실적·주가·PER 숫자 |
+| 핵심 근거 커버리지 | 20 | replay가 지정한 매출·OPM·흑전·수주 근거 누락 |
+| 트리거 시점 | 15 | 기준일보다 과거이거나 3/6개월 창 밖 |
+| 검증 가능성 | 15 | 숫자·공시·운영지표 없이 “개선 기대”만 씀 |
+
+```
+LLM_EVAL_MIN_SCORE = 80
+LLM_EVAL_MIN_EVIDENCE_COVERAGE = 0.75
+LLM_EVAL_MIN_DIMENSION_EVIDENCE_COVERAGE = 0.50
+LLM_CANARY_MAX_COST_USD = 0.15
+LLM_CANARY_MAX_OUTPUT_TOKENS = 9100
+```
+
+총점이 높아도 **스키마 오류, 입력에 없는 사실 숫자, 과거/범위 밖 트리거는 하드 실패**다.
+핵심 근거는 단순 전체 언급률뿐 아니라 `실적 개선 원인 · 지속성 · 주가 미반영 · catalyst ·
+risk` 다섯 투자판단 영역별로 측정한다. 근거가 엉뚱한 출력 필드에 있어도 세지 않으며,
+한 영역이라도 50% 미만이면 전체 평균이 높아도 품질 통과가 아니다. 실제 사례집은 최소
+4건으로 `★/○ × 컨센서스 유/무` 네 셀, 턴어라운드/비턴어라운드 가속화, 3개 이상 업종을
+모두 포함하기 전에는 대표성을 확보했다고 선언하지 않는다.
+같은 사실 숫자 검사는 offline 평가에만 머물지 않고 운영 `analyze()`와 canary의 **저장 전
+VALIDATION gate**로도 강제한다. `one_line_thesis`·실적 원인/효과·성장 근거·주가 설명처럼
+과거/현재 사실을 말하는 필드의 숫자는 실제 request에 같은 단위로 있어야 한다. 공시의
+`백만원`을 모델이 `억원`으로 환산한 값도 새 숫자다. 반면 Bull/Base/Bear 조건과 risk
+watch metric의 미래 임계값은 INVESTMENT JUDGMENT이므로 이 사실 숫자 gate에서 제외한다(T114).
+위반 결과는 비용이 이미 발생했더라도 DB에 저장하지 않으며, canary는 usage·비용·raw payload와
+실패 이유를 보존한다.
+저장 gate에서 실패했더라도 유료 응답의 raw payload가 보존됐다면 offline replay 평가 대상이다.
+이때 `execution_status=failed`를 결과에 남기고, 정정 평가 점수가 높아도 `canary_eligible=false`와
+`comparison_ready=false`를 유지한다. 평가기의 오탐 수정은 과거 raw payload를 바꾸지 않는다.
+비용이 기록되지 않은 후보는 비용 통과를 `False`가 아니라 `None`으로 남긴다. 모든 replay에
+동일한 Provider가 정확히 한 번씩 있어야 평균 비교가 가능하며, 동점이면 승자를 만들지 않는다.
+각 실측 후보는 호출 순간의 Canonical `request_snapshot`(system prompt·user message·schema·
+출력 상한·reasoning·web 설정), 그 SHA-256, `AnalysisInput` SHA-256을 함께 저장한다. 평가기는
+최신 builder로 요청을 다시 만들지 않고 **저장 snapshot의 message와 schema만** 사용한다.
+snapshot 누락·변조·input hash 불일치는 점수를 참고용으로만 남기고 `canary_eligible=false`,
+`comparison_ready=false`로 처리한다. Provider 비교에서는 모델 ID만 제외한 요청 계약 hash가
+같아야 한다(T111).
+승인 전 canary 계획은 1종목·웹 검색 OFF·외부 저장 OFF·최대 **$0.15**다. 이는 실행 승인이
+아니며 모델명과 공식 단가가 확정되지 않으면 기존 가드가 호출 전에 차단한다.
+승인 계획은 request snapshot·input hash뿐 아니라 **모델 단가·입출력 상한·비용 하드캡**을
+포함한 `plan_sha256`으로 고정한다. 실제 `call`은 승인된 hash와 현재 계획이 같을 때만
+token-count를 호출한다. prompt/schema/단가/상한이 바뀌면 외부 호출 0회로 차단한다(T113).
+plan v2는 Provider도 hash에 포함하고 SDK 자동 재시도를 0으로 고정한다. 입력 16,000토큰이
+전부 가장 비싼 cache-write 단가로 계산돼도 출력 9,100토큰을 합친 최악비용은 Terra
+**$0.1492**, Sonnet 5 **$0.131**다. 이 계산은 생성 후 평가가 아니라 생성 전에 요청을
+차단한다(T106).
+품질 원인 분리 canary는 운영 `LLM_EFFORT`를 바꾸지 않고 plan에 별도 effort를 고정할 수 있다.
+effort도 request snapshot과 `plan_sha256`에 포함되어 승인 뒤 바뀌면 호출 전에 차단된다.
+
+2026-08-29 실제 4-case canary에서 OpenAI 평균은 **84.64**, Anthropic은 **46.07**이었으나
+양쪽 모두 품질 통과 **0/4**다. Anthropic 1건은 canary 출력 상한에서 잘렸고 나머지는 입력에
+없는 계산·반올림·단위 환산 숫자로 저장 차단됐다. HJ의 과거 OpenAI snapshot은 현재 요청
+계약과도 달라 `comparison_ready=false`이며, 이 수치로 Provider 승자나 Primary 전환을
+선언하지 않는다.
+같은 단위의 금액과 100% 이상 큰 성장률은 한 자리 소수를 정수로 정상 `ROUND_HALF_UP`
+표시한 경우만 허용한다. 100% 미만 비율·OPM·%p는 0.1 차이가 판정을 바꿀 수 있어 정확한
+입력 표기를 요구하며, 단위 환산과 새 계산은 계속 금지한다(T123).
+출력 직전 숫자 자체감사 문단만 추가하는 접근은 2026-08-29 롯데정밀화학 동일 replay에서
+unsupported 6→8, 점수 65.00→63.57로 악화돼 폐기했다(T124). 프롬프트 지시를 반복하는 것을
+숫자 정확성 해결책으로 간주하지 않으며, 저장 gate를 계속 강제한다.
+canary 실험 요청은 사실 숫자를 인라인 참조로 바꾸고 모델이 전체 표식을 그대로 복사하거나 축약
+참조를 반환하게 한다(ADR 10). 프로그램이 참조를 원문 숫자로 복원한 뒤 같은 저장 gate를
+다시 적용하므로, 참조 계약은 기존 검증을 대체하지 않고 그 앞에 놓인다. 2026-08-30 첫 실제
+롯데정밀화학 검증은 정확한 전체 표식 68회와 미근거 계산값 `+4.2%p` 1개를 확인했다. 후자는
+결정론 입력으로 옮겼다. low-effort v2는 숫자 오류 0건이나 filler 11곳으로 26.43점, medium은
+filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점이었다. 3회 모두 실패했으므로
+운영 승격·4종목 확대·Provider 전환을 하지 않는다.
 
 ---
 

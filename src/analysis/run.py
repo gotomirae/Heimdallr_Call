@@ -20,7 +20,12 @@ from src.analysis.analyze import (
     validate_payload,
 )
 from src.config.constants import LLM_INPUT_TOKEN_BUDGET
-from src.db.supabase_client import select_all
+from src.db.supabase_client import (
+    PostgrestReadBudget,
+    ReadBudgetExceeded,
+    select_all,
+)
+from src.finance.narrative_changes import select_quarter_window
 from src.finance.valuation import (
     forward_per_annual,
     trailing_4q_per,
@@ -37,8 +42,20 @@ FUND_COLUMNS = (
 )
 
 
+def _latest_snapshot(rows: list[dict]) -> dict | None:
+    """시점 이력에서 최신 한 행을 고른다. PostgREST 반환 순서는 계약이 아니다."""
+    if not rows:
+        return None
+    return max(rows, key=lambda row: str(row.get("snapshot_at") or ""))
+
+
 def load_excerpt(
-    code: str, year: int, quarter: int, *, allow_fetch: bool = False
+    code: str,
+    year: int,
+    quarter: int,
+    *,
+    allow_fetch: bool = False,
+    read_budget: PostgrestReadBudget | None = None,
 ) -> str | None:
     """저장된 정기보고서 발췌. 없으면 (허용 시) 그 자리에서 받는다.
 
@@ -52,9 +69,12 @@ def load_excerpt(
             r for r in select_all(
                 "disclosure_excerpts",
                 "rcept_no,code,fiscal_year,fiscal_quarter,sections,full_chars",
+                filters={"code": code},
+                read_budget=read_budget,
             )
-            if r["code"] == code
         ]
+    except ReadBudgetExceeded:
+        raise
     except Exception:
         rows = []  # 테이블 미생성 등 — 조용히 넘어간다
 
@@ -103,9 +123,11 @@ def load_excerpt(
 
     candidates = [
         d for d in select_all(
-            "earnings_disclosures", "rcept_no,code,report_nm,disclosed_at"
+            "earnings_disclosures", "rcept_no,code,report_nm,disclosed_at",
+            filters={"code": code},
+            read_budget=read_budget,
         )
-        if d["code"] == code and is_periodic(d.get("report_nm"))
+        if is_periodic(d.get("report_nm"))
     ]
     if not candidates:
         return None
@@ -122,44 +144,60 @@ def load_excerpt(
 
 
 def build_input(
-    code: str, *, year: int, quarter: int, allow_fetch: bool = False
+    code: str,
+    *,
+    year: int,
+    quarter: int,
+    allow_fetch: bool = False,
+    read_budget: PostgrestReadBudget | None = None,
 ) -> AnalysisInput:
     uni = {u["code"]: u for u in select_all(
-        "krx_universe", "code,name,board,industry,products,market_cap_krw,listed_at,sector_caveat"
+        "krx_universe", "code,name,board,industry,products,market_cap_krw,listed_at,sector_caveat",
+        filters={"code": code},
+        read_budget=read_budget,
     )}
     row = uni.get(code)
     if row is None:
         raise SystemExit(f"{code}: krx_universe에 없다")
 
-    funds = [f for f in select_all("quarterly_fundamentals", FUND_COLUMNS) if f["code"] == code]
+    funds = select_all(
+        "quarterly_fundamentals", FUND_COLUMNS, filters={"code": code},
+        read_budget=read_budget,
+    )
     funds.sort(key=lambda f: (f["fiscal_year"], f["fiscal_quarter"]))
-    quarters = funds[-8:]
+    # ★ 요청 분기 뒤의 실적을 넣으면 과거 replay가 미래를 본다(T112).
+    # `최신 8개`가 아니라 **요청 분기까지의 8개**여야 한다.
+    quarters = select_quarter_window(funds, year, quarter, limit=8)
 
     screens = [
         s for s in select_all(
             "screen_results",
             "code,fiscal_year,fiscal_quarter,gate_passed,gate_detail,base_effect_warning,"
             "turnaround,score_flash,score_a,score_b,has_consensus,pri,pri_detail,grade",
+            filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
+            read_budget=read_budget,
         )
-        if s["code"] == code and s["fiscal_year"] == year and s["fiscal_quarter"] == quarter
     ]
     screen = screens[0] if screens else {}
 
-    consensus = None
-    for c in select_all(
-        "consensus_snapshots",
-        "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates",
-    ):
-        if c["code"] == code and c["fiscal_year"] == year and c["fiscal_quarter"] == quarter:
-            if (c.get("n_estimates") or 0) >= 2:
-                consensus = c
-            break
+    consensus_rows = [
+        c for c in select_all(
+            "consensus_snapshots",
+            "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates,snapshot_at",
+            filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
+            read_budget=read_budget,
+        )
+        if (c.get("n_estimates") or 0) >= 2
+    ]
+    consensus = _latest_snapshot(consensus_rows)
 
     price_rows = [p for p in select_all(
         "price_snapshots",
         "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,per,pbr,"
-        "market_cap_krw,rel_ret_3m,per_pctile_3y"
-    ) if p["code"] == code]
+        "market_cap_krw,rel_ret_3m,per_pctile_3y",
+        filters={"code": code},
+        read_budget=read_budget,
+    )]
     price = max(price_rows, key=lambda p: p["snap_date"]) if price_rows else {}
 
     # ── 밸류에이션 재계산 ──────────────────────────────────────────
@@ -168,13 +206,22 @@ def build_input(
     #   `src/finance/valuation.py`가 `dashboard/lib/valuation.ts`와 같은 규칙으로 다시 잰다.
     # ★ 선행 PER은 **연간 컨센서스**(`fiscal_quarter = 0`)로만 만든다.
     #   분기 컨센은 한 분기뿐이라 '향후 4분기'를 만들 수 없다.
-    annual_consensus = None
-    for c in select_all(
-        "consensus_snapshots", "code,fiscal_year,fiscal_quarter,np_est,n_estimates"
-    ):
-        if c["code"] == code and c.get("fiscal_quarter") == 0 and c["fiscal_year"] >= year:
-            if annual_consensus is None or c["fiscal_year"] < annual_consensus["fiscal_year"]:
-                annual_consensus = c
+    annual_rows = [
+        c for c in select_all(
+            "consensus_snapshots",
+            "code,fiscal_year,fiscal_quarter,np_est,n_estimates,snapshot_at",
+            filters={"code": code, "fiscal_quarter": 0},
+            read_budget=read_budget,
+        )
+        if c["fiscal_year"] >= year
+    ]
+    nearest_annual_year = min(
+        (c["fiscal_year"] for c in annual_rows),
+        default=None,
+    )
+    annual_consensus = _latest_snapshot([
+        c for c in annual_rows if c["fiscal_year"] == nearest_annual_year
+    ])
 
     cap = price.get("market_cap_krw") or row.get("market_cap_krw")
     ttm_np = ttm_net_income(funds, year, quarter)
@@ -204,7 +251,9 @@ def build_input(
     # ★ 원문 1건 받는 데 ~30초다. 배치(269종목)에서 즉시 수집하면 2시간이 더 붙으므로
     #   **미리 받아 둔 것을 읽는다**(`python -m src.collectors.excerpt_run --save`).
     #   단건 분석에서는 없으면 그 자리에서 받는다 — 30초는 감당할 만하다.
-    excerpt = load_excerpt(code, year, quarter, allow_fetch=allow_fetch)
+    excerpt = load_excerpt(
+        code, year, quarter, allow_fetch=allow_fetch, read_budget=read_budget
+    )
 
     # ── 분기말 주가 시계열 · 최근 공시 목록 (T101) ──────────────────
     # ★★ 둘 다 DB에 있는데 입력에 넣은 적이 없었다. 그 결과
@@ -212,13 +261,19 @@ def build_input(
     #   트리거의 `expected_date`는 **실적 발표일을 모른 채** 잡혔다.
     quarter_price_rows = [
         p for p in select_all(
-            "quarter_prices", "code,fiscal_year,fiscal_quarter,close,trade_date"
-        ) if p["code"] == code
+            "quarter_prices",
+            "code,fiscal_year,fiscal_quarter,close,trade_date",
+            filters={"code": code},
+            read_budget=read_budget,
+        )
     ]
     disclosure_rows = [
         d for d in select_all(
-            "earnings_disclosures", "code,report_nm,disclosed_at,doc_type"
-        ) if d["code"] == code
+            "earnings_disclosures",
+            "code,report_nm,disclosed_at,doc_type",
+            filters={"code": code},
+            read_budget=read_budget,
+        )
     ]
     # 기준일 — 가진 데이터 중 가장 최근 날짜를 쓴다. 오늘 날짜를 쓰면
     # 시세가 어제 것인데 "오늘 기준"이라고 말하는 셈이 된다.
@@ -260,7 +315,9 @@ def build_input(
         consensus=consensus,
         price=price,
         valuation=valuation,
-        pri=screen.get("pri_detail") or {"pri": screen.get("pri")},
+        # ★ `pri_detail`이 있으면 예전 코드는 최종 `pri`를 통째로 버렸다(T107).
+        # 분해값과 결정론적으로 계산된 최종값을 함께 주고, 모델에게 재계산시키지 않는다.
+        pri={**(screen.get("pri_detail") or {}), "pri": screen.get("pri")},
         excerpt=excerpt,
         peers=[],
         quarter_prices=quarter_price_rows,

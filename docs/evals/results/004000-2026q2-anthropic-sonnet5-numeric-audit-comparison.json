@@ -1,0 +1,33 @@
+{
+  "case_id": "lotte-fine-chemical-004000-2026q2",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "input_same": true,
+  "baseline": {
+    "request_sha256": "86a2b371512085f26cd5d7ab4dec70475b7d0de89496fe59476607ab1b42fba4",
+    "execution_status": "failed",
+    "score": 65.0,
+    "evidence_coverage": 0.5,
+    "schema_problem_count": 0,
+    "unsupported_factual_number_count": 6,
+    "cost_usd": 0.0575758
+  },
+  "numeric_audit_prompt": {
+    "request_sha256": "c156fa8401393e04eb2d688ddd7565a3d1d9fc1c2e02efc88a660263ddcab7e4",
+    "execution_status": "failed",
+    "score": 63.57,
+    "evidence_coverage": 0.4286,
+    "schema_problem_count": 0,
+    "unsupported_factual_number_count": 8,
+    "cost_usd": 0.083343
+  },
+  "delta": {
+    "score": -1.43,
+    "evidence_coverage": -0.0714,
+    "unsupported_factual_number_count": 2,
+    "cost_usd": 0.0257672
+  },
+  "decision": "reject_numeric_audit_prompt_and_restore_baseline",
+  "current_request_sha256_after_revert": "86a2b371512085f26cd5d7ab4dec70475b7d0de89496fe59476607ab1b42fba4",
+  "current_plan_sha256_after_revert": "a2f5e9308b4360a0731f33894fdf7328e19fc76dfc050ed7dea9b78dc56b9c56"
+}

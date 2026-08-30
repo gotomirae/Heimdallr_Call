@@ -123,6 +123,7 @@ def test_openai_adapter_uses_responses_structured_outputs_and_exact_token_count(
     assert provider.count_input_tokens(request) == 654
     response = provider.generate_structured(request)
 
+    assert responses.input_tokens.kwargs["reasoning"] == {"effort": "low"}
     text_format = responses.create_kwargs["text"]["format"]
     assert text_format == {
         "type": "json_schema",
@@ -132,6 +133,7 @@ def test_openai_adapter_uses_responses_structured_outputs_and_exact_token_count(
         "strict": True,
     }
     assert responses.create_kwargs["store"] is False
+    assert responses.create_kwargs["reasoning"] == {"effort": "low"}
     assert response.payload == {"one_line_thesis": "근거 있는 해석"}
     # OpenAI input_tokens에는 cached/cache-write가 포함된다. 그대로 더하면 이중 과금이다.
     assert response.usage == NormalizedUsage(
@@ -141,6 +143,44 @@ def test_openai_adapter_uses_responses_structured_outputs_and_exact_token_count(
         output_tokens=50,
         reasoning_tokens=7,
     )
+
+
+def test_openai_canary_can_disable_sdk_retries(monkeypatch):
+    import sys
+
+    captured = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=_Client))
+    monkeypatch.setattr(
+        "src.llm.providers.openai.require_env", lambda name: "test-key"
+    )
+
+    OpenAIProvider(max_retries=0)._client()
+
+    assert captured == {"api_key": "test-key", "max_retries": 0}
+
+
+def test_anthropic_canary_can_disable_sdk_retries(monkeypatch):
+    import sys
+
+    captured = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "anthropic", SimpleNamespace(Anthropic=_Client))
+    monkeypatch.setattr(
+        "src.llm.providers.anthropic.require_env", lambda name: "test-key"
+    )
+
+    AnthropicProvider(max_retries=0)._client()
+
+    assert captured == {"api_key": "test-key", "max_retries": 0}
 
 
 def test_openai_adapter_rejects_web_search_before_any_paid_call():

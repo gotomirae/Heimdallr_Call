@@ -1,0 +1,472 @@
+{
+  "suite": "heimdallr-2026q2-investment-casebook",
+  "synthetic": false,
+  "comparison_ready": false,
+  "provider_average_scores": {
+    "anthropic": 46.07,
+    "openai": 84.64
+  },
+  "winner": null,
+  "criteria": {
+    "weights": {
+      "schema": 25,
+      "factual_grounding": 25,
+      "evidence_coverage": 20,
+      "trigger_timing": 15,
+      "actionability": 15
+    },
+    "min_score": 80.0,
+    "min_evidence_coverage": 0.75,
+    "min_dimension_evidence_coverage": 0.5,
+    "canary_max_cost_usd": 0.15
+  },
+  "casebook_coverage": {
+    "ready": true,
+    "case_count": 4,
+    "minimum_case_count": 4,
+    "industry_count": 4,
+    "minimum_industry_count": 3,
+    "industries": [
+      "기초 화학물질 제조업",
+      "의약품 제조업",
+      "전자부품 제조업",
+      "토목 건설업"
+    ],
+    "grades": [
+      "○",
+      "★"
+    ],
+    "consensus_states": [
+      false,
+      true
+    ],
+    "turnaround_states": [
+      false,
+      true
+    ],
+    "grade_consensus_cells": [
+      "○/false",
+      "○/true",
+      "★/false",
+      "★/true"
+    ],
+    "missing_grade_consensus_cells": [],
+    "missing_turnaround_states": [],
+    "missing_investment_dimensions": [],
+    "cases_missing_investment_dimensions": {},
+    "invalid_cases": []
+  },
+  "cases": [
+    {
+      "case_id": "hj-097230-2026q2",
+      "source": "Heimdallr Supabase read-only replay b9a984ab25a68c1c1f22832a5db89c7418f13f5092d4d13ff260f4b86b7b6f3c",
+      "candidate_count": 2,
+      "results": [
+        {
+          "case_id": "hj-097230-2026q2",
+          "candidate_id": "provider-comparison-1",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "execution_status": "completed",
+          "score": 92.14,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 20.0,
+            "evidence_coverage": 17.14,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.8571,
+          "evidence_coverage_by_dimension": {
+            "improvement": 1.0,
+            "sustainability": 0.6667,
+            "price_reflection": 0.6667,
+            "catalyst": 1.0,
+            "risk": 1.0
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "267억"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "ttm_opm",
+            "price_peak_to_current"
+          ],
+          "cost_usd": 0.092068,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "31e049a73506bd132b912651a81319a578702cdbec3c5c9e76ff59518407d05f"
+        },
+        {
+          "case_id": "hj-097230-2026q2",
+          "candidate_id": "provider-comparison-5",
+          "provider": "anthropic",
+          "model": "claude-sonnet-5",
+          "execution_status": "failed",
+          "score": 27.14,
+          "dimension_scores": {
+            "schema": 0.0,
+            "factual_grounding": 20.0,
+            "evidence_coverage": 7.14,
+            "trigger_timing": 0.0,
+            "actionability": 0.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.3571,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.8,
+            "sustainability": 0.0,
+            "price_reflection": 0.0,
+            "catalyst": 0.5,
+            "risk": 0.0
+          },
+          "schema_problems": [
+            "$.risks: empty",
+            "$.triggers.within_3m: empty",
+            "$.triggers.within_6m: empty",
+            "$.price_position.priced_in: empty",
+            "$.price_position.not_priced_in: empty"
+          ],
+          "unsupported_factual_numbers": [
+            "2.35조"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "latest_opm_yoy_delta",
+            "ttm_revenue",
+            "ttm_opm",
+            "price_peak_to_current",
+            "pri",
+            "consensus_absent",
+            "business_mix",
+            "next_report_catalyst",
+            "margin_repeatability_risk"
+          ],
+          "cost_usd": 0.0427995,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "ea2d359b2c3e711cec64efd5db48cf24952bf78c419cfff8da53ab96869ba80e"
+        }
+      ]
+    },
+    {
+      "case_id": "lnc-bio-290650-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/290650-2026q2.json",
+      "candidate_count": 2,
+      "results": [
+        {
+          "case_id": "lnc-bio-290650-2026q2",
+          "candidate_id": "provider-comparison-2",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "execution_status": "failed",
+          "score": 93.57,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 20.0,
+            "evidence_coverage": 18.57,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.9286,
+          "evidence_coverage_by_dimension": {
+            "improvement": 1.0,
+            "sustainability": 1.0,
+            "price_reflection": 1.0,
+            "catalyst": 1.0,
+            "risk": 0.5
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "480.9억"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "negative_ttm_net_income"
+          ],
+          "cost_usd": 0.082939,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "9c8723c9f42f255ca9e04e76e215eb9edcb8648f3efe125982469ca17d8d389a"
+        },
+        {
+          "case_id": "lnc-bio-290650-2026q2",
+          "candidate_id": "provider-comparison-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-5",
+          "execution_status": "failed",
+          "score": 25.0,
+          "dimension_scores": {
+            "schema": 0.0,
+            "factual_grounding": 25.0,
+            "evidence_coverage": 0.0,
+            "trigger_timing": 0.0,
+            "actionability": 0.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.0,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.0,
+            "sustainability": 0.0,
+            "price_reflection": 0.0,
+            "catalyst": 0.0,
+            "risk": 0.0
+          },
+          "schema_problems": [
+            "$.one_line_thesis: missing",
+            "$.why_now: missing",
+            "$.earnings_change: missing",
+            "$.growth_engine: missing",
+            "$.acceleration_quality: missing",
+            "$.triggers: missing",
+            "$.price_position: missing",
+            "$.scenarios: missing",
+            "$.risks: missing",
+            "$.next_data_to_watch: missing",
+            "$.how_i_could_be_wrong: missing"
+          ],
+          "unsupported_factual_numbers": [],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "latest_revenue",
+            "latest_operating_profit",
+            "latest_opm",
+            "turnaround",
+            "ttm_revenue",
+            "ttm_opm",
+            "human_tissue_mix",
+            "price_decline",
+            "pri",
+            "consensus_absent",
+            "latest_disclosure",
+            "next_report",
+            "negative_ttm_net_income",
+            "product_concentration_risk"
+          ],
+          "cost_usd": 0.10242380000000001,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "9c8723c9f42f255ca9e04e76e215eb9edcb8648f3efe125982469ca17d8d389a"
+        }
+      ]
+    },
+    {
+      "case_id": "lotte-fine-chemical-004000-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/004000-2026q2.json",
+      "candidate_count": 2,
+      "results": [
+        {
+          "case_id": "lotte-fine-chemical-004000-2026q2",
+          "candidate_id": "provider-comparison-3",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "execution_status": "failed",
+          "score": 80.71,
+          "dimension_scores": {
+            "schema": 20.0,
+            "factual_grounding": 15.0,
+            "evidence_coverage": 15.71,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.7857,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.75,
+            "sustainability": 1.0,
+            "price_reflection": 0.6667,
+            "catalyst": 1.0,
+            "risk": 0.5
+          },
+          "schema_problems": [
+            "$.growth_engine.drivers: empty"
+          ],
+          "unsupported_factual_numbers": [
+            "10%",
+            "335541백만원"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "revenue_yoy",
+            "price_to_52w_high",
+            "raw_material_concentration"
+          ],
+          "cost_usd": 0.07204189999999999,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "87ec19c44a628f98b4474a903f29642252209f99fc77d115552e50508bd4cd19"
+        },
+        {
+          "case_id": "lotte-fine-chemical-004000-2026q2",
+          "candidate_id": "provider-comparison-7",
+          "provider": "anthropic",
+          "model": "claude-sonnet-5",
+          "execution_status": "failed",
+          "score": 65.0,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 0.0,
+            "evidence_coverage": 10.0,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.5,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.5,
+            "sustainability": 0.6667,
+            "price_reflection": 0.6667,
+            "catalyst": 0.5,
+            "risk": 0.0
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "-49%",
+            "2712억",
+            "33%",
+            "4.2%p",
+            "4452억",
+            "610%"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "latest_opm",
+            "revenue_yoy",
+            "ttm_revenue",
+            "price_to_52w_high",
+            "next_report",
+            "raw_material_concentration",
+            "feedstock_supplier_risk"
+          ],
+          "cost_usd": 0.0575758,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "87ec19c44a628f98b4474a903f29642252209f99fc77d115552e50508bd4cd19"
+        }
+      ]
+    },
+    {
+      "case_id": "hanwha-systems-272210-2026q2",
+      "source": "Heimdallr Supabase read-only casebook Stage B export; replay docs/evals/replays/272210-2026q2.json",
+      "candidate_count": 2,
+      "results": [
+        {
+          "case_id": "hanwha-systems-272210-2026q2",
+          "candidate_id": "provider-comparison-4",
+          "provider": "openai",
+          "model": "gpt-5.6-terra",
+          "execution_status": "failed",
+          "score": 72.14,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 0.0,
+            "evidence_coverage": 17.14,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.8571,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.75,
+            "sustainability": 0.6667,
+            "price_reflection": 1.0,
+            "catalyst": 1.0,
+            "risk": 1.0
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "11718억",
+            "2700억",
+            "2885억",
+            "3596억",
+            "3954억",
+            "9005억"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "operating_profit_yoy",
+            "defense_mix"
+          ],
+          "cost_usd": 0.07764489999999999,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "5e0967704152cb31eeb641c905bd3e8f06b0441f7b8cf206a28cc74445469bee"
+        },
+        {
+          "case_id": "hanwha-systems-272210-2026q2",
+          "candidate_id": "provider-comparison-8",
+          "provider": "anthropic",
+          "model": "claude-sonnet-5",
+          "execution_status": "failed",
+          "score": 67.14,
+          "dimension_scores": {
+            "schema": 25.0,
+            "factual_grounding": 5.0,
+            "evidence_coverage": 7.14,
+            "trigger_timing": 15.0,
+            "actionability": 15.0
+          },
+          "quality_pass": false,
+          "cost_pass": true,
+          "canary_eligible": false,
+          "evidence_coverage": 0.3571,
+          "evidence_coverage_by_dimension": {
+            "improvement": 0.25,
+            "sustainability": 0.3333,
+            "price_reflection": 0.6667,
+            "catalyst": 0.5,
+            "risk": 0.0
+          },
+          "schema_problems": [],
+          "unsupported_factual_numbers": [
+            "30.2%",
+            "47%",
+            "5.1%p",
+            "76%"
+          ],
+          "trigger_timing_problems": [],
+          "unactionable_triggers": [],
+          "missing_evidence_anchors": [
+            "latest_operating_profit",
+            "latest_opm",
+            "operating_profit_yoy",
+            "ttm_revenue",
+            "defense_mix",
+            "price_peak_to_current",
+            "next_report",
+            "margin_repeatability",
+            "valuation_risk"
+          ],
+          "cost_usd": 0.0605518,
+          "request_replay_exact": true,
+          "request_problems": [],
+          "comparison_contract_sha256": "5e0967704152cb31eeb641c905bd3e8f06b0441f7b8cf206a28cc74445469bee"
+        }
+      ]
+    }
+  ]
+}

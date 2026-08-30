@@ -16,15 +16,19 @@ from src.utils.env import require_env
 class OpenAIProvider:
     name = "openai"
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, *, max_retries: int | None = None):
         self._provided_client = client
+        self._max_retries = max_retries
 
     def _client(self):
         if self._provided_client is not None:
             return self._provided_client
         from openai import OpenAI
 
-        return OpenAI(api_key=require_env("OPENAI_API_KEY"))
+        kwargs = {"api_key": require_env("OPENAI_API_KEY")}
+        if self._max_retries is not None:
+            kwargs["max_retries"] = self._max_retries
+        return OpenAI(**kwargs)
 
     @staticmethod
     def _text_config(request: LLMRequest) -> dict:
@@ -47,11 +51,16 @@ class OpenAIProvider:
 
     def count_input_tokens(self, request: LLMRequest) -> int:
         self._ensure_supported(request)
+        kwargs = {
+            "model": request.model,
+            "instructions": request.system_prompt,
+            "input": request.user_message,
+            "text": self._text_config(request),
+        }
+        if request.effort:
+            kwargs["reasoning"] = {"effort": request.effort}
         response = self._client().responses.input_tokens.count(
-            model=request.model,
-            instructions=request.system_prompt,
-            input=request.user_message,
-            text=self._text_config(request),
+            **kwargs,
         )
         return int(response.input_tokens)
 
@@ -97,6 +106,8 @@ class OpenAIProvider:
         }
         if request.prompt_cache_key:
             kwargs["prompt_cache_key"] = request.prompt_cache_key
+        if request.effort:
+            kwargs["reasoning"] = {"effort": request.effort}
         response = self._client().responses.create(**kwargs)
 
         refusal = self._refusal_of(response)

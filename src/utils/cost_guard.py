@@ -120,6 +120,27 @@ def compute_cost_usd(
     ) / 1_000_000
 
 
+def estimate_worst_case_cost_usd(
+    model: str,
+    *,
+    input_tokens: int,
+    max_output_tokens: int,
+) -> float:
+    """호출 전 계산하는 보수적 최대비용.
+
+    입력 토큰은 uncached/cache-write/cache-read 중 하나로 분류된다. 어떤 분류가
+    적용될지 호출 전에는 확정할 수 없으므로 셋 중 가장 비싼 단가를 쓴다. 실제
+    usage를 더하는 사후 비용 계산과 달리, 이 함수는 **요청 자체를 막는 방어선**이다.
+    """
+    if input_tokens < 0 or max_output_tokens < 0:
+        raise ValueError("token 수는 음수일 수 없다")
+    rates = get_pricing(model)
+    input_rate = max(rates.input, rates.cache_write, rates.cache_read)
+    return (
+        input_tokens * input_rate + max_output_tokens * rates.output
+    ) / 1_000_000
+
+
 @dataclass
 class BudgetStatus:
     month_spent_usd: float

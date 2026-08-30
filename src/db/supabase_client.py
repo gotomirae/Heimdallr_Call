@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
@@ -17,6 +18,32 @@ from supabase import Client, create_client
 
 from src.config.constants import POSTGREST_PAGE_SIZE
 from src.utils.env import require_env
+
+
+class ReadBudgetExceeded(RuntimeError):
+    """승인된 PostgREST HTTP read 횟수를 모두 사용함."""
+
+
+@dataclass
+class PostgrestReadBudget:
+    """여러 `select_all` 호출이 공유하는 실제 HTTP GET 상한."""
+
+    max_requests: int
+    used_requests: int = 0
+    requests: list[dict[str, int | str]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.max_requests, bool) or self.max_requests <= 0:
+            raise ValueError("max_requests는 양의 정수여야 한다")
+
+    def consume(self, table: str, offset: int) -> None:
+        if self.used_requests >= self.max_requests:
+            raise ReadBudgetExceeded(
+                f"승인된 PostgREST GET {self.max_requests}회를 모두 사용했다; "
+                f"{table} offset {offset} 요청 전 중단"
+            )
+        self.used_requests += 1
+        self.requests.append({"table": table, "offset": offset})
 
 
 def _normalized_url() -> str:
@@ -64,6 +91,8 @@ def select_all(
     order: str | None = None,
     desc: bool = False,
     page_size: int = POSTGREST_PAGE_SIZE,
+    filters: dict[str, Any] | None = None,
+    read_budget: PostgrestReadBudget | None = None,
 ) -> list[dict[str, Any]]:
     """range() 페이징으로 전체 행을 읽는다.
 
@@ -71,15 +100,24 @@ def select_all(
     시총 내림차순으로 읽으면 잘려나가는 건 하위 소형주 — 이 시스템이
     발굴하려는 대상이 정확히 그 구간이다. 에러 없이 품질만 나빠진다.
     1,000행을 넘길 수 있는 테이블은 반드시 이 함수를 쓴다.
+
+    `filters`는 매 페이지마다 PostgREST `eq`로 서버에 적용한다. 단건 입력을
+    조립하면서 전체 테이블을 받은 뒤 Python에서 거르면 호출 수와 전송량이
+    데이터 증가에 따라 조용히 커진다(T106).
     """
     db = client or get_client()
     rows: list[dict[str, Any]] = []
     offset = 0
     while True:
         query = db.table(table).select(columns)
+        for column, value in (filters or {}).items():
+            query = query.eq(column, value)
         if order:
             query = query.order(order, desc=desc)
-        chunk = query.range(offset, offset + page_size - 1).execute().data or []
+        query = query.range(offset, offset + page_size - 1)
+        if read_budget is not None:
+            read_budget.consume(table, offset)
+        chunk = query.execute().data or []
         rows.extend(chunk)
         if len(chunk) < page_size:
             return rows

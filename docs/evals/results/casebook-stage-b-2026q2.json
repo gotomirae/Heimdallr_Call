@@ -1,0 +1,180 @@
+{
+  "status": "completed",
+  "stage": "casebook_replay_read",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "approved_max_gets": 30,
+  "actual_http_gets": 27,
+  "requests": [
+    {
+      "table": "krx_universe",
+      "offset": 0
+    },
+    {
+      "table": "quarterly_fundamentals",
+      "offset": 0
+    },
+    {
+      "table": "screen_results",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "price_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "disclosure_excerpts",
+      "offset": 0
+    },
+    {
+      "table": "quarter_prices",
+      "offset": 0
+    },
+    {
+      "table": "earnings_disclosures",
+      "offset": 0
+    },
+    {
+      "table": "krx_universe",
+      "offset": 0
+    },
+    {
+      "table": "quarterly_fundamentals",
+      "offset": 0
+    },
+    {
+      "table": "screen_results",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "price_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "disclosure_excerpts",
+      "offset": 0
+    },
+    {
+      "table": "quarter_prices",
+      "offset": 0
+    },
+    {
+      "table": "earnings_disclosures",
+      "offset": 0
+    },
+    {
+      "table": "krx_universe",
+      "offset": 0
+    },
+    {
+      "table": "quarterly_fundamentals",
+      "offset": 0
+    },
+    {
+      "table": "screen_results",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "price_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "consensus_snapshots",
+      "offset": 0
+    },
+    {
+      "table": "disclosure_excerpts",
+      "offset": 0
+    },
+    {
+      "table": "quarter_prices",
+      "offset": 0
+    },
+    {
+      "table": "earnings_disclosures",
+      "offset": 0
+    }
+  ],
+  "external_writes": 0,
+  "provider_calls": 0,
+  "dart_calls": 0,
+  "valid_count": 3,
+  "failure_count": 0,
+  "replays": [
+    {
+      "code": "290650",
+      "name": "엘앤씨바이오",
+      "grade": "○",
+      "has_consensus": false,
+      "turnaround": true,
+      "industry": "의약품 제조업",
+      "quarter_count": 8,
+      "latest_period": "2026.2Q",
+      "excerpt_chars": 2555,
+      "as_of": "2026-08-28",
+      "consensus_snapshot_at": null,
+      "price_snap_date": "2026-08-28",
+      "current_price": 53200.0,
+      "pri": 20.309282842025205,
+      "user_message_chars": 5850,
+      "secret_matches": 0
+    },
+    {
+      "code": "004000",
+      "name": "롯데정밀화학",
+      "grade": "○",
+      "has_consensus": true,
+      "turnaround": false,
+      "industry": "기초 화학물질 제조업",
+      "quarter_count": 8,
+      "latest_period": "2026.2Q",
+      "excerpt_chars": 2550,
+      "as_of": "2026-08-28",
+      "consensus_snapshot_at": "2026-08-13T12:26:58.501946+00:00",
+      "price_snap_date": "2026-08-28",
+      "current_price": 48000.0,
+      "pri": 48.37156900484037,
+      "user_message_chars": 6019,
+      "secret_matches": 0
+    },
+    {
+      "code": "272210",
+      "name": "한화시스템",
+      "grade": "★",
+      "has_consensus": true,
+      "turnaround": false,
+      "industry": "전자부품 제조업",
+      "quarter_count": 8,
+      "latest_period": "2026.2Q",
+      "excerpt_chars": 2556,
+      "as_of": "2026-08-28",
+      "consensus_snapshot_at": "2026-08-16T09:13:26.811496+00:00",
+      "price_snap_date": "2026-08-28",
+      "current_price": 75000.0,
+      "pri": 8.355199558072089,
+      "user_message_chars": 6047,
+      "secret_matches": 0
+    }
+  ],
+  "failures": []
+}

@@ -16,5 +16,6 @@
 | 7 | QoQ를 점수에 쓰지 않는다 (TTM 추세로 대체) | PRD §2 검토 ② |
 | 8 | Supabase는 HermesCall과 분리된 신규 프로젝트 | PRD §6 · traps.md T16 |
 | 9 | LLM Provider SDK를 분석 도메인에서 분리하고 자동 폴백하지 않는다 | [`009-provider-neutral-llm-layer.md`](009-provider-neutral-llm-layer.md) |
+| 10 | LLM 사실 숫자 참조는 canary 전용으로 검증하며 운영 기본에는 승격하지 않는다 | [`010-llm-factual-number-references.md`](010-llm-factual-number-references.md) |
 
 새 ADR을 쓸 때는 **무엇을 / 왜 / 되돌리면 무엇이 무너지는가**를 반드시 포함한다.
