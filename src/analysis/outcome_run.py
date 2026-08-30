@@ -33,6 +33,7 @@ from src.db.supabase_client import (
     select_all,
     upsert_tolerating_missing_columns,
 )
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 
 #: 발표일로부터 이만큼 전후의 일봉을 받는다. D+60을 담으려면 넉넉해야 한다.
@@ -42,7 +43,7 @@ INDEX_OF_BOARD = {"KOSPI": "KOSPI", "KOSDAQ": "KOSDAQ"}
 REQUEST_INTERVAL_SEC = 0.15
 
 SCREEN_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,grade,score_flash,pri,"
+    "code,fiscal_year,fiscal_quarter,grade,score_flash,score_final,pri,"
     "raw_a1,raw_a2,raw_a3,raw_a4,raw_b1,raw_b2,raw_b3,raw_b4,"
     "raw_c1,raw_c2,has_consensus,base_effect_warning"
 )
@@ -142,7 +143,7 @@ def collect(quarter_filter: tuple[int, int] | None, limit: int | None) -> list[O
                 code=code, fiscal_year=year, fiscal_quarter=quarter,
                 announce_date=f"{dates[key][:4]}-{dates[key][4:6]}-{dates[key][6:]}",
                 grade_at_announce=screen.get("grade"),
-                score_at_announce=screen.get("score_flash"),
+                score_at_announce=active_score(screen),
                 pri_at_announce=screen.get("pri"),
                 horizons=measure(closes, index_closes, dates[key]),
             )

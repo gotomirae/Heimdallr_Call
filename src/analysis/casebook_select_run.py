@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from src.analysis.casebook_selection import select_casebook_candidates
 from src.db.supabase_client import get_client, project_ref
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 
 
@@ -22,7 +23,7 @@ PAGE_SIZE = 1_000
 MAX_PAGES_PER_TABLE = 2
 
 SCREEN_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,score_flash,"
+    "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,score_flash,score_final,"
     "has_consensus,pri,grade"
 )
 UNIVERSE_COLUMNS = "code,industry"
@@ -103,7 +104,12 @@ def read_candidate_metadata(
             raise ValueError(f"krx_universe code 중복: {code}")
         industries[code] = row.get("industry")
     joined = tuple(
-        {**row, "industry": industries.get(str(row.get("code") or ""))}
+        {
+            **row,
+            # casebook 계약 이름은 유지하되 실제 값은 확정 우선이다.
+            "score_flash": active_score(row),
+            "industry": industries.get(str(row.get("code") or "")),
+        }
         for row in screens
     )
     return CandidateMetadataRead(

@@ -22,11 +22,14 @@ from src.screener.matrix import CIRCLE, CROSS, DOT, STAR, TRIANGLE, classify
 from src.screener.pri import PriInput, compute_pri
 from src.screener.run import _qi as _qi_helper
 from src.screener.run import (
+    build_inputs,
     code_index_is_future,
     last_reportable_index,
+    percentile_by_period,
+    score_stage_fields,
     target_index,
 )
-from src.screener.score import ScoreInput, compute_score, has_consensus
+from src.screener.score import ScoreInput, active_score, compute_score, has_consensus
 
 
 def _healthy_gate(**overrides) -> GateInput:
@@ -42,6 +45,110 @@ def _healthy_gate(**overrides) -> GateInput:
     )
     base.update(overrides)
     return GateInput(**base)
+
+
+def test_final_input_wires_accounting_quality_without_guessing_missing_values():
+    """확정행만 D축을 열고, 운전자본 YoY는 합계의 전년동기 증감률로 계산한다.
+
+    매출채권+재고 120+80=200, 전년 100+60=160 → +25%.
+    """
+    index = _qi_helper(2026, 2)
+    series = {
+        index: {
+            "fiscal_year": 2026, "fiscal_quarter": 2, "is_estimate": False,
+            "revenue": 1_200.0, "op": 180.0, "revenue_yoy": 30.0, "op_yoy": 50.0,
+            "opm_yoy_delta": 2.0, "ttm_revenue": 4_000.0, "ttm_op": 500.0,
+            "ttm_cfo": 350.0, "shares_yoy": 1.5, "receivables": 120.0, "inventory": 80.0,
+        },
+        index - 1: {
+            "revenue": 1_000.0, "op": 150.0, "revenue_yoy": 20.0, "op_yoy": 30.0,
+            "ttm_revenue": 3_800.0, "ttm_op": 450.0,
+        },
+        index - 4: {
+            "revenue": 900.0, "op": 120.0, "receivables": 100.0, "inventory": 60.0,
+        },
+        index - 5: {"revenue": 850.0, "op": 110.0},
+    }
+    _, score = build_inputs(
+        series,
+        {"is_excluded": False},
+        index,
+        None,
+        price={"avg_value_20d": 2_000_000_000},
+    )
+    assert score.is_final is True
+    assert score.ttm_cfo == 350.0
+    assert score.ttm_op == 500.0
+    assert score.shares_yoy == 1.5
+    assert score.receivables_inventory_yoy == pytest.approx(25.0)
+    assert score.avg_value_20d == 2_000_000_000
+
+
+def test_flash_input_does_not_open_d_axis_even_if_price_exists():
+    index = _qi_helper(2026, 2)
+    series = {
+        index: {
+            "fiscal_year": 2026, "fiscal_quarter": 2, "is_estimate": True,
+            "revenue": 1_200.0, "op": 180.0,
+        }
+    }
+    _, score = build_inputs(
+        series,
+        {"is_excluded": False},
+        index,
+        None,
+        price={"avg_value_20d": 2_000_000_000},
+    )
+    assert score.is_final is False
+
+
+def test_score_stage_preserves_flash_and_calculates_confirmed_delta():
+    assert score_stage_fields(82.0, False, {}) == {
+        "score_flash": 82.0,
+        "score_final": None,
+        "score_delta": None,
+    }
+    assert score_stage_fields(
+        75.0,
+        True,
+        {"score_flash": 82.0, "gate_detail": {"score_stage": "flash"}},
+    ) == {
+        "score_flash": 82.0,
+        "score_final": 75.0,
+        "score_delta": -7.0,
+    }
+
+
+def test_active_score_prefers_confirmed_and_falls_back_to_flash():
+    assert active_score({"score_flash": 82.0, "score_final": 75.0}) == 75.0
+    assert active_score({"score_flash": 82.0, "score_final": None}) == 82.0
+    assert active_score({"score_flash": None, "score_final": None}) is None
+
+
+def test_legacy_flash_is_not_used_as_a_fake_preliminary_baseline():
+    """구버전은 확정행도 score_flash에 썼다. 표식 없는 값으로 delta를 만들면 거짓이다."""
+    assert score_stage_fields(75.0, True, {"score_flash": 82.0}) == {
+        "score_flash": None,
+        "score_final": 75.0,
+        "score_delta": None,
+    }
+
+
+def test_percentile_is_period_local_tie_aware_and_missing_last():
+    rows = [
+        ("A", 2026, 2, 90.0),
+        ("B", 2026, 2, 70.0),
+        ("C", 2026, 2, 70.0),
+        ("D", 2026, 2, None),
+        ("E", 2026, 1, 10.0),
+    ]
+    ranks = percentile_by_period(rows)
+    assert ranks[("A", 2026, 2)] == pytest.approx(100.0)
+    # 동점 두 종목은 같은 상한 순위: (낮은 값 0 + 동점 2) / 3.
+    assert ranks[("B", 2026, 2)] == pytest.approx(200 / 3)
+    assert ranks[("C", 2026, 2)] == pytest.approx(200 / 3)
+    assert ranks[("D", 2026, 2)] is None
+    assert ranks[("E", 2026, 1)] == pytest.approx(100.0)
 
 
 # ═══════════════════════════════════════════════════════════════════

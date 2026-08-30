@@ -108,6 +108,8 @@ export interface PriceRow {
   ret_6m: number | null;
   ret_12m: number | null;
   rel_ret_3m: number | null;
+  rel_ret_6m: number | null;
+  rel_ret_12m: number | null;
   /** 최근 5**거래일** 상승률(%). 수집 전에는 null이다 — 0으로 채우지 않는다. */
   ret_5d: number | null;
   market_cap_krw: number | null;

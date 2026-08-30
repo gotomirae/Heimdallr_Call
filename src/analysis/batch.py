@@ -43,6 +43,7 @@ from src.analysis.analyze import (
 from src.analysis.run import build_input
 from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
 from src.db.supabase_client import select_all
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
 from src.utils.env import optional_env
@@ -77,7 +78,7 @@ def attractiveness(screen: dict) -> float | None:
     ★ 둘 중 하나라도 없으면 None — 정렬에서 뒤로 보낸다. 0으로 채우면
       측정 못 한 종목이 '매력 없음'으로 바뀐다.
     """
-    score = screen.get("score_flash")
+    score = active_score(screen)
     pri = screen.get("pri")
     if score is None or pri is None:
         return None
@@ -100,7 +101,7 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
     """
     rows = select_all(
         "screen_results",
-        "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,pri",
+        "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,score_final,pri",
     )
     latest: dict[str, dict] = {}
     for r in rows:
@@ -118,7 +119,7 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
             # ★ 발송 대상은 하한을 적용하지 않는다 — 알림이 나가는 종목에
             #   해석이 없으면 안 된다.
             r["grade"] in NOTIFY_GRADES
-            or (r.get("score_flash") is not None and float(r["score_flash"]) >= min_score)
+            or (active_score(r) is not None and active_score(r) >= min_score)
         )
     ]
     # 매력도가 None인 종목은 뒤로.
@@ -233,7 +234,7 @@ def run(
         mark = "대기" if (r["code"], r["fiscal_year"], r["fiscal_quarter"]) not in done else "완료"
         print(f"{i:>4} {names.get(r['code'], r['code'])[:12]:<14}"
               f"{r['fiscal_year']}.{r['fiscal_quarter']}Q  "
-              f"{float(r['score_flash']):>6.1f}{float(r['pri'] or 0):>7.1f}  {mark}")
+              f"{float(active_score(r) or 0):>6.1f}{float(r['pri'] or 0):>7.1f}  {mark}")
     if len(picked) > 12:
         print(f"     … 외 {len(picked) - 12}종목")
 

@@ -41,7 +41,7 @@ const FUND_COLUMNS = [
 //   죽는다. `selectWithOptionalColumns`가 없는 컬럼을 걷어내려면 배열이어야 한다(T18).
 const PRICE_COLUMNS = [
   "code", "snap_date", "close", "chg_pct", "high_52w", "low_52w", "pos_52w",
-  "ret_3m", "ret_6m", "ret_12m", "rel_ret_3m", "ret_5d",
+  "ret_3m", "ret_6m", "ret_12m", "rel_ret_3m", "rel_ret_6m", "rel_ret_12m", "ret_5d",
   "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
 ];
 

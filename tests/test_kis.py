@@ -15,8 +15,11 @@ from src.collectors.kis_prices import (
     _ratio,
     relative_return_pp,
     trailing_return_pct,
+    window_relative_return_pp,
+    window_return_pct,
 )
 from src.collectors.quarter_prices import quarter_end_closes, quarter_of
+from src.collectors.price_run import build_return_fields
 from src.db.supabase_client import (
     missing_column_of,
     upsert_tolerating_missing_columns,
@@ -166,6 +169,86 @@ def test_relative_return_none_without_overlap():
 
 def test_relative_return_none_with_single_day():
     assert relative_return_pp({"20260501": 100.0}, {"20260501": 1000.0}) is None
+
+
+def test_window_returns_use_the_same_cutoff_and_common_market_days():
+    """6M/12M도 종목과 지수의 양끝 거래일을 맞춘다.
+
+    2026-01-01 이후 공통일은 01-02와 08-03.
+    종목 100→130 = +30%, 지수 1000→1100 = +10%, 초과 = +20%p.
+    """
+    closes = {
+        "20251230": 50.0,
+        "20260102": 100.0,
+        "20260803": 130.0,
+    }
+    index = {
+        "20260101": 900.0,
+        "20260102": 1000.0,
+        "20260803": 1100.0,
+    }
+    assert window_return_pct(closes, "20260101") == pytest.approx(30.0)
+    assert window_relative_return_pp(closes, index, "20260101") == pytest.approx(20.0)
+
+
+def test_window_returns_do_not_shorten_an_unmeasurable_period():
+    """cutoff 뒤 거래일이 하나뿐이면 짧은 구간을 6M처럼 표시하지 않는다."""
+    closes = {"20251230": 100.0, "20260803": 110.0}
+    index = {"20251230": 1000.0, "20260803": 1050.0}
+    assert window_return_pct(closes, "20260101") is None
+    assert window_relative_return_pp(closes, index, "20260101") is None
+
+
+def test_window_returns_reject_a_new_listing_with_many_short_history_rows():
+    """거래일이 많아도 첫 행이 cutoff보다 수개월 늦으면 12M가 아니다."""
+    closes = {
+        "20260401": 100.0,
+        "20260501": 105.0,
+        "20260601": 110.0,
+        "20260801": 120.0,
+    }
+    index = {
+        "20260102": 1000.0,
+        "20260401": 1050.0,
+        "20260501": 1070.0,
+        "20260601": 1090.0,
+        "20260801": 1120.0,
+    }
+    assert window_return_pct(closes, "20260101") is None
+    assert window_relative_return_pp(closes, index, "20260101") is None
+
+
+def test_price_snapshot_builds_absolute_and_index_relative_windows():
+    closes = {
+        "20250801": 100.0,
+        "20260201": 110.0,
+        "20260501": 120.0,
+        "20260701": 125.0,
+        "20260801": 130.0,
+    }
+    index = {
+        "20250801": 1000.0,
+        "20260201": 1050.0,
+        "20260501": 1100.0,
+        "20260701": 1150.0,
+        "20260801": 1200.0,
+    }
+    fields = build_return_fields(
+        closes,
+        index,
+        {"1m": "20260701", "3m": "20260501", "6m": "20260201", "12m": "20250801"},
+    )
+    assert fields["ret_1m"] == pytest.approx(4.0)
+    assert fields["ret_3m"] == pytest.approx(130 / 120 * 100 - 100)
+    assert fields["ret_6m"] == pytest.approx(130 / 110 * 100 - 100)
+    assert fields["ret_12m"] == pytest.approx(30.0)
+    assert fields["rel_ret_3m"] == pytest.approx(
+        (130 / 120 - 1) * 100 - (1200 / 1100 - 1) * 100
+    )
+    assert fields["rel_ret_6m"] == pytest.approx(
+        (130 / 110 - 1) * 100 - (1200 / 1050 - 1) * 100
+    )
+    assert fields["rel_ret_12m"] == pytest.approx(10.0)
 
 
 # ═══════════════════════════════════════════════════════════════════

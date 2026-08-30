@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   // 최신 스크리닝 결과 1건. 없을 수 있으므로 결과가 비어도 정상 응답한다.
   const { data: screens } = await supabase
     .from("screen_results")
-    .select("fiscal_year,fiscal_quarter,gate_passed,score_flash,pri,grade,has_consensus,base_effect_warning")
+    .select("fiscal_year,fiscal_quarter,gate_passed,score_flash,score_final,pri,grade,has_consensus,base_effect_warning")
     .eq("code", stock.code)
     .order("fiscal_year", { ascending: false })
     .order("fiscal_quarter", { ascending: false })
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       ? {
           quarter: `${screen.fiscal_year}.${screen.fiscal_quarter}Q`,
           gate_passed: screen.gate_passed ?? null,
-          score: screen.score_flash ?? null,
+          score: screen.score_final ?? screen.score_flash ?? null,
           pri: screen.pri ?? null,
           grade: screen.grade ?? null,
           has_consensus: screen.has_consensus ?? null,

@@ -19,6 +19,8 @@ from src.utils.console import enable_utf8_stdout
 #: (테이블, 컬럼, SQL 타입, 왜 필요한가). schema.sql의 마이그레이션 절과 같아야 한다.
 EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("price_snapshots", "ret_5d", "NUMERIC", "발굴 목록의 '최근 5일 상승률' 열"),
+    ("price_snapshots", "rel_ret_6m", "NUMERIC", "상세화면 6개월 지수대비 수익률"),
+    ("price_snapshots", "rel_ret_12m", "NUMERIC", "상세화면 12개월 지수대비 수익률"),
     ("quarter_prices", "close", "—", "상세화면 9분기 차트의 주가 라인 (테이블)"),
     ("outcome_tracking", "ret_dm5", "NUMERIC", "발표 전 5일 수익률"),
     ("outcome_tracking", "excess_dm5", "NUMERIC", "발표 전 5일 초과수익"),

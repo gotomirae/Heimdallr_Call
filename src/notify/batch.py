@@ -36,11 +36,12 @@ from src.notify.telegram import (
     send_once,
 )
 from src.notify.templates import KIND_DAILY, KIND_FLASH, daily_digest, flash_message
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import optional_env
 
 SCREEN_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,pri,"
+    "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,score_final,pri,"
     "has_consensus,base_effect_warning"
 )
 
@@ -82,7 +83,7 @@ def notify_targets() -> list[dict]:
     소음이 되면 진짜 신호도 안 읽힌다.
     """
     rows = [r for r in latest_screens() if r.get("grade") in NOTIFY_GRADES]
-    rows.sort(key=lambda r: -(r.get("score_flash") or 0))
+    rows.sort(key=lambda r: -(active_score(r) or 0))
     return rows
 
 
@@ -101,7 +102,7 @@ def run_flash(send: bool, limit: int) -> int:
             skipped += 1
             continue
         if not send:
-            print(f"  [미발송] {label} 점수 {row.get('score_flash'):.1f}")
+            print(f"  [미발송] {label} 점수 {(active_score(row) or 0):.1f}")
             continue
 
         try:
@@ -109,7 +110,7 @@ def run_flash(send: bool, limit: int) -> int:
             ok = send_once(
                 client, code=code, fiscal_year=year, fiscal_quarter=quarter,
                 kind=KIND_FLASH, text=flash_message(ctx),
-                payload={"grade": row.get("grade"), "score": row.get("score_flash")},
+                payload={"grade": row.get("grade"), "score": active_score(row)},
             )
             sent += ok
             print(f"  {'✓' if ok else '✗'} {label}")
@@ -166,7 +167,7 @@ def run_suppress(save: bool, reason: str) -> int:
                     "suppressed": True,
                     "reason": reason,
                     "grade": row.get("grade"),
-                    "score": row.get("score_flash"),
+                    "score": active_score(row),
                 },
             )
             marked += 1
@@ -204,7 +205,7 @@ def run_digest(send: bool) -> int:
         "rows": [
             {
                 "grade": r.get("grade"), "name": names.get(r["code"], r["code"]),
-                "score": r.get("score_flash"), "pri": r.get("pri"),
+                "score": active_score(r), "pri": r.get("pri"),
                 "revenue_yoy": yoy.get(r["code"]),
                 "has_consensus": r.get("has_consensus"),
                 "base_effect_warning": r.get("base_effect_warning"),

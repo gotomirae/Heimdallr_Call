@@ -272,12 +272,14 @@ export default async function StockPage({ params }: { params: { code: string } }
         </div>
       </div>
 
-      <div className="grid gap-2 text-sm sm:grid-cols-4">
+      <div className="grid gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
         {[
           ["3개월 절대", price?.ret_3m],
           ["3개월 지수대비", price?.rel_ret_3m],
           ["6개월 절대", price?.ret_6m],
+          ["6개월 지수대비", price?.rel_ret_6m],
           ["12개월 절대", price?.ret_12m],
+          ["12개월 지수대비", price?.rel_ret_12m],
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded border border-slate-800 bg-slate-900/40 px-3 py-2">
             <div className="text-xs text-slate-300">{label}</div>
@@ -291,9 +293,6 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
         ))}
       </div>
-      <p className="-mt-3 text-right text-[11px] text-slate-400">
-        6·12개월 지수대비 값은 아직 수집하지 않아 절대수익률로 표시한다.
-      </p>
 
       {screenResult.dropped.length > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">

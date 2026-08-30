@@ -112,6 +112,14 @@ class ScoreResult:
         return row
 
 
+def active_score(row: dict) -> float | None:
+    """소비자가 읽을 현재 점수. 확정치가 있으면 우선하고 없으면 잠정치다."""
+    value = row.get("score_final")
+    if value is None:
+        value = row.get("score_flash")
+    return float(value) if value is not None else None
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 보조 — 선형 보간 / 계단
 # ═══════════════════════════════════════════════════════════════════

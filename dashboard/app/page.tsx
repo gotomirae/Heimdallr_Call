@@ -92,7 +92,7 @@ export default async function HomePage() {
       quarterIndex: qIndex(s.fiscal_year, s.fiscal_quarter),
       gatePassed: s.gate_passed,
       grade: s.grade as Grade | null,
-      score: s.score_flash,
+      score: s.score_final ?? s.score_flash,
       pri: s.pri,
       hasConsensus: s.has_consensus,
       baseEffect: s.base_effect_warning,

@@ -31,6 +31,7 @@ from src.finance.valuation import (
     trailing_4q_per,
     ttm_net_income,
 )
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import ENV_DEV, ENV_PROD, check_budget
 
@@ -173,7 +174,7 @@ def build_input(
         s for s in select_all(
             "screen_results",
             "code,fiscal_year,fiscal_quarter,gate_passed,gate_detail,base_effect_warning,"
-            "turnaround,score_flash,score_a,score_b,has_consensus,pri,pri_detail,grade",
+            "turnaround,score_flash,score_final,score_a,score_b,has_consensus,pri,pri_detail,grade",
             filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
             read_budget=read_budget,
         )
@@ -305,7 +306,7 @@ def build_input(
             "sector_caveat": row.get("sector_caveat"),
         },
         score={
-            "score_flash": screen.get("score_flash"),
+            "score_flash": active_score(screen),
             "score_a": screen.get("score_a"),
             "score_b": screen.get("score_b"),
             "has_consensus": screen.get("has_consensus"),

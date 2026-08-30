@@ -30,6 +30,7 @@ from src.notify.telegram import (
 from src.analysis.analyze import sanitize_payload
 from src.notify.links import dart_report_url, naver_stock_url
 from src.notify.templates import KIND_DAILY, KIND_FLASH, daily_digest, flash_message
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import optional_env
 
@@ -39,7 +40,7 @@ FUND_COLUMNS = (
 )
 SCREEN_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,gate_detail,base_effect_warning,"
-    "score_flash,score_a,score_b,score_c,score_d,has_consensus,pri,pri_detail,grade,"
+    "score_flash,score_final,score_a,score_b,score_c,score_d,has_consensus,pri,pri_detail,grade,"
     "raw_a1,raw_a2,raw_a3,raw_a4,raw_b1,raw_b2,raw_b3,raw_b4,"
     "raw_c1,raw_c2,raw_d1,raw_d2,raw_d3,raw_d4"
 )
@@ -282,7 +283,7 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
         "op_surprise_label": op_surprise_lbl,
         # 등급이 None이면 PRI 판정 불가(시세 결측)라는 뜻이다. 발송 전에 걸러야 한다.
         "grade": screen.get("grade"),
-        "score": screen.get("score_flash"),
+        "score": active_score(screen),
         "score_a": screen.get("score_a"), "score_b": screen.get("score_b"),
         "score_c": screen.get("score_c"), "score_d": screen.get("score_d"),
         # 항목별 원점수 — A/B/C/D가 각각 무엇을 재서 몇 점인지 메시지에 펼친다.

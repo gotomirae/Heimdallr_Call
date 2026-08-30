@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   high_52w NUMERIC, low_52w NUMERIC, pos_52w NUMERIC,
   ret_1m NUMERIC, ret_3m NUMERIC, ret_6m NUMERIC, ret_12m NUMERIC,
   rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익 ★ PRI P1
+  rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
   per_pctile_3y NUMERIC,                    -- 3년 PER 밴드 백분위 ★ PRI P3
   avg_value_20d NUMERIC,
@@ -317,6 +318,10 @@ CREATE POLICY anon_select_notifications ON notifications
 
 -- 2026-08-17 — 발굴 목록의 '최근 5일 주가 상승률' 열
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS ret_5d NUMERIC;
+
+-- 2026-08-30 — 상세화면 3·6·12M 수익률의 지수대비 병기
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_6m NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_12m NUMERIC;
 
 -- 2026-08-17 (2) — 투자 섹터 분류 (`src/universe/sector_map.py`)
 --   KRX 업종명은 투자에 쓰는 말이 아니다('특수 목적용 기계 제조업' 93종목).

@@ -27,6 +27,10 @@ Supabase 프로젝트 ref : drpxciqkbjlruximqbox
 아래를 **전체 복사**해 붙여넣고 **Run**(또는 `Ctrl+Enter`):
 
 ```sql
+-- 종목 상세: 6·12개월 소속 지수대비 초과수익률
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_6m  NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_12m NUMERIC;
+
 -- 발표일 기준 추적: 발표 전 5일 · 발표 당일
 -- ★ 컬럼명에 '-'를 쓸 수 없어 음수 시점은 m으로 적는다 (ret_dm5 = D-5)
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_dm5    NUMERIC;
@@ -69,6 +73,9 @@ python -m src.db.check_migration
 컬럼만 만들면 값은 비어 있다. 수집기를 한 번 돌린다:
 
 ```bash
+# 1·3·6·12개월 절대수익률 + 3·6·12개월 지수대비를 다시 채운다
+python -m src.collectors.price_run --save
+
 # 발표 전 5일·당일 수익률 계산 (KIS 일봉을 다시 읽어 전 시점을 재계산한다)
 python -m src.analysis.outcome_run --save
 
@@ -95,4 +102,5 @@ python -m src.universe.sector_map --save
 - 쓰기도 없는 컬럼을 빼고 저장하며 **빠뜨렸다는 사실을 출력한다**(T62)
 - 화면은 `—`로 표시하고 "0이 아니라 미수집"임을 밝힌다
 
-즉 **발표 전 5일·당일 열만 비어 있고** 나머지는 전부 정상 동작한다.
+즉 새 컬럼을 적용하기 전에는 **6·12개월 지수대비와 발표 전 5일·당일 열만 비고**
+나머지는 정상 동작한다.

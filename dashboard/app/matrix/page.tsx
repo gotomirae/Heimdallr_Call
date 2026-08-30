@@ -10,11 +10,11 @@ export default async function MatrixPage() {
 
   // 두 축이 **모두** 있어야 점을 찍는다. 하나라도 없으면 위치가 거짓이 된다.
   const points: MatrixPoint[] = rows
-    .filter((r) => r.score_flash != null && r.pri != null)
+    .filter((r) => (r.score_final ?? r.score_flash) != null && r.pri != null)
     .map((r) => ({
       code: r.code,
       name: universe.get(r.code)?.name ?? r.code,
-      score: r.score_flash as number,
+      score: (r.score_final ?? r.score_flash) as number,
       pri: r.pri as number,
       grade: r.grade as Grade | null,
     }));

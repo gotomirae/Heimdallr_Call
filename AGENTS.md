@@ -245,3 +245,6 @@ python -m pytest tests/
 - **사실 숫자 참조 3회 결론 (2026-08-30)** — low v2는 filler 11곳·**26.43점**, medium은
   참조값 3개 변조·unsupported 5건·**63.57점/$0.094465**. 모두 quality=false, 합계 $0.2328135,
   DB 쓰기 0 → 운영 기본에서 격리·canary 전용. T125·T126; **731 passed · 1 skipped · 3 deselected**.
+- **대시보드 데이터 생산 운영 반영 (2026-08-30)** — ret/rel_ret 3·6·12M **각 1,145/1,145**,
+  실패 0·1,601초. 스크리너 1,110행: flash 353·final 757·백분위 1,110·유효 delta 0(T128),
+  SC6 11/20(55%). rel 6/12M DDL 적용; **747 passed**, build 10/10. 알림·유료 LLM 0. T129.

@@ -456,6 +456,7 @@ CREATE TABLE price_snapshots (
   high_52w NUMERIC, low_52w NUMERIC, pos_52w NUMERIC,
   ret_1m NUMERIC, ret_3m NUMERIC, ret_6m NUMERIC, ret_12m NUMERIC,
   rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익 ★ PRI P1
+  rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
   per_pctile_3y NUMERIC,                    -- 3년 PER 밴드 백분위 ★ PRI P3
   avg_value_20d NUMERIC,

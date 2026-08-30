@@ -15,7 +15,11 @@ import collections
 import statistics
 from datetime import date
 
-from src.db.supabase_client import get_client, select_all
+from src.db.supabase_client import (
+    get_client,
+    select_all,
+    upsert_tolerating_missing_columns,
+)
 from src.screener.gate import GateInput, evaluate_gate
 from src.screener.matrix import classify
 from src.finance.derive import op_surprise_label, op_surprise_pct, revenue_surprise_pct
@@ -25,7 +29,8 @@ from src.utils.console import enable_utf8_stdout
 
 FUND_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label,"
-    "opm,opm_yoy_delta,ttm_revenue,ttm_op,ttm_opm_delta,rev_2y_stack"
+    "opm,opm_yoy_delta,ttm_revenue,ttm_op,ttm_opm_delta,rev_2y_stack,"
+    "ttm_cfo,receivables,inventory,shares_yoy,is_estimate"
 )
 UNI_COLUMNS = "code,name,board,industry,is_excluded,exclude_reason,sector_caveat,listed_at,market_cap_krw"
 PRICE_COLUMNS = "code,snap_date,close,high_52w,low_52w,rel_ret_3m,per,pbr,per_pctile_3y,avg_value_20d"
@@ -140,6 +145,7 @@ def build_inputs(
     index: int,
     pct: float | None,
     cons: dict | None = None,
+    price: dict | None = None,
 ):
     t, t1, t4, t5 = (series.get(index - o) for o in (0, 1, 4, 5))
 
@@ -190,10 +196,36 @@ def build_inputs(
         g1_t=None, g1_t1=gate_t1.g1,  # g1_t는 아래에서 채운다
         opm_yoy_delta=_f(t, "opm_yoy_delta"), ttm_opm_delta=_f(t, "ttm_opm_delta"),
         opm=_f(t, "opm"), sector_opm_percentile=pct,
-        is_final=False,  # D축은 L2″ 수집 전까지 미측정
+        # 정기보고서 확정행만 D축을 연다(T4). 잠정행에서 유동성 하나만 있다고
+        # D축을 열면 없는 회계품질 항목이 조용히 0점 처리된다.
+        is_final=bool(t) and not bool(t.get("is_estimate")),
+        ttm_cfo=_f(t, "ttm_cfo"),
+        ttm_op=_f(t, "ttm_op"),
+        shares_yoy=_f(t, "shares_yoy"),
+        receivables_inventory_yoy=_combined_yoy(t, t4, "receivables", "inventory"),
+        avg_value_20d=_f(price, "avg_value_20d"),
         **build_consensus_fields(t, cons),
     )
     return gate_in, score_in
+
+
+def _combined_yoy(
+    current: dict | None,
+    previous: dict | None,
+    *fields: str,
+) -> float | None:
+    """여러 계정 합계의 YoY(%). 하나라도 결측이면 추측해 더하지 않는다."""
+    if current is None or previous is None:
+        return None
+    current_values = [_f(current, field) for field in fields]
+    previous_values = [_f(previous, field) for field in fields]
+    if any(value is None for value in (*current_values, *previous_values)):
+        return None
+    current_sum = sum(value for value in current_values if value is not None)
+    previous_sum = sum(value for value in previous_values if value is not None)
+    if previous_sum <= 0:
+        return None
+    return (current_sum / previous_sum - 1) * 100
 
 
 def _yq(index: int) -> tuple[int, int]:
@@ -257,7 +289,8 @@ def run(fixed: int | None, save: bool) -> int:
     for code, index in index_of.items():
         uni = universe[code]
         gate_in, score_in = build_inputs(
-            by_code[code], uni, index, pcts.get(code), consensus.get((code, index))
+            by_code[code], uni, index, pcts.get(code), consensus.get((code, index)),
+            prices.get(code),
         )
         gate = evaluate_gate(gate_in)
         score_in = ScoreInput(**{**score_in.__dict__, "g1_t": gate.g1})
@@ -268,7 +301,7 @@ def run(fixed: int | None, save: bool) -> int:
             base_effect_warning=gate.base_effect_warning,
             gate_passed=gate.passed,
         )
-        rows.append((code, uni, gate, score, pri, grade, index))
+        rows.append((code, uni, gate, score, pri, grade, index, score_in.is_final))
 
     _report(rows, latest)
     if save:
@@ -329,6 +362,17 @@ def _report(rows: list, latest: int | None) -> None:
     print(f"    조건별 판정 가능 건수: {dict(checks)}")
 
     print("\n[3] 스코어 (게이트 통과분)")
+    stage_counts = collections.Counter(
+        "확정" if row[7] else "잠정" for row in rows
+    )
+    percentile_preview = percentile_by_period([
+        (code, *_yq(index), score.score_norm)
+        for code, _u, _g, score, _p, _gr, index, _final in rows
+    ])
+    print(
+        f"    시점 분포 {dict(stage_counts)} · 분기 백분위 산출 "
+        f"{sum(value is not None for value in percentile_preview.values())}/{len(rows)}종목"
+    )
     scored = [r[3] for r in passed if r[3].score_norm is not None]
     if scored:
         values = sorted(s.score_norm for s in scored)
@@ -380,7 +424,7 @@ def _report(rows: list, latest: int | None) -> None:
     top = sorted(passed, key=lambda r: r[3].score_norm or -1, reverse=True)[:10]
     print(f"    {'종목':>16} {'코드':8} {'분기':7}{'스코어':>8}{'A':>6}{'B':>6}"
           f"{'YoYΔ%p':>9}  등급  경고")
-    for code, uni, gate, score, pri, grade, index in top:
+    for code, uni, gate, score, pri, grade, index, _is_final in top:
         warn = "기저효과" if gate.base_effect_warning else ""
         delta = gate.detail.get("rev_yoy_delta_pp")
         delta_txt = f"{delta:>9.1f}" if delta is not None else f"{'—':>9}"
@@ -391,11 +435,79 @@ def _report(rows: list, latest: int | None) -> None:
     print(line)
 
 
+def score_stage_fields(
+    score: float | None,
+    is_final: bool,
+    previous: dict | None,
+) -> dict[str, float | None]:
+    """잠정·확정 점수를 같은 행에 보존하고 확정−잠정 차이를 만든다(T4)."""
+    previous = previous or {}
+    detail = previous.get("gate_detail")
+    valid_flash = isinstance(detail, dict) and (
+        detail.get("score_stage") == "flash"
+        or detail.get("flash_baseline_valid") is True
+    )
+    flash = _f(previous, "score_flash") if valid_flash else None
+    final = _f(previous, "score_final")
+    if is_final:
+        final = score
+    else:
+        flash = score
+    delta = final - flash if final is not None and flash is not None else None
+    return {"score_flash": flash, "score_final": final, "score_delta": delta}
+
+
+def percentile_by_period(
+    rows: list[tuple[str, int, int, float | None]],
+) -> dict[tuple[str, int, int], float | None]:
+    """분기 안에서 높은 점수가 100에 가까운 tie-aware 백분위를 만든다.
+
+    결측은 모집단에서도 제외하고 결과도 None이다. 방향을 뒤집는 정렬 트릭으로
+    결측을 처리하면 최하위 대신 1등이 되는 T104와 같은 오류가 난다.
+    """
+    cohorts: dict[tuple[int, int], list[float]] = collections.defaultdict(list)
+    for _code, year, quarter, score in rows:
+        if score is not None:
+            cohorts[(year, quarter)].append(score)
+
+    out: dict[tuple[str, int, int], float | None] = {}
+    for code, year, quarter, score in rows:
+        values = cohorts[(year, quarter)]
+        if score is None or not values:
+            out[(code, year, quarter)] = None
+            continue
+        lower = sum(value < score for value in values)
+        equal = sum(value == score for value in values)
+        out[(code, year, quarter)] = (lower + equal) / len(values) * 100
+    return out
+
+
 def _save(rows: list, fixed_mode: bool = False) -> int:
     db = get_client()
-    payload = []
-    for code, _uni, gate, score, pri, grade, index in rows:
+    existing_rows = select_all(
+        "screen_results",
+        "code,fiscal_year,fiscal_quarter,score_flash,score_final,gate_detail",
+    )
+    existing = {
+        (row["code"], row["fiscal_year"], row["fiscal_quarter"]): row
+        for row in existing_rows
+    }
+    active_scores = []
+    for code, _uni, _gate, score, _pri, _grade, index, _is_final in rows:
         year, quarter = _yq(index)
+        active_scores.append((code, year, quarter, score.score_norm))
+    percentiles = percentile_by_period(active_scores)
+
+    payload = []
+    for code, _uni, gate, score, pri, grade, index, is_final in rows:
+        year, quarter = _yq(index)
+        key = (code, year, quarter)
+        previous = existing.get(key) or {}
+        previous_detail = previous.get("gate_detail")
+        previous_flash_valid = isinstance(previous_detail, dict) and (
+            previous_detail.get("score_stage") == "flash"
+            or previous_detail.get("flash_baseline_valid") is True
+        )
         row = {
             "code": code,
             "fiscal_year": year,
@@ -407,10 +519,13 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
                 "detail": gate.detail,
                 "base_effect_checks": gate.base_effect_checks,
                 "base_effect_measurable": gate.base_effect_measurable,
+                "score_stage": "final" if is_final else "flash",
+                "flash_baseline_valid": (not is_final) or previous_flash_valid,
             },
             "base_effect_warning": gate.base_effect_warning,
             "turnaround": gate.turnaround,
-            "score_flash": score.score_norm,
+            **score_stage_fields(score.score_norm, is_final, previous),
+            "pctile_in_quarter": percentiles[key],
             "pri": pri.pri,
             "pri_detail": pri.detail,
             "grade": grade.grade,
@@ -418,11 +533,15 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
         row.update(score.as_db_row())
         payload.append(row)
 
-    for i in range(0, len(payload), 500):
-        db.table("screen_results").upsert(
-            payload[i : i + 500], on_conflict="code,fiscal_year,fiscal_quarter"
-        ).execute()
-    print(f"\n✓ screen_results upsert {len(payload)}행")
+    saved, dropped = upsert_tolerating_missing_columns(
+        db,
+        "screen_results",
+        payload,
+        on_conflict="code,fiscal_year,fiscal_quarter",
+    )
+    print(f"\n✓ screen_results upsert {saved}행")
+    if dropped:
+        print(f"  ⚠ DB에 없는 컬럼을 빼고 저장했다: {', '.join(dropped)}")
 
     # ★ 평가 분기보다 **미래**에 있는 행은 지운다.
     #   비12월 결산 등으로 미래 분기 행이 섞여 들어오던 시절(T36 이전)의 잔재다.
@@ -437,7 +556,9 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
         print("  (분기 고정 모드 — 미래 분기 정리를 건너뛴다. 최신 결과를 지울 수 있다)")
         return 0
 
-    evaluated = {code: index for code, _u, _g, _s, _p, _gr, index in rows}
+    evaluated = {
+        code: index for code, _u, _g, _s, _p, _gr, index, _final in rows
+    }
     doomed = [
         r for r in select_all("screen_results", "code,fiscal_year,fiscal_quarter")
         if code_index_is_future(r, evaluated)

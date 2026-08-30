@@ -18,6 +18,8 @@ def test_query_contract_includes_existing_prd_columns():
         "ret_3m",
         "ret_6m",
         "ret_12m",
+        "rel_ret_6m",
+        "rel_ret_12m",
     ):
         assert f'"{column}"' in QUERIES
         assert column in TYPES

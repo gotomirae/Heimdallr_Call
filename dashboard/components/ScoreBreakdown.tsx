@@ -31,7 +31,9 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-bold">{num(screen.score_flash, 1)}</span>
+        <span className="text-3xl font-bold">
+          {num(screen.score_final ?? screen.score_flash, 1)}
+        </span>
         <span className="text-sm text-slate-200">
           raw {num(rawSum, 1)} / {denominator} 정규화
         </span>

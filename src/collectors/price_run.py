@@ -20,9 +20,11 @@ from src.collectors.kis_prices import (
     fetch_daily_closes,
     fetch_index_closes,
     fetch_quote,
-    relative_return_pp,
     trailing_return_pct,
+    window_relative_return_pp,
+    window_return_pct,
 )
+from src.collectors.quarter_prices import fetch_daily_closes_naver
 from src.db.supabase_client import (
     get_client,
     select_all,
@@ -57,6 +59,22 @@ def _flush(db, rows: list[dict]) -> int:
 def _window(months: int = 3) -> tuple[str, str]:
     today = date.today()
     return (today - timedelta(days=months * 31)).strftime("%Y%m%d"), today.strftime("%Y%m%d")
+
+
+def build_return_fields(
+    closes: dict[str, float],
+    index_closes: dict[str, float],
+    cutoffs: dict[str, str],
+) -> dict[str, float | None]:
+    """한 번 받은 12개월 일봉으로 절대·지수대비 수익률을 모두 만든다."""
+    out: dict[str, float | None] = {}
+    for window in ("1m", "3m", "6m", "12m"):
+        out[f"ret_{window}"] = window_return_pct(closes, cutoffs[window])
+    for window in ("3m", "6m", "12m"):
+        out[f"rel_ret_{window}"] = window_relative_return_pp(
+            closes, index_closes, cutoffs[window]
+        )
+    return out
 
 
 def check() -> int:
@@ -97,17 +115,21 @@ def check() -> int:
               f"시총 {quote.market_cap_krw / 1e12:.1f}조" if quote.market_cap_krw
               else f"    {name}({code}) src={quote.source} 종가 {quote.close}")
 
-    print("\n[4] 3개월 상대수익률 손계산 대조")
-    begin, end = _window(3)
+    print("\n[4] 3·6·12개월 절대·상대수익률 손계산 대조")
+    cutoffs = {f"{months}m": _window(months)[0] for months in (1, 3, 6, 12)}
+    begin, end = cutoffs["12m"], _window(12)[1]
     indexes = {name: fetch_index_closes(name, begin, end) for name in ("KOSPI", "KOSDAQ")}
     print(f"    구간 {begin}~{end} · KOSPI {len(indexes['KOSPI'])}일 · "
           f"KOSDAQ {len(indexes['KOSDAQ'])}일")
     rel_returns = {}
     for code, (name, board) in SPOT.items():
-        closes = fetch_daily_closes(client, code, begin, end)
+        closes = fetch_daily_closes_naver(code, begin, end)
         index_closes = indexes[INDEX_OF_BOARD[board]]
-        common = sorted(set(closes) & set(index_closes))
-        rel = relative_return_pp(closes, index_closes)
+        fields = build_return_fields(closes, index_closes, cutoffs)
+        common = sorted(
+            day for day in set(closes) & set(index_closes) if day >= cutoffs["3m"]
+        )
+        rel = fields["rel_ret_3m"]
         rel_returns[code] = rel
         if rel is None or len(common) < 2:
             print(f"    ✗ {name}: 공통 거래일 부족")
@@ -120,6 +142,16 @@ def check() -> int:
         print(f"      지수 {index_closes[first]:>10,.2f} → {index_closes[last]:>10,.2f} = {index:+7.2f}%")
         print(f"      상대수익률 = {stock:+.2f} − {index:+.2f} = {rel:+.2f}%p "
               f"(공통 거래일 {len(common)}일)")
+        print(
+            "      "
+            + " · ".join(
+                f"{window} 절대 {fields[f'ret_{window}']:+.2f}% / "
+                f"지수대비 {fields[f'rel_ret_{window}']:+.2f}%p"
+                for window in ("3m", "6m", "12m")
+                if fields[f"ret_{window}"] is not None
+                and fields[f"rel_ret_{window}"] is not None
+            )
+        )
 
     print("\n[5] PRI 계산 (P4는 발표 다음날에만 → 분모 85)")
     for code, (name, _) in SPOT.items():
@@ -154,7 +186,8 @@ def save(limit: int | None) -> int:
     if limit:
         targets = targets[:limit]
 
-    begin, end = _window(3)
+    cutoffs = {f"{months}m": _window(months)[0] for months in (1, 3, 6, 12)}
+    begin, end = cutoffs["12m"], _window(12)[1]
     today = date.today().isoformat()
     client = KisClient()
     stats = PriceStats()
@@ -172,10 +205,13 @@ def save(limit: int | None) -> int:
         ).execute()
     print(f"✓ index_snapshots {len(index_rows)}행")
 
-    print(f"대상 {len(targets)}종목 · 스로틀 {client.bucket.rate}/초 · 종목당 2콜(시세+일봉)")
+    print(
+        f"대상 {len(targets)}종목 · 스로틀 {client.bucket.rate}/초 · "
+        "종목당 KIS 2콜(시세+거래대금) + 네이버 일봉 1콜"
+    )
     started = time.monotonic()
     payload: list[dict] = []
-    rel_ok = 0
+    measured = collections.Counter()
     ret5_ok = 0
     saved = 0
     for index, row in enumerate(targets, 1):
@@ -185,19 +221,44 @@ def save(limit: int | None) -> int:
 
         # ★ PRI P1(3개월 상대수익률)과 D4(20일 평균 거래대금)는 일봉이 있어야 계산된다.
         #   P6에서는 3종목만 했다 — PRI를 실제로 붙이려면 전 종목이 필요하다.
-        rel_return = None
+        return_fields = {
+            "ret_1m": None, "ret_3m": None, "ret_6m": None, "ret_12m": None,
+            "rel_ret_3m": None, "rel_ret_6m": None, "rel_ret_12m": None,
+        }
         avg_value_20d = None
         ret_5d = None
+        closes: dict[str, float] = {}
         try:
-            closes = fetch_daily_closes(client, row["code"], begin, end)
+            # 네이버는 1콜로 12개월 전부를 준다. KIS 일봉은 짧은 구간이라 6·12M를
+            # 요청해도 일부만 와 숫자는 그럴듯하지만 기간이 짧아질 수 있다.
+            closes = fetch_daily_closes_naver(row["code"], begin, end)
+            if closes:
+                measured["naver_daily_ok"] += 1
+        except Exception:
+            closes = {}
+        finally:
+            time.sleep(0.12)  # quarter_prices와 같은 초당 약 8콜 상한
+        if len(closes) < 2:
+            try:
+                # 장기 일봉 실패 시 기존 3M/5일 경로만 보존한다. 6·12M를 짧은
+                # 구간으로 만들어내지는 않는다.
+                closes = fetch_daily_closes(
+                    client, row["code"], cutoffs["3m"], end
+                )
+            except Exception:
+                closes = {}
+        try:
             index_closes = indexes.get(INDEX_OF_BOARD.get(row["board"], "KOSPI"), {})
-            rel_return = relative_return_pp(closes, index_closes)
-            if rel_return is not None:
-                rel_ok += 1
-            # ★ 이미 받아 둔 일봉을 재사용한다 — 콜을 늘리지 않는다.
+            return_fields = build_return_fields(closes, index_closes, cutoffs)
             ret_5d = trailing_return_pct(closes, 5)
             if ret_5d is not None:
                 ret5_ok += 1
+            for field, value in return_fields.items():
+                if value is not None:
+                    measured[field] += 1
+        except Exception:
+            pass
+        try:
             avg_value_20d = fetch_avg_value_20d(client, row["code"], begin, end)
         except Exception:
             pass  # 일봉 실패가 시세 스냅샷 전체를 막지 않는다
@@ -207,7 +268,7 @@ def save(limit: int | None) -> int:
             "close": quote.close, "chg_pct": quote.chg_pct,
             "high_52w": quote.high_52w, "low_52w": quote.low_52w,
             "pos_52w": quote.pos_52w,
-            "rel_ret_3m": rel_return,
+            **return_fields,
             "ret_5d": ret_5d,
             "market_cap_krw": quote.market_cap_krw,
             "per": quote.per, "pbr": quote.pbr,
@@ -230,8 +291,18 @@ def save(limit: int | None) -> int:
     elapsed = time.monotonic() - started
     print(f"\n✓ price_snapshots {saved}행 · {elapsed:.0f}초 "
           f"({len(targets) / max(elapsed, 1):.1f}건/초)")
-    print(f"  3개월 상대수익률(PRI P1) 측정 {rel_ok}종목 "
+    print(f"  3개월 상대수익률(PRI P1) 측정 {measured['rel_ret_3m']}종목 "
           f"— 이게 있어야 PRI 분모가 하한(40)을 넘는다 (T35)")
+    print(
+        "  기간별 수익률 측정 "
+        + " · ".join(
+            f"{field} {measured[field]}" for field in (
+                "ret_1m", "ret_3m", "ret_6m", "ret_12m",
+                "rel_ret_3m", "rel_ret_6m", "rel_ret_12m",
+            )
+        )
+    )
+    print(f"  네이버 장기 일봉 성공 {measured['naver_daily_ok']}/{len(targets)}종목")
     print(f"  최근 5거래일 상승률 측정 {ret5_ok}종목 — 발굴 목록의 마지막 열")
     if _DROPPED:
         # ★ 여기서 밝히지 않으면 "저장은 됐는데 그 값만 영영 비어 있는" 상태가 된다.

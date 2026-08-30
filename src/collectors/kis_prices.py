@@ -25,9 +25,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from src.collectors.kis_client import KisClient, KisError
-from src.config.constants import KIS_TR_DAILY_CHART, KIS_TR_PRICE
+from src.config.constants import (
+    KIS_TR_DAILY_CHART,
+    KIS_TR_PRICE,
+    RETURN_WINDOW_START_TOLERANCE_DAYS,
+)
 from src.utils.http import http_get
 
 PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-price"
@@ -250,6 +255,41 @@ def relative_return_pp(
     stock = (closes[last] / closes[first] - 1) * 100
     index = (index_closes[last] / index_closes[first] - 1) * 100
     return stock - index
+
+
+def window_return_pct(closes: dict[str, float], begin: str) -> float | None:
+    """begin 이후 실제 거래일 양끝으로 계산한 구간 절대수익률(%).
+
+    ★ 6개월 자료가 모자란 신규 상장 종목을 '있는 만큼' 계산하지 않는다. cutoff
+    뒤 거래일이 두 개 미만이면 None이다. 결측과 0%를 구분하는 방어선이다.
+    """
+    dates = sorted(day for day in closes if day >= begin)
+    if len(dates) < 2:
+        return None
+    first, last = dates[0], dates[-1]
+    latest_valid_start = (
+        datetime.strptime(begin, "%Y%m%d")
+        + timedelta(days=RETURN_WINDOW_START_TOLERANCE_DAYS)
+    ).strftime("%Y%m%d")
+    if first > latest_valid_start:
+        return None
+    if closes[first] <= 0:
+        return None
+    return (closes[last] / closes[first] - 1) * 100
+
+
+def window_relative_return_pp(
+    closes: dict[str, float],
+    index_closes: dict[str, float],
+    begin: str,
+) -> float | None:
+    """begin 이후 종목·지수의 **공통 거래일**만으로 계산한 초과수익률(%p)."""
+    # 절대수익률 기간을 충족하지 못하면 상대수익률도 짧은 구간으로 만들지 않는다.
+    if window_return_pct(closes, begin) is None or window_return_pct(index_closes, begin) is None:
+        return None
+    stock_window = {day: value for day, value in closes.items() if day >= begin}
+    index_window = {day: value for day, value in index_closes.items() if day >= begin}
+    return relative_return_pp(stock_window, index_window)
 
 
 def fetch_daily_values(

@@ -22,6 +22,7 @@ from src.config.constants import DASHBOARD_URL_DEFAULT, NOTIFY_GRADES
 from src.db.supabase_client import select_all
 from src.notify.telegram import TelegramClient, TelegramError, send_once
 from src.notify.templates import KIND_UPGRADE, upgrade_message
+from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import optional_env
 
@@ -31,7 +32,7 @@ FROM_GRADES = ("△",)
 #: 스코어가 이보다 많이 떨어졌으면 승격이 아니라 악화다(%p).
 MAX_SCORE_DROP = 5.0
 
-SCREEN_COLUMNS = "code,fiscal_year,fiscal_quarter,grade,score_flash,pri"
+SCREEN_COLUMNS = "code,fiscal_year,fiscal_quarter,grade,score_flash,score_final,pri"
 OUTCOME_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,grade_at_announce,"
     "score_at_announce,pri_at_announce"
@@ -71,7 +72,7 @@ def find_promotions() -> list[dict]:
             continue
 
         # ★ 스코어가 함께 떨어졌으면 승격이 아니다. 가격만 내려와야 한다.
-        before, after = o.get("score_at_announce"), now.get("score_flash")
+        before, after = o.get("score_at_announce"), active_score(now)
         if before is not None and after is not None and (before - after) > MAX_SCORE_DROP:
             continue
 

@@ -322,3 +322,6 @@ KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부
 SEASON_MODE = optional_env("SEASON_MODE", "off")  # 'on'이면 공시 폴링 15분 주기
 KST = "Asia/Seoul"
 POSTGREST_PAGE_SIZE = 1000  # max-rows 1,000 — 초과 테이블은 반드시 range() 페이징(T7)
+# 수익률 기간 시작일 뒤 첫 거래일 허용 여유. 신규 상장 종목의 짧은 이력을
+# 12개월 수익률로 둔갑시키지 않되 장기 연휴는 허용한다.
+RETURN_WINDOW_START_TOLERANCE_DAYS = 10
