@@ -239,6 +239,9 @@ python -m pytest tests/
 - **Anthropic 실제 비교 (2026-08-29)** — 4건 **$0.263351**, 저장 성공 0/4(숫자 gate 3·상한 1),
   정정 평균 46.07 vs OpenAI 84.64. 롯데 숫자 자체감사는 $0.083343에 65→63.57·오류 6→8로
   악화돼 폐기·baseline hash 복구(T124). T122·T123 수정; Primary 전환 근거 없음.
+- **대시보드 §9.1 완성 (2026-08-30)** — 수익률·백분위·EPS/FCF/Δ·밴드/PEG·섹터 상위5·
+  종목별 결과·같은 분기 공시 토글·/screener 배선. 실데이터 상세 **200 · 157,412B**,
+  전체 **737 passed · 1 skipped · network 3 deselected**, build 10/10. 외부 쓰기·배포 0.
 - **사실 숫자 참조 3회 결론 (2026-08-30)** — low v2는 filler 11곳·**26.43점**, medium은
   참조값 3개 변조·unsupported 5건·**63.57점/$0.094465**. 모두 quality=false, 합계 $0.2328135,
   DB 쓰기 0 → 운영 기본에서 격리·canary 전용. T125·T126; **731 passed · 1 skipped · 3 deselected**.

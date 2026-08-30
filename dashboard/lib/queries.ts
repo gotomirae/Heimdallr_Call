@@ -20,7 +20,8 @@ const UNIVERSE_COLUMNS = [
 
 const SCREEN_COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter", "gate_passed", "gate_detail",
-  "base_effect_warning", "turnaround", "score_flash",
+  "base_effect_warning", "turnaround", "score_flash", "score_final", "score_delta",
+  "pctile_in_quarter",
   "score_a", "score_b", "score_c", "score_d", "has_consensus",
   "pri", "pri_detail", "grade",
   "raw_a1", "raw_a2", "raw_a3", "raw_a4",
@@ -40,7 +41,7 @@ const FUND_COLUMNS = [
 //   죽는다. `selectWithOptionalColumns`가 없는 컬럼을 걷어내려면 배열이어야 한다(T18).
 const PRICE_COLUMNS = [
   "code", "snap_date", "close", "chg_pct", "high_52w", "low_52w", "pos_52w",
-  "rel_ret_3m", "ret_5d",
+  "ret_3m", "ret_6m", "ret_12m", "rel_ret_3m", "ret_5d",
   "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
 ];
 
@@ -133,6 +134,35 @@ export async function getAllScreens(): Promise<{ rows: ScreenRow[]; dropped: str
       ? await selectAll<ScreenRow>(
           "screen_results",
           SCREEN_COLUMNS.filter((c) => !dropped.includes(c)).join(",")
+        )
+      : rows;
+  return { rows: all, dropped };
+}
+
+/**
+ * 섹터 비교용 스크린 결과. 최신 행으로 접지 않고 평가 분기를 정확히 고정한다(T40).
+ * 한 분기에 1,000종목을 넘으므로 첫 조회가 잘리면 range() 페이징으로 다시 읽는다(T7).
+ */
+export async function getScreensForQuarter(
+  year: number,
+  quarter: number
+): Promise<{ rows: ScreenRow[]; dropped: string[] }> {
+  const { rows, dropped } = await selectWithOptionalColumns<ScreenRow>(
+    "screen_results",
+    SCREEN_COLUMNS,
+    (q, cols) =>
+      q
+        .select(cols)
+        .eq("fiscal_year", year)
+        .eq("fiscal_quarter", quarter)
+        .range(0, 4999)
+  );
+  const all =
+    rows.length >= 1000
+      ? await selectAll<ScreenRow>(
+          "screen_results",
+          SCREEN_COLUMNS.filter((column) => !dropped.includes(column)).join(","),
+          (q) => q.eq("fiscal_year", year).eq("fiscal_quarter", quarter)
         )
       : rows;
   return { rows: all, dropped };

@@ -85,6 +85,24 @@ export async function getOutcomes(): Promise<{
   return { rows: all, dropped };
 }
 
+/** 종목 상세용 결과 이력. 전체 테이블을 읽지 않고 code 필터를 서버에 건다(T106). */
+export async function getOutcomesForCode(code: string): Promise<{
+  rows: OutcomeRow[];
+  dropped: string[];
+}> {
+  const { rows, dropped } = await selectWithOptionalColumns<OutcomeRow>(
+    "outcome_tracking",
+    COLUMNS,
+    (q, cols) =>
+      q
+        .select(cols)
+        .eq("code", code)
+        .order("fiscal_year", { ascending: false })
+        .order("fiscal_quarter", { ascending: false })
+  );
+  return { rows, dropped };
+}
+
 export function excessField(days: Horizon): keyof OutcomeRow {
   return `excess_d${horizonSuffix(days)}` as keyof OutcomeRow;
 }

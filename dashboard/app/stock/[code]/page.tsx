@@ -12,9 +12,11 @@ import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
 import { deriveOrderDisclosureSignal } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
+import { sectorOf } from "@/lib/sector";
 import { dartReportUrl, naverDisclosureUrl, naverStockUrl } from "@/lib/links";
 import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
+import { getOutcomesForCode } from "@/lib/outcome";
 import {
   getAnalysis,
   getAnnualConsensus,
@@ -22,10 +24,12 @@ import {
   getDisclosures,
   getDisclosureExcerpt,
   getFundamentals,
+  getFundamentalsForQuarters,
   getLatestAnalysis,
   getLatestPrice,
   getQuarterPrices,
   getScreenForCode,
+  getScreensForQuarter,
   getUniverse,
 } from "@/lib/queries";
 
@@ -56,10 +60,16 @@ function Note({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-xs leading-relaxed text-slate-300">{children}</p>;
 }
 
+function average(values: Array<number | null | undefined>): number | null {
+  const measured = values.filter((value): value is number => value != null);
+  if (measured.length === 0) return null;
+  return measured.reduce((sum, value) => sum + value, 0) / measured.length;
+}
+
 export default async function StockPage({ params }: { params: { code: string } }) {
   const code = params.code;
 
-  const [universe, funds, price, screenResult, quarterPrices, disclosures] =
+  const [universe, funds, price, screenResult, quarterPrices, disclosures, outcomeResult] =
     await Promise.all([
       getUniverse(),
       getFundamentals(code),
@@ -67,6 +77,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       getScreenForCode(code),
       getQuarterPrices(code),
       getDisclosures(code),
+      getOutcomesForCode(code),
     ]);
 
   const stock = universe.get(code);
@@ -77,11 +88,24 @@ export default async function StockPage({ params }: { params: { code: string } }
   const year = screen?.fiscal_year ?? latestFund?.fiscal_year ?? null;
   const quarter = screen?.fiscal_quarter ?? latestFund?.fiscal_quarter ?? null;
 
-  const [consensus, analysisPayload, annualConsensus, disclosureExcerpt] = await Promise.all([
+  const [
+    consensus,
+    analysisPayload,
+    annualConsensus,
+    disclosureExcerpt,
+    quarterScreenResult,
+    quarterFundamentals,
+  ] = await Promise.all([
     year && quarter ? getConsensus(code, year, quarter) : Promise.resolve(null),
     year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
     year ? getAnnualConsensus(code, year) : Promise.resolve(null),
     year && quarter ? getDisclosureExcerpt(code, year, quarter) : Promise.resolve(null),
+    year && quarter
+      ? getScreensForQuarter(year, quarter)
+      : Promise.resolve({ rows: [], dropped: [] }),
+    year && quarter
+      ? getFundamentalsForQuarters([{ year, quarter }])
+      : Promise.resolve([]),
   ]);
 
   // ★ 한 분기 발췌이므로 변화율을 만들지 않는다. 평가 분기와 같은 원문만
@@ -111,6 +135,57 @@ export default async function StockPage({ params }: { params: { code: string } }
       ? funds.find((f) => f.fiscal_year === year && f.fiscal_quarter === quarter) ?? latestFund
       : latestFund;
 
+  // ── 섹터 비교 ────────────────────────────────────────────────
+  // 같은 평가 분기의 행끼리만 비교한다(T40). 상위 5개에 현재 종목이 없으면
+  // 현재 종목을 한 줄 더 붙여 위치를 잃지 않게 한다.
+  const stockSector = sectorOf(stock);
+  const quarterFundByCode = new Map(quarterFundamentals.map((row) => [row.code, row]));
+  const sectorScreens = quarterScreenResult.rows
+    .filter((row) => sectorOf(universe.get(row.code)) === stockSector)
+    .sort(
+      (left, right) =>
+        (right.score_final ?? right.score_flash ?? -Infinity) -
+        (left.score_final ?? left.score_flash ?? -Infinity)
+    );
+  const topSectorScreens = sectorScreens.slice(0, 5);
+  const currentSectorScreen = sectorScreens.find((row) => row.code === code);
+  const displayedSectorScreens =
+    currentSectorScreen && !topSectorScreens.some((row) => row.code === code)
+      ? [...topSectorScreens, currentSectorScreen]
+      : topSectorScreens;
+  const sectorPeerRows = await Promise.all(
+    displayedSectorScreens.map(async (peerScreen) => {
+      const isCurrent = peerScreen.code === code;
+      const [peerFunds, peerPrice] = isCurrent
+        ? [funds, price]
+        : await Promise.all([
+            getFundamentals(peerScreen.code),
+            getLatestPrice(peerScreen.code),
+          ]);
+      const peerFund = quarterFundByCode.get(peerScreen.code) ?? null;
+      const peerCap =
+        peerPrice?.market_cap_krw ?? universe.get(peerScreen.code)?.market_cap_krw ?? null;
+      const peerTtmNp =
+        year && quarter ? ttmNetIncome(peerFunds, year, quarter) : null;
+      return {
+        code: peerScreen.code,
+        name: universe.get(peerScreen.code)?.name ?? peerScreen.code,
+        isCurrent,
+        score: peerScreen.score_final ?? peerScreen.score_flash,
+        revenueYoy: peerFund?.revenue_yoy ?? null,
+        opm: peerFund?.opm ?? null,
+        per: trailing4qPer(peerCap, peerTtmNp),
+      };
+    })
+  );
+  const sectorAverages = {
+    score: average(sectorScreens.map((row) => row.score_final ?? row.score_flash)),
+    revenueYoy: average(
+      sectorScreens.map((row) => quarterFundByCode.get(row.code)?.revenue_yoy)
+    ),
+    opm: average(sectorScreens.map((row) => quarterFundByCode.get(row.code)?.opm)),
+  };
+
   // ── 밸류에이션 ──────────────────────────────────────────────
   // ★ 시총은 시세 스냅샷 것을 우선한다 — 유니버스 값은 하루 늦을 수 있다.
   const capForPer = price?.market_cap_krw ?? stock.market_cap_krw;
@@ -120,6 +195,12 @@ export default async function StockPage({ params }: { params: { code: string } }
     year && quarter ? ttmNetIncome(funds, year, quarter) : null;
   const per4q = trailing4qPer(capForPer, ttmNp);
   const fwd = forwardPer(annualConsensus, funds, capForPer);
+  // 표준 PEG(연간 예상 성장률)가 아니라, 현재 화면이 실제로 가진 같은 분기
+  // EPS YoY를 분모로 한 참고값이다. 0 이하·결측은 만들지 않는다.
+  const referencePeg =
+    per4q != null && evaluated?.eps_yoy != null && evaluated.eps_yoy > 0
+      ? per4q / evaluated.eps_yoy
+      : null;
 
   // ★ 오늘 종가를 넘겨 주가 라인이 **현재까지** 닿게 한다. 실적 행만 따르면
   //   마지막 발표 분기에서 잘려 그 뒤 주가 흐름을 볼 수 없다.
@@ -148,6 +229,16 @@ export default async function StockPage({ params }: { params: { code: string } }
   // ★ DART 원문은 **접수번호로만** 열린다. 회사명 검색 URL은 200을 주고도
   //   검색을 실행하지 않아 빈 화면이 뜬다(T58) — 없으면 링크를 만들지 않는다.
   const latestDisclosure = disclosures[0] ?? null;
+  const screenByQuarter = new Map(
+    screenResult.history.map((row) => [
+      `${row.fiscal_year}-${row.fiscal_quarter}`,
+      row,
+    ])
+  );
+  const excerptSections = Object.entries(disclosureExcerpt?.sections ?? {}).filter(
+    (entry): entry is [string, string] =>
+      typeof entry[1] === "string" && entry[1].trim().length > 0
+  );
 
   const baseEffectMeasurable = Boolean(
     (screen?.gate_detail as Record<string, unknown> | null)?.base_effect_measurable ?? true
@@ -181,6 +272,29 @@ export default async function StockPage({ params }: { params: { code: string } }
         </div>
       </div>
 
+      <div className="grid gap-2 text-sm sm:grid-cols-4">
+        {[
+          ["3개월 절대", price?.ret_3m],
+          ["3개월 지수대비", price?.rel_ret_3m],
+          ["6개월 절대", price?.ret_6m],
+          ["12개월 절대", price?.ret_12m],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded border border-slate-800 bg-slate-900/40 px-3 py-2">
+            <div className="text-xs text-slate-300">{label}</div>
+            <div className="mt-0.5 font-semibold text-slate-100">
+              {pct(
+                value as number | null | undefined,
+                1,
+                String(label).includes("지수대비") ? "%p" : "%"
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="-mt-3 text-right text-[11px] text-slate-400">
+        6·12개월 지수대비 값은 아직 수집하지 않아 절대수익률로 표시한다.
+      </p>
+
       {screenResult.dropped.length > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">
           ⚠ 아직 DB에 없는 컬럼을 제외하고 조회했다: {screenResult.dropped.join(", ")}.
@@ -203,6 +317,11 @@ export default async function StockPage({ params }: { params: { code: string } }
               {screen.turnaround && (
                 <span className="rounded border border-emerald-800/60 bg-emerald-900/20 px-2 py-0.5 text-xs text-emerald-300">
                   흑전/적자축소
+                </span>
+              )}
+              {screen.pctile_in_quarter != null && (
+                <span className="rounded border border-sky-800/60 bg-sky-900/20 px-2 py-0.5 text-xs text-sky-200">
+                  분기 내 백분위 {screen.pctile_in_quarter.toFixed(1)}%
                 </span>
               )}
             </div>
@@ -317,7 +436,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
         <div className="mt-3 max-h-[60vh] overflow-auto">
-          <table className="w-full min-w-[720px] text-right text-sm">
+          <table className="w-full min-w-[1040px] text-right text-sm">
             <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
               <tr className="border-b border-slate-800">
                 <TermTh term="분기">분기</TermTh>
@@ -328,12 +447,20 @@ export default async function StockPage({ params }: { params: { code: string } }
                 <TermTh term="YoY" align="right">YoY</TermTh>
                 <TermTh term="OPM" align="right">OPM</TermTh>
                 <TermTh term="OPM" align="right">OPM YoY</TermTh>
+                <TermTh term="EPS" align="right">EPS</TermTh>
+                <TermTh term="EPS YoY" align="right">EPS YoY</TermTh>
+                <TermTh term="FCF" align="right">FCF</TermTh>
                 <TermTh term="TTM매출" align="right">TTM 매출</TermTh>
+                <th className="px-2 py-2 text-right">스코어 Δ</th>
                 <TermTh term="잠정" align="center">구분</TermTh>
               </tr>
             </thead>
             <tbody>
-              {[...funds].reverse().slice(0, 12).map((f) => (
+              {[...funds].reverse().slice(0, 12).map((f) => {
+                const historicalScreen = screenByQuarter.get(
+                  `${f.fiscal_year}-${f.fiscal_quarter}`
+                );
+                return (
                 <tr
                   key={`${f.fiscal_year}-${f.fiscal_quarter}`}
                   className="border-b border-slate-800/60"
@@ -349,12 +476,17 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <td className="py-1.5">{growthOrLabel(f.op_yoy, f.op_status_label)}</td>
                   <td className="py-1.5">{pct(f.opm)}</td>
                   <td className="py-1.5">{pct(f.opm_yoy_delta, 1, "%p")}</td>
+                  <td className="py-1.5">{num(f.eps)}</td>
+                  <td className="py-1.5">{pct(f.eps_yoy)}</td>
+                  <td className="py-1.5">{eok(f.fcf)}</td>
                   <td className="py-1.5">{eok(f.ttm_revenue)}</td>
+                  <td className="py-1.5">{pct(historicalScreen?.score_delta, 1, "점")}</td>
                   <td className="py-1.5 text-center text-xs text-slate-300">
                     {f.is_estimate ? "잠정" : "확정"}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -477,7 +609,7 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 7. 밸류에이션 — 최근 4분기 → 향후 4분기 순. 후행 PER은 싣지 않는다. */}
       <Card title="밸류에이션" note="이익 대비 지금 주가가 몇 배인가">
-        <div className="grid gap-5 text-sm sm:grid-cols-2">
+        <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
               ① <Term term="PER최근4분기">최근 4개 분기 순이익 기준 PER</Term>
@@ -516,6 +648,26 @@ export default async function StockPage({ params }: { params: { code: string } }
               )}
             </p>
           </div>
+          <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
+            <div className="text-xs font-semibold text-slate-200">③ 3년 PER 밴드</div>
+            <div className="mt-1 text-2xl font-semibold text-slate-100">
+              {price?.per_pctile_3y != null ? `${price.per_pctile_3y.toFixed(0)}백분위` : DASH}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              이 종목의 최근 3년 PER 안에서 현재 위치. 0에 가까울수록 낮고 100에 가까울수록
+              높다. 값이 없으면 아직 측정하지 않은 것이며 0으로 보지 않는다.
+            </p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
+            <div className="text-xs font-semibold text-slate-200">④ 참고 PEG</div>
+            <div className="mt-1 text-2xl font-semibold text-slate-100">
+              {referencePeg != null ? referencePeg.toFixed(2) : DASH}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              최근 4분기 PER ÷ 평가 분기 EPS YoY(%). 연간 예상 성장률을 쓰는 표준 PEG가
+              아닌 참고값이다. EPS YoY가 0 이하이거나 없으면 계산하지 않는다.
+            </p>
+          </div>
         </div>
 
         {per4q != null && fwd.per != null && fwd.per < per4q && (
@@ -528,6 +680,149 @@ export default async function StockPage({ params }: { params: { code: string } }
 
         {price?.pbr != null && (
           <Note>PBR {price.pbr.toFixed(2)}배 — 주가 ÷ 주당 순자산.</Note>
+        )}
+      </Card>
+
+      <Card title="섹터 비교" note={stockSector + " · 같은 평가 분기 스코어 상위 5개"}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-right text-sm">
+            <thead className="text-xs text-slate-300">
+              <tr className="border-b border-slate-800">
+                <th className="py-2 text-left">종목</th>
+                <th className="py-2">스코어</th>
+                <th className="py-2">매출 YoY</th>
+                <th className="py-2">OPM</th>
+                <th className="py-2">최근 4분기 PER</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-700 bg-slate-800/30 font-semibold">
+                <td className="py-2 text-left">{stockSector} 평균 ({sectorScreens.length}종목)</td>
+                <td className="py-2">{pct(sectorAverages.score, 1, "점")}</td>
+                <td className="py-2">{pct(sectorAverages.revenueYoy)}</td>
+                <td className="py-2">{pct(sectorAverages.opm)}</td>
+                <td className="py-2 text-slate-400">—</td>
+              </tr>
+              {sectorPeerRows.map((peer) => (
+                <tr
+                  key={peer.code}
+                  className={
+                    "border-b border-slate-800/60 " +
+                    (peer.isCurrent ? "bg-amber-950/25 font-semibold text-amber-100" : "")
+                  }
+                >
+                  <td className="py-2 text-left">
+                    <Link href={"/stock/" + peer.code} className="hover:underline">
+                      {peer.isCurrent ? "현재 · " : ""}{peer.name} ({peer.code})
+                    </Link>
+                  </td>
+                  <td className="py-2">{pct(peer.score, 1, "점")}</td>
+                  <td className="py-2">{pct(peer.revenueYoy)}</td>
+                  <td className="py-2">{pct(peer.opm)}</td>
+                  <td className="py-2">{peer.per != null ? peer.per.toFixed(1) + "배" : DASH}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Note>
+          평균은 같은 분기에 측정된 값만 사용한다. PER은 오래된 스냅샷 값을 쓰지 않고
+          각 종목의 시총 ÷ 최근 4분기 순이익으로 다시 계산했으며, 상위 5개만 비교한다(T92).
+          현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
+        </Note>
+      </Card>
+
+      <Card title="종목별 결과 추적" note="실적 발표일 기준 실제 주가와 지수대비 성과">
+        {outcomeResult.rows.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-right text-sm">
+              <thead className="text-xs text-slate-300">
+                <tr className="border-b border-slate-800">
+                  <th className="py-2 text-left">분기</th>
+                  <th className="py-2 text-left">발표일</th>
+                  <th className="py-2 text-center">등급</th>
+                  {["D+1", "D+5", "D+20", "D+60"].map((label) => (
+                    <th key={label} className="py-2">
+                      {label}<br /><span className="font-normal">수익 / 지수대비</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {outcomeResult.rows.map((row) => {
+                  const horizons = [
+                    { label: "D+1", ret: row.ret_d1, excess: row.excess_d1 },
+                    { label: "D+5", ret: row.ret_d5, excess: row.excess_d5 },
+                    { label: "D+20", ret: row.ret_d20, excess: row.excess_d20 },
+                    { label: "D+60", ret: row.ret_d60, excess: row.excess_d60 },
+                  ];
+                  return (
+                    <tr
+                      key={row.fiscal_year + "-" + row.fiscal_quarter}
+                      className="border-b border-slate-800/60"
+                    >
+                      <td className="py-2 text-left">{quarterLabel(row.fiscal_year, row.fiscal_quarter)}</td>
+                      <td className="py-2 text-left text-slate-300">{row.announce_date ?? DASH}</td>
+                      <td className="py-2 text-center">{row.grade_at_announce ?? DASH}</td>
+                      {horizons.map((item) => (
+                        <td key={item.label} className="py-2">
+                          {pct(item.ret, 1)}<br />
+                          <span className="text-xs text-slate-300">{pct(item.excess, 1, "%p")}</span>
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-300">
+            발표일과 기준가격이 모두 확보된 추적 행이 아직 없다.
+          </p>
+        )}
+        {outcomeResult.dropped.length > 0 && (
+          <Note>아직 DB에 없는 결과 컬럼은 제외했다: {outcomeResult.dropped.join(", ")}.</Note>
+        )}
+      </Card>
+
+      <Card
+        title="공시 발췌"
+        note={year && quarter ? quarterLabel(year, quarter) + "와 같은 분기" : undefined}
+      >
+        {excerptSections.length > 0 ? (
+          <details className="rounded border border-slate-800 bg-slate-950/40 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-sky-200">
+              정기보고서 발췌 보기 ({excerptSections.length}개 절 ·{" "}
+              {num(disclosureExcerpt?.excerpt_chars)}자)
+            </summary>
+            <div className="mt-4 space-y-5">
+              {excerptSections.map(([section, body]) => (
+                <div key={section}>
+                  <h3 className="mb-1 text-xs font-semibold text-amber-200">{section}</h3>
+                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-200">
+                    {body}
+                  </pre>
+                </div>
+              ))}
+            </div>
+            <Note>
+              분석 입력 예산 안에서 고른 절별 발췌다. 원문 전체가 아니며, 접수번호가 있으면{" "}
+              <a
+                href={dartReportUrl(disclosureExcerpt!.rcept_no)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-300 hover:underline"
+              >
+                DART 원문 ↗
+              </a>
+              에서 대조한다.
+            </Note>
+          </details>
+        ) : (
+          <p className="text-sm text-slate-300">
+            평가 분기와 정확히 같은 정기보고서 발췌가 아직 없다. 다른 분기 원문으로 대체하지 않는다.
+          </p>
         )}
       </Card>
 

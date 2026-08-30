@@ -67,6 +67,11 @@ export interface ScreenRow {
   base_effect_warning: boolean | null;
   turnaround: boolean | null;
   score_flash: number | null;
+  score_final: number | null;
+  /** 확정 점수 - 잠정 점수. 둘 중 하나가 없으면 null이다. */
+  score_delta: number | null;
+  /** 같은 평가 분기 안의 스코어 백분위. */
+  pctile_in_quarter: number | null;
   score_a: number | null;
   score_b: number | null;
   score_c: number | null;
@@ -99,6 +104,9 @@ export interface PriceRow {
   high_52w: number | null;
   low_52w: number | null;
   pos_52w: number | null;
+  ret_3m: number | null;
+  ret_6m: number | null;
+  ret_12m: number | null;
   rel_ret_3m: number | null;
   /** 최근 5**거래일** 상승률(%). 수집 전에는 null이다 — 0으로 채우지 않는다. */
   ret_5d: number | null;
