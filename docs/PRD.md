@@ -429,6 +429,7 @@ CREATE TABLE consensus_snapshots (
   code TEXT NOT NULL,
   fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   revenue_est NUMERIC, op_est NUMERIC, np_est NUMERIC, eps_est NUMERIC,
+  per NUMERIC, fwd_per NUMERIC,              -- 네이버 최근 확정 / 연간 (E) PER
   n_estimates INT,                          -- < 2면 컨센서스로 인정하지 않음
   source TEXT,                              -- 'fnguide' | 'naver'
   snapshot_at TIMESTAMPTZ DEFAULT now(),
@@ -461,6 +462,12 @@ CREATE TABLE price_snapshots (
   per_pctile_3y NUMERIC,                    -- 3년 PER 밴드 백분위 ★ PRI P3
   avg_value_20d NUMERIC,
   PRIMARY KEY (code, snap_date)
+);
+
+CREATE TABLE weekly_prices (                 -- 실제 거래일 기준 ISO 주 마지막 종가
+  code TEXT NOT NULL, trade_date DATE NOT NULL, close NUMERIC NOT NULL,
+  refreshed_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (code, trade_date)
 );
 
 CREATE TABLE index_snapshots (               -- 상대수익률 계산용
@@ -564,14 +571,17 @@ CREATE TABLE cost_log (
   0) 데이터 기준일  이 날짜 이후의 사건은 입력에 없다고 모델에게 명시 (T101)
   1) 기본정보    종목명·코드·업종·주요제품·시총·상장일
   2) 8분기 표    매출/YoY/QoQ · 영업이익/YoY · OPM/YoY%p · EPS · TTM 매출·OPM · FCF
- 2-1) 절대 증감   대상 분기의 매출·영업이익 YoY/QoQ 원 단위 차액(Python 계산)
+  2-1) 절대 증감   대상 분기의 매출·영업이익 YoY/QoQ 원 단위 차액(Python 계산)
                  정확한 비교 분기가 없으면 None. 가까운 분기로 대체하지 않는다.
+ 2-2) 잠정→확정  같은 분기의 잠정치와 DART 확정치 차이. 부호 전환 구간은 증감률 없이
+                 절대 차이만 제공한다. 분석 payload에는 preliminary/final 단계를 기록한다.
   3) 판정 결과   게이트 통과 여부 + A/B/C/D 축별 점수와 근거 수치
                  + base_effect_warning + sector_caveat
   4) 컨센서스    매출/영업이익/EPS 추정치와 서프라이즈 % (없으면 "커버리지 없음" 명시)
                  시점 이력 중 `snapshot_at` 최신 행만 사용한다. PostgREST 첫 행은 순서 계약이
                  아니므로 replay 입력으로 쓰지 않는다.
   5) 주가        현재가·52주 위치·3/6/12M 수익률·지수 대비 초과수익·PER·PBR·PRI 분해
+                 + 네이버 기업실적분석의 최근 확정 PER·가장 가까운 연간 (E) PER
                  + **분기말 종가 추이**(등락률을 우리가 계산해 준다 — 모델에게
                  산수를 시키면 틀린 값이 본문에 인용된다 · T101)
   6) 공시 발췌   매출·수주 / 원재료·설비 / 주요제품 / 주요계약·연구개발 4개 절
@@ -865,16 +875,16 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 
 1. **헤더** — 종목명·코드·업종·시총 / 현재가·등락 / 52주 위치 게이지 / 3·6·12M 수익률 (지수 대비 병기)
 2. **판정 카드** — 등급(★○△·) / 스코어 A·B·C·D 스택 바 / **PRI 분해 바** / 분기 내 백분위 / 경고 배지(기저효과·업종주의·컨센없음)
-3. **분기 실적 추이 (8분기)** — 이중축 차트
+3. **분기 실적 추이 (8분기) + 실제 주간 종가** — 이중축 실적 차트 아래에 ISO 주의 마지막 실제 거래일 종가를 별도 표시
    - 막대: 매출·영업이익 / **선: 매출 YoY 성장률 (이 화면의 주인공 — 가속이 눈으로 보여야 한다)** / 점선: TTM 매출
 4. **분기 히스토리 표** — 매출/YoY/QoQ · 영업이익/YoY · OPM/YoY%p · EPS/YoY · FCF · TTM · 잠정/확정 표시 · `score_delta`
 5. **컨센서스 대비** — 서프라이즈 % + 추정기관 수 (없으면 "커버리지 없음" 명시)
-6. **밸류에이션** — PER·PBR·Fwd PER·PEG / 3년 밴드 내 위치 / 동일 업종 대비 / 주가 위치 판정
-7. **LLM 분석** — 한 줄 아이디어 / 왜 지금인가 / 성장 엔진(구조적·일시적) / 가속 지속 전망 / 3·6개월 트리거 / Bull·Base·Bear 확률 / 리스크 표 / 다음에 확인할 데이터 / 내가 틀릴 수 있는 이유
+6. **밸류에이션** — 네이버 기업실적분석의 최근 확정 PER·연간 (E) Fwd PER을 우선 표시하고 내부 TTM 계산값으로 검산 / PBR·PEG / 3년 밴드 내 위치 / 동일 업종 대비 / 주가 위치 판정
+7. **LLM 분석** — 잠정/확정 분석 단계 배지 / 한 줄 아이디어 / 왜 지금인가 / 성장 엔진(구조적·일시적) / 가속 지속 전망 / 3·6개월 트리거 / Bull·Base·Bear 확률 / 리스크 표 / 다음에 확인할 데이터 / 내가 틀릴 수 있는 이유
    - **수주 확인 포인트** — 평가 분기와 같은 DART 발췌에 `수주잔고`·`수주총액`·`신규 수주`가 실제로 있을 때만 원문 문맥을 별도 표시한다. 한 분기뿐이므로 **QoQ·증가 판정을 만들지 않으며**, 비공개와 발췌 잘림을 배지로 밝힌다.
 8. **업종 비교 표** — 상위 5개사 매출YoY·OPM·PER·스코어
 9. **결과 추적** — 발표 후 D+1/5/20/60 수익률 (지수 대비)
-10. **원문 토글** — DART 링크 + 발췌
+10. **원문 링크** — 최근 공시 목록과 접수번호 기반 DART 원문 링크. 내부 LLM 발췌 전문은 화면에 중복 노출하지 않는다.
 
 ### 9.2 방어 코드 (HermesCall에서 실제로 터진 것)
 
@@ -890,7 +900,7 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 | 워크플로우 | 스케줄 (UTC) | 내용 |
 |---|---|---|
 | `universe_daily.yml` | `0 21 * * *` (06:00 KST) | KIND+네이버+corpCode 갱신, 시세·지수 스냅샷, PRI 재계산 |
-| `disclosure_poll.yml` | 시즌 `*/15 0-10 * * 1-5` / 비시즌 `0 1,4,7,10 * * 1-5` | DART 폴링 → 파싱 → 스크리닝 → ⚡알림 |
+| `disclosure_poll.yml` | 시즌 `*/15 0-10 * * 1-5` / 비시즌 `0 1,4,7,10 * * 1-5` | DART 폴링 → 새 정기보고서의 확정 재무·발췌 → 잠정 분석의 확정 갱신 → 스크리닝 → ⚡알림 |
 | `daily_digest.yml` | `30 8 * * 1-5` (17:30 KST) | 일일 요약 발송 |
 | `quarterly_backfill.yml` | `0 20 1,15 * *` + 수동 | 확정 재무 배치 + 정밀 재무(게이트 통과분) + `score_final` 재계산 |
 | `outcome_update.yml` | `0 22 * * 1-5` (07:00 KST) | D+1/5/20/60 수익률 갱신 |

@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import date
+from datetime import date, datetime
 
 from src.db.supabase_client import get_client, select_all
 from src.utils.console import enable_utf8_stdout
@@ -87,6 +87,16 @@ def quarter_end_closes(closes: dict[str, float]) -> dict[tuple[int, int], tuple[
     return out
 
 
+def weekly_last_closes(closes: dict[str, float]) -> dict[str, float]:
+    """일봉을 ISO 주별 마지막 **실제 거래일** 종가로 접는다."""
+    by_week: dict[tuple[int, int], tuple[str, float]] = {}
+    for day in sorted(closes):
+        parsed = datetime.strptime(day, "%Y%m%d").date()
+        iso = parsed.isocalendar()
+        by_week[(iso.year, iso.week)] = (day, closes[day])
+    return {day: close for day, close in by_week.values()}
+
+
 def _iso(yyyymmdd: str) -> str:
     return f"{yyyymmdd[:4]}-{yyyymmdd[4:6]}-{yyyymmdd[6:]}"
 
@@ -99,6 +109,16 @@ def table_ready(db) -> bool:
     """
     try:
         db.table("quarter_prices").select("code").limit(1).execute()
+        return True
+    except Exception as exc:
+        if str(getattr(exc, "code", "") or "") == "PGRST205":
+            return False
+        raise
+
+
+def weekly_table_ready(db) -> bool:
+    try:
+        db.table("weekly_prices").select("code").limit(1).execute()
         return True
     except Exception as exc:
         if str(getattr(exc, "code", "") or "") == "PGRST205":
@@ -139,8 +159,12 @@ def save(limit: int | None, *, all_codes: bool) -> int:
     print(f"대상 {len(targets)}종목 · 구간 {begin}~{end} · 종목당 1콜")
 
     db = get_client()
+    save_weekly = weekly_table_ready(db)
+    if not save_weekly:
+        print("⚠ weekly_prices 테이블이 없어 주간 종가는 저장하지 않는다.")
     payload: list[dict] = []
-    saved = ok = empty = failed = 0
+    weekly_payload: list[dict] = []
+    saved = weekly_saved = ok = empty = failed = 0
     started = time.monotonic()
 
     for index, code in enumerate(targets, 1):
@@ -158,17 +182,26 @@ def save(limit: int | None, *, all_codes: bool) -> int:
                 "code": code, "fiscal_year": year, "fiscal_quarter": quarter,
                 "close": close, "trade_date": _iso(day),
             })
+        if save_weekly:
+            weekly_payload.extend({
+                "code": code, "trade_date": _iso(day), "close": close,
+            } for day, close in weekly_last_closes(closes).items())
         if len(payload) >= CHUNK_ROWS:
             saved += _flush(db, payload)
             payload.clear()
+        if len(weekly_payload) >= CHUNK_ROWS:
+            weekly_saved += _flush_weekly(db, weekly_payload)
+            weekly_payload.clear()
         if index % 100 == 0:
             print(f"    {index}/{len(targets)} · {time.monotonic() - started:.0f}초 "
                   f"· 성공 {ok} · 빈응답 {empty} · 실패 {failed} · 저장 {saved}행")
         time.sleep(0.12)  # 네이버에 대한 예의 — 초당 8콜 남짓
 
     saved += _flush(db, payload)
+    weekly_saved += _flush_weekly(db, weekly_payload) if save_weekly else 0
     elapsed = time.monotonic() - started
     print(f"\n✓ quarter_prices {saved}행 · {elapsed:.0f}초")
+    print(f"  weekly_prices {weekly_saved}행")
     print(f"  성공 {ok} · 빈 응답 {empty} · 실패 {failed}")
     if empty or failed:
         print("  ⚠ 빈 응답/실패 종목은 차트에서 주가 라인만 빠진다 — 실적 라인은 그대로다.")
@@ -179,6 +212,14 @@ def _flush(db, rows: list[dict]) -> int:
     for i in range(0, len(rows), 500):
         db.table("quarter_prices").upsert(
             rows[i : i + 500], on_conflict="code,fiscal_year,fiscal_quarter"
+        ).execute()
+    return len(rows)
+
+
+def _flush_weekly(db, rows: list[dict]) -> int:
+    for i in range(0, len(rows), 500):
+        db.table("weekly_prices").upsert(
+            rows[i : i + 500], on_conflict="code,trade_date"
         ).execute()
     return len(rows)
 
@@ -200,7 +241,12 @@ def check() -> int:
     for (year, quarter), (day, close) in sorted(quarters.items())[-9:]:
         print(f"    {year}.{quarter}Q  {day}  {close:>12,.0f}원")
 
-    print(f"\n[3] 마지막 거래일 확인 — 분기 말일이 휴장이면 그 앞 거래일이어야 한다")
+    weekly = weekly_last_closes(closes)
+    print(f"\n[3] 실제 주간 종가 {len(weekly)}주 (최근 5주)")
+    for day, close in list(weekly.items())[-5:]:
+        print(f"    {day}  {close:>12,.0f}원")
+
+    print(f"\n[4] 마지막 거래일 확인 — 분기 말일이 휴장이면 그 앞 거래일이어야 한다")
     for (year, quarter), (day, _) in sorted(quarters.items())[-4:]:
         last_month = quarter * 3
         print(f"    {year}.{quarter}Q 말일 {year}-{last_month:02d}-말 → 실제 {day}")

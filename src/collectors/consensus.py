@@ -39,6 +39,7 @@ _ROW_ALIASES: dict[str, tuple[str, ...]] = {
     "op_est": ("영업이익",),
     "np_est": ("당기순이익",),
     "eps_est": ("EPS(원)", "EPS"),
+    "per": ("PER(배)", "PER"),
 }
 
 _PERIOD_RE = re.compile(r"(\d{4})[./](\d{2})")
@@ -204,7 +205,7 @@ def fetch_annual_estimate(code: str) -> dict | None:
     ★ 연간 추정이 **여러 해** 있으면 가장 이른 해를 쓴다 — 가장 가까운 미래가
       가장 신뢰도가 높고, 먼 해까지 쓰면 추정 오차가 누적된다.
 
-    반환: {'fiscal_year', 'revenue_est', 'op_est', 'np_est'} (원 단위) 또는 None
+    반환에는 네이버 표의 최근 확정 PER과 가장 가까운 연간 추정 PER도 포함한다.
     """
     try:
         resp = http_get(NAVER_MAIN_URL, params={"code": code}, timeout=40.0)
@@ -264,7 +265,20 @@ def fetch_annual_estimate(code: str) -> dict | None:
                 row = values.get(field)
                 value = row[index] if row and index < len(row) else None
                 out[field] = int(round(value * _EOK)) if value is not None else None
-            return out if out.get("np_est") else None
+            per_row = values.get("per") or []
+            out["fwd_per"] = per_row[index] if index < len(per_row) else None
+            actual_indexes = [i for i in range(index) if not periods[i][2]]
+            actual_index = actual_indexes[-1] if actual_indexes else None
+            out["per"] = (
+                per_row[actual_index]
+                if actual_index is not None and actual_index < len(per_row)
+                else None
+            )
+            out["source"] = "naver"
+            return out if any(
+                out.get(field) is not None
+                for field in ("np_est", "per", "fwd_per")
+            ) else None
         return None
     except Exception:
         return None  # 컨센서스 없음은 정상 케이스다

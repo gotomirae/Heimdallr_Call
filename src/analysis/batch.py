@@ -163,7 +163,40 @@ def notify_progress(text: str) -> bool:
         return False
 
 
-def already_analyzed(before: str | None = None) -> set[tuple[str, int, int]]:
+def needs_final_refresh(
+    payload: object,
+    current_is_estimate: bool | None,
+    *,
+    analysis_created_at: str | None = None,
+    final_updated_at: str | None = None,
+    preliminary_delta: object = None,
+) -> bool:
+    """잠정 분석 뒤 같은 분기의 DART 확정치가 들어온 경우에만 재호출한다."""
+    if current_is_estimate is not False:
+        return False
+    node = payload if isinstance(payload, dict) else {}
+    meta = node.get("_heimdallr") if isinstance(node, dict) else None
+    stage = meta.get("analysis_stage") if isinstance(meta, dict) else None
+    if stage == "preliminary":
+        return True
+    if stage == "final":
+        return False
+    # 메타 도입 전 분석은 `delta_from_preliminary`가 실제로 남았고 확정 재무가
+    # 분석 뒤 갱신된 경우만 잠정 분석으로 판정한다. 단순히 메타가 없다는 이유로
+    # 과거 분석 전체를 유료 재호출하지 않는다.
+    return bool(
+        preliminary_delta
+        and analysis_created_at
+        and final_updated_at
+        and final_updated_at > analysis_created_at
+    )
+
+
+def already_analyzed(
+    before: str | None = None,
+    *,
+    refresh_finalized: bool = False,
+) -> set[tuple[str, int, int]]:
     """이미 분석된 (종목, 분기).
 
     ★ `before`(ISO 날짜)를 주면 **그 시점 이후에 분석된 것만** '완료'로 친다.
@@ -172,14 +205,32 @@ def already_analyzed(before: str | None = None) -> set[tuple[str, int, int]]:
     ★ `created_at`이 없는 행은 **오래된 것으로 본다**(안전한 쪽). 새 프롬프트로
       다시 도는 것은 비용이 들 뿐 틀린 결과를 만들지 않는다.
     """
-    rows = select_all("analyses", "code,fiscal_year,fiscal_quarter,created_at")
+    rows = select_all("analyses", "code,fiscal_year,fiscal_quarter,created_at,payload")
+    final_state: dict[tuple[str, int, int], dict] = {}
+    if refresh_finalized:
+        for f in select_all(
+            "quarterly_fundamentals",
+            "code,fiscal_year,fiscal_quarter,is_estimate,updated_at,delta_from_preliminary",
+        ):
+            final_state[(f["code"], f["fiscal_year"], f["fiscal_quarter"])] = f
     out = set()
     for a in rows:
         if before:
             created = (a.get("created_at") or "")[:10]
             if not created or created < before:
                 continue  # 낡았다 — 다시 분석 대상
-        out.add((a["code"], a["fiscal_year"], a["fiscal_quarter"]))
+        key = (a["code"], a["fiscal_year"], a["fiscal_quarter"])
+        if refresh_finalized:
+            final = final_state.get(key, {})
+            if needs_final_refresh(
+                a.get("payload"),
+                final.get("is_estimate"),
+                analysis_created_at=a.get("created_at"),
+                final_updated_at=final.get("updated_at"),
+                preliminary_delta=final.get("delta_from_preliminary"),
+            ):
+                continue
+        out.add(key)
     return out
 
 
@@ -190,10 +241,11 @@ def run(
     min_score: float,
     max_seconds: float = DEFAULT_MAX_SECONDS,
     refresh_before: str | None = None,
+    refresh_finalized: bool = False,
 ) -> int:
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     picked = targets(top, min_score=min_score)
-    done = already_analyzed(refresh_before)
+    done = already_analyzed(refresh_before, refresh_finalized=refresh_finalized)
 
     pending = [
         r for r in picked
@@ -383,10 +435,13 @@ def main() -> int:
     #   **비용이 새로 나가므로** 기본은 꺼져 있고 날짜를 명시해야 한다.
     parser.add_argument("--refresh-before", metavar="YYYY-MM-DD",
                         help="이 날짜 이전에 분석된 종목을 다시 분석한다(비용 발생)")
+    parser.add_argument("--refresh-finalized", action="store_true",
+                        help="잠정 분석 뒤 확정 재무가 들어온 같은 분기만 다시 분석한다")
     args = parser.parse_args()
     return run(args.top, send=args.send, min_score=args.min_score,
                max_seconds=args.max_seconds,
         refresh_before=args.refresh_before,
+        refresh_finalized=args.refresh_finalized,
     )
 
 

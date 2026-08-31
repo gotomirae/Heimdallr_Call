@@ -136,6 +136,7 @@ export function PriBreakdown({
   detail: PriDetail | null;
 }) {
   const parts = detail?.parts ?? {};
+  const inputs = detail?.inputs ?? {};
   const denominator = detail?.denominator ?? 0;
 
   const label =
@@ -181,6 +182,13 @@ export function PriBreakdown({
             </div>
           );
         })}
+      </div>
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
+        <div>P1 3개월 지수대비 {num(inputs.rel_return_3m_pp, 1)}%p → {num(parts.p1, 1)}/40 (−10%p=0 · 0=20 · +30%p=40)</div>
+        <div>P2 52주 위치: 종가 {num(inputs.close)}원 · 저가 {num(inputs.low_52w)}원 · 고가 {num(inputs.high_52w)}원 → {num(parts.p2, 1)}/25</div>
+        <div>P3 3년 PER 밴드 {num(inputs.per_percentile_3y, 1)}백분위 → {num(parts.p3, 1)}/20</div>
+        <div>P4 발표 D+1 지수대비 {num(inputs.reaction_d1_pp, 1)}%p → {num(parts.p4, 1)}/15 (0%p=0 · +10%p=15)</div>
+        <div className="mt-1 text-slate-100">최종 PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
       </div>
     </div>
   );

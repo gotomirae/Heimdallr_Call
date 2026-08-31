@@ -35,9 +35,12 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "참고 PEG",
         "섹터 비교",
         "종목별 결과 추적",
-        "공시 발췌",
+        "네이버 증권 기업실적분석",
+        "주간 종가",
     ):
         assert label in STOCK
+
+    assert 'title="공시 발췌"' not in STOCK
 
 
 def test_integrated_screener_has_the_documented_route():

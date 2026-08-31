@@ -39,7 +39,7 @@ FUND_COLUMNS = (
     # ★ `np`(순이익)가 없으면 최근 4분기 PER이 **전 종목 계산 불가**가 된다 —
     #   에러 없이 "계산 불가"만 뜨므로 데이터가 없는 것처럼 보인다(2026-08-23 실측).
     "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,opm,opm_yoy_delta,"
-    "ttm_revenue,ttm_op,ttm_opm,op_status_label,is_estimate"
+    "ttm_revenue,ttm_op,ttm_opm,op_status_label,is_estimate,delta_from_preliminary"
 )
 
 
@@ -184,7 +184,7 @@ def build_input(
     consensus_rows = [
         c for c in select_all(
             "consensus_snapshots",
-            "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates,snapshot_at",
+            "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates,source,snapshot_at",
             filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
             read_budget=read_budget,
         )
@@ -210,7 +210,7 @@ def build_input(
     annual_rows = [
         c for c in select_all(
             "consensus_snapshots",
-            "code,fiscal_year,fiscal_quarter,np_est,n_estimates,snapshot_at",
+            "code,fiscal_year,fiscal_quarter,np_est,per,fwd_per,source,snapshot_at",
             filters={"code": code, "fiscal_quarter": 0},
             read_budget=read_budget,
         )
@@ -243,6 +243,9 @@ def build_input(
         ),
         "per_forward": fwd_per,
         "per_forward_basis": fwd_basis,
+        "per_naver": (annual_consensus or {}).get("per"),
+        "per_forward_naver": (annual_consensus or {}).get("fwd_per"),
+        "per_naver_source": (annual_consensus or {}).get("source"),
         "pbr": price.get("pbr"),
     }
 
@@ -296,6 +299,7 @@ def build_input(
         fiscal_year=year,
         fiscal_quarter=quarter,
         is_estimate=bool(latest.get("is_estimate")),
+        preliminary_delta=latest.get("delta_from_preliminary"),
         quarters=quarters,
         gate={
             "passed": screen.get("gate_passed"),

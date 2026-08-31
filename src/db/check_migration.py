@@ -22,6 +22,9 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("price_snapshots", "rel_ret_6m", "NUMERIC", "상세화면 6개월 지수대비 수익률"),
     ("price_snapshots", "rel_ret_12m", "NUMERIC", "상세화면 12개월 지수대비 수익률"),
     ("quarter_prices", "close", "—", "상세화면 9분기 차트의 주가 라인 (테이블)"),
+    ("weekly_prices", "close", "—", "상세화면 실제 주간 종가 차트 (테이블)"),
+    ("consensus_snapshots", "per", "NUMERIC", "네이버 최근 확정 PER"),
+    ("consensus_snapshots", "fwd_per", "NUMERIC", "네이버 연간 (E) 선행 PER"),
     ("outcome_tracking", "ret_dm5", "NUMERIC", "발표 전 5일 수익률"),
     ("outcome_tracking", "excess_dm5", "NUMERIC", "발표 전 5일 초과수익"),
     ("outcome_tracking", "ret_d0", "NUMERIC", "발표 당일 수익률"),
@@ -39,8 +42,8 @@ MISSING_COLUMN = "42703"
 MISSING_TABLE = "PGRST205"
 
 
-def probe(client, table: str, column: str) -> tuple[bool, str]:
-    """(있는가, 사유). 컬럼과 테이블 부재를 **구분해서** 돌려준다."""
+def probe(client, table: str, column: str) -> tuple[bool | None, str]:
+    """(있는가, 사유). ``None``은 연결 실패 등 **판정 불가**다."""
     try:
         client.table(table).select(column).limit(1).execute()
         return True, ""
@@ -50,14 +53,28 @@ def probe(client, table: str, column: str) -> tuple[bool, str]:
             return False, "컬럼 없음"
         if code == MISSING_TABLE:
             return False, "테이블 없음"
-        return False, f"{code or type(exc).__name__}"
+        return None, f"판정 불가: {code or type(exc).__name__}"
 
 
 def sql_for(missing: list[tuple[str, str, str, str]]) -> list[str]:
     """붙여 넣을 SQL. 전부 `IF NOT EXISTS`라 여러 번 실행해도 안전하다."""
     lines: list[str] = []
     for table, column, sqltype, why in missing:
-        if table == "quarter_prices":
+        if table in {"quarter_prices", "weekly_prices"}:
+            if table == "weekly_prices":
+                lines += [
+                    "-- 실제 주간 종가",
+                    "CREATE TABLE IF NOT EXISTS weekly_prices (",
+                    "  code TEXT NOT NULL, trade_date DATE NOT NULL, close NUMERIC NOT NULL,",
+                    "  refreshed_at TIMESTAMPTZ DEFAULT now(),",
+                    "  PRIMARY KEY (code, trade_date)",
+                    ");",
+                    "ALTER TABLE weekly_prices ENABLE ROW LEVEL SECURITY;",
+                    "DROP POLICY IF EXISTS anon_select_weekly_prices ON weekly_prices;",
+                    "CREATE POLICY anon_select_weekly_prices ON weekly_prices",
+                    "  FOR SELECT TO anon USING (true);",
+                ]
+                continue
             lines += [
                 "-- 분기말 종가 (테이블 자체가 없다)",
                 "CREATE TABLE IF NOT EXISTS quarter_prices (",
@@ -87,20 +104,31 @@ def main() -> int:
     print(line)
 
     missing: list[tuple[str, str, str, str]] = []
+    unavailable: list[tuple[str, str, str]] = []
     print("\n[필수]")
     for row in EXPECTED_COLUMNS:
         table, column, _, why = row
         ok, reason = probe(client, table, column)
-        mark = "✓" if ok else "✗"
+        mark = "✓" if ok is True else ("✗" if ok is False else "?")
         print(f"  {mark} {table}.{column:<12} {'' if ok else reason:<12} {why}")
-        if not ok:
+        if ok is False:
             missing.append(row)
+        elif ok is None:
+            unavailable.append((table, column, reason))
 
     print("\n[선택 — 없어도 화면이 정상 동작한다]")
     for row in OPTIONAL_COLUMNS:
         table, column, _, why = row
         ok, reason = probe(client, table, column)
-        print(f"  {'✓' if ok else '·'} {table}.{column:<12} {'' if ok else reason:<12} {why}")
+        mark = "✓" if ok is True else ("·" if ok is False else "?")
+        print(f"  {mark} {table}.{column:<12} {'' if ok else reason:<12} {why}")
+
+    if unavailable:
+        print(f"\n{line}")
+        print(f"? 필수 항목 {len(unavailable)}개를 확인하지 못했다. 스키마 부재로 판정하지 않는다.")
+        print("  네트워크·인증 상태를 복구한 뒤 다시 실행하라. 확인 전에는 DDL을 적용하지 않는다.")
+        print(line)
+        return 2
 
     if not missing:
         print(f"\n{line}")
@@ -121,7 +149,7 @@ def main() -> int:
         print("  python -m src.analysis.outcome_run --save")
     if any(t == "price_snapshots" for t, _, _, _ in missing):
         print("  python -m src.collectors.price_run --save")
-    if any(t == "quarter_prices" for t, _, _, _ in missing):
+    if any(t in {"quarter_prices", "weekly_prices"} for t, _, _, _ in missing):
         print("  python -m src.collectors.quarter_prices --save")
     print(line)
     # ★ 종료코드 1 — CI나 스크립트가 이 상태를 성공으로 착각하면 안 된다.

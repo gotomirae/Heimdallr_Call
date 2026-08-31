@@ -77,6 +77,7 @@ class AnalysisInput:
     fiscal_year: int | None = None
     fiscal_quarter: int | None = None
     is_estimate: bool = False
+    preliminary_delta: dict | None = None
     quarters: list[dict] = field(default_factory=list)  # 8분기 표
     gate: dict = field(default_factory=dict)
     score: dict = field(default_factory=dict)
@@ -111,6 +112,7 @@ class AnalysisResult:
     cache_read_tokens: int
     cache_write_tokens: int
     output_tokens: int
+    is_estimate: bool = False
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -196,7 +198,15 @@ def _fmt_valuation(v: dict) -> str:
     """
     if not v:
         return "- 밸류에이션: (계산 불가 — 시가총액 또는 순이익 데이터가 없다)"
-    lines = ["- 밸류에이션 (**후행 PER은 쓰지 마라. 아래 두 개만 쓴다**)"]
+    lines = ["- 밸류에이션 (**논할 때는 네이버 컨센서스 선행 PER을 우선하라**)"]
+
+    if v.get("per_naver") is not None:
+        lines.append(f"  · 네이버 증권 최근 확정 PER: **{v['per_naver']:.1f}배**")
+    if v.get("per_forward_naver") is not None:
+        lines.append(
+            f"  · 네이버 증권 연간 (E) 선행 PER: **{v['per_forward_naver']:.1f}배** "
+            "(출처: 네이버 증권 기업실적분석) — 밸류에이션 판단에서 이 값을 우선 언급하라"
+        )
 
     per4q = v.get("per_trailing_4q")
     if per4q is not None:
@@ -333,6 +343,11 @@ def build_user_message(data: AnalysisInput) -> str:
         "",
         "## 2-1. 결정론적 절대 증감",
         _fmt_narrative_changes(data),
+        "",
+        "## 2-2. 잠정치 → 확정치 정정",
+        json.dumps(data.preliminary_delta, ensure_ascii=False)
+        if data.preliminary_delta
+        else "(잠정치 대비 정정 데이터 없음)",
         "",
         "## 3. 판정 결과",
         f"- 게이트: {json.dumps(data.gate, ensure_ascii=False)}",
@@ -557,6 +572,7 @@ def analysis_result_from_response(
         cache_read_tokens=usage.cache_read_tokens,
         cache_write_tokens=usage.cache_write_tokens,
         output_tokens=usage.output_tokens,
+        is_estimate=data.is_estimate,
     )
 
 
@@ -661,6 +677,10 @@ def validate_payload(payload: dict) -> list[str]:
 def save(result: AnalysisResult) -> None:
     from src.db.supabase_client import get_client
 
+    stored_payload = dict(result.payload)
+    stored_payload["_heimdallr"] = {
+        "analysis_stage": "preliminary" if result.is_estimate else "final",
+    }
     get_client().table("analyses").upsert(
         {
             "code": result.code,
@@ -668,7 +688,7 @@ def save(result: AnalysisResult) -> None:
             "fiscal_quarter": result.fiscal_quarter,
             "model": result.model,
             "cost_usd": result.cost_usd,
-            "payload": result.payload,
+            "payload": stored_payload,
             # ★★ **반드시 직접 넣는다.** DB 기본값은 INSERT에만 걸리므로 upsert로
             #   덮어쓸 때는 `created_at`이 **처음 분석한 날짜에 머문다**(T102).
             #   `--refresh-before`가 이 칸으로 "낡았는가"를 판정하는데, 값이 안

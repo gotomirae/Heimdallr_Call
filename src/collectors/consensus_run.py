@@ -153,7 +153,9 @@ def save_all(limit: int | None) -> int:
         #   "향후 4분기"를 만들 수 없다 — 연간 추정이 있어야 예상 PER이 나온다.
         #   `fiscal_quarter = 0`을 '연간'으로 쓴다(스키마 변경 없이 구분).
         annual = fetch_annual_estimate(code)
-        if annual and annual.get("np_est"):
+        # 순이익 추정이 비어도 네이버가 제공한 확정/선행 PER은 화면 근거로 유효하다.
+        # fetch_annual_estimate()가 세 값이 전부 없을 때만 None을 돌려준다.
+        if annual:
             annual_found += 1
             payload.append({
                 "code": code,
@@ -162,8 +164,10 @@ def save_all(limit: int | None) -> int:
                 "revenue_est": annual.get("revenue_est"),
                 "op_est": annual.get("op_est"),
                 "np_est": annual.get("np_est"),
+                "per": annual.get("per"),
+                "fwd_per": annual.get("fwd_per"),
                 "n_estimates": None,
-                "source": "naver_annual",
+                "source": "naver",
             })
 
         if index % 100 == 0:

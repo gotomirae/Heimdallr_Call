@@ -50,7 +50,10 @@ class PriResult:
             "raw_sum": self.raw_sum,
             "denominator": self.denominator,
             "excluded": list(self.excluded),
+            "inputs": self.inputs,
         }
+
+    inputs: dict[str, float | None] = field(default_factory=dict)
 
 
 def _p1(rel_return_pp: float | None) -> float | None:
@@ -112,6 +115,14 @@ def compute_pri(data: PriInput) -> PriResult:
         "p4": _p4(data.reaction_d1_pp),
     }
 
+    inputs = {
+        "rel_return_3m_pp": data.rel_return_3m_pp,
+        "close": data.close,
+        "high_52w": data.high_52w,
+        "low_52w": data.low_52w,
+        "per_percentile_3y": data.per_percentile_3y,
+        "reaction_d1_pp": data.reaction_d1_pp,
+    }
     measured = [k for k, v in parts.items() if v is not None]
     excluded = [k for k, v in parts.items() if v is None]
     raw_sum = sum(v for v in parts.values() if v is not None)
@@ -131,6 +142,7 @@ def compute_pri(data: PriInput) -> PriResult:
             pri=None,
             measured=tuple(measured),
             excluded=tuple(excluded),
+            inputs=inputs,
         )
 
     return PriResult(
@@ -140,4 +152,5 @@ def compute_pri(data: PriInput) -> PriResult:
         pri=(raw_sum / denominator * 100) if denominator else None,
         measured=tuple(measured),
         excluded=tuple(excluded),
+        inputs=inputs,
     )

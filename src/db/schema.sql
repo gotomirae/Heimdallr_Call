@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS consensus_snapshots (
   code TEXT NOT NULL,
   fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   revenue_est NUMERIC, op_est NUMERIC, np_est NUMERIC, eps_est NUMERIC,
+  per NUMERIC, fwd_per NUMERIC,              -- 네이버 최근 확정 / 연간 (E) PER
   n_estimates INT,                          -- < 2면 컨센서스로 인정하지 않음
   source TEXT,                              -- 'fnguide' | 'naver'
   snapshot_at TIMESTAMPTZ DEFAULT now(),
@@ -135,6 +136,13 @@ CREATE TABLE IF NOT EXISTS quarter_prices (
   trade_date DATE,                          -- 실제로 어느 날 종가인지 (휴장일 보정 확인용)
   refreshed_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (code, fiscal_year, fiscal_quarter)
+);
+
+CREATE TABLE IF NOT EXISTS weekly_prices (
+  code TEXT NOT NULL, trade_date DATE NOT NULL,
+  close NUMERIC NOT NULL,
+  refreshed_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (code, trade_date)
 );
 
 CREATE TABLE IF NOT EXISTS index_snapshots (   -- 상대수익률 계산용
@@ -250,6 +258,7 @@ ALTER TABLE consensus_snapshots     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE earnings_disclosures    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_snapshots         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quarter_prices          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_prices           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE index_snapshots         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE screen_results          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE disclosure_excerpts     ENABLE ROW LEVEL SECURITY;
@@ -286,6 +295,10 @@ DROP POLICY IF EXISTS anon_select_quarter_prices ON quarter_prices;
 CREATE POLICY anon_select_quarter_prices ON quarter_prices
   FOR SELECT TO anon USING (true);
 
+DROP POLICY IF EXISTS anon_select_weekly_prices ON weekly_prices;
+CREATE POLICY anon_select_weekly_prices ON weekly_prices
+  FOR SELECT TO anon USING (true);
+
 DROP POLICY IF EXISTS anon_select_index_snapshots ON index_snapshots;
 CREATE POLICY anon_select_index_snapshots ON index_snapshots
   FOR SELECT TO anon USING (true);
@@ -310,6 +323,8 @@ CREATE POLICY anon_select_notifications ON notifications
 
 -- ═══════════════════════════════════════════════════════════════════
 -- 증분 마이그레이션 — 이후 Phase에서 컬럼을 추가할 때 여기에 덧붙인다.
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS per NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS fwd_per NUMERIC;
 -- (CREATE TABLE IF NOT EXISTS는 기존 테이블에 컬럼을 더해 주지 않는다.
 --  적용 전까지 쓰기는 PGRST204, 조회는 42703으로 죽는다 — T18)
 -- 예)

@@ -94,6 +94,7 @@ export interface PriDetail {
   raw_sum?: number;
   denominator?: number;
   excluded?: string[];
+  inputs?: Record<string, number | null>;
 }
 
 export interface PriceRow {
@@ -128,6 +129,12 @@ export interface QuarterPriceRow {
   trade_date: string | null;
 }
 
+export interface WeeklyPriceRow {
+  code: string;
+  trade_date: string;
+  close: number;
+}
+
 /** DART 공시. `rcept_no`가 원문 링크의 유일한 열쇠다. */
 export interface DisclosureRow {
   rcept_no: string;
@@ -147,6 +154,10 @@ export interface ConsensusRow {
   revenue_est: number | null;
   op_est: number | null;
   np_est: number | null;
+  per: number | null;
+  fwd_per: number | null;
+  source: string | null;
+  snapshot_at: string | null;
 }
 
 /** 스코어 축 정의 — 텔레그램 템플릿(`src/notify/templates.py`)과 같은 이름을 쓴다. */

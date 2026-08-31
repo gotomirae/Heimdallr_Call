@@ -16,6 +16,10 @@ on:
         description: "매출 결측 종목만 재수집 (T39 폴백)"
         type: boolean
         default: false
+      codes:
+        description: "수동 갱신할 종목코드(쉼표 구분, 비우면 전체)"
+        type: string
+        default: ""
 
 concurrency:
   group: quarterly-backfill
@@ -29,6 +33,16 @@ jobs:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
+      OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
+      OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
+      OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
+      OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
+      OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
+      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
+      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v7
@@ -39,8 +53,12 @@ jobs:
       - run: pip install -e .
 
       - name: 확정 재무 수집
+        env:
+          CODES_INPUT: ${{ inputs.codes }}
         run: |
-          if [ "${{ inputs.fix_missing_revenue }}" = "true" ]; then
+          if [ -n "$CODES_INPUT" ]; then
+            python -m src.finance.backfill --save --codes "$CODES_INPUT"
+          elif [ "${{ inputs.fix_missing_revenue }}" = "true" ]; then
             python -m src.finance.backfill --save --fix-missing-revenue
           else
             python -m src.finance.backfill --save
@@ -51,3 +69,9 @@ jobs:
 
       - name: 스크리닝 재계산
         run: python -m src.screener.run --save
+
+      - name: 정기보고서 서술 근거 갱신
+        run: python -m src.collectors.excerpt_run --save --limit 200 --max-seconds 1800
+
+      - name: 잠정 분석을 확정실적 분석으로 갱신
+        run: python -m src.analysis.batch --send --refresh-finalized --max-seconds 2400

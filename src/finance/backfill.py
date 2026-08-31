@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from src.collectors.dart_financials import (
     FetchStats,
@@ -132,7 +132,27 @@ def _before_floor(year: int, quarter: int) -> bool:
     return (year, quarter) < (DATA_START_YEAR, DATA_START_QUARTER)
 
 
-def _rows_for_db(company, code: str, year: int) -> list[dict]:
+def preliminary_delta(preliminary: dict | None, final: dict) -> dict | None:
+    if not preliminary or preliminary.get("is_estimate") is not True:
+        return None
+    out: dict[str, dict] = {}
+    for field in ("revenue", "op", "np"):
+        before, after = preliminary.get(field), final.get(field)
+        if before is None or after is None:
+            continue
+        item = {"preliminary": before, "final": after, "delta": after - before}
+        if before > 0 and after > 0:
+            item["delta_pct"] = (after - before) / before * 100
+        out[field] = item
+    return out or None
+
+
+def _rows_for_db(
+    company,
+    code: str,
+    year: int,
+    preliminary: dict[tuple[str, int, int, str], dict] | None = None,
+) -> list[dict]:
     out = []
     for quarter in (1, 2, 3, 4):
         if _before_floor(year, quarter):
@@ -151,6 +171,11 @@ def _rows_for_db(company, code: str, year: int) -> list[dict]:
             row[field] = qv.value if qv else None
             measured = measured or (qv is not None and qv.is_measured)
         if measured:  # 전부 결측인 분기는 저장하지 않는다
+            old = (preliminary or {}).get((code, year, quarter, company.fs_div))
+            delta = preliminary_delta(old, row)
+            if delta:
+                row["delta_from_preliminary"] = delta
+            row["updated_at"] = datetime.now(timezone.utc).isoformat()
             out.append(row)
     return out
 
@@ -166,6 +191,65 @@ def codes_missing_revenue() -> list[str]:
         if row["revenue"] is None:
             missing.add(row["code"])
     return sorted(missing)
+
+
+def recent_periodic_targets(days: int) -> list[dict]:
+    """아직 확정 재무에 반영되지 않은 최근 정기보고서만 반환한다.
+
+    공시 폴링은 시즌 중 하루 수십 번 돈다. 날짜만 보고 최근 3일치를 매번
+    다시 모으면 같은 DART 보고서를 100회 넘게 읽게 되므로, 해당 분기의
+    확정 행이 공시일 이후 갱신됐으면 완료로 본다.
+    """
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    disclosures = [
+        row for row in select_all(
+            "earnings_disclosures",
+            "code,doc_type,fiscal_year,fiscal_quarter,disclosed_at",
+        )
+        if row.get("doc_type") == "periodic"
+        and row.get("fiscal_year") is not None
+        and row.get("fiscal_quarter") is not None
+        and str(row.get("disclosed_at") or "")[:10] >= cutoff
+    ]
+    if not disclosures:
+        return []
+
+    wanted = {
+        (r["code"], r["fiscal_year"], r["fiscal_quarter"])
+        for r in disclosures
+    }
+    refreshed: dict[tuple[str, int, int], str] = {}
+    for row in select_all(
+        "quarterly_fundamentals",
+        "code,fiscal_year,fiscal_quarter,is_estimate,updated_at",
+    ):
+        key = (row["code"], row["fiscal_year"], row["fiscal_quarter"])
+        if key not in wanted or row.get("is_estimate") is not False:
+            continue
+        updated = str(row.get("updated_at") or "")[:10]
+        if updated > refreshed.get(key, ""):
+            refreshed[key] = updated
+
+    # 같은 종목·분기의 정정공시가 여러 건이면 가장 최근 공시만 비교한다.
+    newest: dict[tuple[str, int, int], dict] = {}
+    for row in disclosures:
+        key = (row["code"], row["fiscal_year"], row["fiscal_quarter"])
+        if key not in newest or str(row.get("disclosed_at") or "") > str(
+            newest[key].get("disclosed_at") or ""
+        ):
+            newest[key] = row
+
+    return sorted(
+        (
+            row for key, row in newest.items()
+            if refreshed.get(key, "") < str(row.get("disclosed_at") or "")[:10]
+        ),
+        key=lambda row: (row["code"], row["fiscal_year"], row["fiscal_quarter"]),
+    )
+
+
+def codes_from_recent_periodic(days: int) -> list[str]:
+    return sorted({row["code"] for row in recent_periodic_targets(days)})
 
 
 def save_all(limit: int | None, years: list[int], codes: list[str] | None = None) -> int:
@@ -184,6 +268,15 @@ def save_all(limit: int | None, years: list[int], codes: list[str] | None = None
         targets = targets[:limit]
     by_corp = {r["corp_code"]: r["code"] for r in targets}
     corp_codes = list(by_corp)
+    target_codes = set(by_corp.values())
+    preliminary = {
+        (r["code"], r["fiscal_year"], r["fiscal_quarter"], r["fs_div"]): r
+        for r in select_all(
+            "quarterly_fundamentals",
+            "code,fiscal_year,fiscal_quarter,fs_div,revenue,op,np,is_estimate",
+        )
+        if r["code"] in target_codes and r.get("is_estimate") is True
+    }
 
     print(f"대상 {len(corp_codes)}종목 × {len(years)}개 연도 "
           f"× 4보고서 = 예상 "
@@ -202,7 +295,7 @@ def save_all(limit: int | None, years: list[int], codes: list[str] | None = None
         for corp_code, company in results.items():
             code = by_corp.get(corp_code)
             if code:
-                payload.extend(_rows_for_db(company, code, year))
+                payload.extend(_rows_for_db(company, code, year, preliminary))
         for i in range(0, len(payload), 500):
             db.table("quarterly_fundamentals").upsert(
                 payload[i : i + 500],
@@ -256,13 +349,25 @@ def main() -> int:
                         help="쉼표로 구분한 종목코드만 재수집 (예: 039340,298830)")
     parser.add_argument("--fix-missing-revenue", action="store_true",
                         help="매출이 결측인 종목만 재수집 (T39 폴백)")
+    parser.add_argument("--recent-periodic-days", type=int,
+                        help="최근 N일 정기보고서 제출 종목만 확정 재무로 갱신")
     args = parser.parse_args()
 
     this_year = date.today().year
     years = list(range(DATA_START_YEAR, this_year + 1))
 
     codes = None
-    if args.fix_missing_revenue:
+    if args.recent_periodic_days:
+        periodic_targets = recent_periodic_targets(args.recent_periodic_days)
+        codes = sorted({row["code"] for row in periodic_targets})
+        years = sorted({row["fiscal_year"] for row in periodic_targets}, reverse=True)
+        print(
+            f"최근 {args.recent_periodic_days}일 미반영 정기보고서 "
+            f"{len(periodic_targets)}건 · {len(codes)}종목 · 연도 {years}"
+        )
+        if not periodic_targets:
+            return 0
+    elif args.fix_missing_revenue:
         codes = codes_missing_revenue()
         print(f"매출 결측 종목 {len(codes)}개: {', '.join(codes[:12])}"
               f"{' …' if len(codes) > 12 else ''}")

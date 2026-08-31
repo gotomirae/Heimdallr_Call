@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
+import WeeklyPriceChart from "@/components/WeeklyPriceChart";
 import { CHART_QUARTERS, SERIES_COLOR, chartVerdict, measuredCount, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
@@ -28,6 +29,7 @@ import {
   getLatestAnalysis,
   getLatestPrice,
   getQuarterPrices,
+  getWeeklyPrices,
   getScreenForCode,
   getScreensForQuarter,
   getUniverse,
@@ -69,13 +71,14 @@ function average(values: Array<number | null | undefined>): number | null {
 export default async function StockPage({ params }: { params: { code: string } }) {
   const code = params.code;
 
-  const [universe, funds, price, screenResult, quarterPrices, disclosures, outcomeResult] =
+  const [universe, funds, price, screenResult, quarterPrices, weeklyPrices, disclosures, outcomeResult] =
     await Promise.all([
       getUniverse(),
       getFundamentals(code),
       getLatestPrice(code),
       getScreenForCode(code),
       getQuarterPrices(code),
+      getWeeklyPrices(code),
       getDisclosures(code),
       getOutcomesForCode(code),
     ]);
@@ -128,6 +131,20 @@ export default async function StockPage({ params }: { params: { code: string } }
   const analysisYear = analysisPayload ? year : fallback?.fiscal_year ?? null;
   const analysisQuarter = analysisPayload ? quarter : fallback?.fiscal_quarter ?? null;
   const analysisIsStale = Boolean(fallback);
+  const storedAnalysis = (analysisPayload ?? fallback?.payload ?? null) as Record<string, unknown> | null;
+  const analysisMeta = storedAnalysis?._heimdallr as Record<string, unknown> | undefined;
+  const analysisStage =
+    analysisMeta?.analysis_stage === "final"
+      ? "확정실적 분석"
+      : analysisMeta?.analysis_stage === "preliminary"
+        ? "잠정실적 분석"
+        : "분석 단계 미기록";
+  const analysisStageClass =
+    analysisMeta?.analysis_stage === "final"
+      ? "border-emerald-700 bg-emerald-950/30 text-emerald-200"
+      : analysisMeta?.analysis_stage === "preliminary"
+        ? "border-amber-700 bg-amber-950/30 text-amber-200"
+        : "border-slate-700 bg-slate-950/30 text-slate-300";
 
   // 스크리너가 평가한 바로 그 분기의 재무를 쓴다 — 최신 행과 다를 수 있다.
   const evaluated =
@@ -235,11 +252,6 @@ export default async function StockPage({ params }: { params: { code: string } }
       row,
     ])
   );
-  const excerptSections = Object.entries(disclosureExcerpt?.sections ?? {}).filter(
-    (entry): entry is [string, string] =>
-      typeof entry[1] === "string" && entry[1].trim().length > 0
-  );
-
   const baseEffectMeasurable = Boolean(
     (screen?.gate_detail as Record<string, unknown> | null)?.base_effect_measurable ?? true
   );
@@ -373,6 +385,8 @@ export default async function StockPage({ params }: { params: { code: string } }
         note="핵심은 노란 선 — 영업이익 YoY가 빨라지고 있는가"
       >
         <QuarterlyChart points={chartPoints} />
+        <WeeklyPriceChart points={weeklyPrices} />
+        <Note>주간 종가는 각 ISO 주의 마지막 실제 거래일 종가이며, 마우스를 올리면 거래일과 원 단위 가격을 표시한다.</Note>
 
         {/* ★★ 핵심 투자 포인트 — **모양이 무엇을 뜻하는가**(사용자 지정 2026-08-23).
             "성장률이 빨라졌다"는 차트를 보면 누구나 아는 사실이다. 화면이 보태야 하는
@@ -502,6 +516,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             : undefined
         }
       >
+        <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
+          {analysisStage}
+        </p>
         {analysisIsStale && analysisYear && analysisQuarter && (
           <p className="mb-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
             ⚠ 이 해석은 <strong>{quarterLabel(analysisYear, analysisQuarter)}</strong> 기준이다 —
@@ -561,7 +578,7 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 6. 컨센서스 대비 */}
       <Card title="컨센서스 대비">
-        <Note>추정기관 2곳 이상만 인정 · 없으면 감점이 아니라 분모 제외</Note>
+        <Note>출처: 네이버 증권 기업실적분석 · 스냅샷 {consensus?.snapshot_at?.slice(0, 10) ?? DASH} · 추정기관 2곳 이상만 인정</Note>
         <div className="mt-3" />
         {consensus && (consensus.n_estimates ?? 0) >= 2 ? (
           <div className="grid gap-4 text-sm sm:grid-cols-3">
@@ -611,13 +628,14 @@ export default async function StockPage({ params }: { params: { code: string } }
         <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
-              ① <Term term="PER최근4분기">최근 4개 분기 순이익 기준 PER</Term>
+              ① 네이버 증권 PER
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {per4q != null ? `${per4q.toFixed(1)}배` : DASH}
+              {annualConsensus?.per != null ? annualConsensus.per.toFixed(1) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              시총 ÷ 최근 4분기 순이익 · <strong>실제로 번 돈</strong> 기준(추정 없음).
+              출처: <strong>네이버 증권 기업실적분석</strong>. 최근 확정 연간 열의 PER이다.
+              내부 검산용 최근 4분기 PER은 {per4q != null ? per4q.toFixed(1) + "배" : DASH}.
               {ttmNp != null && (
                 <> 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>
               )}
@@ -629,13 +647,13 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
-              ② <Term term="PER선행">향후 4개 분기 선행 PER</Term>
+              ② <Term term="PER선행">네이버 컨센서스 선행 PER</Term>
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}
+              {annualConsensus?.fwd_per != null ? annualConsensus.fwd_per.toFixed(1) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              시가총액 ÷ 향후 4개 분기 <strong>추정</strong> 순이익.{" "}
+              출처: <strong>네이버 증권 기업실적분석의 연간 (E) 열</strong>.{" "}
               <strong className="text-slate-200">이익이 늘 것을 반영한 배수</strong>라 가속
               구간에서는 ①보다 낮게 나온다.
               {fwd.basis ? (
@@ -782,46 +800,6 @@ export default async function StockPage({ params }: { params: { code: string } }
         )}
         {outcomeResult.dropped.length > 0 && (
           <Note>아직 DB에 없는 결과 컬럼은 제외했다: {outcomeResult.dropped.join(", ")}.</Note>
-        )}
-      </Card>
-
-      <Card
-        title="공시 발췌"
-        note={year && quarter ? quarterLabel(year, quarter) + "와 같은 분기" : undefined}
-      >
-        {excerptSections.length > 0 ? (
-          <details className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-sky-200">
-              정기보고서 발췌 보기 ({excerptSections.length}개 절 ·{" "}
-              {num(disclosureExcerpt?.excerpt_chars)}자)
-            </summary>
-            <div className="mt-4 space-y-5">
-              {excerptSections.map(([section, body]) => (
-                <div key={section}>
-                  <h3 className="mb-1 text-xs font-semibold text-amber-200">{section}</h3>
-                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-200">
-                    {body}
-                  </pre>
-                </div>
-              ))}
-            </div>
-            <Note>
-              분석 입력 예산 안에서 고른 절별 발췌다. 원문 전체가 아니며, 접수번호가 있으면{" "}
-              <a
-                href={dartReportUrl(disclosureExcerpt!.rcept_no)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sky-300 hover:underline"
-              >
-                DART 원문 ↗
-              </a>
-              에서 대조한다.
-            </Note>
-          </details>
-        ) : (
-          <p className="text-sm text-slate-300">
-            평가 분기와 정확히 같은 정기보고서 발췌가 아직 없다. 다른 분기 원문으로 대체하지 않는다.
-          </p>
         )}
       </Card>
 

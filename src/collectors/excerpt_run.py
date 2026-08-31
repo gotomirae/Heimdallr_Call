@@ -52,9 +52,15 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
     #   (실측 2026-08-23: 이미 받은 롯데정밀화학·한화시스템이 다시 대상에 잡혔다).
     #   읽는 쪽(`load_excerpt`)도 종목당 하나만 쓰므로 하나면 충분하다.
     have = {
-        r["code"] for r in select_all("disclosure_excerpts", "code")
+        (r["code"], r.get("fiscal_year"), r.get("fiscal_quarter"))
+        for r in select_all(
+            "disclosure_excerpts", "code,fiscal_year,fiscal_quarter"
+        )
     }
-    disclosures = [d for d in disclosures if d["code"] not in have]
+    disclosures = [
+        d for d in disclosures
+        if (d["code"], d.get("fiscal_year"), d.get("fiscal_quarter")) not in have
+    ]
 
     if codes:
         wanted = set(codes)

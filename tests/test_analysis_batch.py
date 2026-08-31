@@ -18,6 +18,7 @@ from src.analysis.batch import (
     DEFAULT_MIN_SCORE,
     DEFAULT_TOP,
     attractiveness,
+    needs_final_refresh,
 )
 from src.config.constants import (
     DAILY_ANALYSIS_LIMIT,
@@ -186,6 +187,27 @@ def test_default_max_seconds_is_set():
     assert DEFAULT_MAX_SECONDS > 0
     # 기본 10분은 disclosure_poll(15분)에도 들어간다.
     assert DEFAULT_MAX_SECONDS <= 15 * 60
+
+
+def test_preliminary_analysis_is_refreshed_once_final_numbers_arrive():
+    assert needs_final_refresh({"_heimdallr": {"analysis_stage": "preliminary"}}, False)
+    assert not needs_final_refresh({"_heimdallr": {"analysis_stage": "final"}}, False)
+    assert not needs_final_refresh({"_heimdallr": {"analysis_stage": "preliminary"}}, True)
+    # 메타 도입 전 분석을 잠정으로 추측하면 첫 운영 실행에서 과거분이 전부 과금된다.
+    assert not needs_final_refresh({}, False)
+    assert not needs_final_refresh(None, False)
+    assert needs_final_refresh(
+        {}, False,
+        analysis_created_at="2026-08-01T00:00:00+00:00",
+        final_updated_at="2026-08-15T00:00:00+00:00",
+        preliminary_delta={"op": {"delta": 1}},
+    )
+    assert not needs_final_refresh(
+        {}, False,
+        analysis_created_at="2026-08-20T00:00:00+00:00",
+        final_updated_at="2026-08-15T00:00:00+00:00",
+        preliminary_delta={"op": {"delta": 1}},
+    )
 
 
 # ── 진행 리포트 (2026-08-17) ──────────────────────────────────────

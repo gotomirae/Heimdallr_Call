@@ -30,6 +30,7 @@ EXPECTED_TABLES = (
     "disclosure_excerpts",
     "price_snapshots",
     "quarter_prices",
+    "weekly_prices",
     "index_snapshots",
     "screen_results",
     "analyses",

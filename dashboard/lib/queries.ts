@@ -7,6 +7,7 @@ import type {
   FundamentalRow,
   PriceRow,
   QuarterPriceRow,
+  WeeklyPriceRow,
   ScreenRow,
   UniverseRow,
 } from "./types";
@@ -278,6 +279,23 @@ export async function getDisclosures(
   return (data as unknown as DisclosureRow[]) ?? [];
 }
 
+export async function getWeeklyPrices(code: string): Promise<WeeklyPriceRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from("weekly_prices")
+      .select("code,trade_date,close")
+      .eq("code", code)
+      .order("trade_date", { ascending: true });
+    if (error) return [];
+    return ((data as unknown as WeeklyPriceRow[]) ?? []).map((row) => ({
+      ...row,
+      close: Number(row.close),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** 종목 상세용 정기보고서 발췌 — 평가 분기와 정확히 같은 행만 읽는다(T99). */
 export async function getDisclosureExcerpt(
   code: string,
@@ -310,11 +328,12 @@ export async function getAnnualConsensus(
 ): Promise<ConsensusRow | null> {
   const { data, error } = await supabase
     .from("consensus_snapshots")
-    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est")
+    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,per,fwd_per,source,snapshot_at")
     .eq("code", code)
     .eq("fiscal_quarter", 0)
     .gte("fiscal_year", fromYear)
     .order("fiscal_year", { ascending: true })
+    .order("snapshot_at", { ascending: false })
     .limit(1);
   if (error) return null;
   return ((data as unknown as ConsensusRow[]) ?? [])[0] ?? null;
@@ -327,10 +346,11 @@ export async function getConsensus(
 ): Promise<ConsensusRow | null> {
   const { data, error } = await supabase
     .from("consensus_snapshots")
-    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est")
+    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,per,fwd_per,source,snapshot_at")
     .eq("code", code)
     .eq("fiscal_year", year)
     .eq("fiscal_quarter", quarter)
+    .order("snapshot_at", { ascending: false })
     .limit(1);
   if (error) throw error;
   return ((data as unknown as ConsensusRow[]) ?? [])[0] ?? null;

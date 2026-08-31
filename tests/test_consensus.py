@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.collectors.consensus import ConsensusSnapshot, fetch_quarterly_estimates
+from src.collectors.consensus import ConsensusSnapshot, fetch_annual_estimate, fetch_quarterly_estimates
 
 
 class _FakeResponse:
@@ -42,6 +42,7 @@ ROWS = {
                "82,229", "51,164", "122,257", "196,417", "472,253", "734,933"],
     "EPS(원)": ["2,131", "4,950", "6,500", "48,000",
                "1,100", "800", "1,700", "2,900", "7,000", "10,625"],
+    "PER(배)": ["12.1", "10.2", "9.4", "7.8", "-", "-", "-", "-", "-", "-"],
 }
 
 
@@ -73,6 +74,29 @@ def test_units_are_converted_from_eok_to_won(patched):
     assert snap.op_est == 850_494 * 100_000_000
     assert snap.np_est == 734_933 * 100_000_000
     assert snap.eps_est == 10_625.0
+
+
+def test_naver_annual_per_and_forward_per_are_parsed(patched):
+    """네이버 기업실적분석 표의 최근 확정 PER과 연간 (E) PER을 그대로 보존한다."""
+    annual = fetch_annual_estimate("005930")
+    assert annual is not None
+    assert annual["per"] == 9.4
+    assert annual["fwd_per"] == 7.8
+    assert annual["source"] == "naver"
+
+
+def test_annual_per_survives_when_net_income_estimate_is_missing(monkeypatch):
+    rows = dict(ROWS)
+    rows["당기순이익"] = ["-"] * len(ROWS["당기순이익"])
+    html = _analysis_html(HEADER, rows)
+    monkeypatch.setattr(
+        "src.collectors.consensus.http_get", lambda *a, **kw: _FakeResponse(html)
+    )
+    annual = fetch_annual_estimate("005930")
+    assert annual is not None
+    assert annual["np_est"] is None
+    assert annual["per"] == 9.4
+    assert annual["fwd_per"] == 7.8
 
 
 # 실측 변형: 헤더 앞에 **빈 칸**이 있고 연간 컬럼이 **3개**인 종목이 있다

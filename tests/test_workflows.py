@@ -293,6 +293,20 @@ def test_flash_notification_is_wired_on_schedule():
     )
 
 
+def test_periodic_disclosure_refreshes_final_analysis_automatically():
+    body = _text(WORKFLOWS / "disclosure_poll.yml")
+    assert "--recent-periodic-days 3" in body
+    assert "--refresh-finalized" in body
+    assert "collectors.excerpt_run" in body
+
+
+def test_quarterly_backfill_has_manual_code_refresh():
+    body = _text(WORKFLOWS / "quarterly_backfill.yml")
+    assert "codes:" in body
+    assert "--codes" in body
+    assert "--refresh-finalized" in body
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 대시보드 정합성 — 화면은 CI에서 안 돌아보므로 소스로 검사한다
 # ═══════════════════════════════════════════════════════════════════
