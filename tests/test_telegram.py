@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from src.config.constants import NOTIFY_GRADES
-from src.notify.links import dart_report_url, naver_stock_url
+from src.notify.links import dart_report_url, naver_stock_url, stockeasy_stock_url
 from src.notify.telegram import (
     ALLOWED_METHODS,
     MAX_MESSAGE_CHARS,
@@ -468,33 +468,26 @@ def test_naver_url_pc_and_mobile():
     )
 
 
+def test_stockeasy_url_opens_the_stock_directly():
+    assert stockeasy_stock_url("005930") == (
+        "https://stockeasy.intellio.kr/stock-analysis/stock-info/005930"
+    )
+
+
 def test_alphanumeric_code_survives_url_building():
     """★ `0126Z0` 같은 영숫자 종목코드를 버리지 않는다(T6)."""
     assert "0126Z0" in naver_stock_url("0126Z0")
 
 
-def test_flash_never_links_dart_search_page():
-    """★ 회사명 검색 주소가 다시 기어들어오지 못하게 못 박는다."""
-    text = flash_message(_rich_ctx(dart_url=dart_report_url("20260814003699")))
-    assert "dsab007" not in text
-    assert "textCrpNm" not in text
-    assert "dsaf001/main.do?rcpNo=" in text
-
-
-def test_flash_links_naver_and_dart():
+def test_flash_links_dashboard_naver_and_stockeasy_only():
     text = flash_message(
         _rich_ctx(
             naver_url=naver_stock_url("058470", mobile=True),
-            dart_url=dart_report_url("20260814003699"),
+            stockeasy_url=stockeasy_stock_url("058470"),
+            dart_url=dart_report_url("20260814003699"),  # 기존 context에 있어도 미표시
         )
     )
-    assert "대시보드" in text and "네이버증권" in text and "DART 원문" in text
-
-
-def test_flash_omits_dart_link_when_no_disclosure():
-    """공시를 못 받은 종목은 DART 링크를 아예 걸지 않는다."""
-    text = flash_message(_rich_ctx(naver_url=naver_stock_url("058470"), dart_url=None))
-    assert "네이버증권" in text
+    assert all(label in text for label in ("대시보드", "네이버증권", "StockEasy"))
     assert "DART" not in text
 
 

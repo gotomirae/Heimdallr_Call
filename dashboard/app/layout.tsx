@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: "/", label: "발굴 목록" },
-  { href: "/screener", label: "전 종목" },
+  { href: "/watchlist", label: "관심 종목" },
   { href: "/matrix", label: "2축 매트릭스" },
   { href: "/season", label: "시즌" },
   { href: "/outcome", label: "결과 추적" },

@@ -13,6 +13,7 @@ DART_REPORT = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
 NAVER_STOCK = "https://finance.naver.com/item/main.naver?code={code}"
 NAVER_STOCK_MOBILE = "https://m.stock.naver.com/domestic/stock/{code}/total"
 NAVER_DISCLOSURE = "https://finance.naver.com/item/news_notice.naver?code={code}"
+STOCKEASY_STOCK = "https://stockeasy.intellio.kr/stock-analysis/stock-info/{code}"
 
 
 def dart_report_url(rcept_no: str | None) -> str | None:
@@ -36,3 +37,8 @@ def naver_stock_url(code: str, *, mobile: bool = False) -> str:
 def naver_disclosure_url(code: str) -> str:
     """네이버 증권의 그 종목 공시 목록 — DART 접수번호가 없을 때의 대체 경로."""
     return NAVER_DISCLOSURE.format(code=quote(str(code)))
+
+
+def stockeasy_stock_url(code: str) -> str:
+    """StockEasy 종목 분석 페이지. 로그인 뒤에도 같은 종목 경로로 돌아온다."""
+    return STOCKEASY_STOCK.format(code=quote(str(code)))

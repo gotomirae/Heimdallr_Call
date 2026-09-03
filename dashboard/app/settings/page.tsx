@@ -143,6 +143,38 @@ export default async function SettingsPage() {
               hint="초과 시 호출 안 함"
             />
           </div>
+          <div className="mt-4 rounded border border-sky-800/70 bg-sky-950/30 p-3">
+            <p className="text-xs text-sky-200">다음 달({cost?.nextMonthKey ?? "—"}) 예측</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">
+              {cost?.available && cost.nextMonthForecastUsd != null
+                ? `$${cost.nextMonthForecastUsd.toFixed(4)}`
+                : "—"}
+            </p>
+            <p className="mt-1 text-xs text-slate-300">
+              {cost?.forecastBasis ?? "예측할 실호출 이력이 없다."}
+              {" · 실제 배치 규모에 따라 달라질 수 있다."}
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="mb-2 text-xs font-semibold text-slate-200">월별 실호출 비용 · 최근 12개월</h3>
+            {cost?.available && cost.months.length > 0 ? (
+              <div className="overflow-hidden rounded border border-slate-800">
+                {cost.months.map((item) => (
+                  <div key={item.monthKey}
+                       className="grid grid-cols-3 border-b border-slate-800/70 px-3 py-2 text-sm last:border-b-0">
+                    <span className="text-slate-200">{item.monthKey}</span>
+                    <span className="text-right font-mono tabular-nums text-white">
+                      ${item.spentUsd.toFixed(4)}
+                    </span>
+                    <span className="text-right text-slate-300">{item.calls}건</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-300">월별 비용 기록이 없다.</p>
+            )}
+          </div>
         </div>
       </Card>
 

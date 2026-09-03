@@ -307,6 +307,23 @@ def test_quarterly_backfill_has_manual_code_refresh():
     assert "--refresh-finalized" in body
 
 
+def test_scheduled_quarterly_backfill_is_incremental():
+    """전 종목 3개년을 매번 돌면 실측 2시간에 잘려 후속 스텝이 전부 스킵된다(T133)."""
+    body = _text(WORKFLOWS / "quarterly_backfill.yml")
+    assert "--recent-periodic-days 45" in body
+    assert "full_history:" in body
+    assert 'inputs.full_history' in body
+
+
+def test_quarterly_backfill_collects_detail_between_gate_and_final_score():
+    """L2″가 빠지면 확정 종목도 D축 18점 중 14점이 조용히 결측된다."""
+    body = _text(WORKFLOWS / "quarterly_backfill.yml")
+    first_screen = body.index("게이트 1차 계산")
+    detail = body.index("src.finance.detail --save")
+    final_screen = body.index("D축 반영 최종 스크리닝")
+    assert first_screen < detail < final_screen
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 대시보드 정합성 — 화면은 CI에서 안 돌아보므로 소스로 검사한다
 # ═══════════════════════════════════════════════════════════════════
@@ -395,6 +412,8 @@ def test_dashboard_and_python_agree_on_external_urls():
     assert "finance.naver.com/item/main.naver" in links.NAVER_STOCK
     assert "m.stock.naver.com/domestic/stock/" in ts
     assert "m.stock.naver.com/domestic/stock/" in links.NAVER_STOCK_MOBILE
+    assert "stockeasy.intellio.kr/stock-analysis/stock-info/" in ts
+    assert "stockeasy.intellio.kr/stock-analysis/stock-info/" in links.STOCKEASY_STOCK
 
 
 def test_quarter_prices_collector_is_wired_into_a_workflow():

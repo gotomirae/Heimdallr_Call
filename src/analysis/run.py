@@ -39,7 +39,8 @@ FUND_COLUMNS = (
     # ★ `np`(순이익)가 없으면 최근 4분기 PER이 **전 종목 계산 불가**가 된다 —
     #   에러 없이 "계산 불가"만 뜨므로 데이터가 없는 것처럼 보인다(2026-08-23 실측).
     "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,opm,opm_yoy_delta,"
-    "ttm_revenue,ttm_op,ttm_opm,op_status_label,is_estimate,delta_from_preliminary"
+    "ttm_revenue,ttm_op,ttm_opm,ttm_cfo,cfo,capex,fcf,receivables,inventory,"
+    "shares_outstanding,shares_yoy,op_status_label,is_estimate,delta_from_preliminary"
 )
 
 
@@ -288,6 +289,27 @@ def build_input(
     ) or None
 
     latest = quarters[-1] if quarters else {}
+    if latest.get("is_estimate"):
+        score_note = "잠정실적이라 D축(회계품질)은 분모에서 제외됐다."
+    else:
+        missing_detail = [
+            label
+            for field, label in (
+                ("ttm_cfo", "TTM CFO"),
+                ("shares_yoy", "주식수 YoY"),
+                ("receivables", "매출채권"),
+                ("inventory", "재고"),
+            )
+            if latest.get(field) is None
+        ]
+        score_note = (
+            "확정 재무 D축을 점수에 포함했다."
+            if not missing_detail
+            else "확정 재무 D축을 포함했으나 다음 세부항목은 측정 불가다: "
+            + ", ".join(missing_detail)
+        )
+    if not screen.get("has_consensus"):
+        score_note += " C축(컨센서스)은 분모에서 제외됐다."
     return AnalysisInput(
         code=code,
         name=row["name"],
@@ -315,7 +337,7 @@ def build_input(
             "score_b": screen.get("score_b"),
             "has_consensus": screen.get("has_consensus"),
             "grade": screen.get("grade"),
-            "note": "C축(컨센서스)·D축(회계품질)은 미측정이라 분모에서 제외 후 정규화됨",
+            "note": score_note,
         },
         consensus=consensus,
         price=price,

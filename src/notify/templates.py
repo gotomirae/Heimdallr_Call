@@ -233,20 +233,14 @@ def flash_message(ctx: dict) -> str:
 
 
 def link_block(ctx: dict) -> list[str]:
-    """바깥으로 나가는 링크 — 대시보드 · 네이버 증권 · DART 원문.
-
-    ★ 한 줄에 모은다. 줄마다 링크를 하나씩 두면 알림이 링크 목록처럼 보인다.
-    ★ DART는 **접수번호가 있을 때만** 건다. 회사명 검색 주소는 200이 뜨고 검색창에
-      이름까지 채워 주지만 **검색을 실행하지 않아 빈 화면**이 나온다(T58) —
-      죽은 링크가 아니라 '살아 있는데 아무것도 없는' 링크라 더 나쁘다.
-    """
+    """바깥으로 나가는 링크 — 대시보드 · 네이버증권 · StockEasy."""
     parts = []
     if ctx.get("url"):
         parts.append(f'<a href="{ctx["url"]}">대시보드</a>')
     if ctx.get("naver_url"):
         parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
-    if ctx.get("dart_url"):
-        parts.append(f'<a href="{ctx["dart_url"]}">DART 원문</a>')
+    if ctx.get("stockeasy_url"):
+        parts.append(f'<a href="{ctx["stockeasy_url"]}">StockEasy</a>')
     return ["", "🔗 " + " · ".join(parts)] if parts else []
 
 

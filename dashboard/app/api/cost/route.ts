@@ -21,6 +21,28 @@ export interface CostSummary {
   spentUsd: number;
   monthCalls: number;
   totalCalls: number;
+  months: Array<{ monthKey: string; spentUsd: number; calls: number }>;
+  nextMonthKey: string;
+  nextMonthForecastUsd: number | null;
+  forecastBasis: string | null;
+}
+
+const PAGE_SIZE = 1000;
+
+function kstParts(date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: value("year"), month: value("month"), day: value("day") };
+}
+
+function monthKeyOf(date: Date): string {
+  const { year, month } = kstParts(date);
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 export async function GET() {
@@ -28,13 +50,20 @@ export async function GET() {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
 
   const now = new Date();
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const { year, month, day } = kstParts(now);
+  const monthKey = monthKeyOf(now);
+  const nextMonthDate = new Date(Date.UTC(year, month, 1));
+  const nextMonthKey = monthKeyOf(nextMonthDate);
   const empty: CostSummary = {
     available: false,
     monthKey,
     spentUsd: 0,
     monthCalls: 0,
     totalCalls: 0,
+    months: [],
+    nextMonthKey,
+    nextMonthForecastUsd: null,
+    forecastBasis: null,
   };
 
   // ★ 키가 없으면 **없다고 말한다.** 0으로 응답하면 "비용이 안 든다"로 읽힌다.
@@ -51,20 +80,61 @@ export async function GET() {
     // ★ NO_STORE_OPTIONS 필수 — 없으면 Next가 응답을 디스크에 캐시해 며칠 전
     //   비용을 계속 보여준다(T59). 라우트에 force-dynamic이 있어도 막히지 않는다.
     const admin = createClient(url, serviceKey, NO_STORE_OPTIONS);
-    const { data, error } = await admin
-      .from("cost_log")
-      .select("cost_usd,env,created_at")
-      .eq("env", "prod");
-    if (error) throw error;
+    // SC: cost_log가 1,000행을 넘어도 월 비용과 호출 수가 잘리지 않아야 한다.
+    const rows: Array<{ cost_usd: number | null; created_at: string | null }> = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await admin
+        .from("cost_log")
+        .select("cost_usd,created_at")
+        .eq("env", "prod")
+        .order("created_at", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
 
-    const rows = data ?? [];
-    const month = rows.filter((r) => (r.created_at ?? "").startsWith(monthKey));
+    const grouped = new Map<string, { spentUsd: number; calls: number }>();
+    for (const row of rows) {
+      if (!row.created_at) continue;
+      const key = monthKeyOf(new Date(row.created_at));
+      const current = grouped.get(key) ?? { spentUsd: 0, calls: 0 };
+      current.spentUsd += Number(row.cost_usd ?? 0);
+      current.calls += 1;
+      grouped.set(key, current);
+    }
+    const months = [...grouped.entries()]
+      .map(([key, value]) => ({ monthKey: key, ...value }))
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))
+      .slice(0, 12);
+    const current = grouped.get(monthKey) ?? { spentUsd: 0, calls: 0 };
+
+    // 완료된 비용 발생 월이 있으면 최근 3개월 평균. 없으면 이번 달 일평균을
+    // 다음 달 일수로 환산한다. 근거 문자열을 함께 보내 숫자만 단정적으로 보이지 않게 한다.
+    const completed = months.filter((item) => item.monthKey !== monthKey && item.spentUsd > 0).slice(0, 3);
+    const nextMonthDays = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
+    const nextMonthForecastUsd = completed.length > 0
+      ? completed.reduce((sum, item) => sum + item.spentUsd, 0) / completed.length
+      : current.calls > 0
+        ? (current.spentUsd / day) * nextMonthDays
+        : null;
+    const forecastBasis = completed.length > 0
+      ? `최근 비용 발생 ${completed.length}개월 평균`
+      : current.calls > 0
+        ? `이번 달 ${day}일까지의 일평균 × 다음 달 ${nextMonthDays}일`
+        : null;
+
     return NextResponse.json({
       available: true,
       monthKey,
-      spentUsd: month.reduce((s, r) => s + Number(r.cost_usd ?? 0), 0),
-      monthCalls: month.length,
+      spentUsd: current.spentUsd,
+      monthCalls: current.calls,
       totalCalls: rows.length,
+      months,
+      nextMonthKey,
+      nextMonthForecastUsd,
+      forecastBasis,
     } satisfies CostSummary);
   } catch (err) {
     return NextResponse.json({

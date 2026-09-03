@@ -39,7 +39,7 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
   return out;
 }
 
-export default async function HomePage() {
+export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
   const [{ rows: screens, dropped }, universe, priceResult, outcomeResult] =
     await Promise.all([
@@ -117,20 +117,28 @@ export default async function HomePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-white">실적 가속 종목</h1>
+        <h1 className="text-2xl font-bold text-white">
+          {watchlistOnly ? "관심 종목" : "실적 가속 종목"}
+        </h1>
         <p className="mt-1 text-sm text-slate-100">
-          게이트 통과{" "}
-          <strong className="text-white">{passed.length.toLocaleString("ko-KR")}종목</strong>
-          {" / 전체 "}{rows.length.toLocaleString("ko-KR")}
-          {" · 발송 대상(★/○) "}
-          <strong className="text-amber-300">{notifyCount}</strong>
+          {watchlistOnly ? (
+            "이 브라우저에 저장한 종목이다. ★를 다시 누르면 목록에서 제거된다."
+          ) : (
+            <>
+              게이트 통과{" "}
+              <strong className="text-white">{passed.length.toLocaleString("ko-KR")}종목</strong>
+              {" / 전체 "}{rows.length.toLocaleString("ko-KR")}
+              {" · 발송 대상(★/○) "}
+              <strong className="text-amber-300">{notifyCount}</strong>
+            </>
+          )}
         </p>
 
         {/* ★ 서술형을 쓰지 않는다(사용자 요청). 조건은 조건처럼, 정의는 한 줄로.
             ★★ 이 문구는 **게이트 코드와 같아야 한다.** G4(OPM)를 게이트에 넣지 않은 채
                여기에만 적으면 화면이 거짓말을 한다 — 틀린 안내는 사람을 틀린 행동으로
                이끈다(T83). `src/screener/gate.py`가 실제로 넷을 본다. */}
-        <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm">
+        {!watchlistOnly && <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm">
           <div className="text-slate-100">
             <strong className="text-white">게이트 통과</strong> ={" "}
             <strong className="text-amber-300">매출 YoY 가속</strong>
@@ -173,7 +181,7 @@ export default async function HomePage() {
           <div className="mt-1 text-xs text-slate-300">
             넷 모두 만족 = 통과 · 데이터 없으면 탈락이 아니라 <strong className="text-slate-100">판정 불가</strong>
           </div>
-        </div>
+        </div>}
       </div>
 
       {dropped.length > 0 && (
@@ -188,7 +196,7 @@ export default async function HomePage() {
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      {!watchlistOnly && <div className="flex flex-wrap gap-2">
         {GRADE_ORDER.map((g) => (
           <div key={g}
                className="rounded border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-100"
@@ -203,9 +211,9 @@ export default async function HomePage() {
             <span className="text-slate-200">{counts.get(g) ?? 0}</span>
           </div>
         ))}
-      </div>
+      </div>}
 
-      <DiscoveryTable rows={rows} />
+      <DiscoveryTable rows={rows} favoriteOnly={watchlistOnly} />
 
       <div className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm">
         <table className="text-xs">
@@ -255,4 +263,8 @@ export default async function HomePage() {
       </div>
     </div>
   );
+}
+
+export default async function HomePage() {
+  return <DiscoveryPage />;
 }

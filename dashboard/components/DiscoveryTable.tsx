@@ -1,5 +1,5 @@
 "use client";
-// PRD Ref: §9 — 발굴 목록 + 스크리너 **한 화면**
+// PRD Ref: §9 — 발굴 목록 + 관심 종목
 //
 // ★ 두 화면을 합친 이유: 보던 것이 같았다. 다른 건 "게이트 통과분만 보나,
 //   탈락까지 보나"뿐인데 그건 **필터 하나**다. 탭이 둘이면 같은 종목을
@@ -198,12 +198,34 @@ function growthCell(value: number | null, label: string | null): string {
 
 /** 표시 상한. 넘으면 **잘랐다는 사실을 화면에 밝힌다** — 조용히 truncate 금지. */
 const MAX_ROWS = 400;
+const FAVORITES_KEY = "heimdallr.favorite_codes.v1";
 
-export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
+function loadFavorites(): string[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (code): code is string => typeof code === "string" && /^[0-9A-Z]{6}$/.test(code)
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export default function DiscoveryTable({
+  rows,
+  favoriteOnly = false,
+}: {
+  rows: DiscoveryRow[];
+  favoriteOnly?: boolean;
+}) {
   // ★ 첫 렌더는 **반드시 기본값**이어야 한다. sessionStorage를 렌더 중에 읽으면
   //   서버가 그린 HTML과 달라져 하이드레이션이 깨진다(화면이 통째로 다시 그려진다).
   //   복원은 마운트 후 effect에서 한다.
   const [filters, setFilters] = useState<DiscoveryFilters>(DEFAULT_FILTERS);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favoritesRestored, setFavoritesRestored] = useState(false);
   // ★★ **ref가 아니라 state여야 한다.** ref로 두면 복원 effect가 `true`로 바꾼 값을
   //   같은 커밋의 저장 effect가 곧바로 읽어, 아직 **기본값인** filters를 저장해
   //   방금 복원한 값을 덮어쓴다. 실측: 결과 추적 탭에 갔다 돌아오면 필터가 초기화됐다.
@@ -217,20 +239,38 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
   //   덮어쓰면 **링크가 조용히 무시된다** — 누른 사람은 그 섹터를 봤다고 믿는다.
   useEffect(() => {
     const { filters: fromUrl, hadAny } = fromQuery(window.location.search);
-    setFilters(hadAny ? fromUrl : loadStored() ?? DEFAULT_FILTERS);
+    setFilters(
+      hadAny
+        ? fromUrl
+        : favoriteOnly
+          ? { ...DEFAULT_FILTERS, gate: "all" }
+          : loadStored() ?? DEFAULT_FILTERS
+    );
     setRestored(true);
-  }, []);
+    setFavorites(loadFavorites());
+    setFavoritesRestored(true);
+  }, [favoriteOnly]);
 
   // ── 저장 + 주소 반영 ──────────────────────────────────────────
   // ★ `history.replaceState`를 쓴다. Next의 router.replace를 쓰면 서버 컴포넌트가
   //   다시 돌아 전 종목을 재조회한다 — 체크박스 하나에 왕복이 붙는다.
   useEffect(() => {
     if (!restored) return;
-    saveStored(filters);
+    if (!favoriteOnly) saveStored(filters);
     const q = toQuery(filters);
     const url = q ? `${window.location.pathname}?${q}` : window.location.pathname;
     window.history.replaceState(null, "", url);
-  }, [filters, restored]);
+  }, [favoriteOnly, filters, restored]);
+
+  function toggleFavorite(code: string) {
+    setFavorites((current) => {
+      const next = current.includes(code)
+        ? current.filter((item) => item !== code)
+        : [...current, code];
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
   function patch(next: Partial<DiscoveryFilters>) {
     setFilters((f) => ({ ...f, ...next }));
@@ -280,8 +320,10 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
     // ★ 복수 선택은 Set으로 본다. 배열 includes를 행마다 돌리면 1,100행 × 30섹터다.
     const gradeSet = new Set<string>(grades);
     const sectorSet = new Set<string>(sectors);
+    const favoriteSet = new Set(favorites);
     return rows
       .filter((r) => {
+        if (favoriteOnly && !favoriteSet.has(r.code)) return false;
         if (needle && !r.name.toLowerCase().includes(needle) && !r.code.includes(needle))
           return false;
         if (gate === "passed" && r.gatePassed !== true) return false;
@@ -322,7 +364,7 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
         }
         return byDefault(a, b);
       });
-  }, [rows, query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir]);
+  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir]);
 
   const shown = filtered.slice(0, MAX_ROWS);
   const select =
@@ -330,7 +372,7 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
   // 탈락·판정불가를 볼 때는 스코어/반영도가 비어 있어 추적 열이 의미 없다.
   const showTracking = gate === "passed" || gate === "all";
   const active =
-    query.trim() !== "" || gate !== DEFAULT_FILTERS.gate || grades.length > 0 ||
+    query.trim() !== "" || gate !== (favoriteOnly ? "all" : DEFAULT_FILTERS.gate) || grades.length > 0 ||
     sectors.length > 0 || cap !== "all" || consensus !== "all" || quarter !== "all";
 
   return (
@@ -343,12 +385,14 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
           className={`${select} w-44 placeholder:text-slate-300`}
           aria-label="종목 검색"
         />
-        <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })}
-                className={select} aria-label="게이트">
-          {(Object.keys(GATE_LABEL) as GateFilter[]).map((k) => (
-            <option key={k} value={k}>{GATE_LABEL[k]}</option>
-          ))}
-        </select>
+        {!favoriteOnly && (
+          <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })}
+                  className={select} aria-label="게이트">
+            {(Object.keys(GATE_LABEL) as GateFilter[]).map((k) => (
+              <option key={k} value={k}>{GATE_LABEL[k]}</option>
+            ))}
+          </select>
+        )}
         {/* ★ 등급·섹터는 복수 선택이다(사용자 요청). 빈 선택 = 전체. */}
         <MultiSelect
           label="등급"
@@ -385,7 +429,9 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
         {active && (
           <button
             type="button"
-            onClick={() => setFilters(DEFAULT_FILTERS)}
+            onClick={() => setFilters(
+              favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS
+            )}
             className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
           >
             필터 초기화
@@ -395,7 +441,11 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
 
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
-        <span className="text-slate-300"> / 전체 {rows.length.toLocaleString("ko-KR")}</span>
+        <span className="text-slate-300">
+          {favoriteOnly
+            ? ` / 관심 종목 ${favorites.length.toLocaleString("ko-KR")}`
+            : ` / 전체 ${rows.length.toLocaleString("ko-KR")}`}
+        </span>
         {/* ★ 화면이 지금 무슨 순서인지 **글로도** 말한다. 화살표만으로는
             스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
         <span className="ml-2 text-xs text-slate-300">
@@ -422,6 +472,7 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
           <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.45)]">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">관심</th>
               <th scope="col" className="px-3 py-2 text-left font-medium">종목명</th>
               <th scope="col" className="px-3 py-2 text-center font-medium">등급</th>
               <th scope="col" className="px-3 py-2 text-left font-medium">분기</th>
@@ -468,6 +519,19 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200"
                     title={r.industry ?? undefined}>
                   {r.sector}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => toggleFavorite(r.code)}
+                    className={favorites.includes(r.code)
+                      ? "text-xl leading-none text-amber-300"
+                      : "text-xl leading-none text-slate-500 hover:text-amber-200"}
+                    aria-label={`${r.name} ${favorites.includes(r.code) ? "관심 종목에서 제거" : "관심 종목으로 추가"}`}
+                    title={favorites.includes(r.code) ? "관심 종목에서 제거" : "관심 종목으로 추가"}
+                  >
+                    {favorites.includes(r.code) ? "★" : "☆"}
+                  </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
                 <td className="whitespace-nowrap px-3 py-2">
@@ -520,11 +584,13 @@ export default function DiscoveryTable({ rows }: { rows: DiscoveryRow[] }) {
                   )}
               </tr>
             ))}
-            {shown.length === 0 && (
+            {favoritesRestored && shown.length === 0 && (
               <tr>
-                <td colSpan={12 + (showTracking ? HORIZONS.length - 1 : 0)}
+                <td colSpan={13 + (showTracking ? HORIZONS.length - 1 : 0)}
                     className="px-3 py-8 text-center text-slate-200">
-                  조건에 맞는 종목이 없다.
+                  {favoriteOnly
+                    ? "관심 종목이 없다. 발굴 목록에서 ☆를 눌러 추가해라."
+                    : "조건에 맞는 종목이 없다."}
                 </td>
               </tr>
             )}

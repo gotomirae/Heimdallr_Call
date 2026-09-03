@@ -417,8 +417,8 @@ def _report(rows: list, latest: int | None) -> None:
           f"· 기저효과 강등 {sum(1 for r in rows if r[5].demoted)}종목")
 
     saturated = sum(1 for s in scored if s.score_norm is not None and s.score_norm >= 99.99)
-    print(f"    ★ 만점(100.0) 종목 {saturated}개 — 분모가 67(A+B)뿐이라 상위가 포화된다.")
-    print("      C축(컨센서스, P5)·D축(현금흐름·주식수, L2″)이 붙어야 상위 변별이 생긴다.")
+    print(f"    ★ 만점(100.0) 종목 {saturated}개")
+    print("      위 축 내부 결측은 실제 수집값이 채워질수록 줄어야 한다. 0점으로 추정하지 않는다.")
 
     print("\n[5] 스코어 상위 10 (게이트 통과 · 참고용)")
     top = sorted(passed, key=lambda r: r[3].score_norm or -1, reverse=True)[:10]

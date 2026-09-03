@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERIES = (ROOT / "dashboard/lib/queries.ts").read_text(encoding="utf-8")
 TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
 STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8")
+DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
+COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -43,12 +45,21 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
     assert 'title="공시 발췌"' not in STOCK
 
 
-def test_integrated_screener_has_the_documented_route():
-    route = ROOT / "dashboard/app/screener/page.tsx"
+def test_watchlist_replaces_duplicate_all_stocks_route():
+    route = ROOT / "dashboard/app/watchlist/page.tsx"
     assert route.exists()
     source = route.read_text(encoding="utf-8")
-    assert 'gate", "all"' in source
-    assert "redirect" in source
+    assert "watchlistOnly" in source
+    assert not (ROOT / "dashboard/app/screener/page.tsx").exists()
+    assert "localStorage" in DISCOVERY
+    assert "^[0-9A-Z]{6}$" in DISCOVERY, "T6 영숫자 종목코드도 관심 종목에 남아야 한다"
+
+
+def test_cost_history_pages_and_exposes_forecast_basis():
+    assert ".range(" in COST_ROUTE
+    assert "months:" in COST_ROUTE
+    assert "nextMonthForecastUsd" in COST_ROUTE
+    assert "forecastBasis" in COST_ROUTE
 
 
 def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():

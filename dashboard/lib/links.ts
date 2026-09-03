@@ -31,3 +31,8 @@ export function naverStockMobileUrl(code: string): string {
 export function naverDisclosureUrl(code: string): string {
   return `https://finance.naver.com/item/news_notice.naver?code=${encodeURIComponent(code)}`;
 }
+
+/** StockEasy 종목 분석 페이지. */
+export function stockeasyStockUrl(code: string): string {
+  return `https://stockeasy.intellio.kr/stock-analysis/stock-info/${encodeURIComponent(code)}`;
+}

@@ -2,7 +2,8 @@
 #
 # 확정 재무 배치. 잠정 → 확정 전환이 여기서 일어난다.
 #
-# ★ 전 종목 × 3개 연도 × 4보고서라 오래 걸린다. 스케줄은 월 2회.
+# ★ 스케줄은 최근 45일의 미반영 정기보고서만 돈다. 전 종목 × 3개 연도를
+#   매번 재수집하면 2시간 제한에서 잘리고 후속 파생·스크리닝이 전부 건너뛴다(T133).
 # ★ `--fix-missing-revenue`는 주요계정 API가 매출을 안 주는 종목만 재수집한다(T39).
 
 name: quarterly_backfill
@@ -20,6 +21,10 @@ on:
         description: "수동 갱신할 종목코드(쉼표 구분, 비우면 전체)"
         type: string
         default: ""
+      full_history:
+        description: "전 종목 전체 연도 재수집(수동 복구용·시간 소요)"
+        type: boolean
+        default: false
 
 concurrency:
   group: quarterly-backfill
@@ -28,7 +33,7 @@ concurrency:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -60,14 +65,29 @@ jobs:
             python -m src.finance.backfill --save --codes "$CODES_INPUT"
           elif [ "${{ inputs.fix_missing_revenue }}" = "true" ]; then
             python -m src.finance.backfill --save --fix-missing-revenue
-          else
+          elif [ "${{ inputs.full_history }}" = "true" ]; then
             python -m src.finance.backfill --save
+          else
+            python -m src.finance.backfill --save --recent-periodic-days 45
           fi
 
       - name: 파생지표
         run: python -m src.finance.enrich --save
 
-      - name: 스크리닝 재계산
+      - name: 게이트 1차 계산
+        run: python -m src.screener.run --save
+
+      - name: 게이트 통과 종목 정밀 재무
+        env:
+          CODES_INPUT: ${{ inputs.codes }}
+        run: |
+          if [ -n "$CODES_INPUT" ]; then
+            python -m src.finance.detail --save --code "$CODES_INPUT" --refresh
+          else
+            python -m src.finance.detail --save
+          fi
+
+      - name: D축 반영 최종 스크리닝
         run: python -m src.screener.run --save
 
       - name: 정기보고서 서술 근거 갱신
