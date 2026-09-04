@@ -7,7 +7,7 @@ export function GradeBadge({ grade }: { grade: Grade | null }) {
     return (
       <span
         className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-0.5 text-sm text-slate-200"
-        title="게이트 미통과 또는 PRI 판정 불가"
+        title="성장 가속 미해당 또는 PRI 판정 불가"
       >
         판정 불가
       </span>

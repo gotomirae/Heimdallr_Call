@@ -321,7 +321,7 @@ export function buildInsights(
           : best.days === 0
             ? "발표 당일 반응이 가장 컸다 — 장중 대응 속도가 수익을 갈랐다."
             : "발표를 확인하고 들어가도 늦지 않았다 — 확인 후 진입이 위험 대비 유리했다."
-        : "게이트 통과만으로 사는 전략은 이 시즌에 통하지 않았다. " +
+        : "성장 가속만으로 사는 전략은 이 시즌에 통하지 않았다. " +
           "아래 특징별 표에서 **플러스가 나온 묶음만** 골라 담는 쪽으로 좁혀야 한다.",
     });
   }
@@ -369,7 +369,7 @@ export function buildInsights(
         .map((t) => `${t.key} ${fmtPp(t.cell.median)}(${t.cell.n}건)`)
         .join(" · "),
       confidence: confidenceOf(head.cell.n),
-      action: `이번 시즌 ${head.key} 종목이 게이트를 통과하면 우선순위를 올린다.`,
+      action: `이번 시즌 ${head.key} 종목이 성장 가속에 해당하면 우선순위를 올린다.`,
     });
     break; // 가장 표본이 좋은 한 시점만 — 시점마다 반복하면 읽히지 않는다
   }
@@ -694,7 +694,7 @@ export function seasonConclusion(
   let verdict: string;
   if (!beatIndex) {
     verdict =
-      "**이번 시즌은 게이트 통과만으로는 지수를 이기지 못했다.** " +
+      "**이번 시즌은 성장 가속만으로는 지수를 이기지 못했다.** " +
       `최선 구간(${horizonLabel(best.days)})조차 중앙값 ${fmtPp(best.cell.median)}였다. ` +
       (winners.length > 0
         ? `다만 섹터를 좁히면 달랐다 — ${winners.length}개 섹터는 지수를 의미 있게 이겼다.`
@@ -723,7 +723,7 @@ export function seasonConclusion(
     );
   } else {
     nextSeason.push(
-      "게이트 통과 전체를 담는 전략은 쓰지 않는다 — 아래에서 실제로 통한 섹터·특징으로 좁힌다."
+      "성장 가속 전체를 담는 전략은 쓰지 않는다 — 아래에서 실제로 통한 섹터·특징으로 좁힌다."
     );
   }
 

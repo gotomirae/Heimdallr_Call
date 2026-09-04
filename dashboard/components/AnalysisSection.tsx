@@ -149,7 +149,7 @@ export default function AnalysisSection({
   if (analysis.isEmpty) {
     return (
       <p className="text-sm text-slate-300">
-        아직 분석하지 않았다. 게이트 통과 상위 종목만 분석한다(비용 설계).
+        아직 분석하지 않았다. 성장 가속 종목은 순차적으로 전부 분석한다.
       </p>
     );
   }

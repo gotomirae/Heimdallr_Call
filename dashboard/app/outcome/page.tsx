@@ -728,7 +728,7 @@ export default async function OutcomePage() {
 
       <p className="text-sm text-slate-200">
         발굴 목록·스크리너는 <Link href="/" className="text-sky-300 underline">한 화면</Link>에 있다
-        (게이트 필터로 탈락까지 볼 수 있다).
+        (종목 분류 필터로 다른 유형까지 볼 수 있다).
         모든 수치는 <strong className="text-slate-100">영업일 기준</strong>이며 발표일이 휴장이면
         다음 거래일을 기준으로 잡는다.
       </p>

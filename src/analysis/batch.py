@@ -40,6 +40,7 @@ from src.analysis.analyze import (
     save,
     validate_payload,
 )
+from src.analysis.eligibility import is_growth_acceleration
 from src.analysis.run import build_input
 from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
 from src.db.supabase_client import select_all
@@ -101,7 +102,7 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
     """
     rows = select_all(
         "screen_results",
-        "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,score_final,pri",
+        "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,grade,score_flash,score_final,pri",
     )
     latest: dict[str, dict] = {}
     for r in rows:
@@ -113,7 +114,7 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
 
     picked = [
         r for r in latest.values()
-        if r.get("gate_passed") is True
+        if is_growth_acceleration(r)
         and r.get("grade") is not None
         and (
             # ★ 발송 대상은 하한을 적용하지 않는다 — 알림이 나가는 종목에
@@ -397,7 +398,7 @@ def run(
     if ok and remaining == 0:
         notify_progress(
             f"🧠 <b>LLM 배치 완료</b>\n\n"
-            f"게이트 통과 {len(picked)}종목 해석을 전부 채웠다.\n"
+            f"성장 가속 {len(picked)}종목 해석을 전부 채웠다.\n"
             f"누적 비용 ${final.month_spent_usd:.2f}/${final.month_ceiling_usd}"
         )
     elif stopped_at and "daily" not in stopped_at:
@@ -423,7 +424,7 @@ def main() -> int:
     enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="LLM 배치 분석")
     parser.add_argument("--top", type=int, default=DEFAULT_TOP,
-                        help=f"매력도 상위 N종목 (기본 {DEFAULT_TOP} = 게이트 통과 전부)")
+                        help=f"매력도 상위 N종목 (기본 {DEFAULT_TOP} = 성장 가속 전부)")
     parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE,
                         help=f"스코어 하한 (기본 {DEFAULT_MIN_SCORE:.0f}) — "
                              f"발송 등급 {'/'.join(NOTIFY_GRADES)}은 하한과 무관하게 항상 포함")

@@ -20,6 +20,7 @@ from src.analysis.batch import (
     attractiveness,
     needs_final_refresh,
 )
+from src.analysis.eligibility import is_growth_acceleration
 from src.config.constants import (
     DAILY_ANALYSIS_LIMIT,
     MONTHLY_COST_CEILING_USD,
@@ -36,7 +37,7 @@ def _pick(rows: list[dict], *, top: int, min_score: float) -> list[dict]:
     """
     picked = [
         r for r in rows
-        if r.get("gate_passed") is True
+        if is_growth_acceleration(r)
         and r.get("grade") is not None
         and (
             r["grade"] in NOTIFY_GRADES
@@ -100,6 +101,13 @@ def test_gate_failed_and_undecided_are_excluded():
     assert "H" not in picked and "I" not in picked
 
 
+def test_turnaround_is_excluded_from_llm_even_when_legacy_gate_passed():
+    """흑전은 별도 턴어라운드 분류이며 LLM 분석 대상이 아니다."""
+    row = {"code": "T", "grade": "★", "score_flash": 90, "pri": 1,
+           "gate_passed": True, "turnaround": True}
+    assert _pick([row], top=10, min_score=0) == []
+
+
 def test_attractiveness_puts_low_pri_first():
     """★ 시간·비용이 모자라 끊겨도 중요한 종목이 먼저 처리돼야 한다.
 
@@ -139,7 +147,7 @@ def test_pick_matches_targets_source():
     assert 'r["grade"] in NOTIFY_GRADES' in src, (
         "targets()가 발송 등급을 무조건 포함하지 않는다 — A′ 결함이 되살아났다"
     )
-    assert 'r.get("gate_passed") is True' in src
+    assert "is_growth_acceleration(r)" in src
 
 
 def test_budget_covers_all_gate_passed_stocks():

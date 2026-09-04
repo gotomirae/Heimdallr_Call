@@ -14,7 +14,8 @@ import { readAnalysis } from "@/lib/analysis";
 import { deriveOrderDisclosureSignal } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
-import { dartReportUrl, naverDisclosureUrl, naverStockUrl } from "@/lib/links";
+import { growthCategory } from "@/lib/growthCategory";
+import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
 import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
 import { getOutcomesForCode } from "@/lib/outcome";
@@ -40,13 +41,15 @@ function Card({
   title,
   children,
   note,
+  id,
 }: {
   title: string;
   children: React.ReactNode;
   note?: string;
+  id?: string;
 }) {
   return (
-    <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+    <section id={id} className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
       <h2 className="mb-3 text-sm font-semibold text-slate-100">
         {title}
         {note && <span className="ml-2 font-normal text-slate-300">{note}</span>}
@@ -85,6 +88,8 @@ export default async function StockPage({ params }: { params: { code: string } }
   if (!stock) notFound();
 
   const screen = screenResult.row;
+  const currentCategory = screen == null ? null : growthCategory(screen);
+  const isGrowthAcceleration = currentCategory === "growth";
   const latestFund = funds[funds.length - 1] ?? null;
   const year = screen?.fiscal_year ?? latestFund?.fiscal_year ?? null;
   const quarter = screen?.fiscal_quarter ?? latestFund?.fiscal_quarter ?? null;
@@ -98,7 +103,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     quarterFundamentals,
   ] = await Promise.all([
     year && quarter ? getConsensus(code, year, quarter) : Promise.resolve(null),
-    year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
+    isGrowthAcceleration && year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
     year ? getAnnualConsensus(code, year) : Promise.resolve(null),
     year && quarter ? getDisclosureExcerpt(code, year, quarter) : Promise.resolve(null),
     year && quarter
@@ -124,24 +129,33 @@ export default async function StockPage({ params }: { params: { code: string } }
   //     분석 이후 실제 실적이 나왔기 때문이다.
   //   ★ 어느 분기 분석인지를 화면에 반드시 밝힌다 — 안 밝히면 옛 해석을
   //     이번 분기 해석으로 읽게 된다.
-  const fallback = analysisPayload ? null : await getLatestAnalysis(code);
+  const fallback = isGrowthAcceleration && !analysisPayload ? await getLatestAnalysis(code) : null;
   const analysis = readAnalysis(analysisPayload ?? fallback?.payload ?? null);
   const analysisYear = analysisPayload ? year : fallback?.fiscal_year ?? null;
   const analysisQuarter = analysisPayload ? quarter : fallback?.fiscal_quarter ?? null;
   const analysisIsStale = Boolean(fallback);
   const storedAnalysis = (analysisPayload ?? fallback?.payload ?? null) as Record<string, unknown> | null;
   const analysisMeta = storedAnalysis?._heimdallr as Record<string, unknown> | undefined;
+  const analyzedFund = analysisYear && analysisQuarter
+    ? funds.find((f) => f.fiscal_year === analysisYear && f.fiscal_quarter === analysisQuarter)
+    : null;
   const analysisStage =
     analysisMeta?.analysis_stage === "final"
-      ? "확정실적 분석"
+      ? "(2단계) 분기/반기/사업보고서 공시 후 최종 분석"
       : analysisMeta?.analysis_stage === "preliminary"
-        ? "잠정실적 분석"
-        : "분석 단계 미기록";
+        ? "(1단계) 잠정실적 발표 초기 분석"
+        : storedAnalysis && analyzedFund?.is_estimate
+          ? "(1단계) 잠정실적 발표 초기 분석 · 단계 메타 보강 대기"
+          : storedAnalysis
+            ? "(2단계) 최종 분석 자동 갱신 대기"
+            : "(1단계) 성장 가속 분석 대기";
   const analysisStageClass =
     analysisMeta?.analysis_stage === "final"
       ? "border-emerald-700 bg-emerald-950/30 text-emerald-200"
       : analysisMeta?.analysis_stage === "preliminary"
         ? "border-amber-700 bg-amber-950/30 text-amber-200"
+        : storedAnalysis
+          ? "border-amber-700 bg-amber-950/30 text-amber-200"
         : "border-slate-700 bg-slate-950/30 text-slate-300";
 
   // 스크리너가 평가한 바로 그 분기의 재무를 쓴다 — 최신 행과 다를 수 있다.
@@ -245,12 +259,6 @@ export default async function StockPage({ params }: { params: { code: string } }
   // ★ DART 원문은 **접수번호로만** 열린다. 회사명 검색 URL은 200을 주고도
   //   검색을 실행하지 않아 빈 화면이 뜬다(T58) — 없으면 링크를 만들지 않는다.
   const latestDisclosure = disclosures[0] ?? null;
-  const screenByQuarter = new Map(
-    screenResult.history.map((row) => [
-      `${row.fiscal_year}-${row.fiscal_quarter}`,
-      row,
-    ])
-  );
   const baseEffectMeasurable = Boolean(
     (screen?.gate_detail as Record<string, unknown> | null)?.base_effect_measurable ?? true
   );
@@ -322,7 +330,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             <div className="flex flex-wrap items-center gap-3">
               <GradeBadge grade={screen.grade} />
               <span className="text-sm text-slate-200">
-                게이트 {screen.gate_passed === true ? "통과" : screen.gate_passed === false ? "탈락" : "판정 불가"}
+                {currentCategory === "growth" ? "성장 가속" : currentCategory === "turnaround" ? "턴어라운드" : currentCategory === "revenue_slow_op_accel" ? "매출 둔화 + 영익 가속" : "기타"}
               </span>
               {screen.turnaround && (
                 <span className="rounded border border-emerald-800/60 bg-emerald-900/20 px-2 py-0.5 text-xs text-emerald-300">
@@ -380,8 +388,9 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 3. 9분기 차트 — 성장률 라인이 주인공 */}
       <Card
+        id="quarterly-trend"
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="노란 선은 영업이익 YoY 가속, 하늘색 점선은 OPM 추이"
+        note="항목별 독립 축 — 작은 값도 눌리지 않는다"
       >
         <QuarterlyChart points={chartPoints} />
         <WeeklyPriceChart points={weeklyPrices} fromDate={weeklyFromDate} />
@@ -424,10 +433,8 @@ export default async function StockPage({ params }: { params: { code: string } }
 
         <Note>
           <span className="text-slate-100">
-            <strong style={{ color: SERIES_COLOR.OP_LABEL }}>영업이익 YoY</strong> 노란 선이
-            주인공 · <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>매출 YoY</strong> 녹색 ·{" "}
-            <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM</strong> 최근 4분기 합 ·{" "}
-            <strong style={{ color: SERIES_COLOR.OPM_COLOR }}>OPM</strong> 하늘색 점선
+            항목 순서: <strong>매출 → 매출 YoY → 영업이익 → 영업이익 YoY → OPM → 수주잔고 → 신규수주</strong>.
+            각 항목은 독립 축을 사용하며, 수주 수치는 단위를 확인한 구조화 값만 표시한다.
           </span>
           <span className="mt-1 block">
             측정 {opYoyMeasured}/{chartPoints.length}(영업익) · {revYoyMeasured}/
@@ -438,64 +445,31 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 4. 분기 히스토리 표 */}
-      <Card title="분기 히스토리">
+      <Card id="quarterly-history" title="분기 히스토리">
         <Note>
-          <strong className="text-slate-100">TTM 매출</strong> 최근 4분기 합 ·{" "}
           <strong className="text-slate-100">흑전/적전</strong> 흑↔적 전환(%계산 불가) ·{" "}
           <strong className="text-slate-100">QoQ</strong> 참고용(점수 미반영)
         </Note>
         {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
         <div className="mt-3 max-h-[60vh] overflow-auto">
-          <table className="w-full min-w-[2200px] text-right text-sm">
+          <table className="w-full min-w-[980px] text-right text-sm">
             <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
               <tr className="border-b border-slate-800">
                 <TermTh term="분기">분기</TermTh>
                 <TermTh term="매출액" align="right">매출</TermTh>
-                <th className="px-2 py-2">매출총이익</th>
-                <TermTh term="YoY" align="right">YoY</TermTh>
-                <TermTh term="QoQ" align="right">QoQ</TermTh>
+                <TermTh term="YoY" align="right">매출 YoY</TermTh>
+                <TermTh term="QoQ" align="right">매출 QoQ</TermTh>
                 <TermTh term="영업이익" align="right">영업이익</TermTh>
-                <TermTh term="YoY" align="right">YoY</TermTh>
-                <TermTh term="QoQ" align="right">QoQ</TermTh>
-                <th className="px-2 py-2">순이익</th>
-                <th className="px-2 py-2">지배순익</th>
-                <TermTh term="YoY" align="right">순익 YoY</TermTh>
+                <TermTh term="YoY" align="right">영업이익 YoY</TermTh>
+                <TermTh term="QoQ" align="right">영업이익 QoQ</TermTh>
                 <TermTh term="OPM" align="right">OPM</TermTh>
-                <TermTh term="OPM" align="right">OPM YoY</TermTh>
-                <TermTh term="OPM" align="right">OPM QoQ</TermTh>
-                <th className="px-2 py-2">GPM</th>
-                <th className="px-2 py-2">NPM</th>
-                <TermTh term="EPS" align="right">EPS</TermTh>
-                <TermTh term="EPS YoY" align="right">EPS YoY</TermTh>
                 <TermTh term="FCF" align="right">FCF</TermTh>
-                <th className="px-2 py-2">CFO</th>
-                <th className="px-2 py-2">CAPEX</th>
-                <TermTh term="TTM매출" align="right">TTM 매출</TermTh>
-                <th className="px-2 py-2">TTM 영업익</th>
-                <th className="px-2 py-2">TTM OPM</th>
-                <th className="px-2 py-2">TTM 매출 QoQ</th>
-                <th className="px-2 py-2">TTM OPM Δ</th>
-                <th className="px-2 py-2">2년 매출 스택</th>
-                <th className="px-2 py-2">TTM CFO</th>
-                <th className="px-2 py-2">매출채권</th>
-                <th className="px-2 py-2">재고</th>
-                <th className="px-2 py-2">자본</th>
-                <th className="px-2 py-2">자산</th>
-                <th className="px-2 py-2">부채</th>
-                <th className="px-2 py-2">주식수</th>
-                <th className="px-2 py-2">희석 YoY</th>
-                <th className="px-2 py-2 text-right">스코어 Δ</th>
                 <TermTh term="잠정" align="center">구분</TermTh>
-                <th className="px-2 py-2 text-center">출처</th>
               </tr>
             </thead>
             <tbody>
-              {[...funds].reverse().slice(0, 12).map((f) => {
-                const historicalScreen = screenByQuarter.get(
-                  `${f.fiscal_year}-${f.fiscal_quarter}`
-                );
-                return (
+              {[...funds].reverse().slice(0, 12).map((f) => (
                 <tr
                   key={`${f.fiscal_year}-${f.fiscal_quarter}`}
                   className="border-b border-slate-800/60"
@@ -504,48 +478,19 @@ export default async function StockPage({ params }: { params: { code: string } }
                     {quarterLabel(f.fiscal_year, f.fiscal_quarter)}
                   </td>
                   <td className="py-1.5">{eok(f.revenue)}</td>
-                  <td className="py-1.5">{eok(f.gross_profit)}</td>
                   <td className="py-1.5">{pct(f.revenue_yoy)}</td>
                   <td className="py-1.5">{pct(f.revenue_qoq)}</td>
                   <td className="py-1.5">{eok(f.op)}</td>
                   {/* ★ 부호 전환 구간은 %가 아니라 라벨이다(T25) */}
                   <td className="py-1.5">{growthOrLabel(f.op_yoy, f.op_status_label)}</td>
                   <td className="py-1.5">{pct(f.op_qoq)}</td>
-                  <td className="py-1.5">{eok(f.np)}</td>
-                  <td className="py-1.5">{eok(f.np_ctrl)}</td>
-                  <td className="py-1.5">{pct(f.np_yoy)}</td>
                   <td className="py-1.5">{pct(f.opm)}</td>
-                  <td className="py-1.5">{pct(f.opm_yoy_delta, 1, "%p")}</td>
-                  <td className="py-1.5">{pct(f.opm_qoq_delta, 1, "%p")}</td>
-                  <td className="py-1.5">{pct(f.gpm)}</td>
-                  <td className="py-1.5">{pct(f.npm)}</td>
-                  <td className="py-1.5">{num(f.eps)}</td>
-                  <td className="py-1.5">{pct(f.eps_yoy)}</td>
                   <td className="py-1.5">{eok(f.fcf)}</td>
-                  <td className="py-1.5">{eok(f.cfo)}</td>
-                  <td className="py-1.5">{eok(f.capex)}</td>
-                  <td className="py-1.5">{eok(f.ttm_revenue)}</td>
-                  <td className="py-1.5">{eok(f.ttm_op)}</td>
-                  <td className="py-1.5">{pct(f.ttm_opm)}</td>
-                  <td className="py-1.5">{pct(f.ttm_revenue_qoq)}</td>
-                  <td className="py-1.5">{pct(f.ttm_opm_delta, 1, "%p")}</td>
-                  <td className="py-1.5">{pct(f.rev_2y_stack)}</td>
-                  <td className="py-1.5">{eok(f.ttm_cfo)}</td>
-                  <td className="py-1.5">{eok(f.receivables)}</td>
-                  <td className="py-1.5">{eok(f.inventory)}</td>
-                  <td className="py-1.5">{eok(f.equity)}</td>
-                  <td className="py-1.5">{eok(f.assets)}</td>
-                  <td className="py-1.5">{eok(f.liabilities)}</td>
-                  <td className="py-1.5">{num(f.shares_outstanding)}</td>
-                  <td className="py-1.5">{pct(f.shares_yoy)}</td>
-                  <td className="py-1.5">{pct(historicalScreen?.score_delta, 1, "점")}</td>
                   <td className="py-1.5 text-center text-xs text-slate-300">
                     {f.is_estimate ? "잠정" : "확정"}
                   </td>
-                  <td className="py-1.5 text-center text-xs text-slate-300">{f.source ?? DASH}</td>
                 </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>
@@ -554,7 +499,8 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* ★★ 5. LLM 분석 — **분기 히스토리 바로 아래**다(사용자 지정 2026-08-22).
           숫자를 본 직후에 해석을 읽어야 대조가 된다. 밸류에이션·컨센서스를 지나
           맨 아래에 있으면 스크롤을 내리는 동안 방금 본 숫자를 잊는다. */}
-      <Card
+      {isGrowthAcceleration ? <Card
+        id="llm-analysis"
         title="LLM 분석"
         note={
           analysisYear && analysisQuarter
@@ -566,15 +512,15 @@ export default async function StockPage({ params }: { params: { code: string } }
           {analysisStage}
         </p>
         <p className="mb-3 text-xs leading-relaxed text-slate-300">
-          분석 단계: <strong className="text-amber-200">잠정실적 최초 발표 → 즉시 알림·초기 분석</strong>
-          {" → "}<strong className="text-emerald-200">분기·반기·사업보고서 공시 → 확정실적 분석으로 자동 업그레이드</strong>.
+          분석 단계: <strong className="text-amber-200">(1단계) 잠정실적 발표 초기 분석</strong>
+          {" → "}<strong className="text-emerald-200">(2단계) 분기/반기/사업보고서 공시 후 최종 분석 자동 실행·반영</strong>.
           현재 배지가 이 종목에 저장된 단계를 나타낸다.
         </p>
         {analysisIsStale && analysisYear && analysisQuarter && (
           <p className="mb-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
             ⚠ 이 해석은 <strong>{quarterLabel(analysisYear, analysisQuarter)}</strong> 기준이다 —
             그 뒤 {year && quarter ? quarterLabel(year, quarter) : "새 분기"} 실적이 나왔지만
-            아직 다시 분석하지 않았다(게이트 통과 상위만 분석한다).{" "}
+            아직 다시 분석하지 않았다(성장 가속 종목만 분석한다).{" "}
             <strong className="text-amber-100">
               그래서 아래 내러티브 검증이 실제로 대조를 수행한다.
             </strong>
@@ -593,7 +539,12 @@ export default async function StockPage({ params }: { params: { code: string } }
             ttmNp,
           }}
         />
-      </Card>
+      </Card> : <Card title="LLM 분석 제외">
+        <p className="text-sm text-slate-300">
+          이 종목은 현재 <strong className="text-slate-100">성장 가속</strong> 분류가 아니므로
+          데이터 수집·스크리닝·차트·공시 갱신은 계속 수행하고 LLM 분석만 실행하지 않는다.
+        </p>
+      </Card>}
 
       {/* 공시에서 실제 수주 언어가 잡힌 종목에만 보인다. 목록 QoQ 컬럼이 아니다. */}
       {orderSignal && (
@@ -880,6 +831,15 @@ export default async function StockPage({ params }: { params: { code: string } }
         >
           네이버 증권 ↗
         </a>
+        <a
+          href={stockeasyStockUrl(code)}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sky-300 hover:underline"
+          title="StockEasy 종목 분석"
+        >
+          StockEasy ↗
+        </a>
         {/* ★ DART 원문은 **접수번호로만** 열린다(T58). 없으면 링크를 만들지 않고
             어디로 가면 되는지를 대신 알려 준다 — 죽은 링크보다 낫다. */}
         {latestDisclosure ? (
@@ -892,17 +852,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           >
             DART 공시 원문 ↗
           </a>
-        ) : (
-          <a
-            href={naverDisclosureUrl(code)}
-            target="_blank"
-            rel="noreferrer"
-            className="text-slate-200 hover:underline"
-            title="이 종목의 DART 접수번호를 아직 수집하지 못했다 — 네이버 공시 목록으로 연결한다"
-          >
-            공시 목록(네이버) ↗
-          </a>
-        )}
+        ) : <span className="text-slate-400">DART 원문 접수번호 미수집</span>}
       </div>
 
       {disclosures.length > 0 && (

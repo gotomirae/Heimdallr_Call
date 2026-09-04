@@ -12,6 +12,7 @@ import Link from "next/link";
 import MultiSelect from "@/components/MultiSelect";
 import { GRADE_COLOR, GRADE_MEANING, type Grade } from "@/lib/types";
 import { HORIZONS, horizonLabel } from "@/lib/outcome";
+import type { GrowthCategory } from "@/lib/growthCategory";
 import {
   DEFAULT_FILTERS,
   fromQuery,
@@ -38,6 +39,7 @@ export interface DiscoveryRow {
   quarterIndex: number;
   gatePassed: boolean | null;
   turnaround: boolean | null;
+  category: GrowthCategory;
   grade: Grade | null;
   score: number | null;
   pri: number | null;
@@ -159,9 +161,10 @@ function SortableTh({
 }
 
 const GATE_LABEL: Record<GateFilter, string> = {
-  passed: "가속 중 (통과) + 턴어라운드",
-  failed: "탈락",
-  undecided: "판정 불가",
+  growth: "성장 가속",
+  revenue_slow_op_accel: "매출 YoY 둔화 + 영익 YoY 가속",
+  turnaround: "턴어라운드",
+  other: "기타",
   all: "전 종목",
 };
 
@@ -345,11 +348,7 @@ export default function DiscoveryTable({
         if (favoriteOnly && !favoriteSet.has(r.code)) return false;
         if (needle && !r.name.toLowerCase().includes(needle) && !r.code.includes(needle))
           return false;
-        // 턴어라운드는 게이트 탈락이어도 '가속 중(통과)'와 같은 선택에서 함께 본다.
-        if (gate === "passed" && r.gatePassed !== true && r.turnaround !== true) return false;
-        // 선택지는 서로 겹치지 않는다. 턴어라운드는 위 통합 선택으로 옮겼다.
-        if (gate === "failed" && (r.gatePassed !== false || r.turnaround === true)) return false;
-        if (gate === "undecided" && r.gatePassed != null) return false;
+        if (gate !== "all" && r.category !== gate) return false;
         // 빈 선택 = 전체다. 아무것도 안 고른 상태를 "아무것도 안 보임"으로 읽으면 안 된다.
         if (gradeSet.size > 0 && (r.grade == null || !gradeSet.has(r.grade))) return false;
         if (sectorSet.size > 0 && !sectorSet.has(r.sector)) return false;
@@ -389,8 +388,7 @@ export default function DiscoveryTable({
   const shown = filtered.slice(0, MAX_ROWS);
   const select =
     "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-slate-100";
-  // 탈락·판정불가를 볼 때는 스코어/주가 반영도가 비어 있어 추적 열이 의미 없다.
-  const showTracking = gate === "passed" || gate === "all";
+  const showTracking = gate === "growth" || gate === "turnaround" || gate === "all";
   const active =
     query.trim() !== "" || gate !== (favoriteOnly ? "all" : DEFAULT_FILTERS.gate) || grades.length > 0 ||
     sectors.length > 0 || cap !== "all" || consensus !== "all" || quarter !== "all";
@@ -407,7 +405,7 @@ export default function DiscoveryTable({
         />
         {!favoriteOnly && (
           <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })}
-                  className={select} aria-label="게이트">
+                  className={select} aria-label="종목 분류">
             {(Object.keys(GATE_LABEL) as GateFilter[]).map((k) => (
               <option key={k} value={k}>{GATE_LABEL[k]}</option>
             ))}
@@ -500,7 +498,7 @@ export default function DiscoveryTable({
               <th colSpan={7} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
               <th colSpan={showTracking ? HORIZONS.length : 1}
                   className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
-                {showTracking ? "분기실적 발표" : "게이트 판정"}
+                {showTracking ? "분기실적 발표" : "분류 근거"}
               </th>
             </tr>
             <tr>
@@ -543,7 +541,7 @@ export default function DiscoveryTable({
                       title={`실적 발표일 기준 ${horizonLabel(d)} 지수 대비 초과수익(영업일)`}
                     />
                   ))
-                : <th scope="col" className="px-3 py-2 text-left font-medium">탈락 사유</th>}
+                : <th scope="col" className="px-3 py-2 text-left font-medium">분류 근거</th>}
             </tr>
           </thead>
           <tbody>

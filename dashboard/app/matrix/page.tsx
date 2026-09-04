@@ -43,7 +43,7 @@ export default async function MatrixPage() {
           { color: "#10b981", title: "○ 고스코어 · 부분반영", note: "발송 대상" },
           { color: "#6366f1", title: "△ 고스코어 · 선반영", note: "우상단 — 조정 시 담을 구간" },
           { color: "#ef4444", title: "✕ 저스코어 · 선반영", note: "좌상단 — 제외" },
-          { color: "#94a3b8", title: "판정 불가", note: "게이트 미통과 또는 PRI 없음" },
+          { color: "#94a3b8", title: "판정 불가", note: "성장 가속 미해당 또는 PRI 없음" },
         ].map((q) => (
           <span
             key={q.title}
@@ -66,7 +66,7 @@ export default async function MatrixPage() {
       <p className="text-xs text-slate-300">
         점 {points.length.toLocaleString("ko-KR")}개 · 주가반영도를 판정하지 못해 표시하지 않은
         종목 {undecided.toLocaleString("ko-KR")}개(시세 결측). 0으로 채워 찍으면 원점 근처에
-        가짜 군집이 생긴다. <strong>게이트 탈락 종목은 애초에 이 화면에 없다.</strong>
+        가짜 군집이 생긴다. <strong>성장 가속 미해당 종목은 애초에 이 화면에 없다.</strong>
       </p>
     </div>
   );

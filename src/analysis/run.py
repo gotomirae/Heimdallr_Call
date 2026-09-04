@@ -25,6 +25,7 @@ from src.db.supabase_client import (
     ReadBudgetExceeded,
     select_all,
 )
+from src.analysis.eligibility import is_growth_acceleration
 from src.finance.narrative_changes import select_quarter_window
 from src.finance.valuation import (
     forward_per_annual,
@@ -396,6 +397,12 @@ def main() -> int:
         print(message[:1200])
         print(line)
         return 0
+
+    if not is_growth_acceleration({
+        "gate_passed": data.gate.get("passed"),
+        "turnaround": data.gate.get("turnaround"),
+    }):
+        raise SystemExit("LLM 분석 제외: 현재 성장 가속 종목이 아니다")
 
     runs = 2 if args.twice else 1
     for i in range(1, runs + 1):

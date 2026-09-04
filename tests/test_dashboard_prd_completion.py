@@ -11,6 +11,7 @@ STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8
 DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
+WEEKLY_CHART = (ROOT / "dashboard/components/WeeklyPriceChart.tsx").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -31,9 +32,7 @@ def test_query_contract_includes_existing_prd_columns():
 def test_stock_detail_renders_prd_evidence_without_inventing_values():
     for label in (
         "분기 내 백분위",
-        "EPS YoY",
         "FCF",
-        "스코어 Δ",
         "과거 9분기 평균 PER 대비",
         "참고 PEG",
         "섹터 비교",
@@ -70,19 +69,23 @@ def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
 
 
 def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
-    assert 'dataKey="opm"' in QUARTER_CHART
+    for label in ("매출", "매출 YoY", "영업이익", "영업이익 YoY", "OPM", "수주잔고", "신규수주"):
+        assert label in QUARTER_CHART
     assert 'dataKey="close"' not in QUARTER_CHART
     assert "fromDate={weeklyFromDate}" in STOCK
+    assert "MACD (12·26·9)" in WEEKLY_CHART and "RSI (14)" in WEEKLY_CHART
 
 
-def test_pri_five_inputs_and_full_history_are_visible():
+def test_pri_five_inputs_and_requested_history_are_visible():
     for field in (
         "high_52w_drawdown_pct", "announcement_return_pct", "per_vs_9q_avg_pct",
         "foreign_net_ratio_5d", "rsi_14",
     ):
         assert field in QUERIES and field in TYPES
-    for label in ("매출총이익", "지배순익", "TTM 영업익", "매출채권", "주식수", "출처"):
+    for label in ("매출 YoY", "매출 QoQ", "영업이익 YoY", "영업이익 QoQ", "OPM", "FCF", "구분"):
         assert label in STOCK
+    for removed in ("매출총이익", "지배순익", "TTM 영업익", "매출채권", "주식수"):
+        assert removed not in STOCK
 
 
 def test_discovery_table_has_chained_sorting_and_grouped_headers():
@@ -97,6 +100,16 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert "sorts.map" in DISCOVERY
     assert "priority: index + 1" in DISCOVERY
     assert "원본" in DISCOVERY and "내림" in DISCOVERY and "오름" in DISCOVERY
-    assert 'r.turnaround !== true' in DISCOVERY
-    assert 'r.turnaround === true' in DISCOVERY
+    for category in ("성장 가속", "매출 YoY 둔화 + 영익 YoY 가속", "턴어라운드", "기타", "전 종목"):
+        assert category in DISCOVERY
+    assert 'gate: "growth"' in filters
+    assert 'r.category !== gate' in DISCOVERY
     assert "turnaround: s.turnaround" in page
+
+
+def test_only_growth_acceleration_renders_llm_and_links_are_exact():
+    assert 'isGrowthAcceleration ? <Card' in STOCK
+    assert "(1단계) 잠정실적 발표 초기 분석" in STOCK
+    assert "(2단계) 분기/반기/사업보고서 공시 후 최종 분석" in STOCK
+    assert "stockeasyStockUrl(code)" in STOCK
+    assert "naverDisclosureUrl" not in STOCK

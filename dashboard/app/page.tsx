@@ -14,6 +14,7 @@ import {
 } from "@/lib/queries";
 import { quarterLabel, qIndex } from "@/lib/format";
 import { sectorOf } from "@/lib/sector";
+import { growthCategory } from "@/lib/growthCategory";
 import type { FundamentalRow, Grade, ScreenRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +93,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       quarterIndex: qIndex(s.fiscal_year, s.fiscal_quarter),
       gatePassed: s.gate_passed,
       turnaround: s.turnaround,
+      category: growthCategory(s),
       grade: s.grade as Grade | null,
       score: s.score_final ?? s.score_flash,
       pri: s.pri,
@@ -108,10 +110,11 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
     };
   });
 
-  const passed = rows.filter((r) => r.gatePassed === true);
-  const turnarounds = rows.filter((r) => r.turnaround === true && r.gatePassed !== true);
+  const growth = rows.filter((r) => r.category === "growth");
+  const turnarounds = rows.filter((r) => r.category === "turnaround");
   const counts = new Map<Grade, number>();
-  for (const r of passed) {
+  // 발송 파이프라인은 기존 등급 계약을 유지한다. 이번 변경은 LLM 대상만 성장 가속으로 제한한다.
+  for (const r of rows) {
     if (r.grade) counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
   }
   const notifyCount = (counts.get("★") ?? 0) + (counts.get("○") ?? 0);
@@ -127,9 +130,9 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             "이 브라우저에 저장한 종목이다. ★를 다시 누르면 목록에서 제거된다."
           ) : (
             <>
-              게이트 통과{" "}
-              <strong className="text-white">{passed.length.toLocaleString("ko-KR")}종목</strong>
-              {" + 턴어라운드 "}
+              성장 가속{" "}
+              <strong className="text-white">{growth.length.toLocaleString("ko-KR")}종목</strong>
+              {" · 턴어라운드 "}
               <strong className="text-emerald-300">{turnarounds.length.toLocaleString("ko-KR")}종목</strong>
               {" / 전체 "}{rows.length.toLocaleString("ko-KR")}
               {" · 발송 대상(★/○) "}
@@ -144,17 +147,12 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
                이끈다(T83). `src/screener/gate.py`가 실제로 넷을 본다. */}
         {!watchlistOnly && <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm">
           <div className="text-slate-100">
-            <strong className="text-white">게이트 통과</strong> ={" "}
+            <strong className="text-white">성장 가속</strong> ={" "}
             <strong className="text-amber-300">매출 YoY 가속</strong>
             {" + "}
             <strong className="text-amber-300">영업이익 YoY 가속</strong>
             {" + "}
             <strong className="text-amber-300">OPM YoY 상승</strong>
-          </div>
-          <div className="mt-1 text-slate-100">
-            <strong className="text-white">성장 가속</strong> = 매출액과 영업이익 YoY 성장률이{" "}
-            <strong className="text-amber-300">전분기보다 상승</strong>
-            <span className="text-slate-300"> (성장률이 높은 것이 아니라, 더 높아진 것)</span>
           </div>
           <table className="mt-1.5 text-xs">
             <tbody className="text-slate-100">
@@ -183,7 +181,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             </tbody>
           </table>
           <div className="mt-1 text-xs text-slate-300">
-            넷 모두 만족 = 통과 · 데이터 없으면 탈락이 아니라 <strong className="text-slate-100">판정 불가</strong>
+            세 성장 조건과 업종·이력 조건을 모두 만족한 종목이다 · 흑자전환은 별도 턴어라운드로 분류한다
           </div>
         </div>}
       </div>
@@ -237,7 +235,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
               <td className="whitespace-nowrap pr-3 font-semibold text-white">OPM YoY</td>
               <td className="text-slate-100">
                 영업이익률의 전년 동기 대비 변화(%p) ·{" "}
-                <strong className="text-amber-300">양(+)이어야 게이트를 통과한다(G4)</strong>
+                <strong className="text-amber-300">양(+)이어야 성장 가속이다(G4)</strong>
               </td>
             </tr>
             <tr>

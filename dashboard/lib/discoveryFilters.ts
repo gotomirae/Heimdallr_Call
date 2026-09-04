@@ -12,7 +12,7 @@
 
 import type { Grade } from "./types";
 
-export type GateFilter = "passed" | "failed" | "undecided" | "all";
+export type GateFilter = "growth" | "revenue_slow_op_accel" | "turnaround" | "other" | "all";
 export type CapFilter = "all" | "large" | "mid" | "small";
 export type ConsensusFilter = "all" | "yes" | "no";
 
@@ -58,7 +58,7 @@ export interface DiscoveryFilters {
 
 export const DEFAULT_FILTERS: DiscoveryFilters = {
   query: "",
-  gate: "passed",
+  gate: "growth",
   grades: [],
   sectors: [],
   cap: "all",
@@ -83,7 +83,7 @@ function isActiveSortKey(value: string | null): value is Exclude<SortKey, "defau
 /** sessionStorage 키. **session**인 것이 중요하다 — 탭을 닫으면 초기화되는 게 맞다. */
 export const STORAGE_KEY = "heimdallr.discovery.filters.v2";
 
-const GATES: GateFilter[] = ["passed", "failed", "undecided", "all"];
+const GATES: GateFilter[] = ["growth", "revenue_slow_op_accel", "turnaround", "other", "all"];
 const CAPS: CapFilter[] = ["all", "large", "mid", "small"];
 const CONSENSUS: ConsensusFilter[] = ["all", "yes", "no"];
 const GRADES: Grade[] = ["★", "○", "△", "·", "✕"];
@@ -113,8 +113,11 @@ export function fromQuery(
   const q = p.get("q");
   if (q != null) { next.query = q; hadAny = true; }
 
-  const gate = oneOf(p.get("gate"), GATES);
+  const rawGate = p.get("gate");
+  const gate = oneOf(rawGate, GATES);
   if (gate) { next.gate = gate; hadAny = true; }
+  // 이전 공유 링크의 `passed`는 새 정의의 성장 가속으로 안전하게 옮긴다.
+  if (!gate && rawGate === "passed") { next.gate = "growth"; hadAny = true; }
 
   // ★ `sector`(단수)도 받는다 — 결과 추적에서 섹터 하나를 눌러 들어오는 경로다.
   //   두 이름을 다 받지 않으면 링크가 조용히 무시되고 전체 목록이 뜬다.

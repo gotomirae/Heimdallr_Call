@@ -269,7 +269,7 @@ export default async function SettingsPage() {
         </div>
       </Card>
 
-      <Card title="게이트 · 매트릭스 · 발송">
+      <Card title="성장 가속 · 매트릭스 · 발송">
         <div className="grid gap-x-8 sm:grid-cols-2">
           <div>
             <Row
@@ -309,17 +309,18 @@ export default async function SettingsPage() {
         note="이 시스템이 쓰는 낱말이 각각 무엇을 재는지. 표 머리글에 마우스를 올려도 같은 설명이 뜬다."
       >
         <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-100">
-          <strong className="text-slate-100">실적 가속</strong> — 매출액 성장률과 영업이익
-          성장률이 <strong>둘 다</strong> 전년 동기 대비(YoY)로{" "}
-          <strong>전분기보다 높아진</strong> 것.
+          <strong className="text-slate-100">성장 가속</strong> — 매출 YoY 가속 + 영업이익
+          YoY 가속 + OPM YoY 상승을 <strong>모두</strong> 만족한 것.
           <div className="mt-2 font-mono text-xs leading-relaxed text-slate-200">
             G1 매출{"   "}revenue_yoy(t) &gt; revenue_yoy(t−1){"  "}AND{"  "}revenue_yoy(t) &gt; 0
             <br />
             G2 영업익 op_yoy(t){"     "}&gt; op_yoy(t−1){"      "}AND{"  "}op_yoy(t){"     "}&gt; 0
+            <br />
+            G4 OPM{"      "}opm(t) &gt; opm(t−4)
           </div>
           <p className="mt-2 text-xs text-slate-300">
             전년 적자에서 당기 흑자로 돌아선 &lsquo;흑전&rsquo;은 성장률(%)을 계산할 수 없지만
-            가속의 가장 강한 형태이므로 G2 통과로 인정한다. 전분기 성장률을 모르면 탈락이
+            별도 <strong>턴어라운드</strong> 유형으로 분류한다. 전분기 성장률을 모르면 탈락이
             아니라 <strong>판정 불가</strong>다 — 결측을 탈락으로 뭉개면 데이터가 덜 모인
             소형주가 통째로 사라지는데, 이 시스템의 발굴 대상이 정확히 그 구간이다.
           </p>
