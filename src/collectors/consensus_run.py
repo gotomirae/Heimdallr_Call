@@ -130,12 +130,12 @@ def save_all(limit: int | None) -> int:
         for r in select_all("screen_results", "code,gate_passed")
         if r["gate_passed"]
     }
-    top = [r["code"] for r in targets[:500]]
+    top = [r["code"] for r in targets]
     codes = list(dict.fromkeys(top + [c for c in passed if c]))
     if limit:
         codes = codes[:limit]
 
-    print(f"대상 {len(codes)}종목 (시총 상위 500 ∪ 직전 분기 게이트 통과 {len(passed)})")
+    print(f"대상 {len(codes)}종목 (유니버스 전체 ∪ 직전 분기 게이트 통과 {len(passed)})")
     print(f"예상 소요 {len(codes) * 2 * REQUEST_INTERVAL_SEC / 60:.0f}분 (요청 간 {REQUEST_INTERVAL_SEC}초)")
 
     db = get_client()

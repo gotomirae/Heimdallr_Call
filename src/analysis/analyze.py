@@ -113,6 +113,7 @@ class AnalysisResult:
     cache_write_tokens: int
     output_tokens: int
     is_estimate: bool = False
+    facts_hash: str | None = None
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -560,6 +561,8 @@ def analysis_result_from_response(
             "LLM 계산·단위 환산 결과는 저장하지 않는다"
         )
 
+    from src.analysis.freshness import facts_hash
+
     usage = response.usage
     return AnalysisResult(
         code=data.code,
@@ -573,6 +576,7 @@ def analysis_result_from_response(
         cache_write_tokens=usage.cache_write_tokens,
         output_tokens=usage.output_tokens,
         is_estimate=data.is_estimate,
+        facts_hash=facts_hash(data.quarters, data.excerpt),
     )
 
 
@@ -680,6 +684,7 @@ def save(result: AnalysisResult) -> None:
     stored_payload = dict(result.payload)
     stored_payload["_heimdallr"] = {
         "analysis_stage": "preliminary" if result.is_estimate else "final",
+        "facts_hash": result.facts_hash,
     }
     get_client().table("analyses").upsert(
         {

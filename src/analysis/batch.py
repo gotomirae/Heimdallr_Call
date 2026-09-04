@@ -41,7 +41,9 @@ from src.analysis.analyze import (
     validate_payload,
 )
 from src.analysis.eligibility import is_growth_acceleration
-from src.analysis.run import build_input
+from src.analysis.run import FUND_COLUMNS, build_input
+from src.analysis.freshness import facts_hash, render_excerpt, select_excerpt
+from src.finance.narrative_changes import select_quarter_window
 from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
 from src.db.supabase_client import select_all
 from src.screener.score import active_score
@@ -208,12 +210,19 @@ def already_analyzed(
     """
     rows = select_all("analyses", "code,fiscal_year,fiscal_quarter,created_at,payload")
     final_state: dict[tuple[str, int, int], dict] = {}
+    funds_by_code: dict[str, list[dict]] = {}
+    excerpts_by_code: dict[str, list[dict]] = {}
     if refresh_finalized:
         for f in select_all(
             "quarterly_fundamentals",
-            "code,fiscal_year,fiscal_quarter,is_estimate,updated_at,delta_from_preliminary",
+            FUND_COLUMNS + ",updated_at",
         ):
             final_state[(f["code"], f["fiscal_year"], f["fiscal_quarter"])] = f
+            funds_by_code.setdefault(f["code"], []).append(f)
+        for ex in select_all(
+            "disclosure_excerpts", "code,rcept_no,fiscal_year,fiscal_quarter,sections"
+        ):
+            excerpts_by_code.setdefault(ex["code"], []).append(ex)
     out = set()
     for a in rows:
         if before:
@@ -223,6 +232,24 @@ def already_analyzed(
         key = (a["code"], a["fiscal_year"], a["fiscal_quarter"])
         if refresh_finalized:
             final = final_state.get(key, {})
+            if not final:
+                out.add(key)
+                continue
+            payload = a.get("payload")
+            meta = payload.get("_heimdallr") if isinstance(payload, dict) else None
+            meta = meta if isinstance(meta, dict) else {}
+            quarters = select_quarter_window(funds_by_code.get(key[0], []), key[1], key[2], limit=8)
+            ex = select_excerpt(excerpts_by_code.get(key[0], []), key[1], key[2])
+            excerpt = render_excerpt(ex, key[1], key[2]) if ex else None
+            if meta.get("facts_hash") and quarters:
+                if meta["facts_hash"] != facts_hash(quarters, excerpt):
+                    continue
+            elif a.get("created_at"):
+                # 레거시는 확인 가능한 신규 근거만으로 갱신한다(T132).
+                created = a["created_at"]
+                receipt_day = (ex or {}).get("rcept_no", "")[:8]
+                if (final.get("updated_at") or "") > created or receipt_day > created[:10].replace("-", ""):
+                    continue
             if needs_final_refresh(
                 a.get("payload"),
                 final.get("is_estimate"),

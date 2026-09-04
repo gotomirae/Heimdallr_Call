@@ -81,40 +81,14 @@ def load_excerpt(
     except Exception:
         rows = []  # 테이블 미생성 등 — 조용히 넘어간다
 
+    from src.analysis.freshness import render_excerpt, select_excerpt
+
     def render(row: dict) -> str | None:
-        """★★ **어느 분기 원문인지 반드시 머리에 붙인다**(T99).
+        return render_excerpt(row, year, quarter)
 
-        분기가 넘어가면 그 분기 발췌가 아직 없어 직전 것으로 물러서는데,
-        라벨이 없으면 모델은 그것을 **이번 분기 사실로 읽는다** — 지난 분기
-        수주잔고를 이번 분기 트리거로 쓰는 식으로 에러 없이 틀린다.
-        """
-        sections = row.get("sections") or {}
-        if not sections:
-            return None
-        row_year, row_quarter = row.get("fiscal_year"), row.get("fiscal_quarter")
-        if row_year is None or row_quarter is None:
-            head = "기준 분기 미상 — 이번 분기 것이 아닐 수 있다"
-        elif (row_year, row_quarter) == (year, quarter):
-            head = f"{row_year}년 {row_quarter}분기 정기보고서"
-        else:
-            head = (f"★ {row_year}년 {row_quarter}분기 정기보고서 "
-                    f"— **{year}년 {quarter}분기 것이 아니다.** "
-                    f"여기 적힌 사실을 이번 분기 사건으로 쓰지 마라.")
-        body = "\n\n".join(f"### {k}\n{v}" for k, v in sections.items())
-        return f"[출처: {head}]\n\n{body}"
-
-    # 그 분기 것이 있으면 우선, 없으면 가장 최근 것으로 물러선다.
-    same = [r for r in rows
-            if r.get("fiscal_year") == year and r.get("fiscal_quarter") == quarter]
-    if same:
-        return render(same[0])
-    if rows:
-        # ★ 분기 칸이 비어 있으면 `(0, 0)`이라 **순서가 사실상 무작위**가 된다.
-        #   접수번호(YYYYMMDD######)로 마지막을 갈라 항상 같은 답이 나오게 한다.
-        newest = max(rows, key=lambda r: (r.get("fiscal_year") or 0,
-                                          r.get("fiscal_quarter") or 0,
-                                          r.get("rcept_no") or ""))
-        return render(newest)
+    selected = select_excerpt(rows, year, quarter)
+    if selected is not None:
+        return render(selected)
 
     if not allow_fetch:
         return None

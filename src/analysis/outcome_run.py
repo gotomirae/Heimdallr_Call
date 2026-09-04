@@ -95,7 +95,7 @@ def latest_screens() -> dict[tuple[str, int, int], dict]:
     }
 
 
-def collect(quarter_filter: tuple[int, int] | None, limit: int | None) -> list[Outcome]:
+def collect(quarter_filter: tuple[int, int] | None, limit: int | None, *, persist: bool = False) -> list[Outcome]:
     universe = {u["code"]: u for u in select_all("krx_universe", "code,name,board")}
     dates = announce_dates()
     screens = latest_screens()
@@ -149,8 +149,12 @@ def collect(quarter_filter: tuple[int, int] | None, limit: int | None) -> list[O
             )
         )
         if i % 100 == 0:
+            if persist:
+                save(results[-100:])
             print(f"    {i}/{len(keys)}")
 
+    if persist and len(results) % 100:
+        save(results[-(len(results) % 100):])
     if failures:
         print(f"  일봉 조회 실패: {dict(failures)}")
     return results
@@ -258,6 +262,19 @@ def report(results: list[Outcome], screens: dict) -> None:
 
 def save(results: list[Outcome]) -> int:
     payload = [o.as_db_row() for o in results]
+    previous = {
+        (r["code"], r["fiscal_year"], r["fiscal_quarter"]): r
+        for r in select_all("outcome_tracking", "*")
+    }
+    for row in payload:
+        old = previous.get((row["code"], row["fiscal_year"], row["fiscal_quarter"]))
+        if old:
+            # 발표 당시 판정은 고정한다. 일시적인 조회 실패로 이미 측정한 값을 지우지 않는다.
+            for key in ("grade_at_announce", "score_at_announce", "pri_at_announce"):
+                row[key] = old.get(key)
+            for key in row:
+                if key.startswith(("ret_", "excess_")) and row[key] is None:
+                    row[key] = old.get(key)
     db = get_client()
     for i in range(0, len(payload), 500):
         db.table("outcome_tracking").upsert(
@@ -280,7 +297,7 @@ def main() -> int:
         y, q = args.quarter.split(".")
         qf = (int(y), int(q))
 
-    results = collect(qf, args.limit)
+    results = collect(qf, args.limit, persist=args.save)
     if not results:
         print("대상이 없다 — 발표일과 매칭되는 분기 재무가 없다.")
         return 0
@@ -292,7 +309,7 @@ def main() -> int:
     #   비싼 것을 먼저 확정하고, 리포트는 실패해도 데이터는 남게 한다.
     saved = 0
     if args.save:
-        saved = save(results)
+        saved = len(results)  # collect가 100행마다 저장해 timeout에도 앞부분은 남는다.
     else:
         print("\n(--save 미지정 — DB에 기록하지 않는다)")
 

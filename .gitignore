@@ -45,3 +45,4 @@ Thumbs.db
 
 # 실행 로그(검증용, 커밋 대상 아님)
 *.run.log
+.pytest-auto*/

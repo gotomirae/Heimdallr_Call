@@ -46,21 +46,14 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
         )
         if is_periodic(d.get("report_nm"))
     ]
-    # ★★ 중복 판정은 **접수번호가 아니라 종목** 기준이다.
-    #   한 종목에 `반기보고서`와 `[기재정정]반기보고서`가 함께 있으면 접수번호가
-    #   달라, 접수번호로만 거르면 **같은 종목을 30초씩 계속 다시 받는다**
-    #   (실측 2026-08-23: 이미 받은 롯데정밀화학·한화시스템이 다시 대상에 잡혔다).
-    #   읽는 쪽(`load_excerpt`)도 종목당 하나만 쓰므로 하나면 충분하다.
+    # 먼저 최신 보고서를 고른 뒤 접수번호로 완료 여부를 검사한다.
+    # 종목·분기만으로 막으면 정정공시를 영구히 놓친다.
     have = {
-        (r["code"], r.get("fiscal_year"), r.get("fiscal_quarter"))
+        r["rcept_no"]
         for r in select_all(
-            "disclosure_excerpts", "code,fiscal_year,fiscal_quarter"
+            "disclosure_excerpts", "rcept_no"
         )
     }
-    disclosures = [
-        d for d in disclosures
-        if (d["code"], d.get("fiscal_year"), d.get("fiscal_quarter")) not in have
-    ]
 
     if codes:
         wanted = set(codes)
@@ -77,7 +70,7 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
     newest: dict[str, dict] = {}
     for d in disclosures:
         prev = newest.get(d["code"])
-        if prev is None or (d.get("disclosed_at") or "") > (prev.get("disclosed_at") or ""):
+        if prev is None or (d.get("fiscal_year") or 0, d.get("fiscal_quarter") or 0, d["rcept_no"]) > (prev.get("fiscal_year") or 0, prev.get("fiscal_quarter") or 0, prev["rcept_no"]):
             newest[d["code"]] = d
 
     # ★★ **분석과 같은 순서로 받는다**(매력도 순).
@@ -86,7 +79,7 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
     #   수집이 중간에 끊겨도(시간 예산) **중요한 종목이 먼저** 채워져야 한다.
     rank = attractiveness_rank()
     ordered = sorted(
-        newest.values(),
+        [d for d in newest.values() if d["rcept_no"] not in have],
         # 매력도가 없는 종목(스크린 행 없음)은 뒤로. 그 안에서는 최신 공시 순.
         key=lambda d: (-(rank.get(d["code"], float("-inf"))), d.get("disclosed_at") or ""),
     )

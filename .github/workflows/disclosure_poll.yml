@@ -2,17 +2,15 @@
 #
 # DART 공시 폴링 → 잠정실적 파싱 → 파생지표 → 스크리닝 → ⚡알림.
 #
-# ★ 시즌/비시즌 빈도를 `SEASON_MODE` 저장소 변수로 전환한다.
-#   GitHub Actions의 cron은 조건부로 못 쓰므로 **두 스케줄을 다 걸고 잡 안에서 건너뛴다.**
-#   (건너뛰는 잡도 시작 비용이 들지만 몇 초라 폴링 자체보다 훨씬 싸다.)
+# 매일 주간 30분·야간 3시간 간격. 최근 7일을 재조회해 지연·실패를 복구한다.
 # ★ 잡 안에서 sleep 루프를 쓰지 않는다(PRD §10.1) — sleep도 과금된다.
 
 name: disclosure_poll
 
 on:
   schedule:
-    - cron: "*/30 0-10 * * 1-5" # 시즌: 09:00~19:00 KST 30분마다
-    - cron: "0 1,4,7,10 * * 1-5" # 비시즌: 하루 4회
+    - cron: "*/30 0-14 * * *" # 매일 09:00~23:30 KST 30분마다
+    - cron: "17 15,18,21 * * *" # 야간에도 3시간 간격으로 누락 복구
   workflow_dispatch:
     inputs:
       notify:
@@ -52,18 +50,10 @@ jobs:
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
       PYTHONUNBUFFERED: "1"
     steps:
-      # ★ 30분 스케줄은 시즌에만 의미가 있다. 비시즌이면 여기서 끝낸다.
-      - name: 시즌 확인
+      # 계절 변수의 수동 전환 누락으로 갱신이 멈추지 않도록 상시 실행한다.
+      - name: 자동 갱신 시작
         id: season
-        run: |
-          season="${{ vars.SEASON_MODE }}"
-          frequent="${{ github.event.schedule == '*/30 0-10 * * 1-5' }}"
-          if [ "$frequent" = "true" ] && [ "$season" != "on" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "비시즌이라 30분 폴링을 건너뛴다 (SEASON_MODE=$season)"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "run=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
         if: steps.season.outputs.run == 'true'
@@ -81,20 +71,28 @@ jobs:
       - name: 공시 감지 · 잠정실적 반영
         if: steps.season.outputs.run == 'true'
         run: |
-          begin=$(date -u -d '3 days ago' +%Y%m%d)
+          begin=$(date -u -d '7 days ago' +%Y%m%d)
           end=$(date -u +%Y%m%d)
           python -m src.collectors.replay --begin "$begin" --end "$end" --save
           python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
 
       - name: 정기보고서 감지 · 확정 재무 갱신
         if: steps.season.outputs.run == 'true'
-        run: python -m src.finance.backfill --save --recent-periodic-days 3
+        run: python -m src.finance.backfill --save --recent-periodic-days 7
 
       - name: 파생지표
         if: steps.season.outputs.run == 'true'
         run: python -m src.finance.enrich --save
 
       - name: 스크리닝
+        if: steps.season.outputs.run == 'true'
+        run: python -m src.screener.run --save
+
+      - name: 새 게이트 통과 종목 정밀 재무
+        if: steps.season.outputs.run == 'true'
+        run: python -m src.finance.detail --save --limit 4
+
+      - name: 정밀 재무 반영 스크리닝
         if: steps.season.outputs.run == 'true'
         run: python -m src.screener.run --save
 

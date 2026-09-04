@@ -34,6 +34,7 @@ def build() -> dict:
     return {
         "_generated_by": "python -m src.config.export_constants",
         "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
+        "dashboard_refresh_seconds": constants.DASHBOARD_REFRESH_SECONDS,
         # ★ 섹터 분류 규칙을 함께 내보낸다.
         #   대시보드가 `industry`·`products`로 **읽는 시점에** 분류하므로
         #   DB에 `sector` 컬럼이 없어도 투자 섹터명이 보인다.

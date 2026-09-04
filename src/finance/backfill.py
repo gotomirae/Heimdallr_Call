@@ -204,7 +204,7 @@ def recent_periodic_targets(days: int) -> list[dict]:
     disclosures = [
         row for row in select_all(
             "earnings_disclosures",
-            "code,doc_type,fiscal_year,fiscal_quarter,disclosed_at",
+            "code,doc_type,fiscal_year,fiscal_quarter,disclosed_at,detected_at,rcept_no",
         )
         if row.get("doc_type") == "periodic"
         and row.get("fiscal_year") is not None
@@ -226,7 +226,7 @@ def recent_periodic_targets(days: int) -> list[dict]:
         key = (row["code"], row["fiscal_year"], row["fiscal_quarter"])
         if key not in wanted or row.get("is_estimate") is not False:
             continue
-        updated = str(row.get("updated_at") or "")[:10]
+        updated = str(row.get("updated_at") or "")
         if updated > refreshed.get(key, ""):
             refreshed[key] = updated
 
@@ -234,15 +234,14 @@ def recent_periodic_targets(days: int) -> list[dict]:
     newest: dict[tuple[str, int, int], dict] = {}
     for row in disclosures:
         key = (row["code"], row["fiscal_year"], row["fiscal_quarter"])
-        if key not in newest or str(row.get("disclosed_at") or "") > str(
-            newest[key].get("disclosed_at") or ""
-        ):
+        ordering = lambda r: (str(r.get("disclosed_at") or ""), str(r.get("detected_at") or ""), str(r.get("rcept_no") or ""))
+        if key not in newest or ordering(row) > ordering(newest[key]):
             newest[key] = row
 
     return sorted(
         (
             row for key, row in newest.items()
-            if refreshed.get(key, "") < str(row.get("disclosed_at") or "")[:10]
+            if refreshed.get(key, "") < max(str(row.get("disclosed_at") or ""), str(row.get("detected_at") or ""))
         ),
         key=lambda row: (row["code"], row["fiscal_year"], row["fiscal_quarter"]),
     )
@@ -376,7 +375,13 @@ def main() -> int:
 
     if args.spot or not args.save:
         return spot_check(years)
-    return save_all(args.limit, years, codes)
+    result = save_all(args.limit, years, codes)
+    if result == 0 and args.recent_periodic_days and codes:
+        # 같은 분기 정정은 손익뿐 아니라 CF·BS 근거도 바꿀 수 있다.
+        from src.finance.detail import run as refresh_detail
+
+        result = refresh_detail(save=True, codes=set(codes), refresh=True)
+    return result
 
 
 if __name__ == "__main__":

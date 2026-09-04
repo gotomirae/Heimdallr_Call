@@ -53,8 +53,17 @@ jobs:
       - name: 시세 · 지수 스냅샷
         run: python -m src.collectors.price_run --save
 
+      - name: 네이버 컨센서스 · 확정 및 선행 PER
+        run: python -m src.collectors.consensus_run --save
+
       # 시세가 바뀌면 PRI가 바뀌고 등급도 바뀐다 — 같은 잡에서 이어서 돌린다.
       - name: 스크리닝 재계산
+        run: python -m src.screener.run --save
+
+      - name: 신규 확정 종목 정밀 재무
+        run: python -m src.finance.detail --save
+
+      - name: 정밀 재무 반영 스크리닝
         run: python -m src.screener.run --save
 
       # 투자 섹터 재분류 — 유니버스가 갱신되면 신규 상장분도 분류해야 한다.

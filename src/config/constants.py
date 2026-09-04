@@ -317,6 +317,7 @@ KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부
 )
 
 # ═══ 운영 ═══
+DASHBOARD_REFRESH_SECONDS = 60
 SEASON_MODE = optional_env("SEASON_MODE", "off")  # 'on'이면 공시 폴링 15분 주기
 KST = "Asia/Seoul"
 POSTGREST_PAGE_SIZE = 1000  # max-rows 1,000 — 초과 테이블은 반드시 range() 페이징(T7)

@@ -168,7 +168,6 @@ def _save(found: list) -> int:
             "report_nm": d.report_nm,
             "doc_type": d.doc_type,
             "disclosed_at": f"{d.disclosed_at[:4]}-{d.disclosed_at[4:6]}-{d.disclosed_at[6:]}",
-            "processed": False,
             # ★★ 이 두 칸을 안 채우면 발췌가 **어느 분기 것인지 모르는 채로** 저장되고,
             #   읽는 쪽이 "가장 최근 것"으로 물러서 **남의 분기 원문을 LLM에 싣는다**(T99).
             #   잠정실적 공시는 이름에 기간이 없어 None이 정상이다.
@@ -194,15 +193,20 @@ def ingest_provisionals(begin: str, end: str, limit: int) -> int:
     """
     universe = load_universe()
     found = poll(begin, end, universe=universe, stats=PollStats())
-    targets = [d for d in found if d.doc_type == DOC_PROVISIONAL][:limit]
+    completed = {r["rcept_no"] for r in select_all("earnings_disclosures", "rcept_no,processed") if r.get("processed") is True}
+    targets = [d for d in found if d.doc_type == DOC_PROVISIONAL and d.rcept_no not in completed][:limit]
 
     existing_fs = {}
-    for row in select_all("quarterly_fundamentals", "code,fs_div"):
+    finalized = set()
+    for row in select_all("quarterly_fundamentals", "code,fs_div,fiscal_year,fiscal_quarter,is_estimate"):
         existing_fs.setdefault(row["code"], row["fs_div"])
+        if row.get("is_estimate") is False:
+            finalized.add((row["code"], row["fiscal_year"], row["fiscal_quarter"], row["fs_div"]))
 
     print(f"잠정실적 {len(targets)}건 파싱 → quarterly_fundamentals 반영")
     rows: dict[tuple, dict] = {}
     stats = collections.Counter()
+    processed = []
     for d in sorted(targets, key=lambda x: x.disclosed_at):  # 나중 공시가 이긴다
         try:
             html = fetch_document_html(d.rcept_no)
@@ -226,7 +230,13 @@ def ingest_provisionals(begin: str, end: str, limit: int) -> int:
             stats[f"fs_div_mismatch({prior}≠{row['fs_div']})"] += 1
             time.sleep(PARSE_INTERVAL_SEC)
             continue
-        rows[(row["code"], row["fiscal_year"], row["fiscal_quarter"], row["fs_div"])] = row
+        key = (row["code"], row["fiscal_year"], row["fiscal_quarter"], row["fs_div"])
+        if key in finalized:
+            stats["already_final"] += 1
+            processed.append(d.rcept_no)
+            continue
+        rows[key] = row
+        processed.append(d.rcept_no)
         stats["ok"] += 1
         time.sleep(PARSE_INTERVAL_SEC)
 
@@ -237,6 +247,9 @@ def ingest_provisionals(begin: str, end: str, limit: int) -> int:
             payload[i : i + 500],
             on_conflict="code,fiscal_year,fiscal_quarter,fs_div",
         ).execute()
+
+    for receipt in processed:
+        db.table("earnings_disclosures").update({"processed": True}).eq("rcept_no", receipt).execute()
 
     print(f"\n✓ quarterly_fundamentals upsert {len(payload)}행 (is_estimate=true)")
     print(f"  결과: {dict(stats)}")

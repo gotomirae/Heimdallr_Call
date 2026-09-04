@@ -295,7 +295,7 @@ def test_flash_notification_is_wired_on_schedule():
 
 def test_periodic_disclosure_refreshes_final_analysis_automatically():
     body = _text(WORKFLOWS / "disclosure_poll.yml")
-    assert "--recent-periodic-days 3" in body
+    assert "--recent-periodic-days 7" in body
     assert "--refresh-finalized" in body
     assert "collectors.excerpt_run" in body
 

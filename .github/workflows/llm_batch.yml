@@ -97,4 +97,4 @@ jobs:
           [ -z "$secs" ] && secs=10800
           [ -z "$score" ] && score=0
           echo "시간 예산 ${secs}초 · 스코어 하한 ${score}"
-          python -m src.analysis.batch --send --max-seconds "$secs" --min-score "$score"
+          python -m src.analysis.batch --send --refresh-finalized --max-seconds "$secs" --min-score "$score"
