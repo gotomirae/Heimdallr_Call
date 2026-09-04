@@ -417,7 +417,7 @@ def test_dashboard_and_python_agree_on_external_urls():
 
 
 def test_quarter_prices_collector_is_wired_into_a_workflow():
-    """수집기를 만들어 놓고 어디서도 안 부르면 차트의 주가 라인이 영영 비어 있다."""
+    """과거 종가는 주간 차트와 LLM 가치-가격 비교에 계속 필요하다."""
     called = [p.name for p in YAML_FILES
               if "collectors.quarter_prices" in _text(p)]
     assert called, "quarter_prices 수집기를 부르는 워크플로가 없다"

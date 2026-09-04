@@ -32,18 +32,24 @@ const SCREEN_COLUMNS = [
 ];
 
 const FUND_COLUMNS = [
-  "code", "fiscal_year", "fiscal_quarter", "revenue", "op", "np",
-  "revenue_yoy", "op_yoy", "op_status_label", "opm", "opm_yoy_delta",
-  "revenue_qoq", "eps", "eps_yoy", "fcf",
-  "ttm_revenue", "ttm_opm", "ttm_opm_delta", "is_estimate", "source",
+  "code", "fiscal_year", "fiscal_quarter", "revenue", "gross_profit", "op", "np", "np_ctrl",
+  "revenue_yoy", "revenue_qoq", "op_yoy", "op_qoq", "np_yoy", "eps_yoy", "op_status_label",
+  "opm", "opm_yoy_delta", "opm_qoq_delta", "gpm", "npm", "eps", "fcf",
+  "ttm_revenue", "ttm_op", "ttm_opm", "ttm_cfo", "ttm_revenue_qoq", "ttm_opm_delta",
+  "rev_2y_stack", "cfo", "capex", "receivables", "inventory", "equity", "assets", "liabilities",
+  "shares_outstanding", "shares_yoy", "is_estimate", "source",
 ];
 
 // ★ 배열로 둔다 — `ret_5d`는 마이그레이션 전까지 DB에 없어서 통째 조회가 42703으로
 //   죽는다. `selectWithOptionalColumns`가 없는 컬럼을 걷어내려면 배열이어야 한다(T18).
 const PRICE_COLUMNS = [
   "code", "snap_date", "close", "chg_pct", "high_52w", "low_52w", "pos_52w",
+  "high_52w_drawdown_pct",
   "ret_3m", "ret_6m", "ret_12m", "rel_ret_3m", "rel_ret_6m", "rel_ret_12m", "ret_5d",
   "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
+  "announcement_date", "announcement_close", "announcement_return_pct",
+  "per_current_ttm", "per_avg_9q", "per_avg_quarters", "per_vs_9q_avg_pct",
+  "foreign_net_qty_5d", "foreign_volume_5d", "foreign_net_ratio_5d", "rsi_14",
 ];
 
 /**
@@ -234,7 +240,7 @@ export async function getAllLatestPrices(): Promise<{
 }
 
 /**
- * 분기말 종가 — 9분기 차트의 주가 라인.
+ * 분기말 종가 — 가치·가격 비교와 LLM 주가 깤적의 근거.
  *
  * ★ 테이블 자체가 아직 없을 수 있다(마이그레이션 전). 그때는 **빈 맵**을 준다 —
  *   페이지 전체를 500으로 죽이지 않고 주가 라인만 빠지게 한다.
@@ -331,6 +337,7 @@ export async function getAnnualConsensus(
     .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,per,fwd_per,source,snapshot_at")
     .eq("code", code)
     .eq("fiscal_quarter", 0)
+    .eq("source", "naver")
     .gte("fiscal_year", fromYear)
     .order("fiscal_year", { ascending: true })
     .order("snapshot_at", { ascending: false })
@@ -350,6 +357,7 @@ export async function getConsensus(
     .eq("code", code)
     .eq("fiscal_year", year)
     .eq("fiscal_quarter", quarter)
+    .eq("source", "naver")
     .order("snapshot_at", { ascending: false })
     .limit(1);
   if (error) throw error;

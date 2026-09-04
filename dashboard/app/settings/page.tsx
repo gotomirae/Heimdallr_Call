@@ -249,14 +249,15 @@ export default async function SettingsPage() {
 
       <Card
         title="주가반영도 (PRI)"
-        note="분모 하한 미만이면 판정하지 않는다 — 0점이 아니라 '판정 불가'다. P1(3개월 상대수익률) 없이 '미반영'을 선언하면 이미 오른 종목이 ★가 된다."
+        note="낮을수록 실적이 아직 주가에 덜 반영된 상태다. 분모 하한 미만이면 0점이 아니라 '판정 불가'다."
       >
         <div className="grid gap-x-8 sm:grid-cols-2">
           <div>
-            <Row label="P1 3개월 상대수익률" value={`${pri.p1}점`} />
-            <Row label="P2 52주 위치" value={`${pri.p2}점`} />
-            <Row label="P3 3년 PER 밴드" value={`${pri.p3}점`} />
-            <Row label="P4 발표 D+1 반응" value={`${pri.p4}점`} />
+            <Row label="P1 52주 신고가 대비" value={`${pri.p1}점`} />
+            <Row label="P2 발표 당일 종가 대비" value={`${pri.p2}점`} />
+            <Row label="P3 과거 9분기 평균 PER 대비" value={`${pri.p3}점`} />
+            <Row label="P4 발표 후 5거래일 외국인 수급" value={`${pri.p4}점`} />
+            <Row label="P5 RSI 45 기준" value={`${pri.p5}점`} />
           </div>
           <div>
             <Row label="분모 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />

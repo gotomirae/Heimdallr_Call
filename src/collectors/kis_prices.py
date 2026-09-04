@@ -24,8 +24,12 @@
 from __future__ import annotations
 
 import json
+import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+
+from bs4 import BeautifulSoup
 
 from src.collectors.kis_client import KisClient, KisError
 from src.config.constants import (
@@ -33,12 +37,13 @@ from src.config.constants import (
     KIS_TR_PRICE,
     RETURN_WINDOW_START_TOLERANCE_DAYS,
 )
-from src.utils.http import http_get
+from src.utils.http import decode_html, http_get
 
 PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-price"
 CHART_PATH = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
 NAVER_INDEX_URL = "https://api.finance.naver.com/siseJson.naver"
 NAVER_PRICE_URL = "https://m.stock.naver.com/api/stock/{code}/integration"
+NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"
 
 _EOK = 100_000_000  # 억원 → 원
 
@@ -77,6 +82,14 @@ class PriceStats:
     errors: dict[str, int] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ForeignFlow5d:
+    net_qty: int
+    volume: int
+    ratio_pct: float
+    sessions: int = 5
+
+
 def _num(text) -> float | None:
     if text in (None, "", "-"):
         return None
@@ -99,6 +112,107 @@ def _ratio(text) -> float | None:
     if value is None or value == 0:
         return None
     return value
+
+
+def high_52w_drawdown_pct(close: float | None, high_52w: float | None) -> float | None:
+    """52주 신고가 대비 현재가 등락률(%)."""
+    if close is None or high_52w is None or high_52w <= 0:
+        return None
+    return (close / high_52w - 1) * 100
+
+
+def return_from_base_pct(current: float | None, base: float | None) -> float | None:
+    if current is None or base is None or base <= 0:
+        return None
+    return (current / base - 1) * 100
+
+
+def rsi_14(closes: dict[str, float], periods: int = 14) -> float | None:
+    """Wilder RSI. 최소 `periods + 1` 거래일이 없으면 None."""
+    values = [closes[day] for day in sorted(closes)]
+    if len(values) < periods + 1:
+        return None
+    changes = [current - previous for previous, current in zip(values, values[1:])]
+    gains = [max(change, 0.0) for change in changes]
+    losses = [max(-change, 0.0) for change in changes]
+    avg_gain = sum(gains[:periods]) / periods
+    avg_loss = sum(losses[:periods]) / periods
+    for gain, loss in zip(gains[periods:], losses[periods:]):
+        avg_gain = (avg_gain * (periods - 1) + gain) / periods
+        avg_loss = (avg_loss * (periods - 1) + loss) / periods
+    if avg_gain == 0 and avg_loss == 0:
+        return 50.0
+    if avg_loss == 0:
+        return 100.0
+    relative_strength = avg_gain / avg_loss
+    return 100 - 100 / (1 + relative_strength)
+
+
+def _signed_int(text: str) -> int | None:
+    cleaned = re.sub(r"[^0-9+-]", "", text)
+    if not cleaned or cleaned in ("+", "-"):
+        return None
+    try:
+        return int(cleaned)
+    except ValueError:
+        return None
+
+
+def parse_foreign_flow_rows(html: str) -> dict[str, tuple[int, int]]:
+    """NAVER `frgn.naver` 표 → {YYYYMMDD: (거래량, 외국인 순매수량)}."""
+    soup = BeautifulSoup(html, "html.parser")
+    for table in soup.find_all("table"):
+        headers = [cell.get_text(" ", strip=True) for cell in table.find_all("th")]
+        if not {"날짜", "거래량", "외국인"}.issubset(headers):
+            continue
+        out: dict[str, tuple[int, int]] = {}
+        for row in table.find_all("tr"):
+            cells = [cell.get_text(" ", strip=True) for cell in row.find_all("td")]
+            if len(cells) < 7 or not re.fullmatch(r"\d{4}\.\d{2}\.\d{2}", cells[0]):
+                continue
+            volume = _signed_int(cells[4])
+            foreign = _signed_int(cells[6])
+            if volume is None or volume <= 0 or foreign is None:
+                continue
+            out[cells[0].replace(".", "")] = (volume, foreign)
+        return out
+    return {}
+
+
+def fetch_foreign_flow_5d(
+    code: str,
+    announcement_date: str | None,
+    *,
+    max_pages: int = 5,
+) -> ForeignFlow5d | None:
+    """실적 발표일부터 5거래일의 외국인 순매수 비율.
+
+    외국인 순매수량을 같은 5일 거래량으로 나눠 종목 크기를 맞춘다.
+    5거래일이 다 공개되지 않았으면 있는 만큼으로 추정하지 않는다.
+    """
+    if not announcement_date:
+        return None
+    target = announcement_date.replace("-", "")
+    rows: dict[str, tuple[int, int]] = {}
+    for page in range(1, max_pages + 1):
+        response = http_get(
+            NAVER_FOREIGN_URL,
+            params={"code": code, "page": page},
+            headers={"Referer": "https://finance.naver.com/"},
+            timeout=30.0,
+        )
+        rows.update(parse_foreign_flow_rows(decode_html(response)))
+        chosen = sorted(day for day in rows if day >= target)[:5]
+        if len(chosen) == 5:
+            volume = sum(rows[day][0] for day in chosen)
+            net_qty = sum(rows[day][1] for day in chosen)
+            if volume <= 0:
+                return None
+            return ForeignFlow5d(net_qty, volume, net_qty / volume * 100)
+        if rows and min(rows) < target:
+            break
+        time.sleep(0.12)
+    return None
 
 
 def fetch_quote_kis(client: KisClient, code: str) -> Quote:
@@ -129,7 +243,7 @@ def fetch_quote_kis(client: KisClient, code: str) -> Quote:
 
 
 def fetch_quote_naver(code: str) -> Quote:
-    """KIS 장애 시 폴백. 필드가 적어도 PRI P2(52주 위치)는 살린다."""
+    """KIS 장애 시 폴백. 필드가 적어도 PRI P1(52주 신고가 대비)는 살린다."""
     resp = http_get(NAVER_PRICE_URL.format(code=code), timeout=20.0)
     body = resp.json()
     values = {item.get("code"): item.get("value") for item in (body.get("totalInfos") or [])}

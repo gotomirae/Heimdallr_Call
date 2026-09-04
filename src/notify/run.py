@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import date
 
 from src.config.constants import DASHBOARD_URL_DEFAULT, NOTIFY_GRADES
@@ -38,6 +39,19 @@ FUND_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,np_yoy,opm,"
     "opm_yoy_delta,ttm_opm_delta,is_estimate,source,delta_from_preliminary"
 )
+
+
+def beneficiaries_from_triggers(payload: dict, subject_code: str) -> list[dict]:
+    """LLM 트리거에 명시된 `수혜: 회사(000000)`만 링크로 만든다."""
+    found: dict[str, dict] = {}
+    triggers = payload.get("triggers") if isinstance(payload.get("triggers"), dict) else {}
+    for group in ("within_3m", "within_6m"):
+        for item in triggers.get(group) or []:
+            event = str(item.get("event") or "") if isinstance(item, dict) else ""
+            for name, code in re.findall(r"수혜\s*[:：]\s*([^()·,]{1,30})\s*\((\d{6})\)", event):
+                if code != subject_code:
+                    found[code] = {"name": name.strip(), "code": code, "reason": event}
+    return list(found.values())
 SCREEN_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,gate_detail,base_effect_warning,"
     "score_flash,score_final,score_a,score_b,score_c,score_d,has_consensus,pri,pri_detail,grade,"
@@ -161,9 +175,9 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
     cons = next(
         (c for c in select_all(
             "consensus_snapshots",
-            "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est")
+            "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,source")
          if c["code"] == code and c["fiscal_year"] == year
-         and c["fiscal_quarter"] == quarter),
+         and c["fiscal_quarter"] == quarter and c.get("source") == "naver"),
         {},
     )
     rev_surprise = revenue_surprise_pct(cur.get("revenue"), cons.get("revenue_est"))
@@ -182,7 +196,7 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
         (c for c in select_all(
             "consensus_snapshots",
             "code,fiscal_year,fiscal_quarter,np_est,source")
-         if c["code"] == code and c["fiscal_quarter"] == 0
+         if c["code"] == code and c["fiscal_quarter"] == 0 and c.get("source") == "naver"
          and c["fiscal_year"] >= year),
         {},
     )
@@ -236,7 +250,7 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
         # 이 사실을 숨기면 "반영도 0"과 구분이 안 된다.
         pri_parts = (
             f"{measured_parts} — 분모 {pri_detail.get('denominator', 0)}점으로 부족해 판정 보류"
-            f" (3개월 상대수익률 미수집)"
+            f" (공개 원자료 부족)"
         )
     else:
         pri_parts = "전 항목 미측정 — 시세 스냅샷 없음"
@@ -324,6 +338,16 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
         # ★ 텔레그램은 폰에서 열린다 — 네이버는 모바일 주소를 준다.
         "naver_url": naver_stock_url(code, mobile=True),
         "stockeasy_url": stockeasy_stock_url(code),
+        "beneficiaries": [
+            {
+                "name": str(item.get("name") or item.get("code")),
+                "code": str(item.get("code")),
+                "reason": item.get("reason"),
+                "naver_url": naver_stock_url(str(item.get("code")), mobile=True),
+                "stockeasy_url": stockeasy_stock_url(str(item.get("code"))),
+            }
+            for item in beneficiaries_from_triggers(payload, code)
+        ],
     }
 
 

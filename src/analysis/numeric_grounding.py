@@ -66,6 +66,13 @@ _PRICE_UNIT_FIELDS = {
     "relative_return_3m": "%p",
     "pbr": "배",
     "per_pctile_3y": "%",
+    "high_52w_drawdown_pct": "%",
+    "announcement_return_pct": "%",
+    "per_current_ttm": "배",
+    "per_avg_9q": "배",
+    "per_vs_9q_avg_pct": "%",
+    "foreign_net_ratio_5d": "%",
+    "rsi_14": "",
 }
 _CONSENSUS_UNIT_FIELDS = {
     "revenue_est": "억",

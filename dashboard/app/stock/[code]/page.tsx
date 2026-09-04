@@ -28,7 +28,6 @@ import {
   getFundamentalsForQuarters,
   getLatestAnalysis,
   getLatestPrice,
-  getQuarterPrices,
   getWeeklyPrices,
   getScreenForCode,
   getScreensForQuarter,
@@ -71,13 +70,12 @@ function average(values: Array<number | null | undefined>): number | null {
 export default async function StockPage({ params }: { params: { code: string } }) {
   const code = params.code;
 
-  const [universe, funds, price, screenResult, quarterPrices, weeklyPrices, disclosures, outcomeResult] =
+  const [universe, funds, price, screenResult, weeklyPrices, disclosures, outcomeResult] =
     await Promise.all([
       getUniverse(),
       getFundamentals(code),
       getLatestPrice(code),
       getScreenForCode(code),
-      getQuarterPrices(code),
       getWeeklyPrices(code),
       getDisclosures(code),
       getOutcomesForCode(code),
@@ -219,9 +217,11 @@ export default async function StockPage({ params }: { params: { code: string } }
       ? per4q / evaluated.eps_yoy
       : null;
 
-  // ★ 오늘 종가를 넘겨 주가 라인이 **현재까지** 닿게 한다. 실적 행만 따르면
-  //   마지막 발표 분기에서 잘려 그 뒤 주가 흐름을 볼 수 없다.
-  const chartPoints = toChartPoints(funds, CHART_QUARTERS, quarterPrices, price?.close ?? null);
+  const chartPoints = toChartPoints(funds, CHART_QUARTERS);
+  const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
+  const weeklyFromDate = chartStartFund
+    ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
+    : undefined;
 
   // 트리거는 3개월·6개월 구간을 한 타임라인에 합친다 — 사람은 구간이 아니라
   // 시간 순서로 읽는다. 어느 구간에서 왔는지는 칩으로 남긴다.
@@ -241,7 +241,6 @@ export default async function StockPage({ params }: { params: { code: string } }
 
   const opYoyMeasured = measuredCount(chartPoints, "opYoy");
   const revYoyMeasured = measuredCount(chartPoints, "revenueYoy");
-  const priceMeasured = chartPoints.filter((p) => p.close != null).length;
 
   // ★ DART 원문은 **접수번호로만** 열린다. 회사명 검색 URL은 200을 주고도
   //   검색을 실행하지 않아 빈 화면이 뜬다(T58) — 없으면 링크를 만들지 않는다.
@@ -382,11 +381,11 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 3. 9분기 차트 — 성장률 라인이 주인공 */}
       <Card
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="핵심은 노란 선 — 영업이익 YoY가 빨라지고 있는가"
+        note="노란 선은 영업이익 YoY 가속, 하늘색 점선은 OPM 추이"
       >
         <QuarterlyChart points={chartPoints} />
-        <WeeklyPriceChart points={weeklyPrices} />
-        <Note>주간 종가는 각 ISO 주의 마지막 실제 거래일 종가이며, 마우스를 올리면 거래일과 원 단위 가격을 표시한다.</Note>
+        <WeeklyPriceChart points={weeklyPrices} fromDate={weeklyFromDate} />
+        <Note>실제 주간 종가는 위 분기 실적 차트의 시작 분기부터 현재까지 같은 기간만 표시한다. 각 점은 ISO 주의 마지막 실제 거래일 종가다.</Note>
 
         {/* ★★ 핵심 투자 포인트 — **모양이 무엇을 뜻하는가**(사용자 지정 2026-08-23).
             "성장률이 빨라졌다"는 차트를 보면 누구나 아는 사실이다. 화면이 보태야 하는
@@ -428,12 +427,11 @@ export default async function StockPage({ params }: { params: { code: string } }
             <strong style={{ color: SERIES_COLOR.OP_LABEL }}>영업이익 YoY</strong> 노란 선이
             주인공 · <strong style={{ color: SERIES_COLOR.REVENUE_LABEL }}>매출 YoY</strong> 녹색 ·{" "}
             <strong style={{ color: SERIES_COLOR.TTM_COLOR }}>TTM</strong> 최근 4분기 합 ·{" "}
-            <strong style={{ color: SERIES_COLOR.PRICE_COLOR }}>주가</strong> 현재까지 ·{" "}
-            <code>*</code> 실적 미발표
+            <strong style={{ color: SERIES_COLOR.OPM_COLOR }}>OPM</strong> 하늘색 점선
           </span>
           <span className="mt-1 block">
             측정 {opYoyMeasured}/{chartPoints.length}(영업익) · {revYoyMeasured}/
-            {chartPoints.length}(매출) · {priceMeasured}/{chartPoints.length}(주가)
+            {chartPoints.length}(매출) · OPM {chartPoints.filter((p) => p.opm != null).length}/{chartPoints.length}
             {opYoyMeasured < chartPoints.length && " · 빈 칸은 흑↔적 전환(0%가 아니다)"}
           </span>
         </Note>
@@ -449,23 +447,47 @@ export default async function StockPage({ params }: { params: { code: string } }
         {/* ★ 높이를 제한해야 sticky가 먹는다 — `overflow-x-auto`만으로는
             세로 스크롤 영역이 만들어지지 않아 머리글이 그냥 밀려 올라간다(T64). */}
         <div className="mt-3 max-h-[60vh] overflow-auto">
-          <table className="w-full min-w-[1040px] text-right text-sm">
+          <table className="w-full min-w-[2200px] text-right text-sm">
             <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.35)]">
               <tr className="border-b border-slate-800">
                 <TermTh term="분기">분기</TermTh>
                 <TermTh term="매출액" align="right">매출</TermTh>
+                <th className="px-2 py-2">매출총이익</th>
                 <TermTh term="YoY" align="right">YoY</TermTh>
                 <TermTh term="QoQ" align="right">QoQ</TermTh>
                 <TermTh term="영업이익" align="right">영업이익</TermTh>
                 <TermTh term="YoY" align="right">YoY</TermTh>
+                <TermTh term="QoQ" align="right">QoQ</TermTh>
+                <th className="px-2 py-2">순이익</th>
+                <th className="px-2 py-2">지배순익</th>
+                <TermTh term="YoY" align="right">순익 YoY</TermTh>
                 <TermTh term="OPM" align="right">OPM</TermTh>
                 <TermTh term="OPM" align="right">OPM YoY</TermTh>
+                <TermTh term="OPM" align="right">OPM QoQ</TermTh>
+                <th className="px-2 py-2">GPM</th>
+                <th className="px-2 py-2">NPM</th>
                 <TermTh term="EPS" align="right">EPS</TermTh>
                 <TermTh term="EPS YoY" align="right">EPS YoY</TermTh>
                 <TermTh term="FCF" align="right">FCF</TermTh>
+                <th className="px-2 py-2">CFO</th>
+                <th className="px-2 py-2">CAPEX</th>
                 <TermTh term="TTM매출" align="right">TTM 매출</TermTh>
+                <th className="px-2 py-2">TTM 영업익</th>
+                <th className="px-2 py-2">TTM OPM</th>
+                <th className="px-2 py-2">TTM 매출 QoQ</th>
+                <th className="px-2 py-2">TTM OPM Δ</th>
+                <th className="px-2 py-2">2년 매출 스택</th>
+                <th className="px-2 py-2">TTM CFO</th>
+                <th className="px-2 py-2">매출채권</th>
+                <th className="px-2 py-2">재고</th>
+                <th className="px-2 py-2">자본</th>
+                <th className="px-2 py-2">자산</th>
+                <th className="px-2 py-2">부채</th>
+                <th className="px-2 py-2">주식수</th>
+                <th className="px-2 py-2">희석 YoY</th>
                 <th className="px-2 py-2 text-right">스코어 Δ</th>
                 <TermTh term="잠정" align="center">구분</TermTh>
+                <th className="px-2 py-2 text-center">출처</th>
               </tr>
             </thead>
             <tbody>
@@ -482,21 +504,45 @@ export default async function StockPage({ params }: { params: { code: string } }
                     {quarterLabel(f.fiscal_year, f.fiscal_quarter)}
                   </td>
                   <td className="py-1.5">{eok(f.revenue)}</td>
+                  <td className="py-1.5">{eok(f.gross_profit)}</td>
                   <td className="py-1.5">{pct(f.revenue_yoy)}</td>
                   <td className="py-1.5">{pct(f.revenue_qoq)}</td>
                   <td className="py-1.5">{eok(f.op)}</td>
                   {/* ★ 부호 전환 구간은 %가 아니라 라벨이다(T25) */}
                   <td className="py-1.5">{growthOrLabel(f.op_yoy, f.op_status_label)}</td>
+                  <td className="py-1.5">{pct(f.op_qoq)}</td>
+                  <td className="py-1.5">{eok(f.np)}</td>
+                  <td className="py-1.5">{eok(f.np_ctrl)}</td>
+                  <td className="py-1.5">{pct(f.np_yoy)}</td>
                   <td className="py-1.5">{pct(f.opm)}</td>
                   <td className="py-1.5">{pct(f.opm_yoy_delta, 1, "%p")}</td>
+                  <td className="py-1.5">{pct(f.opm_qoq_delta, 1, "%p")}</td>
+                  <td className="py-1.5">{pct(f.gpm)}</td>
+                  <td className="py-1.5">{pct(f.npm)}</td>
                   <td className="py-1.5">{num(f.eps)}</td>
                   <td className="py-1.5">{pct(f.eps_yoy)}</td>
                   <td className="py-1.5">{eok(f.fcf)}</td>
+                  <td className="py-1.5">{eok(f.cfo)}</td>
+                  <td className="py-1.5">{eok(f.capex)}</td>
                   <td className="py-1.5">{eok(f.ttm_revenue)}</td>
+                  <td className="py-1.5">{eok(f.ttm_op)}</td>
+                  <td className="py-1.5">{pct(f.ttm_opm)}</td>
+                  <td className="py-1.5">{pct(f.ttm_revenue_qoq)}</td>
+                  <td className="py-1.5">{pct(f.ttm_opm_delta, 1, "%p")}</td>
+                  <td className="py-1.5">{pct(f.rev_2y_stack)}</td>
+                  <td className="py-1.5">{eok(f.ttm_cfo)}</td>
+                  <td className="py-1.5">{eok(f.receivables)}</td>
+                  <td className="py-1.5">{eok(f.inventory)}</td>
+                  <td className="py-1.5">{eok(f.equity)}</td>
+                  <td className="py-1.5">{eok(f.assets)}</td>
+                  <td className="py-1.5">{eok(f.liabilities)}</td>
+                  <td className="py-1.5">{num(f.shares_outstanding)}</td>
+                  <td className="py-1.5">{pct(f.shares_yoy)}</td>
                   <td className="py-1.5">{pct(historicalScreen?.score_delta, 1, "점")}</td>
                   <td className="py-1.5 text-center text-xs text-slate-300">
                     {f.is_estimate ? "잠정" : "확정"}
                   </td>
+                  <td className="py-1.5 text-center text-xs text-slate-300">{f.source ?? DASH}</td>
                 </tr>
                 );
               })}
@@ -518,6 +564,11 @@ export default async function StockPage({ params }: { params: { code: string } }
       >
         <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
           {analysisStage}
+        </p>
+        <p className="mb-3 text-xs leading-relaxed text-slate-300">
+          분석 단계: <strong className="text-amber-200">잠정실적 최초 발표 → 즉시 알림·초기 분석</strong>
+          {" → "}<strong className="text-emerald-200">분기·반기·사업보고서 공시 → 확정실적 분석으로 자동 업그레이드</strong>.
+          현재 배지가 이 종목에 저장된 단계를 나타낸다.
         </p>
         {analysisIsStale && analysisYear && analysisQuarter && (
           <p className="mb-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
@@ -624,7 +675,13 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 7. 밸류에이션 — 최근 4분기 → 향후 4분기 순. 후행 PER은 싣지 않는다. */}
-      <Card title="밸류에이션" note="이익 대비 지금 주가가 몇 배인가">
+      <Card title="가치와 가격 비교" note="실적이 만든 가치와 시장이 붙인 가격을 반드시 함께 본다">
+        <p className="mb-4 rounded border border-amber-700/60 bg-amber-950/25 px-3 py-2 text-sm leading-relaxed text-amber-100">
+          <strong>현재 가격 {price?.close != null ? `${price.close.toLocaleString("ko-KR")}원` : DASH}</strong> ·
+          최근 4분기 이익 기준 {per4q != null ? `${per4q.toFixed(1)}배` : DASH} ·
+          향후 이익 기준 {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}.
+          이익 성장으로 배수가 낮아지는지와 PRI가 낮아 아직 가격이 덜 움직였는지를 함께 비교한다.
+        </p>
         <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
@@ -666,13 +723,17 @@ export default async function StockPage({ params }: { params: { code: string } }
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">③ 3년 PER 밴드</div>
+            <div className="text-xs font-semibold text-slate-200">③ 과거 9분기 평균 PER 대비</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {price?.per_pctile_3y != null ? `${price.per_pctile_3y.toFixed(0)}백분위` : DASH}
+              {price?.per_vs_9q_avg_pct != null
+                ? `${price.per_vs_9q_avg_pct >= 0 ? "+" : ""}${price.per_vs_9q_avg_pct.toFixed(1)}%`
+                : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              이 종목의 최근 3년 PER 안에서 현재 위치. 0에 가까울수록 낮고 100에 가까울수록
-              높다. 값이 없으면 아직 측정하지 않은 것이며 0으로 보지 않는다.
+              현재 TTM PER {price?.per_current_ttm != null ? `${price.per_current_ttm.toFixed(1)}배` : DASH}
+              {" · "}과거 {price?.per_avg_quarters ?? 0}개 분기 평균{" "}
+              {price?.per_avg_9q != null ? `${price.per_avg_9q.toFixed(1)}배` : DASH}. 음수일수록
+              과거 평균보다 싸고, 값이 없으면 아직 측정하지 않은 것이며 0으로 보지 않는다.
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">

@@ -534,45 +534,43 @@ def test_a2_is_none_on_sign_flip():
 # PRI 손계산 1건 + 정규화
 # ═══════════════════════════════════════════════════════════════════
 def test_pri_hand_check():
-    """손계산  PRI (P4 미측정 → 분모 85)
+    """손계산: 5축을 모두 측정한다.
 
-    p1: 상대수익률 +15%p — 0%p에서 20점, +30%p에서 40점
-        20 + (15−0)/(30−0) × (40−20)                = 30.0
-    p2: 52주 위치 (7000−5000)/(10000−5000) = 0.4 × 25 = 10.0
-    p3: PER 백분위 60% → 0.6 × 20                    = 12.0
-    p4: 미측정                                        = None
-    raw_sum = 30 + 10 + 12 = 52 · 분모 = 40+25+20 = 85
-    PRI = 52 / 85 × 100 = 61.1764705...
+    p1: 신고가 대비 -15% → 12.5/25
+    p2: 발표일 대비 +15% → 12.5/25
+    p3: 9개 분기 PER 평균 대비 +25% → 10/20
+    p4: 외국인 순매수 비율 0% → 5/10
+    p5: RSI 45 → 10/20
+    raw_sum 50 / 분모 100 → PRI 50
     """
     r = compute_pri(
         PriInput(
-            rel_return_3m_pp=15.0,
-            close=7000.0, high_52w=10000.0, low_52w=5000.0,
-            per_percentile_3y=60.0,
+            high_52w_drawdown_pct=-15.0,
+            announcement_return_pct=15.0,
+            per_vs_9q_avg_pct=25.0,
+            foreign_net_ratio_5d_pct=0.0,
+            rsi_14=45.0,
         )
     )
-    assert r.parts["p1"] == pytest.approx(30.0)
-    assert r.parts["p2"] == pytest.approx(10.0)
-    assert r.parts["p3"] == pytest.approx(12.0)
-    assert r.parts["p4"] is None
-    assert r.denominator == 85
-    assert r.pri == pytest.approx(61.1764705, abs=1e-6)
+    assert r.parts == pytest.approx({"p1": 12.5, "p2": 12.5, "p3": 10, "p4": 5, "p5": 10})
+    assert r.denominator == 100
+    assert r.pri == pytest.approx(50.0)
 
 
 def test_pri_p1_lower_bound():
-    r = compute_pri(PriInput(rel_return_3m_pp=-20.0))
+    r = compute_pri(PriInput(high_52w_drawdown_pct=-30.0))
     assert r.parts["p1"] == 0.0
 
 
-def test_pri_p1_at_zero_is_mid_score():
-    r = compute_pri(PriInput(rel_return_3m_pp=0.0))
-    assert r.parts["p1"] == pytest.approx(20.0)
+def test_pri_p1_at_high_is_full_score():
+    r = compute_pri(PriInput(high_52w_drawdown_pct=0.0))
+    assert r.parts["p1"] == pytest.approx(25.0)
 
 
-def test_pri_p2_none_when_no_range():
-    """신규 상장 등으로 52주 고저가 같으면 판정 불가."""
-    r = compute_pri(PriInput(close=100.0, high_52w=100.0, low_52w=100.0))
-    assert r.parts["p2"] is None
+def test_pri_p5_uses_45_as_midpoint():
+    assert compute_pri(PriInput(rsi_14=30)).parts["p5"] == 0
+    assert compute_pri(PriInput(rsi_14=45)).parts["p5"] == 10
+    assert compute_pri(PriInput(rsi_14=70)).parts["p5"] == 20
 
 
 def test_pri_is_none_when_nothing_measured():
@@ -581,34 +579,18 @@ def test_pri_is_none_when_nothing_measured():
     assert r.denominator == 0
 
 
-def test_pri_none_when_only_p2_measured():
-    """P2(52주 위치, 25점) 하나만 측정되면 판정하지 않는다.
-
-    분모 25 < PRI_MIN_DENOMINATOR(40) → pri는 None이어야 한다.
-    실측 사고: rel_ret_3m 수집 전, price_snapshots에 p2만 있는 채로 스크리너를
-    돌렸더니 전 종목이 분모 25로 PRI를 받아 52주 저점 부근 종목이 전부 '미반영'(★)으로
-    승격됐다 — 3개월 상대수익률(P1)을 전혀 모르는 채였다.
-    """
-    r = compute_pri(PriInput(close=6000.0, high_52w=10000.0, low_52w=5000.0))
-    assert r.parts["p2"] is not None
+def test_pri_none_when_only_one_25_point_part_is_measured():
+    r = compute_pri(PriInput(high_52w_drawdown_pct=-10.0))
+    assert r.parts["p1"] is not None
     assert r.denominator == 25
     assert r.pri is None
 
 
-def test_pri_measured_when_p1_alone():
-    """P1(3개월 상대수익률) 단독은 40점 = 분모 하한과 같다 → 판정한다."""
-    r = compute_pri(PriInput(rel_return_3m_pp=-20.0))
-    assert r.denominator == 40
-    assert r.pri is not None
-    assert r.pri == pytest.approx(0.0)
-
-
-def test_pri_measured_when_p2_and_p4_combined():
-    """P2+P4 = 25+15 = 40 — P1 없이도 분모 하한을 채우면 판정한다."""
+def test_pri_measured_when_two_25_point_parts_are_combined():
     r = compute_pri(
-        PriInput(close=6000.0, high_52w=10000.0, low_52w=5000.0, reaction_d1_pp=5.0)
+        PriInput(high_52w_drawdown_pct=-30.0, announcement_return_pct=0.0)
     )
-    assert r.denominator == 40
+    assert r.denominator == 50
     assert r.pri is not None
 
 

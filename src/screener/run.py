@@ -33,7 +33,11 @@ FUND_COLUMNS = (
     "ttm_cfo,receivables,inventory,shares_yoy,is_estimate"
 )
 UNI_COLUMNS = "code,name,board,industry,is_excluded,exclude_reason,sector_caveat,listed_at,market_cap_krw"
-PRICE_COLUMNS = "code,snap_date,close,high_52w,low_52w,rel_ret_3m,per,pbr,per_pctile_3y,avg_value_20d"
+PRICE_COLUMNS = (
+    "code,snap_date,close,high_52w,low_52w,high_52w_drawdown_pct,"
+    "announcement_return_pct,per_vs_9q_avg_pct,foreign_net_ratio_5d,rsi_14,"
+    "per,pbr,avg_value_20d"
+)
 CONSENSUS_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,snapshot_at"
 )
@@ -60,7 +64,7 @@ def load() -> tuple[dict, dict, dict, dict]:
     # 컨센서스는 **(종목, 분기)** 단위다. 스코어 C축의 입력이 된다.
     # ★ 분기를 안 맞추면 다른 분기 추정치로 서프라이즈를 계산하게 된다 — 조용히 틀린다.
     consensus: dict[tuple[str, int], dict] = {}
-    for row in select_all("consensus_snapshots", CONSENSUS_COLUMNS):
+    for row in select_all("consensus_snapshots", CONSENSUS_COLUMNS, filters={"source": "naver"}):
         key = (row["code"], _qi(row["fiscal_year"], row["fiscal_quarter"]))
         prev = consensus.get(key)
         if prev is None or (row.get("snapshot_at") or "") > (prev.get("snapshot_at") or ""):
@@ -76,12 +80,11 @@ def build_pri_input(price: dict | None) -> PriInput:
     if not price:
         return PriInput()
     return PriInput(
-        rel_return_3m_pp=_f(price, "rel_ret_3m"),
-        close=_f(price, "close"),
-        high_52w=_f(price, "high_52w"),
-        low_52w=_f(price, "low_52w"),
-        per_percentile_3y=_f(price, "per_pctile_3y"),  # 3년 밴드는 아직 미측정
-        reaction_d1_pp=None,  # P4는 발표 다음 거래일에만 (P11에서 배선)
+        high_52w_drawdown_pct=_f(price, "high_52w_drawdown_pct"),
+        announcement_return_pct=_f(price, "announcement_return_pct"),
+        per_vs_9q_avg_pct=_f(price, "per_vs_9q_avg_pct"),
+        foreign_net_ratio_5d_pct=_f(price, "foreign_net_ratio_5d"),
+        rsi_14=_f(price, "rsi_14"),
     )
 
 

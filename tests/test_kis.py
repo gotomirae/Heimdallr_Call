@@ -13,18 +13,51 @@ from src.collectors.kis_client import KisClient, KisPathNotAllowed, TokenBucket
 from src.collectors.kis_prices import (
     Quote,
     _ratio,
+    high_52w_drawdown_pct,
+    parse_foreign_flow_rows,
     relative_return_pp,
+    return_from_base_pct,
+    rsi_14,
     trailing_return_pct,
     window_relative_return_pp,
     window_return_pct,
 )
 from src.collectors.quarter_prices import quarter_end_closes, quarter_of
-from src.collectors.price_run import build_return_fields
+from src.collectors.price_run import build_return_fields, per_history_stats
 from src.db.supabase_client import (
     missing_column_of,
     upsert_tolerating_missing_columns,
 )
 from src.config.constants import KIS_ALLOWED_PATHS
+
+
+def test_new_pri_market_inputs_are_hand_checkable():
+    assert high_52w_drawdown_pct(80, 100) == pytest.approx(-20)
+    assert return_from_base_pct(120, 100) == pytest.approx(20)
+    rising = {f"202601{day:02d}": float(day) for day in range(1, 17)}
+    assert rsi_14(rising) == 100
+
+
+def test_naver_foreign_table_parser_uses_volume_and_foreign_columns():
+    html = """<table><tr><th>날짜</th><th>종가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>기관</th><th>외국인</th></tr>
+    <tr><td>2026.09.03</td><td>250,000</td><td>0</td><td>0%</td><td>13,723,105</td><td>-839,601</td><td>+91,825</td></tr></table>"""
+    assert parse_foreign_flow_rows(html) == {"20260903": (13_723_105, 91_825)}
+
+
+def test_per_history_uses_ttm_net_income_and_nine_quarter_average():
+    # 분기 순이익 100, 주식수 10 → TTM 순이익 400.
+    # 분기말 시가총액 4,000 → 10배, 현재 5,000 → 12.5배, +25%.
+    net_income = {2024 * 4 + q - 1: 100.0 for q in range(1, 5)}
+    net_income.update({2025 * 4 + q - 1: 100.0 for q in range(1, 5)})
+    net_income.update({2026 * 4: 100.0})
+    closes = {(i // 4, i % 4 + 1): ("20260101", 400.0) for i in net_income}
+    current, average, count, premium = per_history_stats(
+        net_income, closes, 500, 10, 2026, 1
+    )
+    assert current == pytest.approx(12.5)
+    assert average == pytest.approx(10)
+    assert count == 6  # 4개 분기가 완성된 2024.4Q부터
+    assert premium == pytest.approx(25)
 
 
 # ═══════════════════════════════════════════════════════════════════

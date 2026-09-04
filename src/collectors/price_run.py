@@ -18,13 +18,17 @@ from src.collectors.kis_prices import (
     PriceStats,
     fetch_avg_value_20d,
     fetch_daily_closes,
+    fetch_foreign_flow_5d,
     fetch_index_closes,
     fetch_quote,
+    high_52w_drawdown_pct,
+    return_from_base_pct,
+    rsi_14,
     trailing_return_pct,
     window_relative_return_pp,
     window_return_pct,
 )
-from src.collectors.quarter_prices import fetch_daily_closes_naver
+from src.collectors.quarter_prices import fetch_daily_closes_naver, quarter_end_closes
 from src.db.supabase_client import (
     get_client,
     select_all,
@@ -37,6 +41,84 @@ SPOT = {"005930": ("삼성전자", "KOSPI"), "058470": ("리노공업", "KOSDAQ"
         "403870": ("HPSP", "KOSDAQ")}
 INDEX_OF_BOARD = {"KOSPI": "KOSPI", "KOSDAQ": "KOSDAQ"}
 CHUNK_ROWS = 200  # 중간 저장 단위 — 중단돼도 여기까지는 남는다
+
+
+def _qi(year: int, quarter: int) -> int:
+    return year * 4 + quarter - 1
+
+
+def _latest_screen_quarters(rows: list[dict]) -> dict[str, tuple[int, int]]:
+    out: dict[str, tuple[int, int]] = {}
+    for row in rows:
+        value = (int(row["fiscal_year"]), int(row["fiscal_quarter"]))
+        previous = out.get(row["code"])
+        if previous is None or _qi(*value) > _qi(*previous):
+            out[row["code"]] = value
+    return out
+
+
+def _first_announcement_dates(rows: list[dict]) -> dict[tuple[str, int, int], str]:
+    """평가 분기의 최초 실적 공시일."""
+    out: dict[tuple[str, int, int], str] = {}
+    for row in rows:
+        if row.get("fiscal_year") is None or row.get("fiscal_quarter") is None:
+            continue
+        day = str(row.get("disclosed_at") or "")[:10]
+        if len(day) != 10:
+            continue
+        key = (row["code"], int(row["fiscal_year"]), int(row["fiscal_quarter"]))
+        if key not in out or day < out[key]:
+            out[key] = day
+    return out
+
+
+def per_history_stats(
+    net_income_by_quarter: dict[int, float | None],
+    quarter_closes: dict[tuple[int, int], tuple[str, float]],
+    current_close: float | None,
+    current_shares: float | None,
+    end_year: int,
+    end_quarter: int,
+    *,
+    lookback: int = 9,
+) -> tuple[float | None, float | None, int, float | None]:
+    """현재 TTM PER과 과거 최대 9개 분기말 TTM PER 평균/할증률.
+
+    DART 분기 EPS는 실제 적재 10,940행에서 0건이었다(T135). 따라서 화면의
+    밸류에이션과 같은 `시가총액 / TTM 순이익`을 쓴다. 네이버 일봉은 수정주가라
+    현재 발행주식수를 과거 종가에도 일관되게 적용한다.
+    """
+    end = _qi(end_year, end_quarter)
+
+    def ttm_net_income(index: int) -> float | None:
+        values = [net_income_by_quarter.get(i) for i in range(index - 3, index + 1)]
+        if any(v is None for v in values):
+            return None
+        total = sum(float(v) for v in values if v is not None)
+        return total if total > 0 else None
+
+    current_ttm_np = ttm_net_income(end)
+    current_market_cap = (
+        current_close * current_shares if current_close and current_shares else None
+    )
+    current_per = (
+        current_market_cap / current_ttm_np
+        if current_market_cap and current_ttm_np else None
+    )
+    history: list[float] = []
+    for index in range(end - lookback + 1, end + 1):
+        ttm_np = ttm_net_income(index)
+        year, quarter = index // 4, index % 4 + 1
+        close_row = quarter_closes.get((year, quarter))
+        if ttm_np and current_shares and close_row and close_row[1] > 0:
+            history.append(close_row[1] * current_shares / ttm_np)
+    average_per = sum(history) / len(history) if history else None
+    premium = (
+        (current_per / average_per - 1) * 100
+        if current_per is not None and average_per is not None and average_per > 0
+        else None
+    )
+    return current_per, average_per, len(history), premium
 
 
 #: 마이그레이션 미적용으로 걷어낸 컬럼. 마지막에 화면에 밝힌다 —
@@ -153,18 +235,17 @@ def check() -> int:
             )
         )
 
-    print("\n[5] PRI 계산 (P4는 발표 다음날에만 → 분모 85)")
+    print("\n[5] PRI 계산 (현재 수집값으로 측정 가능한 52주 축)")
     for code, (name, _) in SPOT.items():
         quote = quotes.get(code)
         if quote is None:
             continue
         pri = compute_pri(PriInput(
-            rel_return_3m_pp=rel_returns.get(code),
-            close=quote.close, high_52w=quote.high_52w, low_52w=quote.low_52w,
-            per_percentile_3y=None,  # 3년 PER 밴드는 일봉 축적 후 (아래 참고)
+            high_52w_drawdown_pct=high_52w_drawdown_pct(quote.close, quote.high_52w),
         ))
         parts = {k: (round(v, 1) if v is not None else None) for k, v in pri.parts.items()}
-        print(f"    {name:8} PRI {pri.pri:5.1f} (분모 {pri.denominator}) {parts}")
+        print(f"    {name:8} PRI {pri.pri if pri.pri is not None else '보류'} "
+              f"(분모 {pri.denominator}) {parts}")
 
     print("\n[6] 네이버 폴백 (KIS 강제 실패)")
     fallback_stats = PriceStats()
@@ -187,10 +268,22 @@ def save(limit: int | None) -> int:
         targets = targets[:limit]
 
     cutoffs = {f"{months}m": _window(months)[0] for months in (1, 3, 6, 12)}
-    begin, end = cutoffs["12m"], _window(12)[1]
+    begin, end = _window(36)[0], _window(12)[1]
     today = date.today().isoformat()
     client = KisClient()
     stats = PriceStats()
+
+    screen_quarters = _latest_screen_quarters(select_all(
+        "screen_results", "code,fiscal_year,fiscal_quarter"
+    ))
+    announcement_dates = _first_announcement_dates(select_all(
+        "earnings_disclosures", "code,fiscal_year,fiscal_quarter,disclosed_at"
+    ))
+    net_income_by_code: dict[str, dict[int, float | None]] = collections.defaultdict(dict)
+    for fund in select_all("quarterly_fundamentals", "code,fiscal_year,fiscal_quarter,np"):
+        net_income_by_code[fund["code"]][_qi(int(fund["fiscal_year"]), int(fund["fiscal_quarter"]))] = (
+            float(fund["np"]) if fund.get("np") is not None else None
+        )
 
     indexes = {name: fetch_index_closes(name, begin, end) for name in ("KOSPI", "KOSDAQ")}
     db = get_client()
@@ -219,8 +312,8 @@ def save(limit: int | None) -> int:
         if quote is None:
             continue
 
-        # ★ PRI P1(3개월 상대수익률)과 D4(20일 평균 거래대금)는 일봉이 있어야 계산된다.
-        #   P6에서는 3종목만 했다 — PRI를 실제로 붙이려면 전 종목이 필요하다.
+        # ★ PRI P1(52주 고점), P2(발표일), P3(9분기 PER), P5(RSI)와
+        #   D4(20일 평균 거래대금)는 일봉이 있어야 계산된다.
         return_fields = {
             "ret_1m": None, "ret_3m": None, "ret_6m": None, "ret_12m": None,
             "rel_ret_3m": None, "rel_ret_6m": None, "rel_ret_12m": None,
@@ -258,6 +351,40 @@ def save(limit: int | None) -> int:
                     measured[field] += 1
         except Exception:
             pass
+        drawdown = high_52w_drawdown_pct(quote.close, quote.high_52w)
+        rsi = rsi_14(closes)
+        evaluated = screen_quarters.get(row["code"])
+        announcement_date = (
+            announcement_dates.get((row["code"], *evaluated)) if evaluated else None
+        )
+        announcement_close = closes.get(announcement_date.replace("-", "")) if announcement_date else None
+        announcement_return = return_from_base_pct(quote.close, announcement_close)
+        current_per = average_per = premium = None
+        average_quarters = 0
+        if evaluated:
+            current_shares = (
+                quote.market_cap_krw / quote.close
+                if quote.market_cap_krw and quote.close else None
+            )
+            current_per, average_per, average_quarters, premium = per_history_stats(
+                net_income_by_code.get(row["code"], {}), quarter_end_closes(closes),
+                quote.close, current_shares, *evaluated,
+            )
+        foreign_flow = None
+        try:
+            foreign_flow = fetch_foreign_flow_5d(row["code"], announcement_date)
+        except Exception:
+            pass
+        pri = compute_pri(PriInput(
+            high_52w_drawdown_pct=drawdown,
+            announcement_return_pct=announcement_return,
+            per_vs_9q_avg_pct=premium,
+            foreign_net_ratio_5d_pct=foreign_flow.ratio_pct if foreign_flow else None,
+            rsi_14=rsi,
+        ))
+        for key, value in pri.parts.items():
+            if value is not None:
+                measured[f"pri_{key}"] += 1
         try:
             avg_value_20d = fetch_avg_value_20d(client, row["code"], begin, end)
         except Exception:
@@ -268,10 +395,22 @@ def save(limit: int | None) -> int:
             "close": quote.close, "chg_pct": quote.chg_pct,
             "high_52w": quote.high_52w, "low_52w": quote.low_52w,
             "pos_52w": quote.pos_52w,
+            "high_52w_drawdown_pct": drawdown,
             **return_fields,
             "ret_5d": ret_5d,
             "market_cap_krw": quote.market_cap_krw,
             "per": quote.per, "pbr": quote.pbr,
+            "announcement_date": announcement_date,
+            "announcement_close": announcement_close,
+            "announcement_return_pct": announcement_return,
+            "per_current_ttm": current_per,
+            "per_avg_9q": average_per,
+            "per_avg_quarters": average_quarters,
+            "per_vs_9q_avg_pct": premium,
+            "foreign_net_qty_5d": foreign_flow.net_qty if foreign_flow else None,
+            "foreign_volume_5d": foreign_flow.volume if foreign_flow else None,
+            "foreign_net_ratio_5d": foreign_flow.ratio_pct if foreign_flow else None,
+            "rsi_14": rsi,
             # ★ P6에서는 '당일 누적거래대금'을 넣어 과대 추정이었다. 일봉 20일 평균으로 고친다.
             "avg_value_20d": avg_value_20d,
         })
@@ -291,8 +430,9 @@ def save(limit: int | None) -> int:
     elapsed = time.monotonic() - started
     print(f"\n✓ price_snapshots {saved}행 · {elapsed:.0f}초 "
           f"({len(targets) / max(elapsed, 1):.1f}건/초)")
-    print(f"  3개월 상대수익률(PRI P1) 측정 {measured['rel_ret_3m']}종목 "
-          f"— 이게 있어야 PRI 분모가 하한(40)을 넘는다 (T35)")
+    print("  PRI 측정 " + " · ".join(
+        f"{key.upper()} {measured[f'pri_{key}']}" for key in ("p1", "p2", "p3", "p4", "p5")
+    ))
     print(
         "  기간별 수익률 측정 "
         + " · ".join(

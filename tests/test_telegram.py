@@ -7,6 +7,7 @@ import pytest
 
 from src.config.constants import NOTIFY_GRADES
 from src.notify.links import dart_report_url, naver_stock_url, stockeasy_stock_url
+from src.notify.run import beneficiaries_from_triggers
 from src.notify.telegram import (
     ALLOWED_METHODS,
     MAX_MESSAGE_CHARS,
@@ -408,7 +409,7 @@ def test_acceleration_unit_is_percent_not_pp_for_levels():
 def test_pri_shows_only_reflected_and_pending():
     """★ 미측정 항목은 적지 않는다 — 판단에 쓸 정보가 아니다."""
     text = flash_message(_rich_ctx(
-        pri=62, pri_parts_detail={"p1": 24.0, "p2": 20.0, "p3": None, "p4": None}
+        pri=62, pri_parts_detail={"p1": 24.0, "p2": 10.0, "p3": None, "p4": None}
     ))
     assert "✅ 반영:" in text and "⬜ 미반영:" in text
     assert "미측정" not in text
@@ -489,6 +490,28 @@ def test_flash_links_dashboard_naver_and_stockeasy_only():
     )
     assert all(label in text for label in ("대시보드", "네이버증권", "StockEasy"))
     assert "DART" not in text
+
+
+def test_flash_beneficiary_links_open_each_company_directly():
+    text = flash_message(_rich_ctx(beneficiaries=[{
+        "name": "삼성전자",
+        "code": "005930",
+        "naver_url": naver_stock_url("005930", mobile=True),
+        "stockeasy_url": stockeasy_stock_url("005930"),
+    }]))
+    assert "수혜 삼성전자" in text
+    assert "/domestic/stock/005930/total" in text
+    assert "/stock-analysis/stock-info/005930" in text
+
+
+def test_beneficiary_links_only_use_explicit_six_digit_trigger_codes():
+    payload = {"triggers": {"within_3m": [
+        {"event": "수혜: 삼성전자(005930) 공급 확대"},
+        {"event": "수혜 가능성이 있는 동종업체"},
+    ], "within_6m": []}}
+    assert beneficiaries_from_triggers(payload, "058470") == [{
+        "name": "삼성전자", "code": "005930", "reason": "수혜: 삼성전자(005930) 공급 확대"
+    }]
 
 
 def test_flash_states_acceleration_definition():

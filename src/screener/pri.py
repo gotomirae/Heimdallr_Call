@@ -1,11 +1,8 @@
 # PRD Ref: §4.3 (주가반영도 PRI) · ADR 5
-"""주가반영도 지수 PRI (0~100, **낮을수록 미반영**) — 순수 함수. 외부 I/O 금지.
+"""주가반영도 지수 PRI (0~100, **낮을수록 아직 안 올랐음**) — 순수 함수.
 
-★ 스코어에 합산하지 않는다 (ADR 5). 펀더멘털 강도와 주가 반영도는 다른 축이고,
-  한 숫자로 뭉개면 둘 다 못 읽는다. 2축 매트릭스로 병기한다.
-
-스코어와 **같은 정규화 규칙**을 쓴다. P4(발표 반응)는 발표 다음 거래일에만
-계산 가능하므로, 즉시 알림 시점에는 P1~P3(85점 만점)을 정규화한다.
+스코어와 합산하지 않는다(ADR 5). 공개된 원자료가 없는 항목은 0점으로
+추정하지 않고 분모에서 뺀다.
 """
 
 from __future__ import annotations
@@ -13,9 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from src.config.constants import (
-    P1_MID_SCORE,
-    P1_REL_RETURN_ANCHORS_PP,
-    P4_REACTION_MAX_PCT,
+    P1_HIGH_DRAWDOWN_FLOOR_PCT,
+    P2_ANNOUNCEMENT_RETURN_MAX_PCT,
+    P3_PER_PREMIUM_MAX_PCT,
+    P4_FOREIGN_NET_RATIO_ANCHORS_PCT,
+    P5_RSI_ANCHORS,
     PRI_MIN_DENOMINATOR,
     PRI_WEIGHTS,
 )
@@ -23,14 +22,13 @@ from src.config.constants import (
 
 @dataclass(frozen=True)
 class PriInput:
-    """전부 Optional. 시세 수집 실패가 스크리닝 전체를 막으면 안 된다(PRD §5.4)."""
+    """전부 Optional. 시세 수집 실패가 스크리닝 전체를 막으면 안 된다."""
 
-    rel_return_3m_pp: float | None = None  # 소속 지수 대비 3개월 초과수익(%p)
-    close: float | None = None
-    high_52w: float | None = None
-    low_52w: float | None = None
-    per_percentile_3y: float | None = None  # 3년 PER 밴드 내 백분위 (0~100)
-    reaction_d1_pp: float | None = None  # 발표 D+1 지수대비 초과수익(%)
+    high_52w_drawdown_pct: float | None = None
+    announcement_return_pct: float | None = None
+    per_vs_9q_avg_pct: float | None = None
+    foreign_net_ratio_5d_pct: float | None = None
+    rsi_14: float | None = None
 
 
 @dataclass
@@ -41,10 +39,10 @@ class PriResult:
     pri: float | None = None
     measured: tuple[str, ...] = ()
     excluded: tuple[str, ...] = ()
+    inputs: dict[str, float | None] = field(default_factory=dict)
 
     @property
     def detail(self) -> dict:
-        """screen_results.pri_detail에 그대로 넣는다."""
         return {
             "parts": self.parts,
             "raw_sum": self.raw_sum,
@@ -53,103 +51,97 @@ class PriResult:
             "inputs": self.inputs,
         }
 
-    inputs: dict[str, float | None] = field(default_factory=dict)
 
-
-def _p1(rel_return_pp: float | None) -> float | None:
-    """3개월 상대수익률 → 40점.
-
-    −10%p 이하 → 0 · 0%p → 20 · +30%p 이상 → 40. 두 구간을 각각 선형 보간한다.
-    (이미 많이 오른 종목일수록 '반영됐다'고 보아 높은 점수를 준다 — PRI는
-     높을수록 선반영이다.)
-    """
-    if rel_return_pp is None:
+def _p1(drawdown_pct: float | None) -> float | None:
+    """52주 신고가 대비 등락률 → 25점."""
+    if drawdown_pct is None:
         return None
-    low, mid, high = P1_REL_RETURN_ANCHORS_PP
     full = float(PRI_WEIGHTS["p1"])
-    if rel_return_pp <= low:
+    if drawdown_pct <= P1_HIGH_DRAWDOWN_FLOOR_PCT:
         return 0.0
-    if rel_return_pp >= high:
+    if drawdown_pct >= 0:
         return full
-    if rel_return_pp <= mid:
-        return (rel_return_pp - low) / (mid - low) * P1_MID_SCORE
-    return P1_MID_SCORE + (rel_return_pp - mid) / (high - mid) * (full - P1_MID_SCORE)
+    return (
+        (drawdown_pct - P1_HIGH_DRAWDOWN_FLOOR_PCT)
+        / -P1_HIGH_DRAWDOWN_FLOOR_PCT
+        * full
+    )
 
 
-def _p2(close: float | None, high: float | None, low: float | None) -> float | None:
-    """52주 위치 × 25. 고가와 저가가 같으면(신규 상장 등) 판정 불가."""
-    if close is None or high is None or low is None:
+def _p2(return_pct: float | None) -> float | None:
+    """최초 실적 발표일 종가 대비 현재 등락률 → 25점."""
+    if return_pct is None:
         return None
-    if high <= low:
+    if return_pct <= 0:
+        return 0.0
+    return min(return_pct / P2_ANNOUNCEMENT_RETURN_MAX_PCT, 1.0) * PRI_WEIGHTS["p2"]
+
+
+def _p3(premium_pct: float | None) -> float | None:
+    """현재 PER의 과거 9개 분기 평균 대비 할증 → 20점."""
+    if premium_pct is None:
         return None
-    position = (close - low) / (high - low)
-    position = min(max(position, 0.0), 1.0)  # 장중 갱신 지연으로 범위를 벗어날 수 있다
-    return position * PRI_WEIGHTS["p2"]
+    if premium_pct <= 0:
+        return 0.0
+    return min(premium_pct / P3_PER_PREMIUM_MAX_PCT, 1.0) * PRI_WEIGHTS["p3"]
 
 
-def _p3(per_percentile: float | None) -> float | None:
-    """3년 PER 밴드 백분위 × 20. 컨센서스가 없으면 미측정 → 정규화."""
-    if per_percentile is None:
+def _p4(net_ratio_pct: float | None) -> float | None:
+    """발표일부터 5거래일 외국인 순매수 비율 → 10점."""
+    if net_ratio_pct is None:
         return None
-    pct = min(max(per_percentile, 0.0), 100.0)
-    return pct / 100.0 * PRI_WEIGHTS["p3"]
-
-
-def _p4(reaction_pp: float | None) -> float | None:
-    """발표 D+1 초과수익 → 15점. 0% 이하 → 0 · +10% 이상 → 만점."""
-    if reaction_pp is None:
-        return None
+    low, _, high = P4_FOREIGN_NET_RATIO_ANCHORS_PCT
     full = float(PRI_WEIGHTS["p4"])
-    if reaction_pp <= 0:
+    if net_ratio_pct <= low:
         return 0.0
-    if reaction_pp >= P4_REACTION_MAX_PCT:
+    if net_ratio_pct >= high:
         return full
-    return reaction_pp / P4_REACTION_MAX_PCT * full
+    return (net_ratio_pct - low) / (high - low) * full
+
+
+def _p5(rsi: float | None) -> float | None:
+    """RSI(14) → 20점. 30·45·70을 0·10·20점 앵커로 선형 보간한다."""
+    if rsi is None:
+        return None
+    low, mid, high = P5_RSI_ANCHORS
+    full = float(PRI_WEIGHTS["p5"])
+    midpoint = full / 2
+    if rsi <= low:
+        return 0.0
+    if rsi >= high:
+        return full
+    if rsi <= mid:
+        return (rsi - low) / (mid - low) * midpoint
+    return midpoint + (rsi - mid) / (high - mid) * midpoint
 
 
 def compute_pri(data: PriInput) -> PriResult:
     parts = {
-        "p1": _p1(data.rel_return_3m_pp),
-        "p2": _p2(data.close, data.high_52w, data.low_52w),
-        "p3": _p3(data.per_percentile_3y),
-        "p4": _p4(data.reaction_d1_pp),
+        "p1": _p1(data.high_52w_drawdown_pct),
+        "p2": _p2(data.announcement_return_pct),
+        "p3": _p3(data.per_vs_9q_avg_pct),
+        "p4": _p4(data.foreign_net_ratio_5d_pct),
+        "p5": _p5(data.rsi_14),
     }
-
     inputs = {
-        "rel_return_3m_pp": data.rel_return_3m_pp,
-        "close": data.close,
-        "high_52w": data.high_52w,
-        "low_52w": data.low_52w,
-        "per_percentile_3y": data.per_percentile_3y,
-        "reaction_d1_pp": data.reaction_d1_pp,
+        "high_52w_drawdown_pct": data.high_52w_drawdown_pct,
+        "announcement_return_pct": data.announcement_return_pct,
+        "per_vs_9q_avg_pct": data.per_vs_9q_avg_pct,
+        "foreign_net_ratio_5d_pct": data.foreign_net_ratio_5d_pct,
+        "rsi_14": data.rsi_14,
     }
-    measured = [k for k, v in parts.items() if v is not None]
-    excluded = [k for k, v in parts.items() if v is None]
-    raw_sum = sum(v for v in parts.values() if v is not None)
-    denominator = sum(PRI_WEIGHTS[k] for k in measured)
+    measured = [key for key, value in parts.items() if value is not None]
+    excluded = [key for key, value in parts.items() if value is None]
+    raw_sum = sum(value for value in parts.values() if value is not None)
+    denominator = sum(PRI_WEIGHTS[key] for key in measured)
 
-    # SC: PRI 분모가 얇으면 판정하지 않는다 — 0점이 아니라 None이다.
-    # ★ P2(52주 위치, 25점) 하나만 측정돼도 산술적으로는 PRI가 나온다.
-    #   실측: rel_ret_3m 수집 전 전 종목이 분모 25로 PRI를 받아 ★27 · ○88이 배정됐다.
-    #   "3개월간 시장 대비 얼마나 안 올랐나"(P1, 40점)를 모르는 채로 '미반영'을 선언하는 셈이라,
-    #   52주 저점 부근이기만 하면 이미 시장을 크게 이긴 종목도 ★가 된다.
-    #   스코어 축과 달리 PRI는 항목 하나가 지배적이라 축 단위 정규화만으로는 못 막는다.
-    if denominator < PRI_MIN_DENOMINATOR:
-        return PriResult(
-            parts=parts,
-            raw_sum=raw_sum,
-            denominator=denominator,
-            pri=None,
-            measured=tuple(measured),
-            excluded=tuple(excluded),
-            inputs=inputs,
-        )
-
+    # SC: 항목 하나만으로 '미반영'을 선언하지 않는다(T35).
+    pri = raw_sum / denominator * 100 if denominator >= PRI_MIN_DENOMINATOR else None
     return PriResult(
         parts=parts,
         raw_sum=raw_sum,
         denominator=denominator,
-        pri=(raw_sum / denominator * 100) if denominator else None,
+        pri=pri,
         measured=tuple(measured),
         excluded=tuple(excluded),
         inputs=inputs,

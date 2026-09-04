@@ -23,12 +23,12 @@ import { DASH } from "@/lib/format";
 
 const REVENUE_YOY = "매출 YoY";
 const OP_YOY = "영업이익 YoY";
-const CLOSE = "주가";
+const OPM = "OPM";
 
 // ★ 색은 `lib/chart.ts`가 단일 출처다. **여기서 export하면 안 된다** —
 //   이 파일은 "use client"라, 서버 컴포넌트(상세 페이지 설명 글)가 여기서
 //   비컴포넌트 export를 가져오면 빌드·tsc를 통과하고 **런타임에 500**이 난다(T41).
-const { OP_COLOR, OP_LABEL, REVENUE_COLOR, REVENUE_LABEL, PRICE_COLOR } = SERIES_COLOR;
+const { OP_COLOR, OP_LABEL, OPM_COLOR, REVENUE_COLOR, REVENUE_LABEL } = SERIES_COLOR;
 
 function fmt(value: unknown, unit: string): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return DASH;
@@ -66,8 +66,6 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
     );
   }
 
-  const hasPrice = points.some((p) => p.close != null);
-
   return (
     <div className="h-96 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -100,9 +98,9 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
             axisLine={false}
             tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
           />
-          {/* 주가는 세 번째 축이다. 축을 숨기고 라인만 얹는다 —
-              축을 셋 다 그리면 눈이 어디를 봐야 할지 잃는다. */}
-          {hasPrice && <YAxis yAxisId="price" orientation="right" hide domain={["auto", "auto"]} />}
+          {/* OPM은 성장률과 단위는 같아도 범위가 전혀 다르다. 영업이익 YoY가
+              수백~수천%인 턴어라운드에서 같은 축을 쓰면 OPM이 평평하게 눌린다. */}
+          <YAxis yAxisId="opm" hide domain={["auto", "auto"]} />
           <Tooltip
             contentStyle={{
               backgroundColor: "#0f172a",
@@ -111,8 +109,7 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
               fontSize: 12,
             }}
             formatter={(value, name) => {
-              if (name === REVENUE_YOY || name === OP_YOY) return [fmt(value, "%"), name];
-              if (name === CLOSE) return [fmt(value, "원"), name];
+              if (name === REVENUE_YOY || name === OP_YOY || name === OPM) return [fmt(value, "%"), name];
               return [fmt(value, "억"), name];
             }}
           />
@@ -138,23 +135,18 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
             isAnimationActive={false}
             connectNulls={false}
           />
-          {/* 주가 — **빨간 점선**. 현재 주가까지 이어 그린다.
-              ★ 오른쪽 축(price)은 숨겨 두었다. 억원·%·원 축을 셋 다 그리면
-                눈이 어디를 봐야 할지 잃는다. */}
-          {hasPrice && (
-            <Line
-              yAxisId="price"
-              type="monotone"
-              dataKey="close"
-              name={CLOSE}
-              stroke={PRICE_COLOR}
-              strokeWidth={2}
-              strokeDasharray="4 3"
-              dot={{ r: 2.5, fill: PRICE_COLOR, strokeWidth: 0 }}
-              isAnimationActive={false}
-              connectNulls={false}
-            />
-          )}
+          <Line
+            yAxisId="opm"
+            type="monotone"
+            dataKey="opm"
+            name={OPM}
+            stroke={OPM_COLOR}
+            strokeWidth={2}
+            strokeDasharray="5 3"
+            dot={{ r: 3, fill: OPM_COLOR, strokeWidth: 0 }}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
 
           {/* 매출 성장률 — **녹색 실선** */}
           <Line

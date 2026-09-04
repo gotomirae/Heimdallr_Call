@@ -21,7 +21,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # 시세 1,112종목 × 2콜 ≈ 33분 (실측 1,988초)
+    timeout-minutes: 90 # 시세 1,112종목 + 발표 후 외국인 5거래일 수급 페이지
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -64,10 +64,10 @@ jobs:
         continue-on-error: true
         run: python -m src.universe.sector_map --save
 
-      # 상세화면 9분기 차트의 주가 라인.
+      # 주간 종가 차트와 LLM 가치-가격 시차 분석용 분기말 가격.
       # ★ 스크리닝 **뒤에** 돌린다 — 게이트 통과 종목만 채우므로 등급이 갱신된
       #   다음이어야 이번에 새로 올라온 종목이 포함된다.
-      # ★ 실패해도 잡을 세우지 않는다. 주가 라인이 빠질 뿐 실적 라인은 그대로다.
-      - name: 분기말 주가 (차트용)
+      # ★ 실패해도 잡을 세우지 않는다. 가격 이력만 빠지고 실적은 그대로다.
+      - name: 분기말·주간 주가
         continue-on-error: true
         run: python -m src.collectors.quarter_prices --save

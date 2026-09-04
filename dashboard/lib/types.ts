@@ -40,20 +40,40 @@ export interface FundamentalRow {
   fiscal_year: number;
   fiscal_quarter: number;
   revenue: number | null;
+  gross_profit: number | null;
   op: number | null;
   np: number | null;
+  np_ctrl: number | null;
   revenue_yoy: number | null;
   op_yoy: number | null;
+  op_qoq: number | null;
+  np_yoy: number | null;
   op_status_label: string | null;
   opm: number | null;
   opm_yoy_delta: number | null;
+  opm_qoq_delta: number | null;
+  gpm: number | null;
+  npm: number | null;
   revenue_qoq: number | null;
   eps: number | null;
   eps_yoy: number | null;
   fcf: number | null;
   ttm_revenue: number | null;
+  ttm_op: number | null;
   ttm_opm: number | null;
+  ttm_cfo: number | null;
+  ttm_revenue_qoq: number | null;
   ttm_opm_delta: number | null;
+  rev_2y_stack: number | null;
+  cfo: number | null;
+  capex: number | null;
+  receivables: number | null;
+  inventory: number | null;
+  equity: number | null;
+  assets: number | null;
+  liabilities: number | null;
+  shares_outstanding: number | null;
+  shares_yoy: number | null;
   is_estimate: boolean | null;
   source: string | null;
 }
@@ -105,6 +125,7 @@ export interface PriceRow {
   high_52w: number | null;
   low_52w: number | null;
   pos_52w: number | null;
+  high_52w_drawdown_pct: number | null;
   ret_3m: number | null;
   ret_6m: number | null;
   ret_12m: number | null;
@@ -117,10 +138,21 @@ export interface PriceRow {
   per: number | null;
   pbr: number | null;
   per_pctile_3y: number | null;
+  announcement_date: string | null;
+  announcement_close: number | null;
+  announcement_return_pct: number | null;
+  per_current_ttm: number | null;
+  per_avg_9q: number | null;
+  per_avg_quarters: number | null;
+  per_vs_9q_avg_pct: number | null;
+  foreign_net_qty_5d: number | null;
+  foreign_volume_5d: number | null;
+  foreign_net_ratio_5d: number | null;
+  rsi_14: number | null;
   avg_value_20d: number | null;
 }
 
-/** 분기말 종가 — 9분기 차트에 주가를 겹쳐 그린다. **달력 분기** 기준이다. */
+/** 분기말 종가 — LLM 주가 깤적·가치/가격 비교용. **달력 분기** 기준이다. */
 export interface QuarterPriceRow {
   code: string;
   fiscal_year: number;
@@ -203,8 +235,9 @@ export const AXIS_MISSING_REASON: Record<string, string> = {
 };
 
 export const PRI_PARTS = [
-  { key: "p1", label: "3개월 상대수익률", max: 40 },
-  { key: "p2", label: "52주 위치", max: 25 },
-  { key: "p3", label: "3년 PER 밴드", max: 20 },
-  { key: "p4", label: "발표 D+1 반응", max: 15 },
+  { key: "p1", label: "52주 신고가 대비", max: 25 },
+  { key: "p2", label: "발표일 대비 등락", max: 25 },
+  { key: "p3", label: "9분기 평균 PER 대비", max: 20 },
+  { key: "p4", label: "발표 후 외국인 5일", max: 10 },
+  { key: "p5", label: "RSI 45 기준", max: 20 },
 ] as const;

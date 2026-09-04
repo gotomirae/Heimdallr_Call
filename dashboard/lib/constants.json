@@ -601,11 +601,12 @@
     "final_no_consensus": 85
   },
   "pri": {
-    "p1": 40,
+    "p1": 25,
     "p2": 25,
     "p3": 20,
-    "p4": 15,
-    "min_denominator": 40
+    "p4": 10,
+    "p5": 20,
+    "min_denominator": 45
   },
   "matrix": {
     "score_high": 75,

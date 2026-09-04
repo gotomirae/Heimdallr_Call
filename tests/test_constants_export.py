@@ -56,11 +56,11 @@ def test_denominators_match_axis_sums():
 
 def test_pri_weights_sum_to_100():
     payload = build()["pri"]
-    assert payload["p1"] + payload["p2"] + payload["p3"] + payload["p4"] == 100
+    assert sum(payload[f"p{i}"] for i in range(1, 6)) == 100
 
 
 def test_pri_min_denominator_blocks_thin_evidence():
-    """★ P2(52주 위치, 25점) 하나로는 판정하지 못해야 한다(T35)."""
+    """★ 25점짜리 항목 하나로는 판정하지 못해야 한다(T35)."""
     assert build()["pri"]["min_denominator"] > constants.PRI_WEIGHTS["p2"]
 
 

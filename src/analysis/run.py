@@ -186,7 +186,7 @@ def build_input(
         c for c in select_all(
             "consensus_snapshots",
             "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates,source,snapshot_at",
-            filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
+            filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter, "source": "naver"},
             read_budget=read_budget,
         )
         if (c.get("n_estimates") or 0) >= 2
@@ -196,7 +196,9 @@ def build_input(
     price_rows = [p for p in select_all(
         "price_snapshots",
         "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,per,pbr,"
-        "market_cap_krw,rel_ret_3m,per_pctile_3y",
+        "market_cap_krw,high_52w_drawdown_pct,announcement_date,announcement_close,"
+        "announcement_return_pct,per_current_ttm,per_avg_9q,per_avg_quarters,"
+        "per_vs_9q_avg_pct,foreign_net_ratio_5d,rsi_14",
         filters={"code": code},
         read_budget=read_budget,
     )]
@@ -212,7 +214,7 @@ def build_input(
         c for c in select_all(
             "consensus_snapshots",
             "code,fiscal_year,fiscal_quarter,np_est,per,fwd_per,source,snapshot_at",
-            filters={"code": code, "fiscal_quarter": 0},
+            filters={"code": code, "fiscal_quarter": 0, "source": "naver"},
             read_budget=read_budget,
         )
         if c["fiscal_year"] >= year

@@ -254,12 +254,13 @@ score_norm = raw_sum / (100 - sum(미측정축_배점)) * 100
 
 | ID | 항목 | 배점 | 산식 |
 |---|---|---|---|
-| P1 | 발표 전 3개월 상대수익률 | 40 | vs 소속 지수(KOSPI/KOSDAQ) 초과수익 · −10%p 이하→0 · 0%p→20 · +30%p 이상→40 |
-| P2 | 52주 위치 | 25 | `(close − low52)/(high52 − low52)` × 25 |
-| P3 | Fwd PER 밴드 위치 | 20 | 3년 PER 밴드 내 백분위 × 20 (컨센서스 없으면 **미측정 → 정규화**) |
-| P4 | 발표 반응 | 15 | D+1 지수대비 초과수익 · 0% 이하→0 · +10% 이상→15 |
+| P1 | 52주 신고가 대비 등락 | 25 | −30% 이하→0 · 신고가(0%)→25, 선형 보간 |
+| P2 | 최초 실적 발표일 종가 대비 등락 | 25 | 0% 이하→0 · +30% 이상→25, 선형 보간 |
+| P3 | 과거 9개 분기 PER 평균 대비 | 20 | 현재 TTM PER 할증 0% 이하→0 · +50% 이상→20. 분기말 종가÷해당 시점 TTM EPS |
+| P4 | 발표일부터 5거래일 외국인 수급 | 10 | 외국인 순매수량÷거래량 · −5%→0 · 0%→5 · +5%→10 |
+| P5 | RSI(14) | 20 | RSI 30→0 · **45→10** · 70→20, 구간별 선형 보간 |
 
-> P4는 발표 다음 거래일에만 계산 가능하다. 즉시 알림(⚡) 시점에는 P1~P3(85점 만점 정규화)만 쓰고, 다음날 갱신한다.
+> **낮을수록 아직 안 올랐음.** 공개 원자료가 없는 항목은 0점으로 만들지 않고 분모에서 제외한다. 측정 가능 배점이 45점 미만이면 PRI 자체를 판정하지 않는다.
 
 ### 4.4 2축 매트릭스 — 최종 분류 (알림·판단의 결론)
 
@@ -302,7 +303,7 @@ score_norm = raw_sum / (100 - sum(미측정축_배점)) * 100
 | L2 확정 재무 | DART `fnlttMultiAcnt.json` (**최대 100 corp_code/콜**) | 분기 배치 | ✗ | $0 |
 | L2' 잠정 재무 | 잠정실적 공정공시 표 → 규칙 파서, 실패 시 Haiku | 이벤트 시 | 폴백만 | ~$0.012/건 |
 | **L2″ 정밀 재무** | DART `fnlttSinglAcntAll.json` (CF 포함) + `stockTotqySttus.json` | **게이트 통과 종목만** | ✗ | $0 |
-| L3 컨센서스 | FnGuide/네이버 **사전 스냅샷** | 주 1회(시즌 전~중) | ✗ | $0 |
+| L3 컨센서스 | **네이버 증권 기업실적분석 사전 스냅샷** | 주 1회(시즌 전~중) | ✗ | $0 |
 | L4 시세 | **한국투자증권 KIS Open API** (1차) / 네이버 시세 API (폴백) + 지수 | 1일 1회 | ✗ | $0 |
 | L5 스크리닝 | 순수 함수 (게이트·스코어·PRI·매트릭스) | 이벤트 시 | ✗ | **$0** |
 | L6 해석 | Provider Adapter(OpenAI Responses / Anthropic), **구조화 입력만** | ★○ 종목만 | ✓ | Provider·모델별 실측 |
@@ -456,10 +457,15 @@ CREATE TABLE price_snapshots (
   close NUMERIC, chg_pct NUMERIC,
   high_52w NUMERIC, low_52w NUMERIC, pos_52w NUMERIC,
   ret_1m NUMERIC, ret_3m NUMERIC, ret_6m NUMERIC, ret_12m NUMERIC,
-  rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익 ★ PRI P1
+  rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익(표시용)
   rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
-  per_pctile_3y NUMERIC,                    -- 3년 PER 밴드 백분위 ★ PRI P3
+  per_pctile_3y NUMERIC,                    -- 구버전 표시 호환
+  high_52w_drawdown_pct NUMERIC,
+  announcement_date DATE, announcement_close NUMERIC, announcement_return_pct NUMERIC,
+  per_current_ttm NUMERIC, per_avg_9q NUMERIC, per_avg_quarters INT, per_vs_9q_avg_pct NUMERIC,
+  foreign_net_qty_5d BIGINT, foreign_volume_5d BIGINT, foreign_net_ratio_5d NUMERIC,
+  rsi_14 NUMERIC,
   avg_value_20d NUMERIC,
   PRIMARY KEY (code, snap_date)
 );
@@ -580,7 +586,7 @@ CREATE TABLE cost_log (
   4) 컨센서스    매출/영업이익/EPS 추정치와 서프라이즈 % (없으면 "커버리지 없음" 명시)
                  시점 이력 중 `snapshot_at` 최신 행만 사용한다. PostgREST 첫 행은 순서 계약이
                  아니므로 replay 입력으로 쓰지 않는다.
-  5) 주가        현재가·52주 위치·3/6/12M 수익률·지수 대비 초과수익·PER·PBR·PRI 분해
+  5) 주가        현재가·52주 신고가 대비·발표일 대비·9분기 PER 평균 대비·외국인 5일·RSI·PRI 분해
                  + 네이버 기업실적분석의 최근 확정 PER·가장 가까운 연간 (E) PER
                  + **분기말 종가 추이**(등락률을 우리가 계산해 준다 — 모델에게
                  산수를 시키면 틀린 값이 본문에 인용된다 · T101)
@@ -875,7 +881,7 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 
 1. **헤더** — 종목명·코드·업종·시총 / 현재가·등락 / 52주 위치 게이지 / 3·6·12M 수익률 (지수 대비 병기)
 2. **판정 카드** — 등급(★○△·) / 스코어 A·B·C·D 스택 바 / **PRI 분해 바** / 분기 내 백분위 / 경고 배지(기저효과·업종주의·컨센없음)
-3. **분기 실적 추이 (8분기) + 실제 주간 종가** — 이중축 실적 차트 아래에 ISO 주의 마지막 실제 거래일 종가를 별도 표시
+3. **분기 실적 추이 (9분기) + 실제 주간 종가** — 실적 차트에는 매출·영업이익·YoY·TTM·OPM을 표시하고 주가선은 제거한다. 아래 주간 종가는 위 차트의 시작 분기부터 현재까지 같은 기간만 표시
    - 막대: 매출·영업이익 / **선: 매출 YoY 성장률 (이 화면의 주인공 — 가속이 눈으로 보여야 한다)** / 점선: TTM 매출
 4. **분기 히스토리 표** — 매출/YoY/QoQ · 영업이익/YoY · OPM/YoY%p · EPS/YoY · FCF · TTM · 잠정/확정 표시 · `score_delta`
 5. **컨센서스 대비** — 서프라이즈 % + 추정기관 수 (없으면 "커버리지 없음" 명시)
@@ -1116,7 +1122,7 @@ D4_LIQUIDITY_TIERS_KRW    = (500_000_000, 1_000_000_000)
 MIN_ESTIMATES             = 2       # 추정기관 1개는 컨센서스가 아니다
 
 # PRI
-PRI_WEIGHTS = {"p1": 40, "p2": 25, "p3": 20, "p4": 15}
+PRI_WEIGHTS = {"p1": 25, "p2": 25, "p3": 20, "p4": 10, "p5": 20}
 
 # 매트릭스 임계
 SCORE_HIGH                = 75

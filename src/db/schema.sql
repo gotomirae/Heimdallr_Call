@@ -118,16 +118,21 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   code TEXT NOT NULL, snap_date DATE NOT NULL,
   close NUMERIC, chg_pct NUMERIC,
   high_52w NUMERIC, low_52w NUMERIC, pos_52w NUMERIC,
+  high_52w_drawdown_pct NUMERIC,
   ret_1m NUMERIC, ret_3m NUMERIC, ret_6m NUMERIC, ret_12m NUMERIC,
   rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익 ★ PRI P1
   rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
-  per_pctile_3y NUMERIC,                    -- 3년 PER 밴드 백분위 ★ PRI P3
+  per_pctile_3y NUMERIC,                    -- legacy 3년 PER 밴드(신규 PRI에서 미사용)
+  announcement_date DATE, announcement_close NUMERIC, announcement_return_pct NUMERIC,
+  per_current_ttm NUMERIC, per_avg_9q NUMERIC, per_avg_quarters INT, per_vs_9q_avg_pct NUMERIC,
+  foreign_net_qty_5d BIGINT, foreign_volume_5d BIGINT, foreign_net_ratio_5d NUMERIC,
+  rsi_14 NUMERIC,
   avg_value_20d NUMERIC,
   PRIMARY KEY (code, snap_date)
 );
 
--- 분기말 종가 — 상세화면의 9분기 차트에 주가를 겹쳐 그리는 데 쓴다.
+-- 분기말 종가 — LLM의 가치-가격 시차 분석에 쓴다.
 -- ★ price_snapshots는 '오늘의 스냅샷'이라 과거를 알 수 없다(실측 2일치뿐).
 --   분기별 주가는 별도로 채워야 한다 — 네이버 일봉 1콜로 2.5년치가 온다.
 CREATE TABLE IF NOT EXISTS quarter_prices (
@@ -337,6 +342,18 @@ ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS ret_5d NUMERIC;
 -- 2026-08-30 — 상세화면 3·6·12M 수익률의 지수대비 병기
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_6m NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rel_ret_12m NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS high_52w_drawdown_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_date DATE;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_close NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_return_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_current_ttm NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_9q NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_quarters INT;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_vs_9q_avg_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_net_qty_5d BIGINT;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_volume_5d BIGINT;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_net_ratio_5d NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS rsi_14 NUMERIC;
 
 -- 2026-08-17 (2) — 투자 섹터 분류 (`src/universe/sector_map.py`)
 --   KRX 업종명은 투자에 쓰는 말이 아니다('특수 목적용 기계 제조업' 93종목).

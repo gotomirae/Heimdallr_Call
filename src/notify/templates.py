@@ -38,10 +38,11 @@ AXIS_MISSING_REASON = {
 
 #: PRI 항목 — `src/screener/pri.py`의 PRI_WEIGHTS와 같아야 한다.
 PRI_ITEMS = (
-    ("p1", "3개월수익", 40),
-    ("p2", "52주위치", 25),
-    ("p3", "PER밴드", 20),
-    ("p4", "발표반응", 15),
+    ("p1", "52주고점", 25),
+    ("p2", "발표일대비", 25),
+    ("p3", "9Q PER", 20),
+    ("p4", "외국인5일", 10),
+    ("p5", "RSI45", 20),
 )
 
 KIND_FLASH = "flash"
@@ -241,7 +242,14 @@ def link_block(ctx: dict) -> list[str]:
         parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
     if ctx.get("stockeasy_url"):
         parts.append(f'<a href="{ctx["stockeasy_url"]}">StockEasy</a>')
-    return ["", "🔗 " + " · ".join(parts)] if parts else []
+    out = ["", "🔗 " + " · ".join(parts)] if parts else []
+    for item in ctx.get("beneficiaries") or []:
+        name = esc(item.get("name") or item.get("code"))
+        out.append(
+            f'↳ 수혜 {name}: <a href="{item["naver_url"]}">네이버증권</a> · '
+            f'<a href="{item["stockeasy_url"]}">StockEasy</a>'
+        )
+    return out
 
 
 def profile_block(ctx: dict) -> list[str]:

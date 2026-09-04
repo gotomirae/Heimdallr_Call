@@ -10,6 +10,7 @@ TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
 STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8")
 DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
+QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -33,7 +34,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "EPS YoY",
         "FCF",
         "스코어 Δ",
-        "3년 PER 밴드",
+        "과거 9분기 평균 PER 대비",
         "참고 PEG",
         "섹터 비교",
         "종목별 결과 추적",
@@ -66,3 +67,19 @@ def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
     assert "getScreensForQuarter" in QUERIES
     assert "selectAll<ScreenRow>" in QUERIES
     assert "trailing4qPer" in STOCK
+
+
+def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
+    assert 'dataKey="opm"' in QUARTER_CHART
+    assert 'dataKey="close"' not in QUARTER_CHART
+    assert "fromDate={weeklyFromDate}" in STOCK
+
+
+def test_pri_five_inputs_and_full_history_are_visible():
+    for field in (
+        "high_52w_drawdown_pct", "announcement_return_pct", "per_vs_9q_avg_pct",
+        "foreign_net_ratio_5d", "rsi_14",
+    ):
+        assert field in QUERIES and field in TYPES
+    for label in ("매출총이익", "지배순익", "TTM 영업익", "매출채권", "주식수", "출처"):
+        assert label in STOCK

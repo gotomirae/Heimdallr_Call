@@ -124,7 +124,7 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
 /**
  * PRI 분해.
  *
- * ★ PRI는 P1(40점)이 지배적이라 분모가 얇으면 판정 자체를 하지 않는다(T35).
+ * ★ PRI는 5개 독립 축이며 분모가 얇으면 판정 자체를 하지 않는다(T35).
  *   `pri`가 null인데 측정 항목이 있으면 **왜 보류했는지** 밝힌다 —
  *   숨기면 "반영도 0"과 구분되지 않는다.
  */
@@ -158,7 +158,7 @@ export function PriBreakdown({
       {pri == null && denominator > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-xs text-amber-300">
           분모 {denominator}점으로 부족해 판정을 보류했다. 0점이 아니다 —
-          3개월 상대수익률(40점)이 없으면 &lsquo;미반영&rsquo;을 선언할 수 없다.
+          공개 원자료가 충분하지 않아 &lsquo;미반영&rsquo;을 선언할 수 없다.
         </p>
       )}
 
@@ -184,10 +184,11 @@ export function PriBreakdown({
         })}
       </div>
       <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
-        <div>P1 3개월 지수대비 {num(inputs.rel_return_3m_pp, 1)}%p → {num(parts.p1, 1)}/40 (−10%p=0 · 0=20 · +30%p=40)</div>
-        <div>P2 52주 위치: 종가 {num(inputs.close)}원 · 저가 {num(inputs.low_52w)}원 · 고가 {num(inputs.high_52w)}원 → {num(parts.p2, 1)}/25</div>
-        <div>P3 3년 PER 밴드 {num(inputs.per_percentile_3y, 1)}백분위 → {num(parts.p3, 1)}/20</div>
-        <div>P4 발표 D+1 지수대비 {num(inputs.reaction_d1_pp, 1)}%p → {num(parts.p4, 1)}/15 (0%p=0 · +10%p=15)</div>
+        <div>P1 52주 신고가 대비 {num(inputs.high_52w_drawdown_pct, 1)}% → {num(parts.p1, 1)}/25</div>
+        <div>P2 최초 발표일 종가 대비 {num(inputs.announcement_return_pct, 1)}% → {num(parts.p2, 1)}/25</div>
+        <div>P3 현재 TTM PER의 과거 9분기 평균 대비 {num(inputs.per_vs_9q_avg_pct, 1)}% → {num(parts.p3, 1)}/20</div>
+        <div>P4 발표일부터 5거래일 외국인 순매수/거래량 {num(inputs.foreign_net_ratio_5d_pct, 2)}% → {num(parts.p4, 1)}/10</div>
+        <div>P5 RSI(14) {num(inputs.rsi_14, 1)} (45가 중립) → {num(parts.p5, 1)}/20</div>
         <div className="mt-1 text-slate-100">최종 PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
       </div>
     </div>

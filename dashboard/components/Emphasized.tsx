@@ -59,25 +59,24 @@ export default function Emphasized({
  * LLM이 쓴 **자유 서술**에서 눈에 걸려야 할 것들을 강조한다.
  *
  * ★★ 모델은 `**`를 쓰라고 시켜도 잘 안 쓴다. 그렇다고 아무 단어나 굵게 하면
- *   문단 전체가 굵어져 강조가 죽는다. 그래서 **숫자와 방향어만** 집는다 —
- *   금액·비율·배수·%p와 '증가/감소·확대/축소' 같은 판단이 갈리는 낱말.
+ *   문단 전체가 굵어져 강조가 죽는다. 숫자·방향어와 함께 원인·전망·가치·가격을
+ *   직접 판단하는 핵심 문장을 집는다.
  * ★ 문장 구조를 바꾸지 않는다. 원문은 그대로 두고 표시만 입힌다.
  */
 export function Highlighted({ text }: { text: string }) {
   // 숫자 + 단위(%p·%·배·억·조·원·%p) 또는 방향을 가르는 낱말.
   const pattern =
-    /([+-]?[\d,]+(?:\.\d+)?\s*(?:%p|%|배|억원|억|조원|조|원|개\s*분기|분기))|(급증|급감|급락|급등|확대|축소|개선|악화|둔화|가속|흑자전환|흑전|적자전환|적전|사상 최대|최고치|최저치)/g;
+    /([+-]?[\d,]+(?:\.\d+)?\s*(?:%p|%|배|억원|억|조원|조|원|개\s*분기|분기))|([^.!?。\n]*(?:핵심|원인|전망|지속|구조적|일시적|저평가|고평가|매력적|부담|아직 반영|이미 반영|가치|가격)[^.!?。\n]*(?:[.!?。]|$))|(급증|급감|급락|급등|확대|축소|개선|악화|둔화|가속|흑자전환|흑전|적자전환|적전|사상 최대|최고치|최저치)/g;
 
   const out: React.ReactNode[] = [];
   let cursor = 0;
   let m: RegExpExecArray | null;
   while ((m = pattern.exec(text)) !== null) {
     if (m.index > cursor) out.push(text.slice(cursor, m.index));
-    const isNumber = Boolean(m[1]);
     out.push(
       <strong
         key={`${m.index}`}
-        className={isNumber ? "font-semibold text-white" : "font-semibold text-amber-200"}
+        className="rounded bg-amber-300/15 px-0.5 font-semibold text-amber-200"
       >
         {m[0]}
       </strong>
