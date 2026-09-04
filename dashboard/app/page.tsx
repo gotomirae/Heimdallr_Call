@@ -91,6 +91,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       quarter: quarterLabel(s.fiscal_year, s.fiscal_quarter),
       quarterIndex: qIndex(s.fiscal_year, s.fiscal_quarter),
       gatePassed: s.gate_passed,
+      turnaround: s.turnaround,
       grade: s.grade as Grade | null,
       score: s.score_final ?? s.score_flash,
       pri: s.pri,
@@ -108,6 +109,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
   });
 
   const passed = rows.filter((r) => r.gatePassed === true);
+  const turnarounds = rows.filter((r) => r.turnaround === true && r.gatePassed !== true);
   const counts = new Map<Grade, number>();
   for (const r of passed) {
     if (r.grade) counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
@@ -127,6 +129,8 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             <>
               게이트 통과{" "}
               <strong className="text-white">{passed.length.toLocaleString("ko-KR")}종목</strong>
+              {" + 턴어라운드 "}
+              <strong className="text-emerald-300">{turnarounds.length.toLocaleString("ko-KR")}종목</strong>
               {" / 전체 "}{rows.length.toLocaleString("ko-KR")}
               {" · 발송 대상(★/○) "}
               <strong className="text-amber-300">{notifyCount}</strong>
@@ -237,7 +241,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
               </td>
             </tr>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-white">반영도</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">주가 반영도</td>
               <td className="text-slate-100">
                 주가가 아는 정도 ·{" "}
                 <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>
@@ -245,10 +249,10 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-amber-300">★</td>
-              <td className="text-slate-100">스코어 높음 + 반영도 낮음 = 찾던 구간</td>
+              <td className="text-slate-100">스코어 높음 + 주가 반영도 낮음 = 찾던 구간</td>
             </tr>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">전·당일·후</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표</td>
               <td className="text-slate-100">
                 발표일 기준 지수 대비 초과수익 (영업일) ·{" "}
                 <Link href="/outcome" className="text-sky-300 underline">시기별 전략</Link>

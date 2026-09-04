@@ -31,10 +31,15 @@ export type SortKey =
   | "opYoy"
   | "opmYoyDelta"
   | "pri"
+  | "marketCap"
   | "ret5d"
   | `d${number}`;
 
 export type SortDir = "asc" | "desc";
+export interface SortRule {
+  key: Exclude<SortKey, "default">;
+  dir: SortDir;
+}
 
 /** 발굴 목록의 화면 상태 전부. 여기 없는 값은 저장되지도 복원되지도 않는다. */
 export interface DiscoveryFilters {
@@ -47,9 +52,8 @@ export interface DiscoveryFilters {
   cap: CapFilter;
   consensus: ConsensusFilter;
   quarter: string;
-  /** 머리글 클릭 정렬. `"default"`면 고정 정렬(최신 분기 → 스코어 → 영업익 → 시총). */
-  sort: SortKey;
-  sortDir: SortDir;
+  /** 머리글을 누른 순서대로 적용하는 다중 정렬. 빈 배열이면 원본(기본) 순서다. */
+  sorts: SortRule[];
 }
 
 export const DEFAULT_FILTERS: DiscoveryFilters = {
@@ -60,21 +64,24 @@ export const DEFAULT_FILTERS: DiscoveryFilters = {
   cap: "all",
   consensus: "all",
   quarter: "all",
-  sort: "default",
-  sortDir: "desc",
+  sorts: [],
 };
 
 /** 정렬 가능한 열인지. **모르는 값은 받지 않는다** — URL로 아무 문자열이나 올 수 있다. */
 export function isSortKey(value: string | null): value is SortKey {
   if (!value) return false;
-  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "ret5d"].includes(value)) {
+  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "marketCap", "ret5d"].includes(value)) {
     return true;
   }
   return /^d-?\d+$/.test(value);
 }
 
+function isActiveSortKey(value: string | null): value is Exclude<SortKey, "default"> {
+  return isSortKey(value) && value !== "default";
+}
+
 /** sessionStorage 키. **session**인 것이 중요하다 — 탭을 닫으면 초기화되는 게 맞다. */
-export const STORAGE_KEY = "heimdallr.discovery.filters.v1";
+export const STORAGE_KEY = "heimdallr.discovery.filters.v2";
 
 const GATES: GateFilter[] = ["passed", "failed", "undecided", "all"];
 const CAPS: CapFilter[] = ["all", "large", "mid", "small"];
@@ -130,9 +137,22 @@ export function fromQuery(
   if (quarter) { next.quarter = quarter; hadAny = true; }
 
   const sort = p.get("sort");
-  if (isSortKey(sort)) { next.sort = sort; hadAny = true; }
+  const encodedSorts = splitList(p.get("sorts"));
+  if (p.has("sorts")) {
+    next.sorts = encodedSorts.flatMap((item): SortRule[] => {
+      const [key, rawDir] = item.split(":");
+      return isActiveSortKey(key) && (rawDir === "asc" || rawDir === "desc")
+        ? [{ key, dir: rawDir }]
+        : [];
+    });
+    hadAny = true;
+  }
+  // v1 링크도 깨뜨리지 않는다. 단일 정렬은 새 체인의 첫 규칙으로 옮긴다.
   const dir = oneOf(p.get("dir"), ["asc", "desc"] as SortDir[]);
-  if (dir) { next.sortDir = dir; hadAny = true; }
+  if (!p.has("sorts") && isActiveSortKey(sort)) {
+    next.sorts = [{ key: sort, dir: dir ?? "desc" }];
+    hadAny = true;
+  }
 
   return { filters: next, hadAny };
 }
@@ -151,12 +171,7 @@ export function toQuery(f: DiscoveryFilters): string {
   if (f.cap !== DEFAULT_FILTERS.cap) p.set("cap", f.cap);
   if (f.consensus !== DEFAULT_FILTERS.consensus) p.set("consensus", f.consensus);
   if (f.quarter !== DEFAULT_FILTERS.quarter) p.set("quarter", f.quarter);
-  // ★ 기본 정렬일 때는 방향도 넣지 않는다 — `dir`만 남으면 아무 효과 없는
-  //   파라미터가 주소에 붙어 "내가 뭘 걸어 뒀나"를 흐린다.
-  if (f.sort !== DEFAULT_FILTERS.sort) {
-    p.set("sort", f.sort);
-    p.set("dir", f.sortDir);
-  }
+  if (f.sorts.length) p.set("sorts", f.sorts.map((s) => `${s.key}:${s.dir}`).join(","));
   return p.toString();
 }
 
@@ -183,8 +198,17 @@ export function loadStored(): DiscoveryFilters | null {
       cap: oneOf(parsed.cap ?? null, CAPS) ?? DEFAULT_FILTERS.cap,
       consensus: oneOf(parsed.consensus ?? null, CONSENSUS) ?? DEFAULT_FILTERS.consensus,
       quarter: typeof parsed.quarter === "string" ? parsed.quarter : DEFAULT_FILTERS.quarter,
-      sort: isSortKey(parsed.sort ?? null) ? (parsed.sort as SortKey) : DEFAULT_FILTERS.sort,
-      sortDir: oneOf(parsed.sortDir ?? null, ["asc", "desc"] as SortDir[]) ?? DEFAULT_FILTERS.sortDir,
+      sorts: Array.isArray(parsed.sorts)
+        ? parsed.sorts.flatMap((item): SortRule[] => {
+            if (!item || typeof item !== "object") return [];
+            const key = (item as Partial<SortRule>).key;
+            const dir = (item as Partial<SortRule>).dir;
+            return typeof key === "string" && isActiveSortKey(key) &&
+              (dir === "asc" || dir === "desc")
+              ? [{ key, dir }]
+              : [];
+          })
+        : [],
     };
   } catch {
     return null;

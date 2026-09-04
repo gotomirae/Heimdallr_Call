@@ -83,3 +83,20 @@ def test_pri_five_inputs_and_full_history_are_visible():
         assert field in QUERIES and field in TYPES
     for label in ("매출총이익", "지배순익", "TTM 영업익", "매출채권", "주식수", "출처"):
         assert label in STOCK
+
+
+def test_discovery_table_has_chained_sorting_and_grouped_headers():
+    filters = (ROOT / "dashboard/lib/discoveryFilters.ts").read_text(encoding="utf-8")
+    page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
+
+    assert 'marketCap: "시총"' in DISCOVERY
+    assert 'label="주가 반영도"' in DISCOVERY
+    assert "분기실적 발표" in DISCOVERY
+    assert "종목 정보" in DISCOVERY and "실적 · 가격" in DISCOVERY
+    assert "sorts: SortRule[]" in filters
+    assert "sorts.map" in DISCOVERY
+    assert "priority: index + 1" in DISCOVERY
+    assert "원본" in DISCOVERY and "내림" in DISCOVERY and "오름" in DISCOVERY
+    assert 'r.turnaround !== true' in DISCOVERY
+    assert 'r.turnaround === true' in DISCOVERY
+    assert "turnaround: s.turnaround" in page

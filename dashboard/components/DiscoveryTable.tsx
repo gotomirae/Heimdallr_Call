@@ -37,6 +37,7 @@ export interface DiscoveryRow {
   /** 정렬 1순위. `연*4 + (분기−1)` — 문자열로 비교하면 연도 경계에서 조용히 틀린다. */
   quarterIndex: number;
   gatePassed: boolean | null;
+  turnaround: boolean | null;
   grade: Grade | null;
   score: number | null;
   pri: number | null;
@@ -63,7 +64,8 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
   revenueYoy: "매출 YoY",
   opYoy: "영업익 YoY",
   opmYoyDelta: "OPM YoY",
-  pri: "반영도",
+  pri: "주가 반영도",
+  marketCap: "시총",
   ret5d: "최근 5일",
   ...Object.fromEntries(
     HORIZONS.map((d) => [
@@ -96,6 +98,7 @@ function sortValue(r: DiscoveryRow, key: SortKey): number | null {
     case "opYoy": return r.opYoy;
     case "opmYoyDelta": return r.opmYoyDelta;
     case "pri": return r.pri;
+    case "marketCap": return r.marketCap;
     case "ret5d": return r.ret5d;
     default: {
       // `d-5`·`d0`·`d5`… — 실적 발표일 기준 초과수익
@@ -110,38 +113,45 @@ function sortValue(r: DiscoveryRow, key: SortKey): number | null {
  * 정렬 가능한 머리글 한 칸.
  *
  * ★ `<button>`이어야 한다. `<th onClick>`은 키보드로 닿지 않고 스크린리더가
- *   누를 수 있는 것으로 읽지 않는다. `aria-sort`는 `<th>`에 붙인다.
+ *   누를 수 있는 것으로 읽지 않는다. 다중 정렬에서는 1순위 열에만
+ *   `aria-sort`를 붙이고 나머지 우선순위는 버튼의 읽기 이름으로 알린다.
  */
 function SortableTh({
-  label, sortKey, active, dir, onSort, title, className = "", tone = "",
+  label, sortKey, priority, dir, onSort, title, className = "", tone = "",
 }: {
   label: string;
   sortKey: SortKey;
-  active: boolean;
-  dir: SortDir;
+  priority: number | null;
+  dir: SortDir | null;
   onSort: (k: SortKey) => void;
   title?: string;
   className?: string;
   tone?: string;
 }) {
-  const arrow = !active ? "↕" : dir === "desc" ? "▼" : "▲";
+  const active = priority != null && dir != null;
+  const state = !active ? "원본" : dir === "desc" ? "내림" : "오름";
   return (
     <th
       scope="col"
-      aria-sort={!active ? "none" : dir === "desc" ? "descending" : "ascending"}
-      className={`px-3 py-2 text-right font-medium ${tone} ${className}`}
+      aria-sort={priority === 1 ? (dir === "desc" ? "descending" : "ascending") : undefined}
+      className={`border-l border-slate-700/70 px-3 py-2.5 text-right font-semibold ${tone} ${className}`}
       title={title}
     >
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className="inline-flex w-full items-center justify-end gap-1 hover:text-white"
+        className="inline-flex w-full items-center justify-end gap-1.5 whitespace-nowrap hover:text-white"
         // ★ 지금 상태와 **다음에 무슨 일이 일어나는지**를 함께 읽어 준다.
-        aria-label={`${label} 기준 정렬${active ? (dir === "desc" ? " (내림차순)" : " (오름차순)") : ""}`}
+        aria-label={`${label} 기준 정렬 (${state}${active ? `, ${priority}순위` : ""})`}
       >
         <span>{label}</span>
-        <span className={active ? "text-sky-300" : "text-slate-500"} aria-hidden="true">
-          {arrow}
+        {active && (
+          <span className="rounded-full bg-sky-400/20 px-1.5 py-0.5 text-[10px] text-sky-200" aria-hidden="true">
+            {priority}
+          </span>
+        )}
+        <span className={`rounded px-1 py-0.5 text-[10px] ${active ? "bg-sky-400/15 text-sky-200" : "bg-slate-800 text-slate-400"}`} aria-hidden="true">
+          {state}
         </span>
       </button>
     </th>
@@ -149,7 +159,7 @@ function SortableTh({
 }
 
 const GATE_LABEL: Record<GateFilter, string> = {
-  passed: "가속 중 (통과)",
+  passed: "가속 중 (통과) + 턴어라운드",
   failed: "탈락",
   undecided: "판정 불가",
   all: "전 종목",
@@ -276,19 +286,28 @@ export default function DiscoveryTable({
     setFilters((f) => ({ ...f, ...next }));
   }
 
-  const { query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir } = filters;
+  const { query, gate, grades, sectors, cap, consensus, quarter, sorts } = filters;
 
   /**
-   * 머리글 클릭. 같은 열을 다시 누르면 방향이 뒤집히고, **세 번째로 누르면
-   * 기본 정렬로 돌아온다** — 눌러서 바꾼 상태에서 빠져나올 길이 있어야 한다.
+   * 머리글 클릭. 선택한 순서가 1·2·3차 정렬 순서다. 같은 열은
+   * 원본 → 내림 → 오름 → 원본으로 순환한다.
    *
    * ★ 새 열을 처음 누르면 **내림차순**이다. 이 표에서 궁금한 것은 거의 언제나
    *   "가장 높은 종목"이므로, 오름차순으로 시작하면 매번 두 번씩 눌러야 한다.
    */
   function toggleSort(key: SortKey) {
-    if (sort !== key) return patch({ sort: key, sortDir: "desc" });
-    if (sortDir === "desc") return patch({ sortDir: "asc" });
-    return patch({ sort: "default", sortDir: "desc" });
+    if (key === "default") return patch({ sorts: [] });
+    const index = sorts.findIndex((rule) => rule.key === key);
+    if (index < 0) return patch({ sorts: [...sorts, { key, dir: "desc" }] });
+    if (sorts[index].dir === "desc") {
+      return patch({ sorts: sorts.map((rule, i) => i === index ? { ...rule, dir: "asc" } : rule) });
+    }
+    return patch({ sorts: sorts.filter((_, i) => i !== index) });
+  }
+
+  function sortState(key: SortKey): { priority: number | null; dir: SortDir | null } {
+    const index = sorts.findIndex((rule) => rule.key === key);
+    return index < 0 ? { priority: null, dir: null } : { priority: index + 1, dir: sorts[index].dir };
   }
 
   const sectorOptions = useMemo(() => {
@@ -326,8 +345,10 @@ export default function DiscoveryTable({
         if (favoriteOnly && !favoriteSet.has(r.code)) return false;
         if (needle && !r.name.toLowerCase().includes(needle) && !r.code.includes(needle))
           return false;
-        if (gate === "passed" && r.gatePassed !== true) return false;
-        if (gate === "failed" && r.gatePassed !== false) return false;
+        // 턴어라운드는 게이트 탈락이어도 '가속 중(통과)'와 같은 선택에서 함께 본다.
+        if (gate === "passed" && r.gatePassed !== true && r.turnaround !== true) return false;
+        // 선택지는 서로 겹치지 않는다. 턴어라운드는 위 통합 선택으로 옮겼다.
+        if (gate === "failed" && (r.gatePassed !== false || r.turnaround === true)) return false;
         if (gate === "undecided" && r.gatePassed != null) return false;
         // 빈 선택 = 전체다. 아무것도 안 고른 상태를 "아무것도 안 보임"으로 읽으면 안 된다.
         if (gradeSet.size > 0 && (r.grade == null || !gradeSet.has(r.grade))) return false;
@@ -348,28 +369,27 @@ export default function DiscoveryTable({
       //    등급을 1순위로 두면 "스코어가 더 높은데 아래에 있는" 줄이 생긴다.
       //    결측은 항상 맨 뒤로 보낸다(−Infinity). 0으로 채우면 미측정이 '0%'로 섞인다.
       .sort((a, b) => {
-        if (sort !== "default") {
-          const av = sortValue(a, sort);
-          const bv = sortValue(b, sort);
+        for (const rule of sorts) {
+          const av = sortValue(a, rule.key);
+          const bv = sortValue(b, rule.key);
           // ★★ **결측은 방향과 무관하게 언제나 맨 뒤다**(사용자 지정 2026-08-26).
           //   오름차순에서 부호만 뒤집으면 미측정 종목이 **맨 위로 올라온다** —
           //   "가장 낮은 종목"을 찾으려고 누른 사람에게 **측정조차 안 된 종목**이
           //   1등으로 보인다. 그건 답이 아니라 빈칸이다(T25·결측은 0이 아니다).
-          if (av == null && bv == null) return byDefault(a, b);
+          if (av == null && bv == null) continue;
           if (av == null) return 1;
           if (bv == null) return -1;
-          const diff = sortDir === "asc" ? av - bv : bv - av;
-          // 같은 값이면 기본 정렬로 갈라 **순서가 흔들리지 않게** 한다.
-          return diff || byDefault(a, b);
+          const diff = rule.dir === "asc" ? av - bv : bv - av;
+          if (diff) return diff;
         }
         return byDefault(a, b);
       });
-  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sort, sortDir]);
+  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts]);
 
   const shown = filtered.slice(0, MAX_ROWS);
   const select =
     "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-slate-100";
-  // 탈락·판정불가를 볼 때는 스코어/반영도가 비어 있어 추적 열이 의미 없다.
+  // 탈락·판정불가를 볼 때는 스코어/주가 반영도가 비어 있어 추적 열이 의미 없다.
   const showTracking = gate === "passed" || gate === "all";
   const active =
     query.trim() !== "" || gate !== (favoriteOnly ? "all" : DEFAULT_FILTERS.gate) || grades.length > 0 ||
@@ -449,17 +469,22 @@ export default function DiscoveryTable({
         {/* ★ 화면이 지금 무슨 순서인지 **글로도** 말한다. 화살표만으로는
             스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
         <span className="ml-2 text-xs text-slate-300">
-          {sort === "default" ? (
-            "정렬: 최신 분기 → 스코어 → 영업이익 YoY → 시총"
+          {sorts.length === 0 ? (
+            "원본 순서: 최신 분기 → 스코어 → 영업이익 YoY → 시총"
           ) : (
             <>
-              정렬: <strong className="text-sky-300">{SORT_LABEL[sort] ?? sort}</strong>{" "}
-              {sortDir === "desc" ? "높은 순" : "낮은 순"}
+              다중 정렬: {sorts.map((rule, index) => (
+                <span key={rule.key}>
+                  {index > 0 && <span className="text-slate-500"> → </span>}
+                  <strong className="text-sky-300">{index + 1}. {SORT_LABEL[rule.key] ?? rule.key}</strong>{" "}
+                  {rule.dir === "desc" ? "내림차순" : "오름차순"}
+                </span>
+              ))}
               <span className="text-slate-400"> · 미측정은 맨 뒤</span>
               <button type="button"
-                      onClick={() => patch({ sort: "default", sortDir: "desc" })}
+                      onClick={() => patch({ sorts: [] })}
                       className="ml-2 underline hover:text-white">
-                기본 정렬로
+                원본으로
               </button>
             </>
           )}
@@ -469,32 +494,41 @@ export default function DiscoveryTable({
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
         <table className="w-full min-w-[1360px] text-sm">
-          <thead className="sticky top-0 z-20 bg-slate-900 text-xs uppercase text-slate-200 shadow-[0_1px_0_0_rgba(148,163,184,0.45)]">
+          <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
+            <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
+              <th colSpan={5} className="bg-slate-900 px-3 py-1.5 text-left">종목 정보</th>
+              <th colSpan={7} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
+              <th colSpan={showTracking ? HORIZONS.length : 1}
+                  className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
+                {showTracking ? "분기실적 발표" : "게이트 판정"}
+              </th>
+            </tr>
             <tr>
-              <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
-              <th scope="col" className="px-3 py-2 text-center font-medium">관심</th>
-              <th scope="col" className="px-3 py-2 text-left font-medium">종목명</th>
-              <th scope="col" className="px-3 py-2 text-center font-medium">등급</th>
-              <th scope="col" className="px-3 py-2 text-left font-medium">분기</th>
-              <SortableTh label="스코어" sortKey="score" active={sort === "score"}
-                          dir={sortDir} onSort={toggleSort} />
+              <th scope="col" className="px-3 py-2.5 text-left font-semibold">섹터</th>
+              <th scope="col" className="px-3 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="px-3 py-2.5 text-left font-semibold">종목명</th>
+              <th scope="col" className="px-3 py-2.5 text-center font-semibold">등급</th>
+              <th scope="col" className="px-3 py-2.5 text-left font-semibold">분기</th>
+              <SortableTh label="스코어" sortKey="score" {...sortState("score")}
+                          onSort={toggleSort} />
               {/* ★ 사용자 요청(2026-08-22): 게이트가 보는 성장률을 표에 직접 싣는다.
                   스코어만 있으면 "왜 이 점수인가"를 상세 화면에 들어가야 안다. */}
-              <SortableTh label="매출 YoY" sortKey="revenueYoy" active={sort === "revenueYoy"}
-                          dir={sortDir} onSort={toggleSort}
+              <SortableTh label="매출 YoY" sortKey="revenueYoy" {...sortState("revenueYoy")}
+                          onSort={toggleSort}
                           title="평가 분기의 매출 성장률(전년 동기 대비) — G1이 보는 값" />
-              <SortableTh label="영업익 YoY" sortKey="opYoy" active={sort === "opYoy"}
-                          dir={sortDir} onSort={toggleSort} tone="text-amber-200"
+              <SortableTh label="영업익 YoY" sortKey="opYoy" {...sortState("opYoy")}
+                          onSort={toggleSort} tone="text-amber-200"
                           title="평가 분기의 영업이익 성장률(전년 동기 대비) — G2가 보는 값이자 기본 정렬 기준" />
-              <SortableTh label="OPM YoY" sortKey="opmYoyDelta" active={sort === "opmYoyDelta"}
-                          dir={sortDir} onSort={toggleSort}
+              <SortableTh label="OPM YoY" sortKey="opmYoyDelta" {...sortState("opmYoyDelta")}
+                          onSort={toggleSort}
                           title="영업이익률의 전년 동기 대비 변화(%p) — G4가 보는 값" />
-              <SortableTh label="반영도" sortKey="pri" active={sort === "pri"}
-                          dir={sortDir} onSort={toggleSort}
+              <SortableTh label="주가 반영도" sortKey="pri" {...sortState("pri")}
+                          onSort={toggleSort}
                           title="주가가 이 실적을 이미 아는 정도 — 낮을수록 아직 안 올랐다" />
-              <th scope="col" className="px-3 py-2 text-right font-medium">시총</th>
-              <SortableTh label="최근 5일" sortKey="ret5d" active={sort === "ret5d"}
-                          dir={sortDir} onSort={toggleSort}
+              <SortableTh label="시총" sortKey="marketCap" {...sortState("marketCap")}
+                          onSort={toggleSort} title="현재 시가총액" />
+              <SortableTh label="최근 5일" sortKey="ret5d" {...sortState("ret5d")}
+                          onSort={toggleSort}
                           title="최근 5거래일 주가 상승률" />
               {showTracking
                 ? HORIZONS.map((d) => (
@@ -502,8 +536,7 @@ export default function DiscoveryTable({
                       key={d}
                       label={d < 0 ? `전 ${Math.abs(d)}일` : d === 0 ? "당일" : `후 ${d}일`}
                       sortKey={`d${d}` as SortKey}
-                      active={sort === `d${d}`}
-                      dir={sortDir}
+                      {...sortState(`d${d}` as SortKey)}
                       onSort={toggleSort}
                       tone="text-indigo-200"
                       className="bg-slate-800/80"
@@ -546,6 +579,11 @@ export default function DiscoveryTable({
                     </span>
                   ) : (
                     <span className="text-slate-300">—</span>
+                  )}
+                  {r.turnaround && (
+                    <span className="ml-1 rounded bg-emerald-500/15 px-1 py-0.5 text-[10px] font-semibold text-emerald-300">
+                      턴어라운드
+                    </span>
                   )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200">{r.quarter}</td>
