@@ -16,6 +16,9 @@ export interface ChartPoint {
   opYoy: number | null;
   /** 영업이익률(%). 주가를 제거한 자리에 표시한다. */
   opm: number | null;
+  /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
+  orderBacklog: number | null;
+  newOrders: number | null;
   /** 부호 전환 구간 라벨('흑전'·'적전'…). %가 없을 때 대신 보여준다. */
   opStatusLabel: string | null;
   ttmRevenue: number | null;
@@ -69,6 +72,8 @@ export function toChartPoints(
     revenueYoy: r.revenue_yoy,
     opYoy: r.op_yoy,
     opm: r.opm,
+    orderBacklog: null,
+    newOrders: null,
     opStatusLabel: r.op_status_label,
     ttmRevenue: r.ttm_revenue == null ? null : r.ttm_revenue / 1e8,
     isEstimate: Boolean(r.is_estimate),

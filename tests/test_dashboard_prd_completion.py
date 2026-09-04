@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERIES = (ROOT / "dashboard/lib/queries.ts").read_text(encoding="utf-8")
 TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
 STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8")
+HOME = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
 DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
@@ -74,6 +75,22 @@ def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
     assert 'dataKey="close"' not in QUARTER_CHART
     assert "fromDate={weeklyFromDate}" in STOCK
     assert "MACD (12·26·9)" in WEEKLY_CHART and "RSI (14)" in WEEKLY_CHART
+
+
+def test_growth_dashboard_title_and_quarter_chart_display_contract():
+    assert "성장 가속 종목" in HOME
+    assert "실적 가속 종목" not in HOME
+    assert "매출 YoY · 영업이익 YoY" in QUARTER_CHART
+    assert "수주잔고 · 신규수주" in QUARTER_CHART
+    # AmountPanel의 라벨 하나를 매출·영업이익이 재사용하므로 소스 선언은 6개, 화면 시계열은 7개다.
+    assert QUARTER_CHART.count("<LabelList") == 6
+    assert QUARTER_CHART.count("<AmountPanel points={points}") == 2
+    assert 'dataKey="revenueYoy"' in QUARTER_CHART
+    assert 'dataKey="opYoy"' in QUARTER_CHART
+    assert 'dataKey="orderBacklog"' in QUARTER_CHART
+    assert 'dataKey="newOrders"' in QUARTER_CHART
+    assert "분기별 값 라벨 · 성장률과 수주 항목은 한눈에 비교" in STOCK
+    assert "각 항목은 독립 축" not in STOCK
 
 
 def test_pri_five_inputs_and_requested_history_are_visible():
