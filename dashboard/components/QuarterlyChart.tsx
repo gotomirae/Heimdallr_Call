@@ -44,17 +44,32 @@ function QuarterAxis() {
   return <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} tickLine={false} />;
 }
 
-function AmountPanel({ points, label, dataKey, color, wide = false }: { points: ChartPoint[]; label: string; dataKey: "revenue" | "op"; color: string; wide?: boolean }) {
-  return <div className={`rounded border border-slate-800 bg-slate-950/30 p-2 ${wide ? "md:col-span-2" : ""}`}>
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">{label}</strong><span className="text-slate-400">억원</span></div>
+function RevenuePanel({ points }: { points: ChartPoint[] }) {
+  return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
+    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액</strong><span className="text-slate-400">억원</span></div>
     <div className="h-40"><ResponsiveContainer width="100%" height="100%"><BarChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis />
-      <Tooltip formatter={(v) => [fmt(v, "억"), label]} contentStyle={tooltipStyle} />
-      <Bar dataKey={dataKey} name={label} fill={color} isAnimationActive={false}><LabelList dataKey={dataKey} position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Tooltip formatter={(v) => [fmt(v, "억"), "매출액"]} contentStyle={tooltipStyle} />
+      <Bar dataKey="revenue" name="매출액" fill="#2563eb" isAnimationActive={false}><LabelList dataKey="revenue" position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </BarChart></ResponsiveContainer></div>
   </div>;
 }
 
+function EarningsPanel({ points }: { points: ChartPoint[] }) {
+  return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
+    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">영업이익 · OPM</strong><span className="text-slate-400">억원 · %</span></div>
+    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
+      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
+      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke={SERIES_COLOR.OPM_COLOR} fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+      <Tooltip formatter={(v, name) => [fmt(v, name === "OPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <Bar yAxisId="amount" dataKey="op" name="영업이익" fill="#0891b2" isAnimationActive={false}><LabelList dataKey="op" position="top" fill="#bae6fd" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Line yAxisId="percent" dataKey="opm" name="OPM" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opm" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
+    </ComposedChart></ResponsiveContainer></div>
+  </div>;
+}
+
+/* 성장률은 단위가 같아 한 축에서 두 계열의 가속 방향을 직접 비교한다. */
 function GrowthPanel({ points }: { points: ChartPoint[] }) {
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출 YoY · 영업이익 YoY</strong><span className="text-slate-400">%</span></div>
@@ -63,17 +78,6 @@ function GrowthPanel({ points }: { points: ChartPoint[] }) {
       <Tooltip formatter={(v, name) => [fmt(v, "%"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Line dataKey="revenueYoy" name="매출 YoY" stroke={SERIES_COLOR.REVENUE_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoy" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -9)({ ...p })} /></Line>
       <Line dataKey="opYoy" name="영업이익 YoY" stroke={SERIES_COLOR.OP_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoy" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", -21)({ ...p })} /></Line>
-    </LineChart></ResponsiveContainer></div>
-  </div>;
-}
-
-function OpmPanel({ points }: { points: ChartPoint[] }) {
-  return <div className="rounded border border-slate-800 bg-slate-950/30 p-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">OPM</strong><span className="text-slate-400">%</span></div>
-    <div className="h-40"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
-      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis percent />
-      <Tooltip formatter={(v) => [fmt(v, "%"), "OPM"]} contentStyle={tooltipStyle} />
-      <Line dataKey="opm" name="OPM" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opm" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -9)({ ...p })} /></Line>
     </LineChart></ResponsiveContainer></div>
   </div>;
 }
@@ -93,10 +97,9 @@ function OrdersPanel({ points }: { points: ChartPoint[] }) {
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (!points.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
   return <div className="grid gap-3 md:grid-cols-2">
-    <AmountPanel points={points} label="매출" dataKey="revenue" color="#2563eb" wide />
+    <RevenuePanel points={points} />
+    <EarningsPanel points={points} />
     <GrowthPanel points={points} />
-    <AmountPanel points={points} label="영업이익" dataKey="op" color="#0891b2" />
-    <OpmPanel points={points} />
     <OrdersPanel points={points} />
   </div>;
 }

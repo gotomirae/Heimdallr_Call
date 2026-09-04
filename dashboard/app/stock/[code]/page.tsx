@@ -390,7 +390,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       <Card
         id="quarterly-trend"
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="분기별 값 라벨 · 성장률과 수주 항목은 한눈에 비교"
+        note="분기별 값 라벨 · 영업이익과 OPM, 성장률과 수주 항목은 한눈에 비교"
       >
         <QuarterlyChart points={chartPoints} />
         <WeeklyPriceChart points={weeklyPrices} fromDate={weeklyFromDate} />
@@ -433,8 +433,8 @@ export default async function StockPage({ params }: { params: { code: string } }
 
         <Note>
           <span className="text-slate-100">
-            항목 순서: <strong>매출 → 매출 YoY → 영업이익 → 영업이익 YoY → OPM → 수주잔고 → 신규수주</strong>.
-            매출 YoY·영업이익 YoY와 수주잔고·신규수주는 각각 같은 그래프에서 비교하며,
+            항목 순서: <strong>매출액 → 영업이익·OPM → 매출 YoY·영업이익 YoY → 수주잔고·신규수주</strong>.
+            영업이익·OPM, 매출 YoY·영업이익 YoY와 수주잔고·신규수주는 각각 같은 그래프에서 비교하며,
             수주 수치는 단위를 확인한 구조화 값만 표시한다.
           </span>
           <span className="mt-1 block">

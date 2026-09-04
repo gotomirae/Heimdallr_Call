@@ -578,11 +578,6 @@ export default function DiscoveryTable({
                   ) : (
                     <span className="text-slate-300">—</span>
                   )}
-                  {r.turnaround && (
-                    <span className="ml-1 rounded bg-emerald-500/15 px-1 py-0.5 text-[10px] font-semibold text-emerald-300">
-                      턴어라운드
-                    </span>
-                  )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200">{r.quarter}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums text-white">
