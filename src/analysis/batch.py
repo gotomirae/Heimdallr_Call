@@ -344,7 +344,7 @@ def _mark_report_window_closed(row: dict, *, window_end: str) -> None:
 
 
 def report_final_plan(picked: list[dict]) -> tuple[list[dict], list[tuple[dict, str]]]:
-    """5거래일 리포트 창이 닫히고 컨센서스가 바뀐 종목만 3차 호출 대상으로 만든다."""
+    """5거래일 창이 닫힌 종목을 최근 10일 리포트 웹검색 대상으로 만든다."""
     analyses = {
         (row["code"], row["fiscal_year"], row["fiscal_quarter"]): row
         for row in select_all(
@@ -402,15 +402,6 @@ def report_final_plan(picked: list[dict]) -> tuple[list[dict], list[tuple[dict, 
         )
         if not decision.ready:
             continue
-        if not decision.changed:
-            previous = meta.get("report_window")
-            if not (
-                isinstance(previous, dict)
-                and previous.get("status") == "no_change"
-                and previous.get("window_end") == decision.window_end
-            ):
-                closures.append((analysis, decision.window_end or ""))
-            continue
         evidence_hash = decision.evidence_hash or ""
         if _same_failed_attempt(meta, "report_final", evidence_hash):
             continue
@@ -421,6 +412,7 @@ def report_final_plan(picked: list[dict]) -> tuple[list[dict], list[tuple[dict, 
             **(decision.context or {}),
             "evidence_hash": evidence_hash,
         }
+        planned["_consensus_changed"] = decision.changed
         pending.append(planned)
     return pending, closures
 
@@ -461,7 +453,8 @@ def run(
           f"오늘 {status.today_count}/{status.daily_limit} · "
           f"{'호출 가능' if status.allowed else status.reason}")
     if report_final:
-        print(f"5거래일 창 완료·변화 있음 {len(pending)}종목 · 변화 없음 {len(closures)}종목")
+        changed_count = sum(bool(r.get("_consensus_changed")) for r in pending)
+        print(f"5거래일 창 완료·웹검색 대상 {len(pending)}종목 · 컨센서스 변화 {changed_count}종목")
     else:
         print(f"이미 분석됨 {len(picked) - len(pending)}종목 · 호출 대상 {len(pending)}종목")
     if refresh_before:
@@ -503,7 +496,7 @@ def run(
     for row, window_end in closures:
         _mark_report_window_closed(row, window_end=window_end)
 
-    ok = failed = skipped = 0
+    ok = failed = skipped = searches = 0
     stopped_at: str | None = None
     timed_out = False
     started = time.monotonic()
@@ -531,7 +524,8 @@ def run(
             data.analysis_stage = stage
             data.report_context = r.get("_report_context")
             evidence_hash = evidence_hash or facts_hash(data.quarters, data.excerpt)
-            result = analyze(data, env="prod")
+            # 검색비는 3단계에만 붙는다. 1·2단계는 구조화 데이터와 공시 발췌만 쓴다.
+            result = analyze(data, env="prod", web_search=(stage == "report_final"))
         except BudgetExceeded as exc:
             # ★ 예산 소진은 실패가 아니다. 남은 건수를 반드시 밝힌다.
             stopped_at = str(exc)
@@ -570,9 +564,11 @@ def run(
             print(f"  ⚠ {label} — 필드 미흡: {', '.join(problems[:3])}")
         save(result)
         ok += 1
+        searches += result.web_search_requests
         cached = result.cache_read_tokens > 0
         print(f"  ✓ {label} ${result.cost_usd:.4f} "
-              f"{'(캐시 히트)' if cached else '(캐시 미스)'}")
+              f"{'(캐시 히트)' if cached else '(캐시 미스)'}"
+              f"{' · 웹검색 ' + str(result.web_search_requests) + '회' if result.web_search_requests else ''}")
         if result.removed_factual_numbers:
             print(f"    검증 불가 숫자 {len(result.removed_factual_numbers)}개 제거 — 재호출 안 함")
         time.sleep(CALL_GAP_SEC)
@@ -618,6 +614,7 @@ def run(
         f"|---|---|",
         f"| 진행 | **{progress}** |",
         f"| 이번 실행 | 분석 {ok} · 실패 {failed} · 남김 {skipped} |",
+        f"| 서버 웹검색 | {searches}회 (3단계에서만) |",
         f"| 소요 | {elapsed:.0f}초" + (f" ({elapsed / ok:.0f}초/건)" if ok else "") + " |",
         f"| 누적 비용 | ${final.month_spent_usd:.4f} / ${final.month_ceiling_usd} |",
         f"| 멈춘 이유 | "
@@ -674,7 +671,7 @@ def main() -> int:
     parser.add_argument("--refresh-finalized", action="store_true",
                         help="잠정 분석 뒤 확정 재무가 들어온 같은 분기만 다시 분석한다")
     parser.add_argument("--report-final", action="store_true",
-                        help="정기보고서 뒤 5거래일 내 컨센서스가 실제로 바뀐 종목만 3차 분석")
+                        help="정기보고서 뒤 5거래일에 최근 10일 리포트를 웹검색해 3차 분석")
     parser.add_argument("--notify-only", action="store_true",
                         help="자동 유료 분석 대상을 투자 알림 등급(★·○)으로 제한")
     args = parser.parse_args()

@@ -41,6 +41,7 @@ class NormalizedUsage:
     cache_read_tokens: int = 0
     output_tokens: int = 0
     reasoning_tokens: int = 0
+    web_search_requests: int = 0
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class LLMResponse:
     stop_reason: str | None = None
     response_id: str | None = None
     parse_error: str | None = None
+    source_urls: tuple[str, ...] = ()
 
 
 class StructuredLLMProvider(Protocol):

@@ -72,6 +72,40 @@ def test_report_refresh_requires_actual_consensus_change():
     assert changed.ready and changed.changed
     assert changed.context and changed.context["changes"][0]["before"]["op_est"] == "1E+2"
     assert changed.context["changes"][0]["after"]["op_est"] == "1.2E+2"
+    search = unchanged.context["report_search"]
+    assert search["published_from"] == "2026-09-04"
+    assert search["published_through"] == "2026-09-11"
+    assert [c["url"] for c in search["priority_channels"]] == [
+        "https://t.me/s/sunstudy1234",
+        "https://t.me/s/DOC_POOL",
+    ]
+
+
+def test_report_final_plan_searches_once_even_without_consensus_change(monkeypatch):
+    picked = [{"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2}]
+    tables = {
+        "analyses": [{
+            **picked[0],
+            "created_at": "2026-09-04T09:00:00+09:00",
+            "payload": {"_heimdallr": {"analysis_stage": "filing"}},
+        }],
+        "earnings_disclosures": [{
+            **picked[0], "doc_type": "periodic", "disclosed_at": "2026-09-04",
+        }],
+        "consensus_snapshots": [],
+        "index_snapshots": [
+            {"index_name": "KOSPI", "snap_date": day}
+            for day in ("2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11")
+        ],
+    }
+    monkeypatch.setattr(batch, "select_all", lambda table, *args, **kwargs: tables[table])
+
+    pending, closures = batch.report_final_plan(picked)
+
+    assert len(pending) == 1
+    assert pending[0]["_analysis_stage"] == "report_final"
+    assert pending[0]["_consensus_changed"] is False
+    assert closures == []
 
 
 def test_report_refresh_ignores_price_driven_per_change():

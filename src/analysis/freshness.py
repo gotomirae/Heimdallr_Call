@@ -4,9 +4,14 @@
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
+
+from src.config.constants import (
+    BROKER_REPORT_LOOKBACK_DAYS,
+    BROKER_REPORT_PRIORITY_CHANNELS,
+)
 
 FACT_FIELDS = (
     "fiscal_year", "fiscal_quarter", "revenue", "op", "np", "revenue_yoy",
@@ -127,7 +132,7 @@ def report_refresh_decision(
     quarter: int,
     trading_days: int,
 ) -> ReportRefreshDecision:
-    """정기보고서 후 N거래일에 컨센서스가 실제로 바뀌었는지 판정한다.
+    """정기보고서 후 N거래일에 3차 웹검색 창이 닫혔는지 판정한다.
 
     거래일은 KOSPI `index_snapshots`의 실제 세션 날짜다. 스냅샷 수집시각만 새로워지고
     값이 같은 경우는 리포트 변화로 세지 않는다.
@@ -159,11 +164,22 @@ def report_refresh_decision(
             "before": old,
             "after": new,
         })
+    # 리포트는 정기보고서 뒤에 나온 것만 쓰고, 마지막 10달력일 범위로 한 번만 찾는다.
+    search_start = max(filing_day, window_end - timedelta(days=BROKER_REPORT_LOOKBACK_DAYS - 1))
     context = {
         "filing_date": filing_day.isoformat(),
         "window_end": window_end.isoformat(),
         "changes": changes,
         "source": "naver_wisereport_consensus",
+        "report_search": {
+            "published_from": search_start.isoformat(),
+            "published_through": window_end.isoformat(),
+            "lookback_calendar_days": BROKER_REPORT_LOOKBACK_DAYS,
+            "priority_channels": [
+                {"name": name, "url": url}
+                for name, url in BROKER_REPORT_PRIORITY_CHANNELS
+            ],
+        },
     }
     body = json.dumps(context, ensure_ascii=False, sort_keys=True)
     return ReportRefreshDecision(

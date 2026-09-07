@@ -83,6 +83,70 @@ def test_anthropic_adapter_preserves_existing_request_and_usage_contract():
     )
 
 
+def test_anthropic_adapter_counts_searches_and_exposes_actual_source_urls():
+    class Messages(_AnthropicMessages):
+        def create(self, **kwargs):
+            self.create_kwargs = kwargs
+            result = SimpleNamespace(
+                type="web_search_tool_result",
+                content=[
+                    SimpleNamespace(url="https://t.me/DOC_POOL/193287"),
+                    {"url": "https://example.com/report"},
+                ],
+            )
+            record = SimpleNamespace(
+                type="tool_use", name=ANALYSIS_TOOL_NAME,
+                input={"broker_reports": []},
+            )
+            usage = SimpleNamespace(
+                input_tokens=10,
+                output_tokens=20,
+                server_tool_use={"web_search_requests": 2},
+            )
+            return SimpleNamespace(
+                id="msg_search", model="claude-test", stop_reason="end_turn",
+                content=[result, record], usage=usage,
+            )
+
+    response = AnthropicProvider(
+        client=SimpleNamespace(messages=Messages())
+    ).generate_structured(_request(web_search=True))
+
+    assert response.usage.web_search_requests == 2
+    assert response.source_urls == (
+        "https://t.me/DOC_POOL/193287",
+        "https://example.com/report",
+    )
+
+
+def test_anthropic_adapter_tolerates_a_server_search_error_block():
+    class Messages(_AnthropicMessages):
+        def create(self, **kwargs):
+            record = SimpleNamespace(
+                type="tool_use", name=ANALYSIS_TOOL_NAME,
+                input={"broker_reports": []},
+            )
+            failed_search = SimpleNamespace(
+                type="web_search_tool_result",
+                content=SimpleNamespace(type="web_search_tool_result_error", error_code="unavailable"),
+            )
+            usage = SimpleNamespace(
+                input_tokens=10, output_tokens=20,
+                server_tool_use=SimpleNamespace(web_search_requests=0),
+            )
+            return SimpleNamespace(
+                id="msg_search_error", model="claude-test", stop_reason="end_turn",
+                content=[failed_search, record], usage=usage,
+            )
+
+    response = AnthropicProvider(
+        client=SimpleNamespace(messages=Messages())
+    ).generate_structured(_request(web_search=True))
+
+    assert response.source_urls == ()
+    assert response.usage.web_search_requests == 0
+
+
 class _OpenAIInputTokens:
     def __init__(self):
         self.kwargs = None

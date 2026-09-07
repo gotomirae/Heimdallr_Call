@@ -144,7 +144,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     : null;
   const analysisStage =
     analysisMeta?.analysis_stage === "report_final"
-      ? "(3단계) 정기보고서 후 5거래일 컨센서스 반영 완료"
+      ? "(3단계) 정기보고서 후 5거래일·최근 10일 리포트 반영 완료"
       : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
         ? "(2단계) 분기/반기/사업보고서 공시 분석"
       : analysisMeta?.analysis_stage === "preliminary"
@@ -522,7 +522,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         <p className="mb-3 text-xs leading-relaxed text-slate-300">
           분석 단계: <strong className="text-amber-200">(1단계) 잠정실적 발표</strong>
           {" → "}<strong className="text-sky-200">(2단계) 정기보고서 공시</strong>
-          {" → "}<strong className="text-emerald-200">(3단계) 5거래일 내 컨센서스 변경 반영</strong>.
+          {" → "}<strong className="text-emerald-200">(3단계) 5거래일 뒤 최근 10일 증권사 리포트 반영</strong>.
           3단계는 실제 추정치 변경이 있을 때만 LLM을 다시 호출하며, 변경이 없으면 무료로 종료한다.
         </p>
         {removedFactualNumbers > 0 && (

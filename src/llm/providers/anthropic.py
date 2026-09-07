@@ -90,6 +90,25 @@ class AnthropicProvider:
             None,
         )
         usage = response.usage
+        server_tool_use = getattr(usage, "server_tool_use", None)
+        if isinstance(server_tool_use, dict):
+            web_search_requests = int(server_tool_use.get("web_search_requests", 0) or 0)
+        else:
+            web_search_requests = int(
+                getattr(server_tool_use, "web_search_requests", 0) or 0
+            )
+        source_urls: list[str] = []
+        for block in response.content:
+            if getattr(block, "type", None) != "web_search_tool_result":
+                continue
+            content = getattr(block, "content", None)
+            # 서버 검색 오류일 때 content는 결과 배열이 아니라 오류 객체다.
+            # 유료 응답을 받은 뒤 Adapter가 TypeError로 죽지 않게 결과 배열만 순회한다.
+            items = content if isinstance(content, (list, tuple)) else ()
+            for item in items:
+                url = item.get("url") if isinstance(item, dict) else getattr(item, "url", None)
+                if isinstance(url, str) and url.startswith(("https://", "http://")):
+                    source_urls.append(url)
         return LLMResponse(
             provider=self.name,
             model=str(getattr(response, "model", None) or request.model),
@@ -103,5 +122,7 @@ class AnthropicProvider:
                 ),
                 cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
                 output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+                web_search_requests=web_search_requests,
             ),
+            source_urls=tuple(dict.fromkeys(source_urls)),
         )

@@ -18,6 +18,7 @@ from src.config.constants import (
     FALLBACK_MODEL,
     LLM_INPUT_TOKEN_BUDGET,
     LLM_MAX_TOKENS,
+    WEB_SEARCH_COST_PER_USE_USD,
 )
 from src.utils import cost_guard
 from src.utils.cost_guard import UnknownModelError, compute_cost_usd, get_pricing
@@ -72,6 +73,15 @@ def test_cache_write_costs_more_than_read():
     write = compute_cost_usd(ANALYSIS_MODEL, input_tokens=0, cache_write_tokens=1000)
     read = compute_cost_usd(ANALYSIS_MODEL, input_tokens=0, cache_read_tokens=1000)
     assert write > read * 10
+
+
+def test_web_search_cost_is_included_in_the_same_budget_log():
+    cost = compute_cost_usd(
+        ANALYSIS_MODEL,
+        input_tokens=0,
+        web_search_requests=3,
+    )
+    assert cost == pytest.approx(3 * WEB_SEARCH_COST_PER_USE_USD)
 
 
 # ═══ ADR 4 — 시스템 프롬프트는 얼어 있어야 한다 ═══

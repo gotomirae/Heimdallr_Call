@@ -38,6 +38,7 @@ from src.config.constants import (
     SONNET_CACHE_WRITE_PER_MTOK,
     SONNET_INPUT_PER_MTOK,
     SONNET_OUTPUT_PER_MTOK,
+    WEB_SEARCH_COST_PER_USE_USD,
 )
 from src.llm.provider import NormalizedUsage
 
@@ -110,14 +111,16 @@ def compute_cost_usd(
     cache_write_tokens: int = 0,
     cache_read_tokens: int = 0,
     output_tokens: int = 0,
+    web_search_requests: int = 0,
 ) -> float:
     rates = get_pricing(model)
-    return (
+    token_cost = (
         input_tokens * rates.input
         + cache_write_tokens * rates.cache_write
         + cache_read_tokens * rates.cache_read
         + output_tokens * rates.output
     ) / 1_000_000
+    return token_cost + web_search_requests * WEB_SEARCH_COST_PER_USE_USD
 
 
 def estimate_worst_case_cost_usd(
@@ -125,6 +128,7 @@ def estimate_worst_case_cost_usd(
     *,
     input_tokens: int,
     max_output_tokens: int,
+    web_search_max_uses: int = 0,
 ) -> float:
     """호출 전 계산하는 보수적 최대비용.
 
@@ -136,9 +140,10 @@ def estimate_worst_case_cost_usd(
         raise ValueError("token 수는 음수일 수 없다")
     rates = get_pricing(model)
     input_rate = max(rates.input, rates.cache_write, rates.cache_read)
-    return (
+    token_cost = (
         input_tokens * input_rate + max_output_tokens * rates.output
     ) / 1_000_000
+    return token_cost + web_search_max_uses * WEB_SEARCH_COST_PER_USE_USD
 
 
 @dataclass
@@ -213,6 +218,7 @@ def record_usage(model: str, usage: NormalizedUsage, *, env: str = ENV_PROD) -> 
         cache_write_tokens=cache_write,
         cache_read_tokens=cache_read,
         output_tokens=output_tokens,
+        web_search_requests=usage.web_search_requests,
     )
 
     get_client().table("cost_log").insert(

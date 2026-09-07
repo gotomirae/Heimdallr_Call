@@ -178,6 +178,30 @@ ANALYSIS_SCHEMA: dict = {
             "items": {"type": "string"},
             "description": "다음 분기에 반드시 확인할 지표 3개",
         },
+        # 3단계 웹검색에서만 채운다. 1·2단계에는 검색비가 붙지 않으며 빈 배열이다.
+        "broker_reports": {
+            "type": "array",
+            "description": "공시 뒤 지정 기간에 발행된 증권사 리포트. 검증 가능한 직접 링크가 있는 것만",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "publisher": {"type": "string", "description": "발행 증권사"},
+                    "title": {"type": "string", "description": "리포트 제목"},
+                    "published_at": {"type": "string", "description": "발행일 YYYY-MM-DD"},
+                    "channel": {
+                        "type": "string",
+                        "description": "발견 경로: 선진짱 주식공부방, 소중한추억., 기타 웹",
+                    },
+                    "url": {"type": "string", "description": "검색 결과에서 확인된 직접 URL"},
+                    "key_point": {
+                        "type": "string",
+                        "description": "이 분석을 실제로 바꾼 정성 논점. 목표주가를 베끼지 마라",
+                    },
+                },
+                "required": ["publisher", "title", "published_at", "channel", "url", "key_point"],
+                "additionalProperties": False,
+            },
+        },
         "how_i_could_be_wrong": {"type": "string"},
     },
     "required": [

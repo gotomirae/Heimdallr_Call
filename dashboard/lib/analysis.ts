@@ -115,6 +115,16 @@ export interface GrowthEngine {
   evidence: string | null;
 }
 
+/** 3단계 웹검색에서 실제 검색 결과 URL로 확인된 최근 증권사 리포트. */
+export interface BrokerReport {
+  publisher: string | null;
+  title: string | null;
+  publishedAt: string | null;
+  channel: string | null;
+  url: string | null;
+  keyPoint: string | null;
+}
+
 export interface AnalysisView {
   thesis: string | null;
   whyNow: string | null;
@@ -132,6 +142,8 @@ export interface AnalysisView {
   pricePosition: PricePosition;
   risks: Risk[];
   nextDataToWatch: string[];
+  brokerReports: BrokerReport[];
+  brokerReportSearchPerformed: boolean;
   howICouldBeWrong: string | null;
   isEmpty: boolean;
 }
@@ -258,6 +270,7 @@ function readPricePosition(node: unknown): PricePosition {
 export function readAnalysis(payload: unknown): AnalysisView {
   const root = asRecord(payload);
   const quality = root ? asRecord(root.acceleration_quality) : null;
+  const meta = root ? asRecord(root._heimdallr) : null;
 
   const scenarios = root ? readScenarios(root.scenarios) : [];
   const probs = scenarios
@@ -291,6 +304,20 @@ export function readAnalysis(payload: unknown): AnalysisView {
         })
       : [],
     nextDataToWatch: root ? readStrings(root, "next_data_to_watch") : [],
+    brokerReports: root
+      ? asArray(root.broker_reports).map((raw) => {
+          const report = asRecord(raw);
+          return {
+            publisher: report ? asString(report.publisher) : null,
+            title: report ? asString(report.title) : null,
+            publishedAt: report ? asString(report.published_at) : null,
+            channel: report ? asString(report.channel) : null,
+            url: report ? asString(report.url) : null,
+            keyPoint: report ? asString(report.key_point) : null,
+          };
+        })
+      : [],
+    brokerReportSearchPerformed: meta?.analysis_stage === "report_final",
     howICouldBeWrong: root ? asString(root.how_i_could_be_wrong) : null,
     isEmpty: false,
   };

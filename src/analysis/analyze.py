@@ -120,6 +120,7 @@ class AnalysisResult:
     analysis_stage: str | None = None
     report_evidence_hash: str | None = None
     removed_factual_numbers: tuple[str, ...] = ()
+    web_search_requests: int = 0
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -371,11 +372,29 @@ def build_user_message(data: AnalysisInput) -> str:
             "서프라이즈를 논하지 마라."
         )
     if data.report_context:
+        search = data.report_context.get("report_search") or {}
+        channels = search.get("priority_channels") or []
+        channel_lines = "\n".join(
+            f"- {c.get('name')}: {c.get('url')}"
+            for c in channels
+            if isinstance(c, dict)
+        )
         parts += [
             "",
-            "## 4-1. 정기보고서 후 5거래일 컨센서스 변화",
-            "아래는 네이버/WiseReport 추정치 변화다. 증권사 리포트 원문이 아니므로 "
-            "원문을 읽었다고 쓰지 말고 시장 추정치 변화로만 해석하라.",
+            "## 4-1. 정기보고서 후 5거래일 최종 갱신",
+            "이 블록이 있으면 3단계다. web_search를 반드시 사용하되 아래 순서로 최대 3회만 검색하라.",
+            f"발행일 범위: {search.get('published_from', '—')} ~ "
+            f"{search.get('published_through', '—')} (양 끝 포함 · 달력일)",
+            "① 아래 텔레그램 공개 채널 2곳에서 종목명과 6자리 코드를 각각 우선 검색한다.",
+            channel_lines or "- 지정 채널 없음",
+            "② 부족할 때만 종목명·코드·'증권사 리포트'로 일반 웹검색한다.",
+            "③ 위 발행일 범위 안의 증권사/리서치센터 자료만 broker_reports에 남긴다. "
+            "일반 뉴스·블로그·유튜브는 리포트로 세지 마라.",
+            "텔레그램은 발견 경로이지 사실의 최종 권위가 아니다. 연결된 원문이 열리면 원문을 우선하고, "
+            "열리지 않으면 텔레그램 게시물의 직접 URL을 남겨라.",
+            "publisher·title·published_at·직접 URL을 검색 결과에서 확인하지 못하면 제외하라. "
+            "해당 리포트가 없으면 broker_reports는 빈 배열로 두고 절대 만들어내지 마라.",
+            "컨센서스 변화는 네이버/WiseReport 수치이며 리포트 원문이 아니다. 변화가 없어도 검색은 수행한다.",
             json.dumps(data.report_context, ensure_ascii=False),
         ]
     # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
@@ -555,6 +574,20 @@ def analysis_result_from_response(
     #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
     payload = sanitize_payload(payload)
 
+    # 웹검색 결과 URL로 확인된 항목만 보존한다. 모델이 출처 링크를 만들어내도
+    # 스키마는 문자열이라 통과하므로 Provider의 실제 검색 결과와 교차한다.
+    if data.analysis_stage == "report_final":
+        payload.setdefault("broker_reports", [])
+    raw_reports = payload.get("broker_reports")
+    if isinstance(raw_reports, list):
+        source_urls = {url.rstrip("/") for url in response.source_urls}
+        payload["broker_reports"] = [
+            report for report in raw_reports
+            if isinstance(report, dict)
+            and isinstance(report.get("url"), str)
+            and report["url"].rstrip("/") in source_urls
+        ]
+
     # ★ schema가 정상이어도 모델이 공시 숫자를 다른 단위로 환산하면 재무 숫자를
     # 생성한 것이다(T114). 실제 요청에 같은 단위로 없는 사실 숫자는 저장하지 않는다.
     try:
@@ -619,6 +652,7 @@ def analysis_result_from_response(
             else None
         ),
         removed_factual_numbers=tuple(removed),
+        web_search_requests=usage.web_search_requests,
     )
 
 
@@ -730,6 +764,8 @@ def save(result: AnalysisResult) -> None:
         "facts_hash": result.facts_hash,
         "report_evidence_hash": result.report_evidence_hash,
         "removed_factual_numbers": list(result.removed_factual_numbers),
+        "web_search_requests": result.web_search_requests,
+        "broker_report_count": len(result.payload.get("broker_reports") or []),
         "last_attempt": {
             "stage": stage,
             "evidence_hash": result.report_evidence_hash or result.facts_hash,

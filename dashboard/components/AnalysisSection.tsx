@@ -170,6 +170,43 @@ export default function AnalysisSection({
         </div>
       )}
 
+      {(analysis.brokerReportSearchPerformed || analysis.brokerReports.length > 0) && (
+        <div className="rounded-lg border border-cyan-800/70 bg-cyan-950/20 p-4">
+          <div className="text-xs font-semibold uppercase text-cyan-200">
+            공시 후 최근 10일 증권사 리포트
+          </div>
+          <Note>
+            선진짱 주식공부방·소중한추억.을 먼저 확인한 뒤 일반 웹검색으로 보완했다.
+            텔레그램은 발견 경로이며, 투자 판단은 연결된 증권사 원문과 공시를 우선한다.
+          </Note>
+          {analysis.brokerReports.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-200">
+              발행일과 직접 링크를 확인할 수 있는 리포트를 찾지 못했다.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {analysis.brokerReports.map((report, index) => (
+                <li key={`${report.url ?? report.title}-${index}`} className="rounded border border-slate-700 bg-slate-950/40 p-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                    <span>{report.publishedAt ?? DASH}</span>
+                    <span>{report.publisher ?? DASH}</span>
+                    {report.channel && <span className="rounded bg-slate-800 px-1.5 py-0.5">{report.channel}</span>}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-100">
+                    {report.url ? (
+                      <a href={report.url} target="_blank" rel="noreferrer" className="underline decoration-cyan-500/60 underline-offset-2 hover:text-cyan-200">
+                        {report.title ?? report.url}
+                      </a>
+                    ) : report.title ?? DASH}
+                  </div>
+                  {report.keyPoint && <Prose text={report.keyPoint} />}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* ★ 실적 변화 — 원인 / 결과 / 전망 (사용자 요청).
           2026-08-17 이전에 저장된 행에는 없다 → 있을 때만 그린다. */}
       {(analysis.earningsChange.cause ||

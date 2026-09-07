@@ -157,6 +157,28 @@ def test_prompt_forbids_new_arithmetic_and_requires_latest_disclosure_citation()
     assert "[[F" not in SYSTEM_PROMPT
 
 
+def test_report_final_prompt_prioritizes_two_channels_and_exact_date_window():
+    message = build_user_message(_input(report_context={
+        "filing_date": "2026-09-04",
+        "window_end": "2026-09-11",
+        "changes": [],
+        "report_search": {
+            "published_from": "2026-09-04",
+            "published_through": "2026-09-11",
+            "lookback_calendar_days": 10,
+            "priority_channels": [
+                {"name": "선진짱 주식공부방", "url": "https://t.me/s/sunstudy1234"},
+                {"name": "소중한추억.", "url": "https://t.me/s/DOC_POOL"},
+            ],
+        },
+    }))
+    assert "web_search를 반드시 사용" in message
+    assert "2026-09-04 ~ 2026-09-11" in message
+    assert "https://t.me/s/sunstudy1234" in message
+    assert "https://t.me/s/DOC_POOL" in message
+    assert "변화가 없어도 검색은 수행" in message
+
+
 # ── 회귀 방어: 스키마가 요구하는 것 ↔ 입력이 주는 것 ──────────────────
 
 

@@ -182,6 +182,36 @@ def test_analysis_result_redacts_unsupported_fact_without_repaying():
     ) == []
 
 
+def test_report_references_are_kept_only_when_the_provider_actually_found_the_url():
+    data = AnalysisInput(code="005930", name="삼성전자", board="KOSPI")
+    response = LLMResponse(
+        provider="fake",
+        model="offline",
+        payload={
+            "broker_reports": [
+                {"url": "https://t.me/DOC_POOL/193287", "title": "확인됨"},
+                {"url": "https://made-up.example/report", "title": "모델이 만든 링크"},
+            ]
+        },
+        usage=NormalizedUsage(web_search_requests=1),
+        stop_reason="completed",
+        source_urls=("https://t.me/DOC_POOL/193287",),
+    )
+
+    result = analysis_result_from_response(
+        data,
+        response,
+        cost_usd=0.01,
+        max_output_tokens=1_000,
+        request_user_message="증권사 리포트 검색",
+    )
+
+    assert result.payload["broker_reports"] == [
+        {"url": "https://t.me/DOC_POOL/193287", "title": "확인됨"}
+    ]
+    assert result.web_search_requests == 1
+
+
 def test_redactor_keeps_supported_numbers_and_removes_only_bad_claims():
     data = AnalysisInput(code="097230", name="HJ중공업", board="KOSPI")
     payload = {"why_now": "매출은 100억원이고 근거 없는 목표가 17,000원이다."}

@@ -243,6 +243,13 @@ LLM_NUMERIC_WHOLE_ROUNDING_MIN_PERCENT = 100
 # 정기보고서 뒤 증권사 추정치 변경을 기다리는 실제 거래일 수.
 # `index_snapshots`의 KOSPI 거래일을 사용하므로 주말·휴장일을 달력으로 추측하지 않는다.
 REPORT_REFRESH_TRADING_DAYS = 5
+# 3단계 최종 갱신에서 확인할 증권사 리포트 발행 기간. 사용자가 "10일 내"라고
+# 지정했고 거래일이라고 하지 않았으므로 달력일 10일(양 끝 포함)로 해석한다.
+BROKER_REPORT_LOOKBACK_DAYS = 10
+BROKER_REPORT_PRIORITY_CHANNELS = (
+    ("선진짱 주식공부방", "https://t.me/s/sunstudy1234"),
+    ("소중한추억.", "https://t.me/s/DOC_POOL"),
+)
 
 # ═══ 공시 발췌 길이 — **여기 한 곳만이다** ═══
 # ★★ 이 값이 두 곳에 흩어져 조용히 어긋나 있었다(T100 · 2026-08-24 실측).
@@ -262,7 +269,8 @@ EXCERPT_MAX_CHARS = EXCERPT_BUDGET_CHARS + EXCERPT_LABEL_HEADROOM_CHARS
 # ★★ **출처를 제한한다.** 종목 토론방·블로그·유튜브 요약이 섞이면 분석이 통째로
 #   오염된다 — 모델은 출처의 신빙성을 스스로 가리지 못한다.
 #   여기 없는 도메인은 검색 결과에 아예 오지 않는다(`allowed_domains`).
-# ★ 증권사 리포트 원문은 저작물이라 긁지 않는다. 공시·거래소·주요 경제지까지다.
+# ★ 증권사 리포트 원문을 대량 수집하지 않는다. 3단계에서 공개 웹검색으로 최근
+#   리포트의 메타데이터·핵심 논점·직접 링크만 확인한다(ADR 13).
 WEB_SEARCH_ALLOWED_DOMAINS = (
     "dart.fss.or.kr",        # 전자공시 — 1차 출처
     "kind.krx.co.kr",        # 거래소 공시
@@ -274,10 +282,13 @@ WEB_SEARCH_ALLOWED_DOMAINS = (
     "www.thelec.kr",
     "biz.chosun.com",
     "www.yna.co.kr",         # 통신사
+    "t.me",                  # 사용자 지정 공개 리포트 큐레이션 채널 2곳
 )
 #: 한 분석에서 허용할 검색 횟수. 늘리면 비용과 지연이 함께 는다.
 #: ★ 검색은 건당 과금이다($10/1,000회) — 월 실링을 쓰는 속도가 바뀐다.
 WEB_SEARCH_MAX_USES = 3
+# Anthropic 서버 웹검색 공식 단가: $10 / 1,000회 = $0.01/회.
+WEB_SEARCH_COST_PER_USE_USD = 0.01
 #: 웹 서치를 켤 것인가. 기본은 **끔** — 비용이 붙으므로 명시적으로 켠다.
 ENABLE_WEB_SEARCH = optional_env("ENABLE_WEB_SEARCH", "").lower() in ("1", "true", "yes")
 
