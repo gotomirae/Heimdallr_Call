@@ -3,7 +3,10 @@
 
 import hashlib
 import json
+from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
+from typing import Any
 
 FACT_FIELDS = (
     "fiscal_year", "fiscal_quarter", "revenue", "op", "np", "revenue_yoy",
@@ -11,6 +14,21 @@ FACT_FIELDS = (
     "ttm_cfo", "cfo", "capex", "fcf", "receivables", "inventory",
     "shares_outstanding", "shares_yoy", "op_status_label", "is_estimate",
 )
+
+CONSENSUS_FIELDS = (
+    # PER·선행 PER은 같은 이익 추정치에서도 **주가만 움직여 매일 바뀔 수 있다.**
+    # 리포트 창의 증거로 쓰면 시세 변화가 유료 3단계를 열어 버린다(T138).
+    "revenue_est", "op_est", "np_est", "eps_est", "n_estimates",
+)
+
+
+@dataclass(frozen=True)
+class ReportRefreshDecision:
+    ready: bool
+    changed: bool
+    window_end: str | None = None
+    evidence_hash: str | None = None
+    context: dict[str, Any] | None = None
 
 
 def facts_hash(quarters: list[dict], excerpt: str | None) -> str:
@@ -50,3 +68,108 @@ def select_excerpt(rows: list[dict], year: int, quarter: int) -> dict | None:
     return max(eligible, key=lambda r: (r.get("fiscal_year") or 0,
                                        r.get("fiscal_quarter") or 0,
                                        r.get("rcept_no") or ""), default=None)
+
+
+def _day(value: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _consensus_value(value: Any) -> Any:
+    if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+        return str(Decimal(str(value)).normalize())
+    return value
+
+
+def _relevant_consensus(row: dict, year: int, quarter: int) -> bool:
+    """정기보고서 뒤 리포트가 바꿀 수 있는 연간·향후 분기 추정치만 고른다."""
+    ry, rq = row.get("fiscal_year"), row.get("fiscal_quarter")
+    if not isinstance(ry, int) or not isinstance(rq, int):
+        return False
+    if rq == 0:
+        return ry >= year
+    return ry * 4 + rq > year * 4 + quarter and (row.get("n_estimates") or 0) >= 2
+
+
+def _latest_consensus(
+    rows: list[dict],
+    *,
+    cutoff: date,
+    year: int,
+    quarter: int,
+) -> dict[tuple[int, int], dict]:
+    latest: dict[tuple[int, int], dict] = {}
+    for row in rows:
+        snap_day = _day(row.get("snapshot_at"))
+        if snap_day is None or snap_day > cutoff or not _relevant_consensus(row, year, quarter):
+            continue
+        key = (int(row["fiscal_year"]), int(row["fiscal_quarter"]))
+        previous = latest.get(key)
+        if previous is None or str(row.get("snapshot_at") or "") > str(previous.get("snapshot_at") or ""):
+            latest[key] = row
+    return latest
+
+
+def _consensus_facts(row: dict | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    return {field: _consensus_value(row.get(field)) for field in CONSENSUS_FIELDS}
+
+
+def report_refresh_decision(
+    consensus_rows: list[dict],
+    session_dates: list[str],
+    *,
+    filing_at: str | None,
+    year: int,
+    quarter: int,
+    trading_days: int,
+) -> ReportRefreshDecision:
+    """정기보고서 후 N거래일에 컨센서스가 실제로 바뀌었는지 판정한다.
+
+    거래일은 KOSPI `index_snapshots`의 실제 세션 날짜다. 스냅샷 수집시각만 새로워지고
+    값이 같은 경우는 리포트 변화로 세지 않는다.
+    """
+    filing_day = _day(filing_at)
+    sessions = sorted({d for raw in session_dates if (d := _day(raw)) is not None})
+    if filing_day is None or trading_days <= 0:
+        return ReportRefreshDecision(False, False)
+    after = [d for d in sessions if d > filing_day]
+    if len(after) < trading_days:
+        return ReportRefreshDecision(False, False)
+    window_end = after[trading_days - 1]
+    before = _latest_consensus(
+        consensus_rows, cutoff=filing_day, year=year, quarter=quarter
+    )
+    after_window = _latest_consensus(
+        consensus_rows, cutoff=window_end, year=year, quarter=quarter
+    )
+    changes: list[dict[str, Any]] = []
+    for key in sorted(set(before) | set(after_window)):
+        old = _consensus_facts(before.get(key))
+        new = _consensus_facts(after_window.get(key))
+        newest_day = _day((after_window.get(key) or {}).get("snapshot_at"))
+        if old == new or newest_day is None or newest_day <= filing_day:
+            continue
+        changes.append({
+            "fiscal_year": key[0],
+            "fiscal_quarter": key[1],
+            "before": old,
+            "after": new,
+        })
+    context = {
+        "filing_date": filing_day.isoformat(),
+        "window_end": window_end.isoformat(),
+        "changes": changes,
+        "source": "naver_wisereport_consensus",
+    }
+    body = json.dumps(context, ensure_ascii=False, sort_keys=True)
+    return ReportRefreshDecision(
+        ready=True,
+        changed=bool(changes),
+        window_end=window_end.isoformat(),
+        evidence_hash=hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        context=context,
+    )

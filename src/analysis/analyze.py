@@ -38,6 +38,7 @@ from src.analysis.prompts import (
 from src.analysis.schema_validation import schema_problems
 from src.analysis.numeric_grounding import (
     annotate_factual_numbers,
+    redact_unsupported_factual_numbers,
     resolve_factual_references,
     unsupported_factual_numbers,
 )
@@ -95,6 +96,8 @@ class AnalysisInput:
     #: 최근 공시 목록(공시명 + 접수일). 정기보고서 발췌와 별개다 —
     #  발췌는 **내용**이고 이건 **무엇이 언제 나왔는가**다.
     disclosures: list[dict] = field(default_factory=list)
+    analysis_stage: str | None = None
+    report_context: dict | None = None
     #: 데이터 기준일(YYYY-MM-DD). 모델이 "지금이 언제인지" 알아야
     #  다음 분기 전망과 트리거 시점을 제대로 잡는다.
     as_of: str | None = None
@@ -114,6 +117,9 @@ class AnalysisResult:
     output_tokens: int
     is_estimate: bool = False
     facts_hash: str | None = None
+    analysis_stage: str | None = None
+    report_evidence_hash: str | None = None
+    removed_factual_numbers: tuple[str, ...] = ()
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -364,6 +370,14 @@ def build_user_message(data: AnalysisInput) -> str:
             "C축(서프라이즈)은 0점이 아니라 분모에서 제외되어 정규화됐다. "
             "서프라이즈를 논하지 마라."
         )
+    if data.report_context:
+        parts += [
+            "",
+            "## 4-1. 정기보고서 후 5거래일 컨센서스 변화",
+            "아래는 네이버/WiseReport 추정치 변화다. 증권사 리포트 원문이 아니므로 "
+            "원문을 읽었다고 쓰지 말고 시장 추정치 변화로만 해석하라.",
+            json.dumps(data.report_context, ensure_ascii=False),
+        ]
     # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
     #   기준이라 실적이 급가속하면 2~3배 과대평가된다(실측: 고영 131.6 vs 실제 40.5).
     #   이 시스템은 정확히 그런 종목만 고르므로 왜곡이 항상 최악으로 걸린다.
@@ -512,6 +526,7 @@ def analysis_result_from_response(
     cost_usd: float,
     max_output_tokens: int,
     request_user_message: str,
+    redact_unsupported: bool = True,
 ) -> AnalysisResult:
     """Provider 응답을 저장 가능한 Canonical 결과로 검증·정규화한다."""
 
@@ -555,11 +570,28 @@ def analysis_result_from_response(
         payload,
         user_message=request_user_message,
     )
+    removed: list[str] = []
     if unsupported:
-        raise AnalysisError(
-            f"{data.code}: 입력에 없는 사실 숫자: {', '.join(unsupported)} — "
-            "LLM 계산·단위 환산 결과는 저장하지 않는다"
+        if not redact_unsupported:
+            raise AnalysisError(
+                f"{data.code}: 입력에 없는 사실 숫자: {', '.join(unsupported)} — "
+                "저장하지 않는다"
+            )
+        payload, removed = redact_unsupported_factual_numbers(
+            data,
+            payload,
+            user_message=request_user_message,
         )
+        remaining = unsupported_factual_numbers(
+            data,
+            payload,
+            user_message=request_user_message,
+        )
+        if remaining:
+            raise AnalysisError(
+                f"{data.code}: 검증 불가 숫자 제거 실패: {', '.join(remaining)} — "
+                "저장하지 않는다"
+            )
 
     from src.analysis.freshness import facts_hash
 
@@ -577,6 +609,16 @@ def analysis_result_from_response(
         output_tokens=usage.output_tokens,
         is_estimate=data.is_estimate,
         facts_hash=facts_hash(data.quarters, data.excerpt),
+        analysis_stage=(
+            data.analysis_stage
+            or ("preliminary" if data.is_estimate else "filing")
+        ),
+        report_evidence_hash=(
+            str(data.report_context.get("evidence_hash"))
+            if data.report_context and data.report_context.get("evidence_hash")
+            else None
+        ),
+        removed_factual_numbers=tuple(removed),
     )
 
 
@@ -682,9 +724,18 @@ def save(result: AnalysisResult) -> None:
     from src.db.supabase_client import get_client
 
     stored_payload = dict(result.payload)
+    stage = result.analysis_stage or ("preliminary" if result.is_estimate else "filing")
     stored_payload["_heimdallr"] = {
-        "analysis_stage": "preliminary" if result.is_estimate else "final",
+        "analysis_stage": stage,
         "facts_hash": result.facts_hash,
+        "report_evidence_hash": result.report_evidence_hash,
+        "removed_factual_numbers": list(result.removed_factual_numbers),
+        "last_attempt": {
+            "stage": stage,
+            "evidence_hash": result.report_evidence_hash or result.facts_hash,
+            "status": "success",
+            "attempted_at": datetime.now(timezone.utc).isoformat(),
+        },
     }
     get_client().table("analyses").upsert(
         {

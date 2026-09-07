@@ -302,6 +302,9 @@ def run_canary(
             cost_usd=actual_cost,
             max_output_tokens=max_output_tokens,
             request_user_message=request.user_message,
+            # Canary는 Provider 품질 측정이다. 운영의 숫자 제거로 원응답 결함을
+            # 가리면 Provider 비교가 조용히 좋아진다(ADR 12).
+            redact_unsupported=False,
         )
     except AnalysisError as exc:
         raise fail(str(exc)) from exc

@@ -95,6 +95,19 @@ def test_default_covers_all_gate_passed():
     assert len(picked) == len(gate_passed)
 
 
+def test_automatic_notify_only_scope_excludes_non_alert_grades(monkeypatch):
+    """자동 배치는 ★·○만 유료 해석하고 전수 탐지는 스크리너가 맡는다."""
+    from src.analysis import batch
+
+    rows = [
+        {**row, "fiscal_year": 2026, "fiscal_quarter": 2}
+        for row in ALL
+    ]
+    monkeypatch.setattr(batch, "select_all", lambda *a, **k: rows)
+    picked = batch.targets(1000, min_score=0, notify_only=True)
+    assert {row["code"] for row in picked} == {"A", "B", "C", "D"}
+
+
 def test_gate_failed_and_undecided_are_excluded():
     """탈락·판정불가는 대상이 아니다(ADR 3 — LLM은 통과 종목의 해석 전용)."""
     picked = {r["code"] for r in _pick(ALL, top=DEFAULT_TOP, min_score=0)}
@@ -343,7 +356,7 @@ def test_daily_limit_does_not_send_telegram():
     `stopped_at`이면 무조건 보내 **정확히 그 소음**을 만들고 있었다.
     사람이 결정할 것이 있을 때만 알린다 — 월 실링만 해당한다.
     """
-    assert 'elif stopped_at and "daily" not in stopped_at:' in BATCH_SRC, (
+    assert 'if stopped_at and "daily" not in stopped_at:' in BATCH_SRC, (
         "일 상한에도 텔레그램을 보낸다 — 따라잡기 기간에 매일 알림이 간다"
     )
 

@@ -136,22 +136,29 @@ export default async function StockPage({ params }: { params: { code: string } }
   const analysisIsStale = Boolean(fallback);
   const storedAnalysis = (analysisPayload ?? fallback?.payload ?? null) as Record<string, unknown> | null;
   const analysisMeta = storedAnalysis?._heimdallr as Record<string, unknown> | undefined;
+  const removedFactualNumbers = Array.isArray(analysisMeta?.removed_factual_numbers)
+    ? analysisMeta.removed_factual_numbers.length
+    : 0;
   const analyzedFund = analysisYear && analysisQuarter
     ? funds.find((f) => f.fiscal_year === analysisYear && f.fiscal_quarter === analysisQuarter)
     : null;
   const analysisStage =
-    analysisMeta?.analysis_stage === "final"
-      ? "(2단계) 분기/반기/사업보고서 공시 후 최종 분석"
+    analysisMeta?.analysis_stage === "report_final"
+      ? "(3단계) 정기보고서 후 5거래일 컨센서스 반영 완료"
+      : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
+        ? "(2단계) 분기/반기/사업보고서 공시 분석"
       : analysisMeta?.analysis_stage === "preliminary"
         ? "(1단계) 잠정실적 발표 초기 분석"
         : storedAnalysis && analyzedFund?.is_estimate
           ? "(1단계) 잠정실적 발표 초기 분석 · 단계 메타 보강 대기"
           : storedAnalysis
-            ? "(2단계) 최종 분석 자동 갱신 대기"
+            ? "(2단계) 정기보고서 공시 분석 · 단계 메타 보강 대기"
             : "(1단계) 성장 가속 분석 대기";
   const analysisStageClass =
-    analysisMeta?.analysis_stage === "final"
+    analysisMeta?.analysis_stage === "report_final"
       ? "border-emerald-700 bg-emerald-950/30 text-emerald-200"
+      : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
+        ? "border-sky-700 bg-sky-950/30 text-sky-200"
       : analysisMeta?.analysis_stage === "preliminary"
         ? "border-amber-700 bg-amber-950/30 text-amber-200"
         : storedAnalysis
@@ -513,11 +520,17 @@ export default async function StockPage({ params }: { params: { code: string } }
           {analysisStage}
         </p>
         <p className="mb-3 text-xs leading-relaxed text-slate-300">
-          분석 단계: <strong className="text-amber-200">(1단계) 잠정실적 발표 초기 분석</strong>
-          {" → "}<strong className="text-emerald-200">(2단계) 분기/반기/사업보고서 공시 후 최종 분석 자동 실행·반영</strong>.
-          현재 배지가 이 종목에 저장된 단계를 나타낸다. 이후 재무·정정공시 근거가 바뀌면
-          비용 한도 안에서 순차적으로 다시 분석한다. 재분석이 끝나기 전에는 기존 해석이 표시된다.
+          분석 단계: <strong className="text-amber-200">(1단계) 잠정실적 발표</strong>
+          {" → "}<strong className="text-sky-200">(2단계) 정기보고서 공시</strong>
+          {" → "}<strong className="text-emerald-200">(3단계) 5거래일 내 컨센서스 변경 반영</strong>.
+          3단계는 실제 추정치 변경이 있을 때만 LLM을 다시 호출하며, 변경이 없으면 무료로 종료한다.
         </p>
+        {removedFactualNumbers > 0 && (
+          <p className="mb-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">
+            입력에서 확인되지 않은 LLM 생성 숫자 {removedFactualNumbers}개를 자동 제거했다.
+            정량 판단은 위 재무·주가 화면의 확정값을 기준으로 한다.
+          </p>
+        )}
         {analysisIsStale && analysisYear && analysisQuarter && (
           <p className="mb-3 rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
             ⚠ 이 해석은 <strong>{quarterLabel(analysisYear, analysisQuarter)}</strong> 기준이다 —

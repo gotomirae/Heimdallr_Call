@@ -128,6 +128,7 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
 def test_only_growth_acceleration_renders_llm_and_links_are_exact():
     assert 'isGrowthAcceleration ? <Card' in STOCK
     assert "(1단계) 잠정실적 발표 초기 분석" in STOCK
-    assert "(2단계) 분기/반기/사업보고서 공시 후 최종 분석" in STOCK
+    assert "(2단계) 분기/반기/사업보고서 공시 분석" in STOCK
+    assert "(3단계) 정기보고서 후 5거래일 컨센서스 반영 완료" in STOCK
     assert "stockeasyStockUrl(code)" in STOCK
     assert "naverDisclosureUrl" not in STOCK

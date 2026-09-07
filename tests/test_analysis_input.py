@@ -154,7 +154,7 @@ def test_prompt_forbids_new_arithmetic_and_requires_latest_disclosure_citation()
     assert "결정론적 절대 증감" in SYSTEM_PROMPT
     assert "최신 공시명과 접수일" in SYSTEM_PROMPT
     assert "트리거 월 상한" in SYSTEM_PROMPT
-    assert "[[F001]]" not in SYSTEM_PROMPT
+    assert "[[F" not in SYSTEM_PROMPT
 
 
 # ── 회귀 방어: 스키마가 요구하는 것 ↔ 입력이 주는 것 ──────────────────

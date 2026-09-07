@@ -441,3 +441,53 @@ def unsupported_factual_numbers(
     ]
     unsupported = sorted(_number_claims(factual_text) - allowed)
     return [f"{number}{unit}" for number, unit in unsupported]
+
+
+def redact_unsupported_factual_numbers(
+    data: Any,
+    payload: dict[str, Any],
+    *,
+    user_message: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """검증할 수 없는 숫자 토큰만 제거하고 이미 결제한 정성 해석은 보존한다."""
+    allowed = _input_number_claims(data, user_message=user_message)
+    removed: set[tuple[str, str]] = set()
+
+    def clean_text(text: str) -> str:
+        spans: list[tuple[int, int, set[tuple[str, str]]]] = []
+        occupied: list[tuple[int, int]] = []
+        for pattern in (_COMPOUND_JO_EOK, _COMPOUND_MAN_WON):
+            for match in pattern.finditer(text):
+                claims = _number_claims([match.group(0)])
+                spans.append((match.start(), match.end(), claims))
+                occupied.append((match.start(), match.end()))
+        for match in NUMBER_WITH_UNIT_RE.finditer(text):
+            if any(start < match.end() and match.start() < end for start, end in occupied):
+                continue
+            context = text[match.start():match.end() + 8]
+            spans.append((match.start(), match.end(), _number_claims([context])))
+        replacements: list[tuple[int, int]] = []
+        for start, end, claims in spans:
+            bad = claims - allowed
+            if bad:
+                removed.update(bad)
+                replacements.append((start, end))
+        for start, end in sorted(replacements, reverse=True):
+            text = text[:start] + "[검증 불가 수치 삭제]" + text[end:]
+        return text
+
+    def clean_value(value: Any) -> Any:
+        if isinstance(value, str):
+            return clean_text(value)
+        if isinstance(value, list):
+            return [clean_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: clean_value(item) for key, item in value.items()}
+        return value
+
+    cleaned = deepcopy(payload)
+    for path in FACTUAL_PATHS:
+        current = _at_path(cleaned, path)
+        if current is not None:
+            _set_path(cleaned, path, clean_value(current))
+    return cleaned, [f"{number}{unit}" for number, unit in sorted(removed)]

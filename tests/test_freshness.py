@@ -1,7 +1,12 @@
 # PRD Ref: §7, §9, §10 — 정정 후 갱신·변경 없는 재실행을 함께 검증한다.
 from datetime import date
 
-from src.analysis.freshness import facts_hash, render_excerpt, select_excerpt
+from src.analysis.freshness import (
+    facts_hash,
+    render_excerpt,
+    report_refresh_decision,
+    select_excerpt,
+)
 from src.analysis import batch
 from src.collectors import excerpt_run
 from src.finance.backfill import recent_periodic_targets
@@ -12,6 +17,84 @@ def test_hash_ignores_collection_time_but_detects_financial_change():
     assert facts_hash([q], None) == facts_hash([{**q, "revenue": 100.0, "updated_at": "later"}], None)
     assert facts_hash([q], None) != facts_hash([{**q, "revenue": 110}], None)
     assert facts_hash([q], None) != facts_hash([q], "정정된 계약")
+
+
+def test_report_refresh_waits_for_five_actual_market_sessions():
+    rows = [{
+        "fiscal_year": 2026,
+        "fiscal_quarter": 0,
+        "op_est": 100,
+        "source": "naver",
+        "snapshot_at": "2026-09-04T08:00:00+09:00",
+    }]
+    four_sessions = ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10"]
+    assert not report_refresh_decision(
+        rows,
+        four_sessions,
+        filing_at="2026-09-04",
+        year=2026,
+        quarter=2,
+        trading_days=5,
+    ).ready
+
+
+def test_report_refresh_requires_actual_consensus_change():
+    base = {
+        "fiscal_year": 2026,
+        "fiscal_quarter": 0,
+        "op_est": 100,
+        "source": "naver",
+    }
+    sessions = ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11"]
+    unchanged = report_refresh_decision(
+        [
+            {**base, "snapshot_at": "2026-09-04T08:00:00+09:00"},
+            {**base, "snapshot_at": "2026-09-11T08:00:00+09:00"},
+        ],
+        sessions,
+        filing_at="2026-09-04",
+        year=2026,
+        quarter=2,
+        trading_days=5,
+    )
+    changed = report_refresh_decision(
+        [
+            {**base, "snapshot_at": "2026-09-04T08:00:00+09:00"},
+            {**base, "op_est": 120, "snapshot_at": "2026-09-11T08:00:00+09:00"},
+        ],
+        sessions,
+        filing_at="2026-09-04",
+        year=2026,
+        quarter=2,
+        trading_days=5,
+    )
+    assert unchanged.ready and not unchanged.changed
+    assert changed.ready and changed.changed
+    assert changed.context and changed.context["changes"][0]["before"]["op_est"] == "1E+2"
+    assert changed.context["changes"][0]["after"]["op_est"] == "1.2E+2"
+
+
+def test_report_refresh_ignores_price_driven_per_change():
+    """PER은 주가만 움직여도 바뀐다 — 리포트 변화나 유료 호출 근거가 아니다."""
+    base = {
+        "fiscal_year": 2026,
+        "fiscal_quarter": 0,
+        "np_est": 100,
+        "fwd_per": 12,
+        "source": "naver",
+    }
+    decision = report_refresh_decision(
+        [
+            {**base, "snapshot_at": "2026-09-04T08:00:00+09:00"},
+            {**base, "fwd_per": 15, "snapshot_at": "2026-09-11T08:00:00+09:00"},
+        ],
+        ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11"],
+        filing_at="2026-09-04",
+        year=2026,
+        quarter=2,
+        trading_days=5,
+    )
+    assert decision.ready and not decision.changed
 
 
 def test_correction_selected_regardless_of_db_order_and_future_excluded():
@@ -43,6 +126,58 @@ def test_analysis_refreshes_changed_facts_once(monkeypatch):
     q["revenue"] = 110
     assert not batch.already_analyzed(refresh_finalized=True)
     a["payload"]["_heimdallr"]["facts_hash"] = facts_hash([q], None)
+    assert ("000001", 2026, 2) in batch.already_analyzed(refresh_finalized=True)
+
+
+def test_legacy_analysis_is_not_mass_refreshed_by_collection_timestamp(monkeypatch):
+    """메타 보강일은 새 실적 이벤트가 아니다 — 레거시 전량 재결제를 막는다."""
+    q = {
+        "code": "000001",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "revenue": 100,
+        "is_estimate": False,
+        "updated_at": "2026-09-05T09:00:00+00:00",
+        "delta_from_preliminary": None,
+    }
+    a = {
+        "code": "000001",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "created_at": "2026-08-20T09:00:00+00:00",
+        "payload": {"why_now": "기존 분석"},
+    }
+    tables = {"analyses": [a], "quarterly_fundamentals": [q], "disclosure_excerpts": []}
+    monkeypatch.setattr(batch, "select_all", lambda table, *a, **k: tables[table])
+    assert ("000001", 2026, 2) in batch.already_analyzed(refresh_finalized=True)
+
+
+def test_same_failed_evidence_is_not_paid_again(monkeypatch):
+    q = {
+        "code": "000001",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "revenue": 100,
+        "is_estimate": False,
+    }
+    evidence_hash = facts_hash([q], None)
+    a = {
+        "code": "000001",
+        "fiscal_year": 2026,
+        "fiscal_quarter": 2,
+        "created_at": "2026-09-05T09:00:00+00:00",
+        "payload": {
+            "_heimdallr": {
+                "last_attempt": {
+                    "stage": "filing",
+                    "evidence_hash": evidence_hash,
+                    "status": "failed",
+                }
+            }
+        },
+    }
+    tables = {"analyses": [a], "quarterly_fundamentals": [q], "disclosure_excerpts": []}
+    monkeypatch.setattr(batch, "select_all", lambda table, *a, **k: tables[table])
     assert ("000001", 2026, 2) in batch.already_analyzed(refresh_finalized=True)
 
 
@@ -94,7 +229,11 @@ def test_refresh_workflows_cover_consensus_and_changed_analysis():
     daily = (workflows / "universe_daily.yml").read_text(encoding="utf-8")
     assert "src.collectors.consensus_run --save" in daily
     assert daily.index("src.collectors.consensus_run") < daily.index("src.screener.run")
-    assert "--refresh-finalized" in (workflows / "llm_batch.yml").read_text(encoding="utf-8")
+    manual = (workflows / "llm_batch.yml").read_text(encoding="utf-8")
+    assert "schedule:" not in manual
+    assert "--notify-only" in manual
     poll = (workflows / "disclosure_poll.yml").read_text(encoding="utf-8")
+    assert "--refresh-finalized --notify-only" in poll
     assert "vars.SEASON_MODE" not in poll
     assert 'cron: "*/30 0-14 * * *"' in poll
+    assert "--report-final --notify-only" in daily

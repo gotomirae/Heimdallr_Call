@@ -1,5 +1,5 @@
 # PRD Ref: §7 (LLM 해석) · ADR 3, ADR 4 · traps.md T18
-"""LLM 분석 **배치** — 투자 매력도 상위 종목을 미리 분석해 둔다.
+"""LLM 분석 **이벤트 배치** — 투자 알림 대상만 필요한 시점에 분석한다.
 
 왜 배치인가 (실측 근거):
   기존에는 텔레그램 질의가 올 때만 분석했다. 그래서 호출이 하나씩 띄엄띄엄 일어나
@@ -11,11 +11,10 @@
     캐시 히트 1건  $0.0315   ← 13% 절감뿐이다(비용의 대부분이 출력 2,400~2,800토큰)
     (2026-08-17 cost_log 25건 실측)
 
-선정 기준 (2026-08-17 확정 · A′+B):
-  **게이트를 통과한 종목 전부**가 대상이다(B안 · 실측 238종목 · 분기 $7.51).
-  그리고 **발송 등급(★/○)은 스코어 하한과 무관하게 항상 포함한다**(A′안) —
-  등급은 스코어와 반영도의 교차 판정이라 하한을 걸면 "○인데 스코어 74.9"가 빠진다.
-  실측: 발송 대상 70종목 중 22종목이 해석 없이 알림만 나가고 있었다.
+운영 선정 기준 (2026-09-07):
+  자동 호출은 **발송 등급(★/○)**만 대상으로 한다. 성장 가속 종목·산업의 전수 탐지는
+  결정론적 스크리너와 대시보드가 계속 담당하고, LLM은 실제 투자 알림의 해석에만 쓴다.
+  수동 복구에서는 `--notify-only`를 빼 전수 실행할 수 있지만 자동 스케줄에는 쓰지 않는다.
 
   정렬은 **투자 매력도 순**이다. 시간·비용이 모자라 중간에 끊겨도
   중요한 종목이 먼저 처리되게 한다. 매력도는 스코어와 낮은 반영도를 함께 보되
@@ -32,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import time
+from datetime import datetime, timezone
 
 from src.analysis.analyze import (
     AnalysisError,
@@ -42,10 +42,15 @@ from src.analysis.analyze import (
 )
 from src.analysis.eligibility import is_growth_acceleration
 from src.analysis.run import FUND_COLUMNS, build_input
-from src.analysis.freshness import facts_hash, render_excerpt, select_excerpt
+from src.analysis.freshness import (
+    facts_hash,
+    render_excerpt,
+    report_refresh_decision,
+    select_excerpt,
+)
 from src.finance.narrative_changes import select_quarter_window
-from src.config.constants import NOTIFY_GRADES, SCORE_HIGH
-from src.db.supabase_client import select_all
+from src.config.constants import NOTIFY_GRADES, REPORT_REFRESH_TRADING_DAYS, SCORE_HIGH
+from src.db.supabase_client import get_client, select_all
 from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
@@ -88,7 +93,12 @@ def attractiveness(screen: dict) -> float | None:
     return float(score) - float(pri) * 0.5
 
 
-def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
+def targets(
+    top: int,
+    *,
+    min_score: float = DEFAULT_MIN_SCORE,
+    notify_only: bool = False,
+) -> list[dict]:
     """분석 대상. 게이트 통과 + 등급 있음, 매력도 순 상위 N.
 
     ★★ **발송 등급(★/○)은 스코어 하한과 무관하게 반드시 포함된다** (A′안).
@@ -119,10 +129,16 @@ def targets(top: int, *, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
         if is_growth_acceleration(r)
         and r.get("grade") is not None
         and (
-            # ★ 발송 대상은 하한을 적용하지 않는다 — 알림이 나가는 종목에
-            #   해석이 없으면 안 된다.
-            r["grade"] in NOTIFY_GRADES
-            or (active_score(r) is not None and active_score(r) >= min_score)
+            (notify_only and r["grade"] in NOTIFY_GRADES)
+            or (
+                not notify_only
+                and (
+                    # ★ 발송 대상은 하한을 적용하지 않는다 — 알림이 나가는 종목에
+                    #   해석이 없으면 안 된다.
+                    r["grade"] in NOTIFY_GRADES
+                    or (active_score(r) is not None and active_score(r) >= min_score)
+                )
+            )
         )
     ]
     # 매력도가 None인 종목은 뒤로.
@@ -182,7 +198,7 @@ def needs_final_refresh(
     stage = meta.get("analysis_stage") if isinstance(meta, dict) else None
     if stage == "preliminary":
         return True
-    if stage == "final":
+    if stage in {"final", "filing", "report_final"}:
         return False
     # 메타 도입 전 분석은 `delta_from_preliminary`가 실제로 남았고 확정 재무가
     # 분석 뒤 갱신된 경우만 잠정 분석으로 판정한다. 단순히 메타가 없다는 이유로
@@ -193,6 +209,58 @@ def needs_final_refresh(
         and final_updated_at
         and final_updated_at > analysis_created_at
     )
+
+
+def _meta(payload: object) -> dict:
+    node = payload if isinstance(payload, dict) else {}
+    meta = node.get("_heimdallr") if isinstance(node, dict) else None
+    return meta if isinstance(meta, dict) else {}
+
+
+def _same_failed_attempt(meta: dict, stage: str, evidence_hash: str) -> bool:
+    attempt = meta.get("last_attempt")
+    return bool(
+        isinstance(attempt, dict)
+        and attempt.get("status") == "failed"
+        and attempt.get("stage") == stage
+        and attempt.get("evidence_hash") == evidence_hash
+    )
+
+
+def record_failed_attempt(
+    code: str,
+    year: int,
+    quarter: int,
+    *,
+    stage: str,
+    evidence_hash: str,
+    error: Exception,
+) -> None:
+    """동일 근거의 유료 실패를 다시 호출하지 않도록 분석 메타에 남긴다."""
+    rows = select_all(
+        "analyses",
+        "code,fiscal_year,fiscal_quarter,payload",
+        filters={"code": code, "fiscal_year": year, "fiscal_quarter": quarter},
+    )
+    payload = dict(rows[0].get("payload") or {}) if rows else {}
+    meta = dict(_meta(payload))
+    meta["last_attempt"] = {
+        "stage": stage,
+        "evidence_hash": evidence_hash,
+        "status": "failed",
+        "attempted_at": datetime.now(timezone.utc).isoformat(),
+        "error": f"{type(error).__name__}: {error}"[:500],
+    }
+    payload["_heimdallr"] = meta
+    get_client().table("analyses").upsert(
+        {
+            "code": code,
+            "fiscal_year": year,
+            "fiscal_quarter": quarter,
+            "payload": payload,
+        },
+        on_conflict="code,fiscal_year,fiscal_quarter",
+    ).execute()
 
 
 def already_analyzed(
@@ -236,20 +304,17 @@ def already_analyzed(
                 out.add(key)
                 continue
             payload = a.get("payload")
-            meta = payload.get("_heimdallr") if isinstance(payload, dict) else None
-            meta = meta if isinstance(meta, dict) else {}
+            meta = _meta(payload)
             quarters = select_quarter_window(funds_by_code.get(key[0], []), key[1], key[2], limit=8)
             ex = select_excerpt(excerpts_by_code.get(key[0], []), key[1], key[2])
             excerpt = render_excerpt(ex, key[1], key[2]) if ex else None
-            if meta.get("facts_hash") and quarters:
-                if meta["facts_hash"] != facts_hash(quarters, excerpt):
-                    continue
-            elif a.get("created_at"):
-                # 레거시는 확인 가능한 신규 근거만으로 갱신한다(T132).
-                created = a["created_at"]
-                receipt_day = (ex or {}).get("rcept_no", "")[:8]
-                if (final.get("updated_at") or "") > created or receipt_day > created[:10].replace("-", ""):
-                    continue
+            current_hash = facts_hash(quarters, excerpt)
+            target_stage = "preliminary" if final.get("is_estimate") else "filing"
+            if _same_failed_attempt(meta, target_stage, current_hash):
+                out.add(key)
+                continue
+            if meta.get("facts_hash") and quarters and meta["facts_hash"] != current_hash:
+                continue
             if needs_final_refresh(
                 a.get("payload"),
                 final.get("is_estimate"),
@@ -262,6 +327,104 @@ def already_analyzed(
     return out
 
 
+def _mark_report_window_closed(row: dict, *, window_end: str) -> None:
+    payload = dict(row.get("payload") or {})
+    meta = dict(_meta(payload))
+    meta["report_window"] = {"status": "no_change", "window_end": window_end}
+    payload["_heimdallr"] = meta
+    get_client().table("analyses").upsert(
+        {
+            "code": row["code"],
+            "fiscal_year": row["fiscal_year"],
+            "fiscal_quarter": row["fiscal_quarter"],
+            "payload": payload,
+        },
+        on_conflict="code,fiscal_year,fiscal_quarter",
+    ).execute()
+
+
+def report_final_plan(picked: list[dict]) -> tuple[list[dict], list[tuple[dict, str]]]:
+    """5거래일 리포트 창이 닫히고 컨센서스가 바뀐 종목만 3차 호출 대상으로 만든다."""
+    analyses = {
+        (row["code"], row["fiscal_year"], row["fiscal_quarter"]): row
+        for row in select_all(
+            "analyses", "code,fiscal_year,fiscal_quarter,created_at,payload"
+        )
+    }
+    disclosures: dict[tuple[str, int, int], list[dict]] = {}
+    for row in select_all(
+        "earnings_disclosures",
+        "code,fiscal_year,fiscal_quarter,doc_type,disclosed_at",
+    ):
+        if row.get("doc_type") != "periodic":
+            continue
+        key = (row.get("code"), row.get("fiscal_year"), row.get("fiscal_quarter"))
+        if None not in key:
+            disclosures.setdefault(key, []).append(row)
+    consensus_by_code: dict[str, list[dict]] = {}
+    for row in select_all(
+        "consensus_snapshots",
+        "code,fiscal_year,fiscal_quarter,revenue_est,op_est,np_est,eps_est,per,fwd_per,"
+        "n_estimates,source,snapshot_at",
+    ):
+        consensus_by_code.setdefault(row["code"], []).append(row)
+    session_dates = [
+        row["snap_date"]
+        for row in select_all(
+            "index_snapshots", "index_name,snap_date", filters={"index_name": "KOSPI"}
+        )
+        if row.get("snap_date")
+    ]
+
+    pending: list[dict] = []
+    closures: list[tuple[dict, str]] = []
+    for screen in picked:
+        key = (screen["code"], screen["fiscal_year"], screen["fiscal_quarter"])
+        analysis = analyses.get(key)
+        if analysis is None:
+            continue
+        meta = _meta(analysis.get("payload"))
+        # 레거시를 다시 결제하지 않는다. 이번 정책 아래 2단계까지 성공한 분석만 3단계로 간다.
+        if meta.get("analysis_stage") != "filing":
+            continue
+        filing_rows = disclosures.get(key, [])
+        filing_at = max(
+            (row.get("disclosed_at") or "" for row in filing_rows),
+            default="",
+        )
+        decision = report_refresh_decision(
+            consensus_by_code.get(screen["code"], []),
+            session_dates,
+            filing_at=filing_at,
+            year=screen["fiscal_year"],
+            quarter=screen["fiscal_quarter"],
+            trading_days=REPORT_REFRESH_TRADING_DAYS,
+        )
+        if not decision.ready:
+            continue
+        if not decision.changed:
+            previous = meta.get("report_window")
+            if not (
+                isinstance(previous, dict)
+                and previous.get("status") == "no_change"
+                and previous.get("window_end") == decision.window_end
+            ):
+                closures.append((analysis, decision.window_end or ""))
+            continue
+        evidence_hash = decision.evidence_hash or ""
+        if _same_failed_attempt(meta, "report_final", evidence_hash):
+            continue
+        planned = dict(screen)
+        planned["_analysis_stage"] = "report_final"
+        planned["_evidence_hash"] = evidence_hash
+        planned["_report_context"] = {
+            **(decision.context or {}),
+            "evidence_hash": evidence_hash,
+        }
+        pending.append(planned)
+    return pending, closures
+
+
 def run(
     top: int,
     *,
@@ -270,32 +433,46 @@ def run(
     max_seconds: float = DEFAULT_MAX_SECONDS,
     refresh_before: str | None = None,
     refresh_finalized: bool = False,
+    report_final: bool = False,
+    notify_only: bool = False,
 ) -> int:
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
-    picked = targets(top, min_score=min_score)
-    done = already_analyzed(refresh_before, refresh_finalized=refresh_finalized)
-
-    pending = [
-        r for r in picked
-        if (r["code"], r["fiscal_year"], r["fiscal_quarter"]) not in done
-    ]
+    picked = targets(top, min_score=min_score, notify_only=notify_only)
+    closures: list[tuple[dict, str]] = []
+    if report_final:
+        pending, closures = report_final_plan(picked)
+        done: set[tuple[str, int, int]] = set()
+    else:
+        done = already_analyzed(refresh_before, refresh_finalized=refresh_finalized)
+        pending = [
+            r for r in picked
+            if (r["code"], r["fiscal_year"], r["fiscal_quarter"]) not in done
+        ]
 
     line = "═" * 72
     print(line)
-    print(f"LLM 배치 분석 — 대상 {len(picked)}종목 (스코어 {min_score:.0f}+ · 매력도 순)")
+    mode = "3단계 리포트 반영" if report_final else "1·2단계 실적 이벤트"
+    scope = "★·○만" if notify_only else f"스코어 {min_score:.0f}+"
+    print(f"LLM 분석 — {mode} · 대상 {len(picked)}종목 ({scope} · 매력도 순)")
     print(line)
 
     status = check_budget()
     print(f"\n예산: 월 ${status.month_spent_usd:.2f}/${status.month_ceiling_usd} · "
           f"오늘 {status.today_count}/{status.daily_limit} · "
           f"{'호출 가능' if status.allowed else status.reason}")
-    print(f"이미 분석됨 {len(picked) - len(pending)}종목 · 호출 대상 {len(pending)}종목")
+    if report_final:
+        print(f"5거래일 창 완료·변화 있음 {len(pending)}종목 · 변화 없음 {len(closures)}종목")
+    else:
+        print(f"이미 분석됨 {len(picked) - len(pending)}종목 · 호출 대상 {len(pending)}종목")
     if refresh_before:
         # ★ 재분석은 **돈이 새로 나간다.** 몇 건이 왜 대상이 됐는지 반드시 밝힌다.
         print(f"  ↻ {refresh_before} 이전 분석은 낡은 것으로 보고 다시 돌린다 "
               f"(재분석분 포함 {len(pending)}건 · 건당 약 $0.05)")
 
     if not pending:
+        if send:
+            for row, window_end in closures:
+                _mark_report_window_closed(row, window_end=window_end)
         print("\n새로 분석할 종목이 없다.")
         # ★ 요약은 남기되 **텔레그램은 보내지 않는다.** 따라잡기가 끝난 뒤에는
         #   매일 밤 이 경로로 들어오므로, 보내면 같은 메시지가 매일 온다.
@@ -303,24 +480,28 @@ def run(
         write_job_summary([
             "## LLM 배치 분석",
             "",
-            f"**{len(picked)}/{len(picked)}종목 (100%) — 따라잡기 완료.** 새로 호출할 대상이 없다.",
+            f"**호출 0건.** 동일 근거 재시도나 변화 없는 리포트 갱신은 하지 않았다.",
             "",
             f"누적 비용 ${status.month_spent_usd:.4f} / ${status.month_ceiling_usd}",
         ])
         return 0
 
     print(f"\n{'#':>4} {'종목':<14}{'분기':<9}{'스코어':>7}{'반영도':>7}  결과")
-    for i, r in enumerate(picked[:12], 1):
+    display_rows = pending if report_final else picked
+    for i, r in enumerate(display_rows[:12], 1):
         mark = "대기" if (r["code"], r["fiscal_year"], r["fiscal_quarter"]) not in done else "완료"
         print(f"{i:>4} {names.get(r['code'], r['code'])[:12]:<14}"
               f"{r['fiscal_year']}.{r['fiscal_quarter']}Q  "
               f"{float(active_score(r) or 0):>6.1f}{float(r['pri'] or 0):>7.1f}  {mark}")
-    if len(picked) > 12:
-        print(f"     … 외 {len(picked) - 12}종목")
+    if len(display_rows) > 12:
+        print(f"     … 외 {len(display_rows) - 12}종목")
 
     if not send:
         print(f"\n(--send 미지정 — API를 호출하지 않았다)")
         return 0
+
+    for row, window_end in closures:
+        _mark_report_window_closed(row, window_end=window_end)
 
     ok = failed = skipped = 0
     stopped_at: str | None = None
@@ -340,8 +521,16 @@ def run(
 
         code, year, quarter = r["code"], r["fiscal_year"], r["fiscal_quarter"]
         label = f"{names.get(code, code)}({code}) {year}.{quarter}Q"
+        stage = r.get("_analysis_stage") or "filing"
+        evidence_hash = r.get("_evidence_hash") or ""
         try:
             data = build_input(code, year=year, quarter=quarter)
+            stage = r.get("_analysis_stage") or (
+                "preliminary" if data.is_estimate else "filing"
+            )
+            data.analysis_stage = stage
+            data.report_context = r.get("_report_context")
+            evidence_hash = evidence_hash or facts_hash(data.quarters, data.excerpt)
             result = analyze(data, env="prod")
         except BudgetExceeded as exc:
             # ★ 예산 소진은 실패가 아니다. 남은 건수를 반드시 밝힌다.
@@ -351,10 +540,28 @@ def run(
         except AnalysisError as exc:
             failed += 1
             print(f"  ✗ {label} — {exc}")
+            try:
+                record_failed_attempt(
+                    code, year, quarter,
+                    stage=stage,
+                    evidence_hash=evidence_hash,
+                    error=exc,
+                )
+            except Exception as record_exc:
+                print(f"    실패 메타 기록 실패: {type(record_exc).__name__}: {record_exc}")
             continue
         except Exception as exc:  # 개별 종목 실패가 배치를 세우지 않는다
             failed += 1
             print(f"  ✗ {label} — {type(exc).__name__}: {exc}")
+            try:
+                record_failed_attempt(
+                    code, year, quarter,
+                    stage=stage,
+                    evidence_hash=evidence_hash,
+                    error=exc,
+                )
+            except Exception as record_exc:
+                print(f"    실패 메타 기록 실패: {type(record_exc).__name__}: {record_exc}")
             continue
 
         problems = validate_payload(result.payload)
@@ -366,6 +573,8 @@ def run(
         cached = result.cache_read_tokens > 0
         print(f"  ✓ {label} ${result.cost_usd:.4f} "
               f"{'(캐시 히트)' if cached else '(캐시 미스)'}")
+        if result.removed_factual_numbers:
+            print(f"    검증 불가 숫자 {len(result.removed_factual_numbers)}개 제거 — 재호출 안 함")
         time.sleep(CALL_GAP_SEC)
 
     elapsed = time.monotonic() - started
@@ -394,9 +603,13 @@ def run(
 
     # ── 진행 리포트 ────────────────────────────────────────────────
     # ★ 배치는 DB에만 쓰므로 **커밋할 파일이 없다.** 진행 상황이 남는 곳을 따로 만든다.
-    done_now = len(picked) - len(pending) + ok
-    remaining = len(picked) - done_now
-    progress = f"{done_now}/{len(picked)}종목 ({done_now / max(len(picked), 1) * 100:.0f}%)"
+    done_now = ok if report_final else len(picked) - len(pending) + ok
+    remaining = max(len(pending) - ok - failed, 0) if report_final else len(picked) - done_now
+    progress = (
+        f"이번 이벤트 {ok}/{len(pending)}종목"
+        if report_final
+        else f"{done_now}/{len(picked)}종목 ({done_now / max(len(picked), 1) * 100:.0f}%)"
+    )
 
     write_job_summary([
         "## LLM 배치 분석",
@@ -421,14 +634,9 @@ def run(
 
     # ★ 텔레그램은 **매일 보내지 않는다.** 밤마다 같은 진행 메시지가 오면
     #   알림이 소음이 되고, 정작 중요한 종목 알림을 덮는다.
-    #   보내는 경우: ① 전부 끝났다 ② 비용 상한에 걸렸다 ③ 실패가 많다.
-    if ok and remaining == 0:
-        notify_progress(
-            f"🧠 <b>LLM 배치 완료</b>\n\n"
-            f"성장 가속 {len(picked)}종목 해석을 전부 채웠다.\n"
-            f"누적 비용 ${final.month_spent_usd:.2f}/${final.month_ceiling_usd}"
-        )
-    elif stopped_at and "daily" not in stopped_at:
+    #   보내는 경우: ① 사람이 결정해야 하는 월 실링 ② 새로운 실제 실패 다수.
+    #   정상 완료는 뒤의 종목 알림에 이미 드러나므로 별도 진행 알림을 보내지 않는다.
+    if stopped_at and "daily" not in stopped_at:
         # ★★ **일 상한으로는 보내지 않는다.** 따라잡기 기간에는 일 상한이 **매일** 걸리므로
         #   보내면 밤마다 같은 💸 알림이 온다 — 바로 위에서 피하려던 그 소음이다.
         #   사람이 결정할 것이 있을 때만 알린다: 월 실링은 상향/대기를 골라야 하지만
@@ -465,11 +673,17 @@ def main() -> int:
                         help="이 날짜 이전에 분석된 종목을 다시 분석한다(비용 발생)")
     parser.add_argument("--refresh-finalized", action="store_true",
                         help="잠정 분석 뒤 확정 재무가 들어온 같은 분기만 다시 분석한다")
+    parser.add_argument("--report-final", action="store_true",
+                        help="정기보고서 뒤 5거래일 내 컨센서스가 실제로 바뀐 종목만 3차 분석")
+    parser.add_argument("--notify-only", action="store_true",
+                        help="자동 유료 분석 대상을 투자 알림 등급(★·○)으로 제한")
     args = parser.parse_args()
     return run(args.top, send=args.send, min_score=args.min_score,
                max_seconds=args.max_seconds,
         refresh_before=args.refresh_before,
         refresh_finalized=args.refresh_finalized,
+        report_final=args.report_final,
+        notify_only=args.notify_only,
     )
 
 

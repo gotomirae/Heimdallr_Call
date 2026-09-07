@@ -14,10 +14,11 @@ from src.analysis.analyze import (
     analysis_result_from_response,
     build_llm_request,
 )
-from src.analysis.numeric_grounding import unsupported_factual_numbers
 from src.analysis.numeric_grounding import (
     annotate_factual_numbers,
+    redact_unsupported_factual_numbers,
     resolve_factual_references,
+    unsupported_factual_numbers,
 )
 from src.llm.provider import LLMResponse, NormalizedUsage
 
@@ -163,17 +164,36 @@ def test_future_scenario_threshold_is_not_misclassified_as_historical_fact():
     ) == []
 
 
-def test_analysis_result_blocks_unsupported_fact_before_it_can_be_saved():
+def test_analysis_result_redacts_unsupported_fact_without_repaying():
     data = AnalysisInput(code="097230", name="HJ중공업", board="KOSPI")
 
-    with pytest.raises(AnalysisError, match=r"입력에 없는 사실 숫자.*267억"):
-        analysis_result_from_response(
-            data,
-            _response({"why_now": "수리선 매출은 267억원이다."}),
-            cost_usd=0.01,
-            max_output_tokens=1_000,
-            request_user_message="수리선 매출은 26,737백만원이다.",
-        )
+    result = analysis_result_from_response(
+        data,
+        _response({"why_now": "수리선 매출은 267억원이다."}),
+        cost_usd=0.01,
+        max_output_tokens=1_000,
+        request_user_message="수리선 매출은 26,737백만원이다.",
+    )
+
+    assert result.payload["why_now"] == "수리선 매출은 [검증 불가 수치 삭제]이다."
+    assert result.removed_factual_numbers == ("267억",)
+    assert unsupported_factual_numbers(
+        data, result.payload, user_message="수리선 매출은 26,737백만원이다."
+    ) == []
+
+
+def test_redactor_keeps_supported_numbers_and_removes_only_bad_claims():
+    data = AnalysisInput(code="097230", name="HJ중공업", board="KOSPI")
+    payload = {"why_now": "매출은 100억원이고 근거 없는 목표가 17,000원이다."}
+
+    cleaned, removed = redact_unsupported_factual_numbers(
+        data,
+        payload,
+        user_message="매출은 100억원이다.",
+    )
+
+    assert cleaned["why_now"] == "매출은 100억원이고 근거 없는 목표가 [검증 불가 수치 삭제]이다."
+    assert removed == ["17000원"]
 
 
 def test_input_numbers_are_annotated_inline_without_duplicating_the_message():
