@@ -1,4 +1,4 @@
-# PRD Ref: §9.1-3 (상세화면 9분기 차트) · traps.md T11, T49
+# PRD Ref: §9.1-3 (상세화면 10분기 차트) · traps.md T11, T49
 """분기말·주간 종가 수집 — 주간 차트와 LLM 가치-가격 비교를 위한 것.
 
 왜 별도 수집기인가:
@@ -28,7 +28,7 @@ from src.utils.http import http_get
 
 NAVER_DAILY_URL = "https://api.finance.naver.com/siseJson.naver"
 
-#: 차트가 9분기를 그리므로 여유를 두고 3년치를 받는다.
+#: 차트가 10분기를 그리고 MACD 워밍업도 필요하므로 여유를 두고 3년치를 받는다.
 LOOKBACK_YEARS = 3
 CHUNK_ROWS = 500
 

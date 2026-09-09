@@ -21,6 +21,7 @@ from src.analysis.batch import (
     needs_final_refresh,
 )
 from src.analysis.eligibility import is_growth_acceleration
+from src.analysis.analyze import AnalysisResult, save
 from src.config.constants import (
     DAILY_ANALYSIS_LIMIT,
     MONTHLY_COST_CEILING_USD,
@@ -229,6 +230,35 @@ def test_preliminary_analysis_is_refreshed_once_final_numbers_arrive():
         final_updated_at="2026-08-15T00:00:00+00:00",
         preliminary_delta={"op": {"delta": 1}},
     )
+
+
+def test_analysis_save_preserves_stage_history(monkeypatch):
+    captured = []
+
+    class Result:
+        data = [{"payload": {"_heimdallr": {"stage_history": {
+            "preliminary": "2026-07-28T01:00:00+00:00"
+        }}}}]
+
+    class DB:
+        def table(self, _name): return self
+        def select(self, *_args, **_kwargs): return self
+        def eq(self, *_args, **_kwargs): return self
+        def limit(self, *_args, **_kwargs): return self
+        def execute(self): return Result()
+        def upsert(self, rows, **_kwargs):
+            captured.append(rows)
+            return self
+
+    monkeypatch.setattr("src.db.supabase_client.get_client", lambda: DB())
+    save(AnalysisResult(
+        code="000001", fiscal_year=2026, fiscal_quarter=2, payload={"why_now": "x"},
+        model="test", cost_usd=0, input_tokens=0, cache_read_tokens=0,
+        cache_write_tokens=0, output_tokens=0, analysis_stage="filing",
+    ))
+    history = captured[0]["payload"]["_heimdallr"]["stage_history"]
+    assert history["preliminary"] == "2026-07-28T01:00:00+00:00"
+    assert history["filing"].startswith("20")
 
 
 # ── 진행 리포트 (2026-08-17) ──────────────────────────────────────

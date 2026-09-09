@@ -13,6 +13,8 @@ DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encodin
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
 WEEKLY_CHART = (ROOT / "dashboard/components/WeeklyPriceChart.tsx").read_text(encoding="utf-8")
+NAVER = (ROOT / "dashboard/lib/naver.ts").read_text(encoding="utf-8")
+MEANING = (ROOT / "dashboard/lib/metricMeaning.ts").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -80,7 +82,17 @@ def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
     assert "MACD (12·26·9)" in WEEKLY_CHART and "RSI (14)" in WEEKLY_CHART
     assert "normalizeWeeklyRows" in WEEKLY_CHART
     assert "macdPoints" in WEEKLY_CHART
-    assert "네이버 실제 주간 종가" in WEEKLY_CHART
+    assert "네이버 일봉 → ISO 주 마지막 거래일" in WEEKLY_CHART
+
+
+def test_stock_detail_uses_live_naver_quote_and_exact_valuation_source():
+    for endpoint in ("/integration", "/finance/annual"):
+        assert endpoint in NAVER
+    for field in ("priceDate", "per4q", "fwdPer", "roe"):
+        assert field in NAVER and field in STOCK
+    assert "최대 1분 캐시" in STOCK
+    assert "네이버 증권 현재 PER" in STOCK
+    assert "네이버 증권 추정PER" in STOCK
 
 
 def test_growth_dashboard_title_and_quarter_chart_display_contract():
@@ -88,23 +100,43 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 · 신규수주" in QUARTER_CHART
-    # 성장률 공통 패널의 LabelList 하나가 매출/영업이익 두 번 렌더된다.
-    assert QUARTER_CHART.count("<LabelList") == 6
+    assert QUARTER_CHART.count("<LabelList") == 7
     assert "영업이익 · OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")
         < QUARTER_CHART.index("<EarningsPanel")
-        < QUARTER_CHART.index('<GrowthLinePanel points={points} kind="revenue" />')
-        < QUARTER_CHART.index('<GrowthLinePanel points={points} kind="op" />')
+        < QUARTER_CHART.index('<GrowthLinePanel points={points} />')
     )
     assert '"revenueYoy"' in QUARTER_CHART
     assert '"opYoy"' in QUARTER_CHART
-    assert '<GrowthLinePanel points={points} kind="revenue" />' in QUARTER_CHART
-    assert '<GrowthLinePanel points={points} kind="op" />' in QUARTER_CHART
+    assert '<GrowthLinePanel points={points} />' in QUARTER_CHART
+    assert 'name="매출액 YoY"' in QUARTER_CHART
+    assert 'name="영업이익 YoY"' in QUARTER_CHART
+    assert QUARTER_CHART.count("<YAxis") == 4, "YoY 두 선은 YAxis 하나를 공유해야 한다"
+    assert "원값" in QUARTER_CHART and "connectNulls={false}" in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART
-    assert "분기별 값 라벨 · 매출액 YoY와 영업이익 YoY는 각자 눈금으로 표시" in STOCK
+    assert "분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교" in STOCK
     assert "각 항목은 독립 축" not in STOCK
+
+
+def test_ten_quarters_and_every_chart_metric_has_deterministic_meaning():
+    assert "CHART_QUARTERS = 10" in (ROOT / "dashboard/lib/chart.ts").read_text(encoding="utf-8")
+    assert ".slice(0, CHART_QUARTERS)" in STOCK
+    for label in (
+        "매출액", "영업이익", "OPM", "매출액 YoY", "영업이익 YoY",
+        "수주잔고 · 신규수주", "실제 주간 종가", "MACD", "RSI",
+    ):
+        assert label in MEANING
+    assert "metricMeanings" in STOCK
+
+
+def test_llm_stage_timeline_is_event_driven_and_visible():
+    for text in (
+        "1단계 · 잠정실적", "2단계 · 정기보고서", "3단계 · 리포트 최종",
+        "동일 단계·동일 근거의 실패도 반복 결제하지 않는다",
+    ):
+        assert text in STOCK
 
 
 def test_pri_five_inputs_and_requested_history_are_visible():

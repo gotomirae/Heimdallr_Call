@@ -757,10 +757,35 @@ def validate_payload(payload: dict) -> list[str]:
 def save(result: AnalysisResult) -> None:
     from src.db.supabase_client import get_client
 
+    db = get_client()
     stored_payload = dict(result.payload)
     stage = result.analysis_stage or ("preliminary" if result.is_estimate else "filing")
+    completed_at = datetime.now(timezone.utc).isoformat()
+    # 같은 (종목, 분기) 행을 단계별로 덮어쓰므로 이전 단계 완료시각을 먼저 보존한다.
+    # 이력이 없으면 화면에서 2단계 결과를 보고도 1단계를 실제 수행했는지 구분할 수 없다.
+    old_meta: dict = {}
+    try:
+        existing = (
+            db.table("analyses")
+            .select("payload")
+            .eq("code", result.code)
+            .eq("fiscal_year", result.fiscal_year)
+            .eq("fiscal_quarter", result.fiscal_quarter)
+            .limit(1)
+            .execute()
+        )
+        old_payload = (existing.data or [{}])[0].get("payload") or {}
+        candidate = old_payload.get("_heimdallr") if isinstance(old_payload, dict) else None
+        old_meta = dict(candidate) if isinstance(candidate, dict) else {}
+    except Exception:
+        # 이력 조회 실패가 이미 성공한 분석 저장을 막으면 안 된다.
+        old_meta = {}
+    stage_history = dict(old_meta.get("stage_history") or {})
+    stage_history[stage] = completed_at
     stored_payload["_heimdallr"] = {
+        **old_meta,
         "analysis_stage": stage,
+        "stage_history": stage_history,
         "facts_hash": result.facts_hash,
         "report_evidence_hash": result.report_evidence_hash,
         "removed_factual_numbers": list(result.removed_factual_numbers),
@@ -770,10 +795,10 @@ def save(result: AnalysisResult) -> None:
             "stage": stage,
             "evidence_hash": result.report_evidence_hash or result.facts_hash,
             "status": "success",
-            "attempted_at": datetime.now(timezone.utc).isoformat(),
+            "attempted_at": completed_at,
         },
     }
-    get_client().table("analyses").upsert(
+    db.table("analyses").upsert(
         {
             "code": result.code,
             "fiscal_year": result.fiscal_year,
@@ -787,7 +812,7 @@ def save(result: AnalysisResult) -> None:
             #   움직이면 **방금 다시 돌린 종목이 계속 다시 대상이 된다** —
             #   배치가 끊겼다 재개될 때마다 상위 종목만 반복 결제한다.
             #   즉 의미는 '생성일'이 아니라 **'마지막으로 분석한 시각'**이다.
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": completed_at,
         },
         on_conflict="code,fiscal_year,fiscal_quarter",
     ).execute()

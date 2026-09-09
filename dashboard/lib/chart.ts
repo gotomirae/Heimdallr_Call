@@ -27,8 +27,8 @@ export interface ChartPoint {
   isCurrentQuarter: boolean;
 }
 
-/** 상세화면 차트의 기본 분기 수. 사용자 요청으로 8 → 9. */
-export const CHART_QUARTERS = 9;
+/** 상세화면 차트·히스토리의 기본 분기 수. 사용자 요청으로 정확히 10개를 고정한다. */
+export const CHART_QUARTERS = 10;
 
 /**
  * 차트 계열 색 — **단일 출처**.
@@ -120,7 +120,7 @@ function fmtYoy(v: number | null): string {
 }
 
 /**
- * 9분기 차트에서 **투자 포인트**를 뽑는다.
+ * 10분기 차트에서 **투자 포인트**를 뽑는다.
  *
  * ★ 규칙 기반이다 — LLM을 쓰지 않는다. 차트에 실제로 그려진 숫자에서만 나온다.
  * ★ 보는 것은 **영업이익 YoY**가 중심이고, 매출 YoY와 OPM을 **대조**해 뜻을 만든다.

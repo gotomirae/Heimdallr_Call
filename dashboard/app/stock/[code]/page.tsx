@@ -19,6 +19,9 @@ import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
 import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
 import { getOutcomesForCode } from "@/lib/outcome";
+import { getNaverLiveSnapshot } from "@/lib/naver";
+import { metricMeanings } from "@/lib/metricMeaning";
+import { normalizeWeeklyRows, technicalIndicators } from "@/lib/technicalIndicators";
 import {
   getAnalysis,
   getAnnualConsensus,
@@ -78,7 +81,7 @@ function median(values: Array<number | null | undefined>): number | null {
 export default async function StockPage({ params }: { params: { code: string } }) {
   const code = params.code;
 
-  const [universe, funds, price, screenResult, weeklyPrices, disclosures, outcomeResult] =
+  const [universe, funds, price, screenResult, weeklyPrices, disclosures, outcomeResult, naverLive] =
     await Promise.all([
       getUniverse(),
       getFundamentals(code),
@@ -87,6 +90,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       getWeeklyPrices(code),
       getDisclosures(code),
       getOutcomesForCode(code),
+      getNaverLiveSnapshot(code),
     ]);
 
   const stock = universe.get(code);
@@ -169,12 +173,112 @@ export default async function StockPage({ params }: { params: { code: string } }
         : storedAnalysis
           ? "border-amber-700 bg-amber-950/30 text-amber-200"
         : "border-slate-700 bg-slate-950/30 text-slate-300";
+  const analysisStageCode = String(
+    analysisMeta?.analysis_stage ??
+      (storedAnalysis ? (analyzedFund?.is_estimate ? "preliminary" : "filing") : "")
+  );
+  const analysisStageRank = analysisStageCode === "report_final"
+    ? 3
+    : analysisStageCode === "filing" || analysisStageCode === "final"
+      ? 2
+      : analysisStageCode === "preliminary"
+        ? 1
+        : 0;
+  const stageHistory = analysisMeta?.stage_history && typeof analysisMeta.stage_history === "object"
+    ? analysisMeta.stage_history as Record<string, unknown>
+    : {};
+  const lastAttempt = analysisMeta?.last_attempt && typeof analysisMeta.last_attempt === "object"
+    ? analysisMeta.last_attempt as Record<string, unknown>
+    : {};
+  const completedAt = (stage: string): string | null => {
+    const stored = stageHistory[stage];
+    if (typeof stored === "string") return stored.slice(0, 10);
+    return lastAttempt.stage === stage && typeof lastAttempt.attempted_at === "string"
+      ? lastAttempt.attempted_at.slice(0, 10)
+      : null;
+  };
+  const flashDisclosureDate = disclosures
+    .filter((row) =>
+      row.fiscal_year === analysisYear && row.fiscal_quarter === analysisQuarter &&
+      row.doc_type !== "periodic" && /잠정|영업\(잠정\)실적/.test(row.report_nm ?? "")
+    )
+    .map((row) => row.disclosed_at?.slice(0, 10) ?? "")
+    .filter(Boolean)
+    .sort()[0] ?? null;
+  const periodicDisclosureDate = disclosures
+    .filter((row) =>
+      row.fiscal_year === analysisYear && row.fiscal_quarter === analysisQuarter &&
+      row.doc_type === "periodic"
+    )
+    .map((row) => row.disclosed_at?.slice(0, 10) ?? "")
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+  const analysisSteps = [
+    {
+      key: "preliminary",
+      title: "1단계 · 잠정실적",
+      trigger: flashDisclosureDate ? `${flashDisclosureDate} 최초 잠정실적 발표` : "최초 잠정실적 발표 즉시",
+      status: completedAt("preliminary")
+        ? `${completedAt("preliminary")} 분석 완료`
+        : analysisStageRank > 1
+          ? "정기보고서 단계부터 직접 분석"
+          : analysisStageRank === 1
+            ? "분석 완료"
+            : "발표·선별 대기",
+      tone: analysisStageRank === 1 ? "border-amber-500 bg-amber-950/30" : "border-slate-700 bg-slate-950/30",
+    },
+    {
+      key: "filing",
+      title: "2단계 · 정기보고서",
+      trigger: periodicDisclosureDate ? `${periodicDisclosureDate} 분기/반기/사업보고서 공시` : "정기보고서 공시 즉시",
+      status: completedAt("filing")
+        ? `${completedAt("filing")} 분석 완료`
+        : analysisStageRank >= 2
+          ? "분석 완료"
+          : periodicDisclosureDate
+            ? "확정 재무·공시 발췌 반영 대기"
+            : "공시 대기",
+      tone: analysisStageRank === 2 ? "border-sky-500 bg-sky-950/30" : "border-slate-700 bg-slate-950/30",
+    },
+    {
+      key: "report_final",
+      title: "3단계 · 리포트 최종",
+      trigger: "2단계 뒤 5거래일 · 최근 10일 리포트 검색",
+      status: completedAt("report_final")
+        ? `${completedAt("report_final")} 최종 분석 완료`
+        : analysisStageRank >= 3
+          ? "최종 분석 완료"
+          : analysisStageRank === 2
+            ? "5거래일 창 완료 대기"
+            : "2단계 완료 대기",
+      tone: analysisStageRank === 3 ? "border-emerald-500 bg-emerald-950/30" : "border-slate-700 bg-slate-950/30",
+    },
+  ];
 
   // 스크리너가 평가한 바로 그 분기의 재무를 쓴다 — 최신 행과 다를 수 있다.
   const evaluated =
     year && quarter
       ? funds.find((f) => f.fiscal_year === year && f.fiscal_quarter === quarter) ?? latestFund
       : latestFund;
+
+  // 상세 화면의 현재가·PER·F.PER·ROE는 같은 네이버 공개 JSON을 우선한다.
+  // 네이버가 실패한 경우에만 마지막 DB 스냅샷으로 물러서고 그 기준일을 밝힌다.
+  const liveQuote = naverLive?.quoteAvailable === true;
+  const liveAnnual = naverLive?.annualAvailable === true;
+  const currentClose = liveQuote ? naverLive.close : price?.close ?? null;
+  const currentChgPct = liveQuote ? naverLive.chgPct : price?.chg_pct ?? null;
+  const currentMarketCap = liveQuote
+    ? naverLive.marketCapKrw ?? price?.market_cap_krw ?? stock.market_cap_krw
+    : price?.market_cap_krw ?? stock.market_cap_krw;
+  const currentHigh52w = liveQuote ? naverLive.high52w : price?.high_52w ?? null;
+  const currentLow52w = liveQuote ? naverLive.low52w : price?.low_52w ?? null;
+  const currentPos52w =
+    currentClose != null && currentHigh52w != null && currentLow52w != null && currentHigh52w > currentLow52w
+      ? (currentClose - currentLow52w) / (currentHigh52w - currentLow52w)
+      : price?.pos_52w ?? null;
+  const priceBasisDate = liveQuote ? naverLive.priceDate : price?.snap_date ?? null;
+  const priceBasisLabel = liveQuote ? "네이버 현재 시세(최대 1분 캐시)" : "마지막 저장 시세";
 
   // ── 섹터 비교 ────────────────────────────────────────────────
   // 같은 평가 분기의 행끼리만 비교한다(T40). 상위 5개에 현재 종목이 없으면
@@ -206,7 +310,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           ]);
       const peerFund = quarterFundByCode.get(peerScreen.code) ?? null;
       const peerCap =
-        peerPrice?.market_cap_krw ?? universe.get(peerScreen.code)?.market_cap_krw ?? null;
+        isCurrent
+          ? currentMarketCap
+          : peerPrice?.market_cap_krw ?? universe.get(peerScreen.code)?.market_cap_krw ?? null;
       const peerTtmNp =
         year && quarter ? ttmNetIncome(peerFunds, year, quarter) : null;
       return {
@@ -217,11 +323,11 @@ export default async function StockPage({ params }: { params: { code: string } }
         revenue: peerFund?.revenue ?? null,
         op: peerFund?.op ?? null,
         opm: peerFund?.opm ?? null,
-        roeCurrent: peerAnnual?.roe_est ?? null,
-        roeNext: peerAnnual?.roe_next_est ?? null,
-        roeNextYear: peerAnnual?.roe_next_year ?? null,
-        per4q: trailing4qPer(peerCap, peerTtmNp),
-        forwardPer: peerAnnual?.fwd_per ?? null,
+        roeCurrent: isCurrent && liveAnnual ? naverLive.roe : peerAnnual?.roe_est ?? null,
+        roeNext: isCurrent && liveAnnual ? naverLive.roeNext : peerAnnual?.roe_next_est ?? null,
+        roeNextYear: isCurrent && liveAnnual ? naverLive.roeNextYear : peerAnnual?.roe_next_year ?? null,
+        per4q: isCurrent && liveQuote ? naverLive.per4q : trailing4qPer(peerCap, peerTtmNp),
+        forwardPer: isCurrent && liveQuote ? naverLive.fwdPer : peerAnnual?.fwd_per ?? null,
       };
     })
   );
@@ -238,13 +344,20 @@ export default async function StockPage({ params }: { params: { code: string } }
 
   // ── 밸류에이션 ──────────────────────────────────────────────
   // ★ 시총은 시세 스냅샷 것을 우선한다 — 유니버스 값은 하루 늦을 수 있다.
-  const capForPer = price?.market_cap_krw ?? stock.market_cap_krw;
+  const capForPer = currentMarketCap;
   // ★ 평가 분기까지의 4분기 누적으로 잡는다. 그냥 마지막 4행을 쓰면 스크리너가
   //   본 분기와 다른 구간의 PER이 나와 텔레그램과 화면이 어긋난다.
   const ttmNp =
     year && quarter ? ttmNetIncome(funds, year, quarter) : null;
-  const per4q = trailing4qPer(capForPer, ttmNp);
+  const calculatedPer4q = trailing4qPer(capForPer, ttmNp);
+  const per4q = liveQuote ? naverLive.per4q : calculatedPer4q;
   const fwd = forwardPer(annualConsensus, funds, capForPer);
+  const forwardPerValue = liveQuote ? naverLive.fwdPer : fwd.per;
+  const currentRoe = liveAnnual ? naverLive.roe : annualConsensus?.roe_est ?? null;
+  const currentRoeYear = liveAnnual ? naverLive.roeYear : annualConsensus?.fiscal_year ?? null;
+  const nextRoe = liveAnnual ? naverLive.roeNext : annualConsensus?.roe_next_est ?? null;
+  const nextRoeYear = liveAnnual ? naverLive.roeNextYear : annualConsensus?.roe_next_year ?? null;
+  const currentPbr = liveQuote ? naverLive.pbr : price?.pbr ?? null;
   // 표준 PEG(연간 예상 성장률)가 아니라, 현재 화면이 실제로 가진 같은 분기
   // EPS YoY를 분모로 한 참고값이다. 0 이하·결측은 만들지 않는다.
   const referencePeg =
@@ -257,6 +370,9 @@ export default async function StockPage({ params }: { params: { code: string } }
   const weeklyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
     : undefined;
+  const visibleTechnicalPoints = technicalIndicators(normalizeWeeklyRows(weeklyPrices))
+    .filter((point) => !weeklyFromDate || point.trade_date >= weeklyFromDate);
+  const meanings = metricMeanings(chartPoints, visibleTechnicalPoints);
 
   // 트리거는 3개월·6개월 구간을 한 타임라인에 합친다 — 사람은 구간이 아니라
   // 시간 순서로 읽는다. 어느 구간에서 왔는지는 칩으로 남긴다.
@@ -293,18 +409,21 @@ export default async function StockPage({ params }: { params: { code: string } }
             {stock.name} <span className="text-slate-300">{code}</span>
           </h1>
           <p className="mt-1 text-sm text-slate-200">
-            {stock.board} · {stock.industry ?? DASH} · 시총 {marketCap(stock.market_cap_krw)}
+            {stock.board} · {stock.industry ?? DASH} · 시총 {marketCap(currentMarketCap)}
           </p>
           {stock.products && (
             <p className="mt-1 text-xs text-slate-300">{stock.products}</p>
           )}
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold">{num(price?.close)}원</div>
-          <div className="text-sm text-slate-200">{pct(price?.chg_pct, 2)}</div>
+          <div className="text-2xl font-semibold">{num(currentClose)}원</div>
+          <div className="text-sm text-slate-200">{pct(currentChgPct, 2)}</div>
+          <div className="mt-0.5 text-[11px] font-medium text-emerald-300">
+            {priceBasisDate ?? "기준일 미상"} 기준 · {priceBasisLabel}
+          </div>
           <div className="mt-1 text-xs text-slate-300">
-            52주 {num(price?.low_52w)} ~ {num(price?.high_52w)}
-            {price?.pos_52w != null && ` (위치 ${(price.pos_52w * 100).toFixed(0)}%)`}
+            52주 {num(currentLow52w)} ~ {num(currentHigh52w)}
+            {currentPos52w != null && ` (위치 ${(currentPos52w * 100).toFixed(0)}%)`}
           </div>
           <div className="text-xs text-slate-300">
             3개월 지수대비 {pct(price?.rel_ret_3m, 1, "%p")}
@@ -407,11 +526,11 @@ export default async function StockPage({ params }: { params: { code: string } }
         )}
       </Card>
 
-      {/* 3. 9분기 차트 — 성장률 라인이 주인공 */}
+      {/* 3. 10분기 차트 — 성장률 라인이 주인공 */}
       <Card
         id="quarterly-trend"
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY는 각자 눈금으로 표시"
+        note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교"
       >
         <QuarterlyChart points={chartPoints} />
         <WeeklyPriceChart points={weeklyPrices} fromDate={weeklyFromDate} />
@@ -452,10 +571,24 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
         </div>
 
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-semibold text-slate-100">현재 위치에서 각 지표가 뜻하는 것</h3>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {meanings.map((item) => (
+              <div key={item.label} className="rounded border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-xs font-bold text-sky-200">{item.label}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-100">{item.value}</div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-300">{item.meaning}</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-amber-200">다음 확인: {item.watch}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <Note>
           <span className="text-slate-100">
-            항목 순서: <strong>매출액 → 영업이익·OPM → 매출액 YoY → 영업이익 YoY → 수주잔고·신규수주</strong>.
-            두 YoY는 크기 차이가 커도 한 선이 눌리지 않도록 별도 눈금을 쓴다. 수주 수치는
+            항목 순서: <strong>매출액 → 영업이익·OPM → 매출액·영업이익 YoY → 수주잔고·신규수주 → 실제 주간 종가·MACD·RSI</strong>.
+            두 YoY는 실제 %를 같은 좌표에 놓고 모든 원값을 바로 아래에 병기한다. 수주 수치는
             단위를 확인한 구조화 값만 표시한다.
           </span>
           <span className="mt-1 block">
@@ -491,7 +624,7 @@ export default async function StockPage({ params }: { params: { code: string } }
               </tr>
             </thead>
             <tbody>
-              {[...funds].reverse().slice(0, 12).map((f) => (
+              {[...funds].reverse().slice(0, CHART_QUARTERS).map((f) => (
                 <tr
                   key={`${f.fiscal_year}-${f.fiscal_quarter}`}
                   className="border-b border-slate-800/60"
@@ -533,11 +666,19 @@ export default async function StockPage({ params }: { params: { code: string } }
         <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
           {analysisStage}
         </p>
+        <div className="mb-3 grid gap-2 md:grid-cols-3">
+          {analysisSteps.map((step) => (
+            <div key={step.key} className={`rounded border p-3 ${step.tone}`}>
+              <div className="text-xs font-bold text-slate-100">{step.title}</div>
+              <div className="mt-1 text-[11px] leading-relaxed text-slate-300">시점: {step.trigger}</div>
+              <div className="mt-2 text-xs font-semibold text-slate-100">{step.status}</div>
+            </div>
+          ))}
+        </div>
         <p className="mb-3 text-xs leading-relaxed text-slate-300">
-          분석 단계: <strong className="text-amber-200">(1단계) 잠정실적 발표</strong>
-          {" → "}<strong className="text-sky-200">(2단계) 정기보고서 공시</strong>
-          {" → "}<strong className="text-emerald-200">(3단계) 5거래일 뒤 최근 10일 증권사 리포트 반영</strong>.
-          3단계는 실제 추정치 변경이 있을 때만 LLM을 다시 호출하며, 변경이 없으면 무료로 종료한다.
+          각 단계는 같은 분기의 최신 해석으로 갱신된다. 1단계는 잠정 숫자, 2단계는 확정 재무와
+          정기보고서 발췌, 3단계는 정기보고서 뒤 5거래일 동안 나온 최근 10일 증권사 리포트를
+          반영한다. 시세 변화만으로는 재호출하지 않으며, 동일 단계·동일 근거의 실패도 반복 결제하지 않는다.
         </p>
         {removedFactualNumbers > 0 && (
           <p className="mb-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">
@@ -562,9 +703,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           /* ★ 배수는 **화면이 계산한 값**을 넘긴다 — LLM 본문의 PER은 믿지 않는다. */
           valuation={{
             per4q,
-            perForward: fwd.per,
-            forwardBasis: fwd.basis,
-            pbr: price?.pbr ?? null,
+            perForward: forwardPerValue,
+            forwardBasis: liveQuote ? "네이버 증권 추정 EPS" : fwd.basis,
+            pbr: currentPbr,
             ttmNp,
           }}
         />
@@ -657,9 +798,10 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 7. 밸류에이션 — 최근 4분기 → 향후 4분기 순. 후행 PER은 싣지 않는다. */}
       <Card title="가치와 가격 비교" note="실적이 만든 가치와 시장이 붙인 가격을 반드시 함께 본다">
         <p className="mb-4 rounded border border-amber-700/60 bg-amber-950/25 px-3 py-2 text-sm leading-relaxed text-amber-100">
-          <strong>현재 가격 {price?.close != null ? `${price.close.toLocaleString("ko-KR")}원` : DASH}</strong> ·
-          최근 4분기 이익 기준 {per4q != null ? `${per4q.toFixed(1)}배` : DASH} ·
-          네이버 F.PER {annualConsensus?.fwd_per != null ? `${annualConsensus.fwd_per.toFixed(1)}배` : DASH}.
+          <strong>현재 가격 {currentClose != null ? `${currentClose.toLocaleString("ko-KR")}원` : DASH}</strong>
+          {priceBasisDate && ` (${priceBasisDate} 기준)`} ·
+          최근 4분기 이익 기준 {per4q != null ? `${per4q.toFixed(2)}배` : DASH} ·
+          네이버 F.PER {forwardPerValue != null ? `${forwardPerValue.toFixed(2)}배` : DASH}.
           이익 성장으로 배수가 낮아지는지와 PRI가 낮아 아직 가격이 덜 움직였는지를 함께 비교한다.
         </p>
         <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-5">
@@ -668,14 +810,17 @@ export default async function StockPage({ params }: { params: { code: string } }
               ① 최근 4개 분기 순이익 PER
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {per4q != null ? per4q.toFixed(1) + "배" : DASH}
+              {per4q != null ? per4q.toFixed(2) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              네이버의 TTM 정의와 같이 최근 4분기 순이익을 쓴다. 값은 DART 순이익과 현재
-              시총으로 다시 계산해 오래된 연간 EPS가 섞이지 않게 했다(T92).
-              {ttmNp != null && (
-                <> 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>
-              )}
+              {liveQuote ? <>
+                출처: <strong>네이버 증권 현재 PER</strong>({priceBasisDate ?? "기준일 미상"}). 네이버가
+                최근 4분기 지배주주 순이익과 수정 평균 발행 주 수로 계산한 값을 그대로 표시한다.
+                {calculatedPer4q != null && <> DART·현재 시총 검산값은 {calculatedPer4q.toFixed(2)}배다.</>}
+              </> : <>
+                네이버 현재 조회가 실패해 DART 최근 4분기 순이익과 마지막 저장 시총으로 계산했다.
+                {ttmNp != null && <> 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>}
+              </>}
               {per4q == null && (
                 <> 4개 분기가 다 모이지 않았거나 누적 순이익이 0 이하라 계산하지 않았다 —
                   연율화해서 만들어내지 않는다.</>
@@ -687,30 +832,30 @@ export default async function StockPage({ params }: { params: { code: string } }
               ② <Term term="PER선행">F.PER(선행)</Term>
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {annualConsensus?.fwd_per != null ? annualConsensus.fwd_per.toFixed(1) + "배" : DASH}
+              {forwardPerValue != null ? forwardPerValue.toFixed(2) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              출처: <strong>네이버 증권이 연결한 FnGuide 올해 (E) 컨센서스</strong>. 최근
-              3개월 증권사 예상 EPS 평균 기준이다.
-              {fwd.basis ? (
+              출처: <strong>네이버 증권 추정PER</strong>({priceBasisDate ?? "기준일 미상"}). 최근
+              3개월 증권사 예상 EPS 평균이며 네이버 공개값을 변형하지 않았다.
+              {!liveQuote && fwd.basis ? (
                 <> Heimdallr 향후 4분기 검산값은 {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}
                   ({fwd.basis})다.</>
-              ) : (
+              ) : !liveQuote ? (
                 <> <strong className="text-slate-200">연간 컨센서스가 없어 계산하지 않았다.</strong></>
-              )}
+              ) : null}
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">③ 올해 → 내년 ROE</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {annualConsensus?.roe_est != null ? `${annualConsensus.roe_est.toFixed(1)}%` : DASH}
+              {currentRoe != null ? `${currentRoe.toFixed(2)}%` : DASH}
               <span className="mx-1 text-base text-slate-400">→</span>
-              {annualConsensus?.roe_next_est != null ? `${annualConsensus.roe_next_est.toFixed(1)}%` : DASH}
+              {nextRoe != null ? `${nextRoe.toFixed(2)}%` : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              네이버/FnGuide {annualConsensus?.fiscal_year ?? "올해"}(E)와 {annualConsensus?.roe_next_year ?? "내년"}(E).
+              네이버 증권 연간 재무표의 {currentRoeYear ?? "올해"}(E)와 {nextRoeYear ?? "내년"}(E).
               비교군 중앙값은 {pct(sectorMedians.roeCurrent)} → {pct(sectorMedians.roeNext)}다.
-              두 번째 추정 연도가 없으면 만들지 않고 빈칸으로 둔다.
+              네이버에 두 번째 추정 연도가 없으면 다른 원천으로 채우지 않고 빈칸으로 둔다.
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
@@ -739,32 +884,32 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
         </div>
 
-        {per4q != null && annualConsensus?.fwd_per != null && (
+        {per4q != null && forwardPerValue != null && (
           <p className="mt-3 rounded border border-emerald-800/60 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-300">
             <strong>밸류에이션:</strong> 최근 4분기 {per4q.toFixed(1)}배 → 올해 예상이익
-            {annualConsensus.fwd_per.toFixed(1)}배로{" "}
+            {forwardPerValue.toFixed(1)}배로{" "}
             <strong>
-              {annualConsensus.fwd_per < per4q
-                ? `${(100 * (1 - annualConsensus.fwd_per / per4q)).toFixed(0)}% 낮아진다`
-                : `${(100 * (annualConsensus.fwd_per / per4q - 1)).toFixed(0)}% 높아진다`}
+              {forwardPerValue < per4q
+                ? `${(100 * (1 - forwardPerValue / per4q)).toFixed(0)}% 낮아진다`
+                : `${(100 * (forwardPerValue / per4q - 1)).toFixed(0)}% 높아진다`}
             </strong>. 이익 전망이 현재 TTM보다 좋아지는지 나빠지는지를 직접 보여준다.
           </p>
         )}
 
-        {(annualConsensus?.roe_est != null || annualConsensus?.roe_next_est != null) && (
+        {(currentRoe != null || nextRoe != null) && (
           <p className="mt-3 rounded border border-sky-800/60 bg-sky-950/20 px-3 py-2 text-xs text-sky-200">
-            <strong>ROE 섹터 비교:</strong> 올해 {pct(annualConsensus?.roe_est)}
-            {annualConsensus?.roe_est != null && sectorMedians.roeCurrent != null &&
-              ` (비교군 중앙값 대비 ${(annualConsensus.roe_est - sectorMedians.roeCurrent) >= 0 ? "+" : ""}${(annualConsensus.roe_est - sectorMedians.roeCurrent).toFixed(1)}%p)`}
-            {" · "}내년 {pct(annualConsensus?.roe_next_est)}
-            {annualConsensus?.roe_next_est != null && sectorMedians.roeNext != null &&
-              ` (비교군 중앙값 대비 ${(annualConsensus.roe_next_est - sectorMedians.roeNext) >= 0 ? "+" : ""}${(annualConsensus.roe_next_est - sectorMedians.roeNext).toFixed(1)}%p)`}.
+            <strong>ROE 섹터 비교:</strong> 올해 {pct(currentRoe)}
+            {currentRoe != null && sectorMedians.roeCurrent != null &&
+              ` (비교군 중앙값 대비 ${(currentRoe - sectorMedians.roeCurrent) >= 0 ? "+" : ""}${(currentRoe - sectorMedians.roeCurrent).toFixed(1)}%p)`}
+            {" · "}내년 {pct(nextRoe)}
+            {nextRoe != null && sectorMedians.roeNext != null &&
+              ` (비교군 중앙값 대비 ${(nextRoe - sectorMedians.roeNext) >= 0 ? "+" : ""}${(nextRoe - sectorMedians.roeNext).toFixed(1)}%p)`}.
             ROE가 높아지면서 F.PER가 낮아지는 조합인지 확인한다.
           </p>
         )}
 
-        {price?.pbr != null && (
-          <Note>PBR {price.pbr.toFixed(2)}배 — 주가 ÷ 주당 순자산.</Note>
+        {currentPbr != null && (
+          <Note>PBR {currentPbr.toFixed(2)}배 — 네이버 현재 주가 ÷ 최근 분기 주당 순자산.</Note>
         )}
       </Card>
 
@@ -815,17 +960,17 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <td className="py-2">{pct(peer.opm)}</td>
                   <td className="py-2">{pct(peer.roeCurrent)}</td>
                   <td className="py-2">{pct(peer.roeNext)}</td>
-                  <td className="py-2">{peer.per4q != null ? peer.per4q.toFixed(1) + "배" : DASH}</td>
-                  <td className="py-2">{peer.forwardPer != null ? peer.forwardPer.toFixed(1) + "배" : DASH}</td>
+                  <td className="py-2">{peer.per4q != null ? peer.per4q.toFixed(peer.isCurrent && liveQuote ? 2 : 1) + "배" : DASH}</td>
+                  <td className="py-2">{peer.forwardPer != null ? peer.forwardPer.toFixed(peer.isCurrent && liveQuote ? 2 : 1) + "배" : DASH}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <Note>
-          매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. PER은 오래된 스냅샷 값을 쓰지 않고
-          각 종목의 시총 ÷ 최근 4분기 순이익으로 다시 계산했으며, 상위 5개만 비교한다(T92).
-          F.PER와 올해·내년 ROE는 네이버/FnGuide 연간 컨센서스다. 평균 대신 이상치에 덜 흔들리는
+          매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. 현재 종목의 PER·F.PER·ROE는
+          위 가치 카드와 같은 네이버 현재값이고, 비교 종목은 저장된 최신 네이버/FnGuide 값과
+          시총÷최근 4분기 순이익 검산값을 쓴다. 상위 5개만 비교하며 평균 대신 이상치에 덜 흔들리는
           중앙값을 썼다. 현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
         </Note>
       </Card>

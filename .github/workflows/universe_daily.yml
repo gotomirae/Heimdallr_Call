@@ -94,9 +94,9 @@ jobs:
         continue-on-error: true
         run: python -m src.collectors.quarter_prices --save
 
-      # 정기보고서 뒤 실제 KOSPI 거래일 5일을 모두 기다린다. 그 기간에
-      # 네이버/WiseReport 컨센서스 값이 발표 전보다 바뀐 ★·○만 3차 분석한다.
-      # 변화·커버리지가 없으면 DB 메타만 닫고 Provider를 호출하지 않는다.
+      # 정기보고서 뒤 실제 KOSPI 거래일 5일을 모두 기다린다. ★·○는 같은 분기에서
+      # 딱 한 번만 최근 10일 증권사 리포트를 검색해 3차 최종 분석한다. 일상적인 시세
+      # 변화는 근거 hash에서 제외하고 동일 단계·동일 근거 실패는 다시 결제하지 않는다.
       - name: 5거래일 리포트 반영 최종 분석
         continue-on-error: true
         run: python -m src.analysis.batch --send --report-final --notify-only --max-seconds 300
