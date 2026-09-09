@@ -25,6 +25,7 @@ from src.collectors.kis_prices import (
 from src.collectors.quarter_prices import quarter_end_closes, quarter_of
 from src.collectors.price_run import build_return_fields, per_history_stats
 from src.db.supabase_client import (
+    insert_tolerating_missing_columns,
     missing_column_of,
     upsert_tolerating_missing_columns,
 )
@@ -388,6 +389,10 @@ class _FakeTable:
         self._rows = rows
         return self
 
+    def insert(self, rows):
+        self._rows = rows
+        return self
+
     def execute(self):
         for row in self._rows:
             for key in row:
@@ -432,6 +437,35 @@ def test_upsert_drops_multiple_missing_columns():
     assert saved == 1
     assert sorted(dropped) == ["fwd_per", "ret_5d"]
     assert client.saved == [{"code": "A", "close": 1.0}]
+
+
+def test_insert_drops_new_consensus_columns_without_stopping_snapshot():
+    client = _FakeClient({"roe_est", "roe_next_est"})
+    rows = [{"code": "A", "fiscal_year": 2026, "roe_est": 12.0, "roe_next_est": 14.0}]
+    saved, dropped = insert_tolerating_missing_columns(
+        client, "consensus_snapshots", rows
+    )
+    assert saved == 1
+    assert sorted(dropped) == ["roe_est", "roe_next_est"]
+    assert client.saved == [{"code": "A", "fiscal_year": 2026}]
+
+
+def test_insert_missing_column_in_later_chunk_does_not_duplicate_earlier_rows():
+    """append-only insert는 뒤 chunk 실패 뒤 앞 chunk를 재실행하면 이력이 중복된다."""
+    client = _FakeClient({"roe_est"})
+    rows = [
+        {"code": "A", "fiscal_year": 2026},
+        {"code": "B", "fiscal_year": 2026, "roe_est": 12.0},
+    ]
+    saved, dropped = insert_tolerating_missing_columns(
+        client, "consensus_snapshots", rows, chunk=1
+    )
+    assert saved == 2
+    assert dropped == ["roe_est"]
+    assert client.saved == [
+        {"code": "A", "fiscal_year": 2026},
+        {"code": "B", "fiscal_year": 2026},
+    ]
 
 
 def test_upsert_reraises_unrelated_errors():

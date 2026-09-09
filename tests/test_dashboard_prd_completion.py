@@ -40,6 +40,9 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "종목별 결과 추적",
         "네이버 증권 기업실적분석",
         "주간 종가",
+        "올해 → 내년 ROE",
+        "최신 분기 매출",
+        "F.PER",
     ):
         assert label in STOCK
 
@@ -70,26 +73,37 @@ def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
 
 
 def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
-    for label in ("매출", "매출 YoY", "영업이익", "영업이익 YoY", "OPM", "수주잔고", "신규수주"):
+    for label in ("매출", "매출액 YoY", "영업이익", "영업이익 YoY", "OPM", "수주잔고", "신규수주"):
         assert label in QUARTER_CHART
     assert 'dataKey="close"' not in QUARTER_CHART
     assert "fromDate={weeklyFromDate}" in STOCK
     assert "MACD (12·26·9)" in WEEKLY_CHART and "RSI (14)" in WEEKLY_CHART
+    assert "normalizeWeeklyRows" in WEEKLY_CHART
+    assert "macdPoints" in WEEKLY_CHART
+    assert "네이버 실제 주간 종가" in WEEKLY_CHART
 
 
 def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "성장 가속 종목" in HOME
     assert "실적 가속 종목" not in HOME
-    assert "매출 YoY · 영업이익 YoY" in QUARTER_CHART
+    assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 · 신규수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 7
+    # 성장률 공통 패널의 LabelList 하나가 매출/영업이익 두 번 렌더된다.
+    assert QUARTER_CHART.count("<LabelList") == 6
     assert "영업이익 · OPM" in QUARTER_CHART
-    assert QUARTER_CHART.index("<RevenuePanel") < QUARTER_CHART.index("<EarningsPanel") < QUARTER_CHART.index("<GrowthPanel")
-    assert 'dataKey="revenueYoy"' in QUARTER_CHART
-    assert 'dataKey="opYoy"' in QUARTER_CHART
+    assert (
+        QUARTER_CHART.index("<RevenuePanel")
+        < QUARTER_CHART.index("<EarningsPanel")
+        < QUARTER_CHART.index('<GrowthLinePanel points={points} kind="revenue" />')
+        < QUARTER_CHART.index('<GrowthLinePanel points={points} kind="op" />')
+    )
+    assert '"revenueYoy"' in QUARTER_CHART
+    assert '"opYoy"' in QUARTER_CHART
+    assert '<GrowthLinePanel points={points} kind="revenue" />' in QUARTER_CHART
+    assert '<GrowthLinePanel points={points} kind="op" />' in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART
-    assert "분기별 값 라벨 · 영업이익과 OPM, 성장률과 수주 항목은 한눈에 비교" in STOCK
+    assert "분기별 값 라벨 · 매출액 YoY와 영업이익 YoY는 각자 눈금으로 표시" in STOCK
     assert "각 항목은 독립 축" not in STOCK
 
 
@@ -122,6 +136,10 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert 'gate: "growth"' in filters
     assert 'r.category !== gate' in DISCOVERY
     assert "turnaround: s.turnaround" in page
+    for field in ("per4q", "forwardPer", "roe"):
+        assert field in page and field in DISCOVERY
+    for label in ('label="최근 4Q PER"', 'label="F.PER"', 'label="ROE"'):
+        assert label in DISCOVERY
     assert "r.turnaround &&" not in DISCOVERY, "등급 칸에는 턴어라운드 문구를 중복 표시하지 않는다"
 
 

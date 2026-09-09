@@ -145,6 +145,12 @@ export interface PriceRow {
   per_avg_9q: number | null;
   per_avg_quarters: number | null;
   per_vs_9q_avg_pct: number | null;
+  /** 네이버 올해 예상 EPS 기준 PER. 컨센서스 수집 뒤 당일 시세 행에 복사된다. */
+  fwd_per: number | null;
+  /** 네이버/FnGuide 연간 컨센서스의 올해·내년 ROE. */
+  roe_est: number | null;
+  roe_next_est: number | null;
+  roe_next_year: number | null;
   foreign_net_qty_5d: number | null;
   foreign_volume_5d: number | null;
   foreign_net_ratio_5d: number | null;
@@ -188,6 +194,9 @@ export interface ConsensusRow {
   np_est: number | null;
   per: number | null;
   fwd_per: number | null;
+  roe_est: number | null;
+  roe_next_est: number | null;
+  roe_next_year: number | null;
   source: string | null;
   snapshot_at: string | null;
 }

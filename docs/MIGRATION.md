@@ -37,6 +37,16 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_dm5    NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_dm5 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d0     NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0  NUMERIC;
+
+-- 가치와 가격 비교: 네이버/FnGuide 올해·내년 ROE
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_est       NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_est  NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
+
+-- 발굴 목록에서 매일 한 번에 읽도록 당일 시세 행에 복사
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_est       NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_est  NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
 ```
 
 - `IF NOT EXISTS`가 붙어 있어 **여러 번 실행해도 안전하다**(멱등).
@@ -78,6 +88,9 @@ python -m src.collectors.price_run --save
 
 # 발표 전 5일·당일 수익률 계산 (KIS 일봉을 다시 읽어 전 시점을 재계산한다)
 python -m src.analysis.outcome_run --save
+
+# 네이버/FnGuide F.PER·올해/내년 ROE 수집 후 당일 시세 행에도 복사한다
+python -m src.collectors.consensus_run --save
 
 # (섹터 컬럼을 만든 경우에만)
 python -m src.universe.sector_map --save

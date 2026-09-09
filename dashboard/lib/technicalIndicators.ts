@@ -3,6 +3,25 @@ import type { WeeklyPriceRow } from "./types";
 
 export interface TechnicalPoint extends WeeklyPriceRow { macd: number | null; signal: number | null; histogram: number | null; rsi: number | null; }
 
+function isoWeekKey(value: string): string {
+  const day = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  const weekday = day.getUTCDay() || 7;
+  day.setUTCDate(day.getUTCDate() + 4 - weekday);
+  const yearStart = new Date(Date.UTC(day.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((day.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return `${day.getUTCFullYear()}-${String(week).padStart(2, "0")}`;
+}
+
+/** 반복 수집 중 같은 주의 목·금 종가가 함께 남아도 마지막 거래일 한 점만 쓴다. */
+export function normalizeWeeklyRows(rows: WeeklyPriceRow[]): WeeklyPriceRow[] {
+  const latest = new Map<string, WeeklyPriceRow>();
+  for (const row of [...rows].sort((left, right) => left.trade_date.localeCompare(right.trade_date))) {
+    if (!Number.isFinite(row.close) || row.close <= 0) continue;
+    latest.set(isoWeekKey(row.trade_date), row);
+  }
+  return [...latest.values()].sort((left, right) => left.trade_date.localeCompare(right.trade_date));
+}
+
 function ema(values: number[], period: number): Array<number | null> {
   const out: Array<number | null> = Array(values.length).fill(null);
   if (values.length < period) return out;

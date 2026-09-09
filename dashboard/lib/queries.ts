@@ -49,7 +49,14 @@ const PRICE_COLUMNS = [
   "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
   "announcement_date", "announcement_close", "announcement_return_pct",
   "per_current_ttm", "per_avg_9q", "per_avg_quarters", "per_vs_9q_avg_pct",
+  "fwd_per", "roe_est", "roe_next_est", "roe_next_year",
   "foreign_net_qty_5d", "foreign_volume_5d", "foreign_net_ratio_5d", "rsi_14",
+];
+
+const CONSENSUS_COLUMNS = [
+  "code", "fiscal_year", "fiscal_quarter", "n_estimates",
+  "revenue_est", "op_est", "np_est", "per", "fwd_per",
+  "roe_est", "roe_next_est", "roe_next_year", "source", "snapshot_at",
 ];
 
 /**
@@ -332,18 +339,20 @@ export async function getAnnualConsensus(
   code: string,
   fromYear: number
 ): Promise<ConsensusRow | null> {
-  const { data, error } = await supabase
-    .from("consensus_snapshots")
-    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,per,fwd_per,source,snapshot_at")
-    .eq("code", code)
-    .eq("fiscal_quarter", 0)
-    .eq("source", "naver")
-    .gte("fiscal_year", fromYear)
-    .order("fiscal_year", { ascending: true })
-    .order("snapshot_at", { ascending: false })
-    .limit(1);
-  if (error) return null;
-  return ((data as unknown as ConsensusRow[]) ?? [])[0] ?? null;
+  const { rows } = await selectWithOptionalColumns<ConsensusRow>(
+    "consensus_snapshots",
+    CONSENSUS_COLUMNS,
+    (q, cols) => q
+      .select(cols)
+      .eq("code", code)
+      .eq("fiscal_quarter", 0)
+      .eq("source", "naver")
+      .gte("fiscal_year", fromYear)
+      .order("fiscal_year", { ascending: true })
+      .order("snapshot_at", { ascending: false })
+      .limit(1)
+  );
+  return rows[0] ?? null;
 }
 
 export async function getConsensus(
@@ -351,17 +360,19 @@ export async function getConsensus(
   year: number,
   quarter: number
 ): Promise<ConsensusRow | null> {
-  const { data, error } = await supabase
-    .from("consensus_snapshots")
-    .select("code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,per,fwd_per,source,snapshot_at")
-    .eq("code", code)
-    .eq("fiscal_year", year)
-    .eq("fiscal_quarter", quarter)
-    .eq("source", "naver")
-    .order("snapshot_at", { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  return ((data as unknown as ConsensusRow[]) ?? [])[0] ?? null;
+  const { rows } = await selectWithOptionalColumns<ConsensusRow>(
+    "consensus_snapshots",
+    CONSENSUS_COLUMNS,
+    (q, cols) => q
+      .select(cols)
+      .eq("code", code)
+      .eq("fiscal_year", year)
+      .eq("fiscal_quarter", quarter)
+      .eq("source", "naver")
+      .order("snapshot_at", { ascending: false })
+      .limit(1)
+  );
+  return rows[0] ?? null;
 }
 
 /**

@@ -1,5 +1,5 @@
 # PRD Ref: §6 · traps.md T18
-from src.db.check_migration import MISSING_COLUMN, MISSING_TABLE, probe
+from src.db.check_migration import MISSING_COLUMN, MISSING_TABLE, fill_commands, probe
 
 
 class _Query:
@@ -39,3 +39,14 @@ def test_probe_distinguishes_absence_from_connection_failure():
     status, reason = probe(_Client(ConnectionError("offline")), "t", "c")
     assert status is None
     assert "판정 불가" in reason
+
+
+def test_roe_columns_are_filled_by_consensus_collector_not_price_collector():
+    missing = [
+        ("price_snapshots", "roe_est", "NUMERIC", ""),
+        ("consensus_snapshots", "roe_est", "NUMERIC", ""),
+    ]
+
+    assert fill_commands(missing) == [
+        "python -m src.collectors.consensus_run --save",
+    ]

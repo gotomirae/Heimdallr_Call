@@ -30,6 +30,9 @@ from src.utils.http import decode_html, http_get
 
 NAVER_MAIN_URL = "https://finance.naver.com/item/main.naver"
 WISEREPORT_URL = "https://navercomp.wisereport.co.kr/v2/company/c1010001.aspx"
+WISEREPORT_CONSENSUS_URL = (
+    "https://navercomp.wisereport.co.kr/v2/company/cF1002.aspx"
+)
 
 REQUEST_INTERVAL_SEC = 1.0  # 스크래핑 예의 — 반드시 지킨다
 
@@ -197,89 +200,79 @@ def fetch_quarterly_estimates(code: str) -> list[ConsensusSnapshot]:
 
 
 def fetch_annual_estimate(code: str) -> dict | None:
-    """**연간** 추정치(`2026.12 (E)`)를 뽑는다 — Forward PER의 재료다.
+    """네이버에 연결된 FnGuide 표의 올해·내년 연간 전망을 읽는다.
 
-    ★ 기존 `fetch_quarterly_estimates`는 이 컬럼을 **일부러 버린다**(분기가 아니므로).
-      여기서는 그 반대로 연간 (E) 컬럼만 골라낸다. 같은 표를 두 번 읽는 셈이지만
-      한쪽 로직을 건드려 다른 쪽을 깨뜨리는 것보다 낫다(T30에서 이미 크게 데였다).
-    ★ 연간 추정이 **여러 해** 있으면 가장 이른 해를 쓴다 — 가장 가까운 미래가
-      가장 신뢰도가 높고, 먼 해까지 쓰면 추정 오차가 누적된다.
+    `cF1002.aspx?frq=0`은 네이버 증권의 ``종목분석 → 추정실적 컨센서스``가
+    실제로 호출하는 읽기 전용 표다. 기본 화면에는 가장 가까운 연간 (E) 한 열만
+    보이지만 이 표에는 최근 3년 실적과 향후 2년 추정치가 함께 있다.
 
-    반환에는 네이버 표의 최근 확정 PER과 가장 가까운 연간 추정 PER도 포함한다.
+    ★ 가장 가까운 (E)는 F.PER·올해 ROE, 그 다음 (E)는 내년 ROE로 쓴다.
+      두 번째 추정 행이 없으면 추측하지 않고 ``None``이다.
+    ★ 열 위치는 실측 표 계약이다. 매출 다음 YoY 한 칸만 별도이고 이후는
+      영업이익·순이익·EPS·PER·PBR·ROE 순이다. 행 길이가 다르면 건너뛴다.
     """
     try:
-        resp = http_get(NAVER_MAIN_URL, params={"code": code}, timeout=40.0)
+        resp = http_get(
+            WISEREPORT_CONSENSUS_URL,
+            params={"cmp_cd": code, "finGubun": "MAIN", "frq": 0},
+            timeout=40.0,
+        )
         soup = BeautifulSoup(decode_html(resp), "html.parser")
-        section = soup.find("div", class_="section cop_analysis")
-        table = section.find("table") if section else None
-        if table is None:
-            return None
-        rows = table.find_all("tr")
-        if len(rows) < 3:
-            return None
-
-        periods: list[tuple[int, int, bool]] = []
-        for cell in rows[1].find_all(["th", "td"]):
-            text = cell.get_text(" ", strip=True)
-            match = _PERIOD_RE.search(text)
+        actuals: list[dict] = []
+        estimates: list[dict] = []
+        for tr in soup.find_all("tr"):
+            cells = [cell.get_text(" ", strip=True) for cell in tr.find_all(["th", "td"])]
+            if len(cells) < 9:
+                continue
+            match = re.fullmatch(r"(\d{4})\(([AE])\)", cells[0].replace(" ", ""))
             if match is None:
                 continue
-            year, month = int(match.group(1)), int(match.group(2))
-            periods.append((year, (month - 1) // 3 + 1, _ESTIMATE_MARK in text))
-        if not periods:
+            row = {
+                "fiscal_year": int(match.group(1)),
+                "revenue_est": _to_number(cells[1]),
+                "op_est": _to_number(cells[3]),
+                "np_est": _to_number(cells[4]),
+                "eps_est": _to_number(cells[5]),
+                "per": _to_number(cells[6]),
+                "roe": _to_number(cells[8]),
+            }
+            (estimates if match.group(2) == "E" else actuals).append(row)
+
+        estimates.sort(key=lambda row: row["fiscal_year"])
+        if not estimates:
             return None
-
-        # 연간 블록 길이 — 분기 파서와 **같은 규칙**이어야 한다.
-        annual_count = 0
-        previous_year = None
-        for year, quarter, _ in periods:
-            if quarter == 4 and (previous_year is None or year == previous_year + 1):
-                annual_count += 1
-                previous_year = year
-            else:
-                break
-
-        values: dict[str, list[float | None]] = {}
-        for tr in rows[2:]:
-            cells = tr.find_all(["th", "td"])
-            if len(cells) <= len(periods):
-                continue
-            label = cells[0].get_text(" ", strip=True).replace(" ", "")
-            field = next(
-                (f for f, aliases in _ROW_ALIASES.items()
-                 if any(label.startswith(a.replace(" ", "")) for a in aliases)),
-                None,
-            )
-            if field is None or field in values:
-                continue
-            values[field] = [
-                _to_number(c.get_text(" ", strip=True)) for c in cells[-len(periods):]
-            ]
-
-        for index in range(annual_count):
-            year, _, is_estimate = periods[index]
-            if not is_estimate:
-                continue
-            out = {"fiscal_year": year}
-            for field in ("revenue_est", "op_est", "np_est"):
-                row = values.get(field)
-                value = row[index] if row and index < len(row) else None
-                out[field] = int(round(value * _EOK)) if value is not None else None
-            per_row = values.get("per") or []
-            out["fwd_per"] = per_row[index] if index < len(per_row) else None
-            actual_indexes = [i for i in range(index) if not periods[i][2]]
-            actual_index = actual_indexes[-1] if actual_indexes else None
-            out["per"] = (
-                per_row[actual_index]
-                if actual_index is not None and actual_index < len(per_row)
-                else None
-            )
-            out["source"] = "naver"
-            return out if any(
-                out.get(field) is not None
-                for field in ("np_est", "per", "fwd_per")
-            ) else None
-        return None
+        current = estimates[0]
+        following = estimates[1] if len(estimates) > 1 else None
+        prior_actuals = [
+            row for row in actuals if row["fiscal_year"] < current["fiscal_year"]
+        ]
+        latest_actual = max(prior_actuals, key=lambda row: row["fiscal_year"], default=None)
+        out = {
+            "fiscal_year": current["fiscal_year"],
+            "revenue_est": (
+                int(round(current["revenue_est"] * _EOK))
+                if current["revenue_est"] is not None else None
+            ),
+            "op_est": (
+                int(round(current["op_est"] * _EOK))
+                if current["op_est"] is not None else None
+            ),
+            "np_est": (
+                int(round(current["np_est"] * _EOK))
+                if current["np_est"] is not None else None
+            ),
+            "eps_est": current["eps_est"],
+            "per": latest_actual["per"] if latest_actual else None,
+            "fwd_per": current["per"],
+            "roe_est": current["roe"],
+            "roe_next_est": following["roe"] if following else None,
+            "roe_next_year": following["fiscal_year"] if following else None,
+            "source": "naver",
+        }
+        return out if any(
+            out.get(field) is not None
+            for field in ("np_est", "per", "fwd_per", "roe_est", "roe_next_est")
+        ) else None
     except Exception:
         return None  # 컨센서스 없음은 정상 케이스다
 

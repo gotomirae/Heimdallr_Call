@@ -64,10 +64,15 @@ function Note({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-xs leading-relaxed text-slate-300">{children}</p>;
 }
 
-function average(values: Array<number | null | undefined>): number | null {
-  const measured = values.filter((value): value is number => value != null);
+function median(values: Array<number | null | undefined>): number | null {
+  const measured = values
+    .filter((value): value is number => value != null && Number.isFinite(value))
+    .sort((left, right) => left - right);
   if (measured.length === 0) return null;
-  return measured.reduce((sum, value) => sum + value, 0) / measured.length;
+  const middle = Math.floor(measured.length / 2);
+  return measured.length % 2
+    ? measured[middle]
+    : (measured[middle - 1] + measured[middle]) / 2;
 }
 
 export default async function StockPage({ params }: { params: { code: string } }) {
@@ -192,11 +197,12 @@ export default async function StockPage({ params }: { params: { code: string } }
   const sectorPeerRows = await Promise.all(
     displayedSectorScreens.map(async (peerScreen) => {
       const isCurrent = peerScreen.code === code;
-      const [peerFunds, peerPrice] = isCurrent
-        ? [funds, price]
+      const [peerFunds, peerPrice, peerAnnual] = isCurrent
+        ? [funds, price, annualConsensus]
         : await Promise.all([
             getFundamentals(peerScreen.code),
             getLatestPrice(peerScreen.code),
+            year ? getAnnualConsensus(peerScreen.code, year) : Promise.resolve(null),
           ]);
       const peerFund = quarterFundByCode.get(peerScreen.code) ?? null;
       const peerCap =
@@ -207,19 +213,27 @@ export default async function StockPage({ params }: { params: { code: string } }
         code: peerScreen.code,
         name: universe.get(peerScreen.code)?.name ?? peerScreen.code,
         isCurrent,
-        score: peerScreen.score_final ?? peerScreen.score_flash,
-        revenueYoy: peerFund?.revenue_yoy ?? null,
+        marketCap: peerCap,
+        revenue: peerFund?.revenue ?? null,
+        op: peerFund?.op ?? null,
         opm: peerFund?.opm ?? null,
-        per: trailing4qPer(peerCap, peerTtmNp),
+        roeCurrent: peerAnnual?.roe_est ?? null,
+        roeNext: peerAnnual?.roe_next_est ?? null,
+        roeNextYear: peerAnnual?.roe_next_year ?? null,
+        per4q: trailing4qPer(peerCap, peerTtmNp),
+        forwardPer: peerAnnual?.fwd_per ?? null,
       };
     })
   );
-  const sectorAverages = {
-    score: average(sectorScreens.map((row) => row.score_final ?? row.score_flash)),
-    revenueYoy: average(
-      sectorScreens.map((row) => quarterFundByCode.get(row.code)?.revenue_yoy)
-    ),
-    opm: average(sectorScreens.map((row) => quarterFundByCode.get(row.code)?.opm)),
+  const sectorMedians = {
+    marketCap: median(sectorPeerRows.map((row) => row.marketCap)),
+    revenue: median(sectorPeerRows.map((row) => row.revenue)),
+    op: median(sectorPeerRows.map((row) => row.op)),
+    opm: median(sectorPeerRows.map((row) => row.opm)),
+    roeCurrent: median(sectorPeerRows.map((row) => row.roeCurrent)),
+    roeNext: median(sectorPeerRows.map((row) => row.roeNext)),
+    per4q: median(sectorPeerRows.map((row) => row.per4q)),
+    forwardPer: median(sectorPeerRows.map((row) => row.forwardPer)),
   };
 
   // ── 밸류에이션 ──────────────────────────────────────────────
@@ -397,7 +411,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       <Card
         id="quarterly-trend"
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
-        note="분기별 값 라벨 · 영업이익과 OPM, 성장률과 수주 항목은 한눈에 비교"
+        note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY는 각자 눈금으로 표시"
       >
         <QuarterlyChart points={chartPoints} />
         <WeeklyPriceChart points={weeklyPrices} fromDate={weeklyFromDate} />
@@ -440,9 +454,9 @@ export default async function StockPage({ params }: { params: { code: string } }
 
         <Note>
           <span className="text-slate-100">
-            항목 순서: <strong>매출액 → 영업이익·OPM → 매출 YoY·영업이익 YoY → 수주잔고·신규수주</strong>.
-            영업이익·OPM, 매출 YoY·영업이익 YoY와 수주잔고·신규수주는 각각 같은 그래프에서 비교하며,
-            수주 수치는 단위를 확인한 구조화 값만 표시한다.
+            항목 순서: <strong>매출액 → 영업이익·OPM → 매출액 YoY → 영업이익 YoY → 수주잔고·신규수주</strong>.
+            두 YoY는 크기 차이가 커도 한 선이 눌리지 않도록 별도 눈금을 쓴다. 수주 수치는
+            단위를 확인한 구조화 값만 표시한다.
           </span>
           <span className="mt-1 block">
             측정 {opYoyMeasured}/{chartPoints.length}(영업익) · {revYoyMeasured}/
@@ -645,20 +659,20 @@ export default async function StockPage({ params }: { params: { code: string } }
         <p className="mb-4 rounded border border-amber-700/60 bg-amber-950/25 px-3 py-2 text-sm leading-relaxed text-amber-100">
           <strong>현재 가격 {price?.close != null ? `${price.close.toLocaleString("ko-KR")}원` : DASH}</strong> ·
           최근 4분기 이익 기준 {per4q != null ? `${per4q.toFixed(1)}배` : DASH} ·
-          향후 이익 기준 {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}.
+          네이버 F.PER {annualConsensus?.fwd_per != null ? `${annualConsensus.fwd_per.toFixed(1)}배` : DASH}.
           이익 성장으로 배수가 낮아지는지와 PRI가 낮아 아직 가격이 덜 움직였는지를 함께 비교한다.
         </p>
-        <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
-              ① 네이버 증권 PER
+              ① 최근 4개 분기 순이익 PER
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {annualConsensus?.per != null ? annualConsensus.per.toFixed(1) + "배" : DASH}
+              {per4q != null ? per4q.toFixed(1) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              출처: <strong>네이버 증권 기업실적분석</strong>. 최근 확정 연간 열의 PER이다.
-              내부 검산용 최근 4분기 PER은 {per4q != null ? per4q.toFixed(1) + "배" : DASH}.
+              네이버의 TTM 정의와 같이 최근 4분기 순이익을 쓴다. 값은 DART 순이익과 현재
+              시총으로 다시 계산해 오래된 연간 EPS가 섞이지 않게 했다(T92).
               {ttmNp != null && (
                 <> 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>
               )}
@@ -670,26 +684,37 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
-              ② <Term term="PER선행">네이버 컨센서스 선행 PER</Term>
+              ② <Term term="PER선행">F.PER(선행)</Term>
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {annualConsensus?.fwd_per != null ? annualConsensus.fwd_per.toFixed(1) + "배" : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              출처: <strong>네이버 증권 기업실적분석의 연간 (E) 열</strong>.{" "}
-              <strong className="text-slate-200">이익이 늘 것을 반영한 배수</strong>라 가속
-              구간에서는 ①보다 낮게 나온다.
+              출처: <strong>네이버 증권이 연결한 FnGuide 올해 (E) 컨센서스</strong>. 최근
+              3개월 증권사 예상 EPS 평균 기준이다.
               {fwd.basis ? (
-                <> 근거: {fwd.basis} — 연간 컨센서스에서 이미 발표된 분기를 뺀 값이고, 모자란
-                  분기는 연간 추정의 분기 평균으로 이어 붙였다(추정 위의 추정).</>
+                <> Heimdallr 향후 4분기 검산값은 {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}
+                  ({fwd.basis})다.</>
               ) : (
-                <> <strong className="text-slate-200">연간 컨센서스가 없어 계산하지 않았다.</strong>{" "}
-                  코스닥 상장사의 약 60%가 최근 1년 리포트 0건이다 — 없는 값을 만들어내지 않는다.</>
+                <> <strong className="text-slate-200">연간 컨센서스가 없어 계산하지 않았다.</strong></>
               )}
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">③ 과거 9분기 평균 PER 대비</div>
+            <div className="text-xs font-semibold text-slate-200">③ 올해 → 내년 ROE</div>
+            <div className="mt-1 text-2xl font-semibold text-slate-100">
+              {annualConsensus?.roe_est != null ? `${annualConsensus.roe_est.toFixed(1)}%` : DASH}
+              <span className="mx-1 text-base text-slate-400">→</span>
+              {annualConsensus?.roe_next_est != null ? `${annualConsensus.roe_next_est.toFixed(1)}%` : DASH}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              네이버/FnGuide {annualConsensus?.fiscal_year ?? "올해"}(E)와 {annualConsensus?.roe_next_year ?? "내년"}(E).
+              비교군 중앙값은 {pct(sectorMedians.roeCurrent)} → {pct(sectorMedians.roeNext)}다.
+              두 번째 추정 연도가 없으면 만들지 않고 빈칸으로 둔다.
+            </p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
+            <div className="text-xs font-semibold text-slate-200">④ 과거 9분기 평균 PER 대비</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {price?.per_vs_9q_avg_pct != null
                 ? `${price.per_vs_9q_avg_pct >= 0 ? "+" : ""}${price.per_vs_9q_avg_pct.toFixed(1)}%`
@@ -703,7 +728,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">④ 참고 PEG</div>
+            <div className="text-xs font-semibold text-slate-200">⑤ 참고 PEG</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {referencePeg != null ? referencePeg.toFixed(2) : DASH}
             </div>
@@ -714,11 +739,27 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
         </div>
 
-        {per4q != null && fwd.per != null && fwd.per < per4q && (
+        {per4q != null && annualConsensus?.fwd_per != null && (
           <p className="mt-3 rounded border border-emerald-800/60 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-300">
-            이익이 늘면서 배수가 {per4q.toFixed(1)}배 → {fwd.per.toFixed(1)}배로{" "}
-            <strong>{(100 * (1 - fwd.per / per4q)).toFixed(0)}% 낮아진다.</strong>{" "}
-            지금 비싸 보여도 이익이 따라붙으면 그렇지 않게 된다는 뜻이다.
+            <strong>밸류에이션:</strong> 최근 4분기 {per4q.toFixed(1)}배 → 올해 예상이익
+            {annualConsensus.fwd_per.toFixed(1)}배로{" "}
+            <strong>
+              {annualConsensus.fwd_per < per4q
+                ? `${(100 * (1 - annualConsensus.fwd_per / per4q)).toFixed(0)}% 낮아진다`
+                : `${(100 * (annualConsensus.fwd_per / per4q - 1)).toFixed(0)}% 높아진다`}
+            </strong>. 이익 전망이 현재 TTM보다 좋아지는지 나빠지는지를 직접 보여준다.
+          </p>
+        )}
+
+        {(annualConsensus?.roe_est != null || annualConsensus?.roe_next_est != null) && (
+          <p className="mt-3 rounded border border-sky-800/60 bg-sky-950/20 px-3 py-2 text-xs text-sky-200">
+            <strong>ROE 섹터 비교:</strong> 올해 {pct(annualConsensus?.roe_est)}
+            {annualConsensus?.roe_est != null && sectorMedians.roeCurrent != null &&
+              ` (비교군 중앙값 대비 ${(annualConsensus.roe_est - sectorMedians.roeCurrent) >= 0 ? "+" : ""}${(annualConsensus.roe_est - sectorMedians.roeCurrent).toFixed(1)}%p)`}
+            {" · "}내년 {pct(annualConsensus?.roe_next_est)}
+            {annualConsensus?.roe_next_est != null && sectorMedians.roeNext != null &&
+              ` (비교군 중앙값 대비 ${(annualConsensus.roe_next_est - sectorMedians.roeNext) >= 0 ? "+" : ""}${(annualConsensus.roe_next_est - sectorMedians.roeNext).toFixed(1)}%p)`}.
+            ROE가 높아지면서 F.PER가 낮아지는 조합인지 확인한다.
           </p>
         )}
 
@@ -729,23 +770,31 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       <Card title="섹터 비교" note={stockSector + " · 같은 평가 분기 스코어 상위 5개"}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-right text-sm">
+          <table className="w-full min-w-[1260px] text-right text-sm">
             <thead className="text-xs text-slate-300">
               <tr className="border-b border-slate-800">
                 <th className="py-2 text-left">종목</th>
-                <th className="py-2">스코어</th>
-                <th className="py-2">매출 YoY</th>
+                <th className="py-2">시총</th>
+                <th className="py-2">최신 분기 매출</th>
+                <th className="py-2">영업이익</th>
                 <th className="py-2">OPM</th>
+                <th className="py-2">올해 ROE</th>
+                <th className="py-2">내년 ROE</th>
                 <th className="py-2">최근 4분기 PER</th>
+                <th className="py-2">F.PER</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-b border-slate-700 bg-slate-800/30 font-semibold">
-                <td className="py-2 text-left">{stockSector} 평균 ({sectorScreens.length}종목)</td>
-                <td className="py-2">{pct(sectorAverages.score, 1, "점")}</td>
-                <td className="py-2">{pct(sectorAverages.revenueYoy)}</td>
-                <td className="py-2">{pct(sectorAverages.opm)}</td>
-                <td className="py-2 text-slate-400">—</td>
+                <td className="py-2 text-left">표시 종목 중앙값 ({sectorPeerRows.length}종목)</td>
+                <td className="py-2">{marketCap(sectorMedians.marketCap)}</td>
+                <td className="py-2">{eok(sectorMedians.revenue)}</td>
+                <td className="py-2">{eok(sectorMedians.op)}</td>
+                <td className="py-2">{pct(sectorMedians.opm)}</td>
+                <td className="py-2">{pct(sectorMedians.roeCurrent)}</td>
+                <td className="py-2">{pct(sectorMedians.roeNext)}</td>
+                <td className="py-2">{sectorMedians.per4q != null ? `${sectorMedians.per4q.toFixed(1)}배` : DASH}</td>
+                <td className="py-2">{sectorMedians.forwardPer != null ? `${sectorMedians.forwardPer.toFixed(1)}배` : DASH}</td>
               </tr>
               {sectorPeerRows.map((peer) => (
                 <tr
@@ -760,19 +809,24 @@ export default async function StockPage({ params }: { params: { code: string } }
                       {peer.isCurrent ? "현재 · " : ""}{peer.name} ({peer.code})
                     </Link>
                   </td>
-                  <td className="py-2">{pct(peer.score, 1, "점")}</td>
-                  <td className="py-2">{pct(peer.revenueYoy)}</td>
+                  <td className="py-2">{marketCap(peer.marketCap)}</td>
+                  <td className="py-2">{eok(peer.revenue)}</td>
+                  <td className="py-2">{eok(peer.op)}</td>
                   <td className="py-2">{pct(peer.opm)}</td>
-                  <td className="py-2">{peer.per != null ? peer.per.toFixed(1) + "배" : DASH}</td>
+                  <td className="py-2">{pct(peer.roeCurrent)}</td>
+                  <td className="py-2">{pct(peer.roeNext)}</td>
+                  <td className="py-2">{peer.per4q != null ? peer.per4q.toFixed(1) + "배" : DASH}</td>
+                  <td className="py-2">{peer.forwardPer != null ? peer.forwardPer.toFixed(1) + "배" : DASH}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <Note>
-          평균은 같은 분기에 측정된 값만 사용한다. PER은 오래된 스냅샷 값을 쓰지 않고
+          매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. PER은 오래된 스냅샷 값을 쓰지 않고
           각 종목의 시총 ÷ 최근 4분기 순이익으로 다시 계산했으며, 상위 5개만 비교한다(T92).
-          현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
+          F.PER와 올해·내년 ROE는 네이버/FnGuide 연간 컨센서스다. 평균 대신 이상치에 덜 흔들리는
+          중앙값을 썼다. 현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
         </Note>
       </Card>
 

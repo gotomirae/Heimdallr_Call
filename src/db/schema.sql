@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS consensus_snapshots (
   fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   revenue_est NUMERIC, op_est NUMERIC, np_est NUMERIC, eps_est NUMERIC,
   per NUMERIC, fwd_per NUMERIC,              -- 네이버 최근 확정 / 연간 (E) PER
+  roe_est NUMERIC, roe_next_est NUMERIC,     -- 네이버 올해 / 내년 (E) ROE
+  roe_next_year INT,
   n_estimates INT,                          -- < 2면 컨센서스로 인정하지 않음
   source TEXT,                              -- 'fnguide' | 'naver'
   snapshot_at TIMESTAMPTZ DEFAULT now(),
@@ -123,6 +125,7 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익 ★ PRI P1
   rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
+  roe_est NUMERIC, roe_next_est NUMERIC, roe_next_year INT,
   per_pctile_3y NUMERIC,                    -- legacy 3년 PER 밴드(신규 PRI에서 미사용)
   announcement_date DATE, announcement_close NUMERIC, announcement_return_pct NUMERIC,
   per_current_ttm NUMERIC, per_avg_9q NUMERIC, per_avg_quarters INT, per_vs_9q_avg_pct NUMERIC,
@@ -330,6 +333,9 @@ CREATE POLICY anon_select_notifications ON notifications
 -- 증분 마이그레이션 — 이후 Phase에서 컬럼을 추가할 때 여기에 덧붙인다.
 ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS per NUMERIC;
 ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS fwd_per NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_est NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_est NUMERIC;
+ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
 -- (CREATE TABLE IF NOT EXISTS는 기존 테이블에 컬럼을 더해 주지 않는다.
 --  적용 전까지 쓰기는 PGRST204, 조회는 42703으로 죽는다 — T18)
 -- 예)
@@ -347,6 +353,9 @@ ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_date DATE;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_close NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_return_pct NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_current_ttm NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_est NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_est NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_9q NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_quarters INT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_vs_9q_avg_pct NUMERIC;

@@ -45,12 +45,34 @@ ROWS = {
     "PER(배)": ["12.1", "10.2", "9.4", "7.8", "-", "-", "-", "-", "-", "-"],
 }
 
+ANNUAL_ROWS = [
+    ["재무년월", "매출액", "YoY", "영업이익", "당기순이익", "EPS", "PER", "PBR", "ROE"],
+    ["2024(A)", "49,733", "2.78", "3,952", "3,684", "7,930", "3.80", "0.60", "17.42"],
+    ["2025(A)", "52,399", "5.36", "4,071", "3,108", "6,692", "6.40", "0.77", "12.81"],
+    ["2026(E)", "56,065", "6.99", "4,425", "3,645", "7,847", "6.61", "0.86", "13.68"],
+    ["2027(E)", "59,557", "6.23", "4,791", "3,876", "8,344", "6.22", "0.79", "13.40"],
+]
+
+
+def _annual_html(rows: list[list[str]] = ANNUAL_ROWS) -> str:
+    body = "".join(
+        "<tr>" + "".join(f"<td>{value}</td>" for value in row) + "</tr>"
+        for row in rows
+    )
+    return f"<html><body><table>{body}</table></body></html>"
+
 
 @pytest.fixture()
 def patched(monkeypatch):
     from src.collectors import consensus as mod
 
-    monkeypatch.setattr(mod, "http_get", lambda *a, **k: _FakeResponse(_analysis_html(HEADER, ROWS)))
+    monkeypatch.setattr(
+        mod,
+        "http_get",
+        lambda url, *a, **k: _FakeResponse(
+            _annual_html() if "cF1002.aspx" in url else _analysis_html(HEADER, ROWS)
+        ),
+    )
     return mod
 
 
@@ -80,23 +102,39 @@ def test_naver_annual_per_and_forward_per_are_parsed(patched):
     """네이버 기업실적분석 표의 최근 확정 PER과 연간 (E) PER을 그대로 보존한다."""
     annual = fetch_annual_estimate("005930")
     assert annual is not None
-    assert annual["per"] == 9.4
-    assert annual["fwd_per"] == 7.8
+    assert annual["per"] == 6.40
+    assert annual["fwd_per"] == 6.61
+    assert annual["roe_est"] == 13.68
+    assert annual["roe_next_est"] == 13.40
+    assert annual["roe_next_year"] == 2027
     assert annual["source"] == "naver"
 
 
 def test_annual_per_survives_when_net_income_estimate_is_missing(monkeypatch):
-    rows = dict(ROWS)
-    rows["당기순이익"] = ["-"] * len(ROWS["당기순이익"])
-    html = _analysis_html(HEADER, rows)
+    rows = [list(row) for row in ANNUAL_ROWS]
+    rows[3][4] = "-"
+    rows[4][4] = "-"
+    html = _annual_html(rows)
     monkeypatch.setattr(
         "src.collectors.consensus.http_get", lambda *a, **kw: _FakeResponse(html)
     )
     annual = fetch_annual_estimate("005930")
     assert annual is not None
     assert annual["np_est"] is None
-    assert annual["per"] == 9.4
-    assert annual["fwd_per"] == 7.8
+    assert annual["per"] == 6.40
+    assert annual["fwd_per"] == 6.61
+
+
+def test_missing_next_year_roe_is_not_invented(monkeypatch):
+    html = _annual_html(ANNUAL_ROWS[:-1])
+    monkeypatch.setattr(
+        "src.collectors.consensus.http_get", lambda *a, **kw: _FakeResponse(html)
+    )
+    annual = fetch_annual_estimate("005930")
+    assert annual is not None
+    assert annual["roe_est"] == 13.68
+    assert annual["roe_next_est"] is None
+    assert annual["roe_next_year"] is None
 
 
 # 실측 변형: 헤더 앞에 **빈 칸**이 있고 연간 컬럼이 **3개**인 종목이 있다

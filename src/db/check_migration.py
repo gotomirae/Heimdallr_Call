@@ -26,6 +26,9 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("price_snapshots", "announcement_close", "NUMERIC", "PRI P2 발표일 종가"),
     ("price_snapshots", "announcement_return_pct", "NUMERIC", "PRI P2 발표일 종가 대비 등락"),
     ("price_snapshots", "per_current_ttm", "NUMERIC", "현재 TTM PER"),
+    ("price_snapshots", "roe_est", "NUMERIC", "발굴 목록의 네이버 올해 예상 ROE"),
+    ("price_snapshots", "roe_next_est", "NUMERIC", "발굴 목록의 네이버 내년 예상 ROE"),
+    ("price_snapshots", "roe_next_year", "INT", "네이버 다음 ROE 추정 연도"),
     ("price_snapshots", "per_avg_9q", "NUMERIC", "과거 최대 9분기 TTM PER 평균"),
     ("price_snapshots", "per_avg_quarters", "INT", "PER 평균에 실제 사용한 분기 수"),
     ("price_snapshots", "per_vs_9q_avg_pct", "NUMERIC", "PRI P3 과거 9분기 PER 평균 대비"),
@@ -37,6 +40,9 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("weekly_prices", "close", "—", "상세화면 실제 주간 종가 차트 (테이블)"),
     ("consensus_snapshots", "per", "NUMERIC", "네이버 최근 확정 PER"),
     ("consensus_snapshots", "fwd_per", "NUMERIC", "네이버 연간 (E) 선행 PER"),
+    ("consensus_snapshots", "roe_est", "NUMERIC", "네이버 올해 (E) ROE"),
+    ("consensus_snapshots", "roe_next_est", "NUMERIC", "네이버 내년 (E) ROE"),
+    ("consensus_snapshots", "roe_next_year", "INT", "네이버 다음 추정 연도"),
     ("outcome_tracking", "ret_dm5", "NUMERIC", "발표 전 5일 수익률"),
     ("outcome_tracking", "excess_dm5", "NUMERIC", "발표 전 5일 초과수익"),
     ("outcome_tracking", "ret_d0", "NUMERIC", "발표 당일 수익률"),
@@ -52,6 +58,10 @@ OPTIONAL_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
 
 MISSING_COLUMN = "42703"
 MISSING_TABLE = "PGRST205"
+
+# 네이버 연간 전망 수집기가 consensus_snapshots와 당일 price_snapshots에 함께 복사한다.
+# 이 열들을 price_run 대상으로 안내하면 DDL은 적용됐는데 값은 계속 비는 T62형 오진이 난다.
+CONSENSUS_FILL_COLUMNS = {"fwd_per", "roe_est", "roe_next_est", "roe_next_year"}
 
 
 def probe(client, table: str, column: str) -> tuple[bool | None, str]:
@@ -107,6 +117,27 @@ def sql_for(missing: list[tuple[str, str, str, str]]) -> list[str]:
     return lines
 
 
+def fill_commands(missing: list[tuple[str, str, str, str]]) -> list[str]:
+    """마이그레이션 뒤 실제로 해당 열을 채우는 최소 실행 명령."""
+    commands: list[str] = []
+    if any(t == "outcome_tracking" for t, _, _, _ in missing):
+        commands.append("python -m src.analysis.outcome_run --save")
+    if any(
+        t == "price_snapshots" and c not in CONSENSUS_FILL_COLUMNS
+        for t, c, _, _ in missing
+    ):
+        commands.append("python -m src.collectors.price_run --save")
+    if any(
+        t == "consensus_snapshots"
+        or (t == "price_snapshots" and c in CONSENSUS_FILL_COLUMNS)
+        for t, c, _, _ in missing
+    ):
+        commands.append("python -m src.collectors.consensus_run --save")
+    if any(t in {"quarter_prices", "weekly_prices"} for t, _, _, _ in missing):
+        commands.append("python -m src.collectors.quarter_prices --save")
+    return commands
+
+
 def main() -> int:
     enable_utf8_stdout()
     client = get_client()
@@ -157,12 +188,8 @@ def main() -> int:
         print(sql)
     print()
     print("적용 후 다시 이 명령으로 확인하고, 데이터를 채운다:")
-    if any(t == "outcome_tracking" for t, _, _, _ in missing):
-        print("  python -m src.analysis.outcome_run --save")
-    if any(t == "price_snapshots" for t, _, _, _ in missing):
-        print("  python -m src.collectors.price_run --save")
-    if any(t in {"quarter_prices", "weekly_prices"} for t, _, _, _ in missing):
-        print("  python -m src.collectors.quarter_prices --save")
+    for command in fill_commands(missing):
+        print(f"  {command}")
     print(line)
     # ★ 종료코드 1 — CI나 스크립트가 이 상태를 성공으로 착각하면 안 된다.
     return 1

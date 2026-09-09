@@ -9,6 +9,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -69,16 +70,24 @@ function EarningsPanel({ points }: { points: ChartPoint[] }) {
   </div>;
 }
 
-/* 성장률은 단위가 같아 한 축에서 두 계열의 가속 방향을 직접 비교한다. */
-function GrowthPanel({ points }: { points: ChartPoint[] }) {
-  return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출 YoY · 영업이익 YoY</strong><span className="text-slate-400">%</span></div>
-    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
+function GrowthLinePanel({ points, kind }: { points: ChartPoint[]; kind: "revenue" | "op" }) {
+  const dataKey = kind === "revenue" ? "revenueYoy" : "opYoy";
+  const label = kind === "revenue" ? "매출액 YoY" : "영업이익 YoY";
+  const color = kind === "revenue" ? SERIES_COLOR.REVENUE_COLOR : SERIES_COLOR.OP_COLOR;
+  const labelColor = kind === "revenue" ? SERIES_COLOR.REVENUE_LABEL : SERIES_COLOR.OP_LABEL;
+  const measured = points.filter((point) => point[dataKey] != null).length;
+  const transitions = kind === "op"
+    ? points.filter((point) => point.opStatusLabel).map((point) => `${point.label} ${point.opStatusLabel}`)
+    : [];
+  return <div className="rounded border border-slate-800 bg-slate-950/30 p-2">
+    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">{label}</strong><span className="text-slate-400">% · 측정 {measured}/{points.length}</span></div>
+    {measured === 0 ? <div className="flex h-52 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-52"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis percent />
-      <Tooltip formatter={(v, name) => [fmt(v, "%"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
-      <Line dataKey="revenueYoy" name="매출 YoY" stroke={SERIES_COLOR.REVENUE_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoy" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -9)({ ...p })} /></Line>
-      <Line dataKey="opYoy" name="영업이익 YoY" stroke={SERIES_COLOR.OP_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoy" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", -21)({ ...p })} /></Line>
-    </LineChart></ResponsiveContainer></div>
+      <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+      <Tooltip formatter={(v) => [fmt(v, "%"), label]} contentStyle={tooltipStyle} />
+      <Line type="monotone" dataKey={dataKey} name={label} stroke={color} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey={dataKey} content={(p) => lineLabel(labelColor, "%", -10)({ ...p })} /></Line>
+    </LineChart></ResponsiveContainer></div>}
+    {transitions.length > 0 && <div className="mt-1 text-[10px] text-amber-300">% 계산 불가: {transitions.join(" · ")}</div>}
   </div>;
 }
 
@@ -99,7 +108,8 @@ export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   return <div className="grid gap-3 md:grid-cols-2">
     <RevenuePanel points={points} />
     <EarningsPanel points={points} />
-    <GrowthPanel points={points} />
+    <GrowthLinePanel points={points} kind="revenue" />
+    <GrowthLinePanel points={points} kind="op" />
     <OrdersPanel points={points} />
   </div>;
 }

@@ -32,6 +32,9 @@ export type SortKey =
   | "opmYoyDelta"
   | "pri"
   | "marketCap"
+  | "per4q"
+  | "forwardPer"
+  | "roe"
   | "ret5d"
   | `d${number}`;
 
@@ -70,7 +73,7 @@ export const DEFAULT_FILTERS: DiscoveryFilters = {
 /** 정렬 가능한 열인지. **모르는 값은 받지 않는다** — URL로 아무 문자열이나 올 수 있다. */
 export function isSortKey(value: string | null): value is SortKey {
   if (!value) return false;
-  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "marketCap", "ret5d"].includes(value)) {
+  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "marketCap", "per4q", "forwardPer", "roe", "ret5d"].includes(value)) {
     return true;
   }
   return /^d-?\d+$/.test(value);

@@ -11,13 +11,19 @@ from __future__ import annotations
 import argparse
 import collections
 import time
+from datetime import date
 
 from src.collectors.consensus import (
     REQUEST_INTERVAL_SEC,
     fetch_annual_estimate,
     snapshot,
 )
-from src.db.supabase_client import get_client, select_all
+from src.db.supabase_client import (
+    get_client,
+    insert_tolerating_missing_columns,
+    select_all,
+    upsert_tolerating_missing_columns,
+)
 from src.utils.console import enable_utf8_stdout
 
 #: 시총 구간 경계 (원). PRD §13 검증은 대형 15 / 중형 20 / 소형 15를 요구한다.
@@ -136,12 +142,13 @@ def save_all(limit: int | None) -> int:
         codes = codes[:limit]
 
     print(f"대상 {len(codes)}종목 (유니버스 전체 ∪ 직전 분기 게이트 통과 {len(passed)})")
-    print(f"예상 소요 {len(codes) * 2 * REQUEST_INTERVAL_SEC / 60:.0f}분 (요청 간 {REQUEST_INTERVAL_SEC}초)")
+    print(f"예상 소요 {len(codes) * 3 * REQUEST_INTERVAL_SEC / 60:.0f}분 (요청 간 {REQUEST_INTERVAL_SEC}초)")
 
     db = get_client()
     payload: list[dict] = []
     found = usable = 0
     annual_found = 0
+    annual_metrics_by_code: dict[str, dict] = {}
     for index, code in enumerate(codes, 1):
         snaps = snapshot(code)
         if snaps:
@@ -164,21 +171,64 @@ def save_all(limit: int | None) -> int:
                 "revenue_est": annual.get("revenue_est"),
                 "op_est": annual.get("op_est"),
                 "np_est": annual.get("np_est"),
+                "eps_est": annual.get("eps_est"),
                 "per": annual.get("per"),
                 "fwd_per": annual.get("fwd_per"),
+                "roe_est": annual.get("roe_est"),
+                "roe_next_est": annual.get("roe_next_est"),
+                "roe_next_year": annual.get("roe_next_year"),
                 "n_estimates": None,
                 "source": "naver",
             })
+            annual_metrics_by_code[code] = {
+                "fwd_per": annual.get("fwd_per"),
+                "roe_est": annual.get("roe_est"),
+                "roe_next_est": annual.get("roe_next_est"),
+                "roe_next_year": annual.get("roe_next_year"),
+            }
 
         if index % 100 == 0:
             print(f"    {index}/{len(codes)} · 확보 {found} · 인정 {usable}")
         time.sleep(REQUEST_INTERVAL_SEC)
 
-    for i in range(0, len(payload), 500):
-        db.table("consensus_snapshots").insert(payload[i : i + 500]).execute()
+    inserted, consensus_dropped = insert_tolerating_missing_columns(
+        db, "consensus_snapshots", payload
+    )
 
-    print(f"\n✓ consensus_snapshots insert {len(payload)}행")
+    # SC: 성장 가속 목록은 매일 읽는 price_snapshots 한 번으로 F.PER까지 보여야 한다.
+    # 컨센서스 이력을 전부 다시 읽으면 날짜가 쌓일수록 조회량이 커지므로, 오늘 시세가
+    # 실제 저장된 종목만 같은 행에 복사한다. 시세 수집 실패 종목의 빈 행은 만들지 않는다.
+    today = date.today().isoformat()
+    priced_codes = {
+        row["code"]
+        for row in select_all(
+            "price_snapshots", "code", filters={"snap_date": today}
+        )
+    }
+    price_updates = [
+        {"code": code, "snap_date": today, **metrics}
+        for code, metrics in annual_metrics_by_code.items()
+        if code in priced_codes
+    ]
+    copied = 0
+    dropped: set[str] = set()
+    for i in range(0, len(price_updates), 500):
+        saved, missing = upsert_tolerating_missing_columns(
+            db,
+            "price_snapshots",
+            price_updates[i : i + 500],
+            on_conflict="code,snap_date",
+        )
+        copied += saved
+        dropped.update(missing)
+
+    print(f"\n✓ consensus_snapshots insert {inserted}행")
     print(f"  추정치 확보 {found}/{len(codes)}종목 · 컨센서스 인정(n≥2) {usable}건")
+    print(f"  당일 시세 F.PER·ROE 반영 {copied}/{len(price_updates)}행")
+    if dropped:
+        print(f"  ⚠ price_snapshots 미적용 컬럼: {', '.join(sorted(dropped))}")
+    if consensus_dropped:
+        print(f"  ⚠ consensus_snapshots 미적용 컬럼: {', '.join(sorted(consensus_dropped))}")
     return 0
 
 

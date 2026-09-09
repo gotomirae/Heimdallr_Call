@@ -182,3 +182,48 @@ def upsert_tolerating_missing_columns(
             if not any(payload):
                 return 0, dropped
     return 0, dropped
+
+
+def insert_tolerating_missing_columns(
+    client: Client,
+    table: str,
+    rows: list[dict[str, Any]],
+    *,
+    chunk: int = 500,
+) -> tuple[int, list[str]]:
+    """append-only 스냅샷 insert에서 없는 신규 컬럼만 걷어낸다(T18).
+
+    ★ upsert와 달리 이미 성공한 앞 chunk를 통째로 재시도하면 중복 이력이 생긴다.
+      그래서 chunk별로만 재시도한다. 뒤 chunk에서 처음 등장한 신규 컬럼도 그
+      chunk 이전에는 존재하지 않았으므로, 앞 chunk를 다시 쓸 이유가 없다.
+    """
+    if not rows:
+        return 0, []
+    dropped: list[str] = []
+    inserted = 0
+    for index in range(0, len(rows), chunk):
+        payload = [
+            {key: value for key, value in row.items() if key not in dropped}
+            for row in rows[index : index + chunk]
+        ]
+        all_keys = {key for row in payload for key in row}
+        for _ in range(len(all_keys) + 1):
+            try:
+                client.table(table).insert(payload).execute()
+                inserted += len(payload)
+                break
+            except Exception as exc:
+                missing = missing_column_of(exc)
+                if missing is None:
+                    raise
+                if missing not in dropped:
+                    dropped.append(missing)
+                payload = [
+                    {key: value for key, value in row.items() if key != missing}
+                    for row in payload
+                ]
+                if not any(payload):
+                    return inserted, dropped
+        else:
+            return inserted, dropped
+    return inserted, dropped

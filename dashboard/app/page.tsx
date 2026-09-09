@@ -88,7 +88,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       // ★ DB 컬럼이 없어도 industry·products로 즉시 분류한다(DDL 불필요).
       sector: sectorOf(u),
       industry: u?.industry ?? null,
-      marketCap: u?.market_cap_krw ?? null,
+      marketCap: priceResult.prices.get(s.code)?.market_cap_krw ?? u?.market_cap_krw ?? null,
       quarter: quarterLabel(s.fiscal_year, s.fiscal_quarter),
       quarterIndex: qIndex(s.fiscal_year, s.fiscal_quarter),
       gatePassed: s.gate_passed,
@@ -105,6 +105,9 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       opYoy: f?.op_yoy ?? null,
       opStatusLabel: f?.op_status_label ?? null,
       opmYoyDelta: f?.opm_yoy_delta ?? null,
+      per4q: priceResult.prices.get(s.code)?.per_current_ttm ?? null,
+      forwardPer: priceResult.prices.get(s.code)?.fwd_per ?? null,
+      roe: priceResult.prices.get(s.code)?.roe_est ?? null,
       ret5d: priceResult.prices.get(s.code)?.ret_5d ?? null,
       excess,
     };

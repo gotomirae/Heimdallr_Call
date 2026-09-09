@@ -436,6 +436,8 @@ CREATE TABLE consensus_snapshots (
   fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   revenue_est NUMERIC, op_est NUMERIC, np_est NUMERIC, eps_est NUMERIC,
   per NUMERIC, fwd_per NUMERIC,              -- 네이버 최근 확정 / 연간 (E) PER
+  roe_est NUMERIC, roe_next_est NUMERIC,     -- 네이버 올해 / 내년 (E) ROE
+  roe_next_year INT,
   n_estimates INT,                          -- < 2면 컨센서스로 인정하지 않음
   source TEXT,                              -- 'fnguide' | 'naver'
   snapshot_at TIMESTAMPTZ DEFAULT now(),
@@ -465,6 +467,7 @@ CREATE TABLE price_snapshots (
   rel_ret_3m NUMERIC,                       -- 소속 지수 대비 초과수익(표시용)
   rel_ret_6m NUMERIC, rel_ret_12m NUMERIC,  -- 상세화면 6·12M 지수대비
   market_cap_krw BIGINT, per NUMERIC, pbr NUMERIC, fwd_per NUMERIC,
+  roe_est NUMERIC, roe_next_est NUMERIC, roe_next_year INT,
   per_pctile_3y NUMERIC,                    -- 구버전 표시 호환
   high_52w_drawdown_pct NUMERIC,
   announcement_date DATE, announcement_close NUMERIC, announcement_return_pct NUMERIC,
@@ -617,7 +620,8 @@ CREATE TABLE cost_log (
                  맨 앞에 [출처: YYYY년 N분기 정기보고서] 라벨을 붙인다 (T99)
  6-1) 최근 공시  공시명 + 접수일 (발췌가 '내용'이면 이건 '무엇이 언제 나왔는가'다).
                  트리거의 expected_date를 잡는 기준이 된다 (T101)
-  7) 업종 비교   동일 KRX 업종 상위 5개사 매출YoY·OPM·PER·스코어
+  7) 업종 비교   동일 KRX 업종 상위 5개사의 시총·최신 평가 분기 매출·영업이익·OPM,
+                 네이버/FnGuide 올해·내년 ROE·F.PER, 시총÷최근 4분기 순이익 PER
 ```
 
 > **공시 원문 전체를 넣지 마라.** 숫자는 이미 우리가 정확히 갖고 있다. LLM에게 숫자를 다시 읽히면 비용과 오류가 함께 늘어난다. LLM의 역할은 **"이 숫자 패턴이 무엇을 의미하고, 다음 1~4개 분기에 무엇이 숫자로 확인되어야 하는가"**다.
@@ -912,15 +916,15 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 
 1. **헤더** — 종목명·코드·업종·시총 / 현재가·등락 / 52주 위치 게이지 / 3·6·12M 수익률 (지수 대비 병기)
 2. **판정 카드** — 등급(★○△·) / 스코어 A·B·C·D 스택 바 / **PRI 분해 바** / 분기 내 백분위 / 경고 배지(기저효과·업종주의·컨센없음)
-3. **분기 실적 추이 (9분기) + 실제 주간 종가** — 매출액 → 영업이익·OPM → 매출 YoY·영업이익 YoY → 수주잔고·신규수주 순서로 표시한다. 영업이익·OPM, 매출 YoY·영업이익 YoY, 수주잔고·신규수주는 각각 한 그래프에 비교 표시하며 모든 시계열 값은 각 분기 그래프 바로 위에 숫자로 표시한다. 수주 정형 수치가 없으면 미수집을 밝힌다. 주간 종가는 같은 기간의 종가·MACD(12·26·9)·RSI(14)를 별도 패널로 표시한다.
+3. **분기 실적 추이 (9분기) + 실제 주간 종가** — 매출액 → 영업이익·OPM → 매출 YoY → 영업이익 YoY → 수주잔고·신규수주 순서로 표시한다. 영업이익·OPM과 수주잔고·신규수주는 각각 한 그래프에 비교 표시한다. 매출 YoY와 영업이익 YoY는 큰 기저효과가 다른 추세를 눌러 보이지 않게 독립 축 그래프로 표시하며, 모든 시계열 값은 각 분기 그래프 바로 위에 숫자로 표시한다. 수주 정형 수치가 없으면 미수집을 밝힌다. 주간 종가는 같은 ISO 주의 마지막 실제 거래일 한 점만 사용해 같은 기간의 종가·MACD(12·26·9)·RSI(14)를 별도 패널로 표시한다.
 4. **분기 히스토리 표** — 분기 · 매출/YoY/QoQ · 영업이익/YoY/QoQ · OPM · FCF · 잠정/확정 구분만 표시
 5. **컨센서스 대비** — 서프라이즈 % + 추정기관 수 (없으면 "커버리지 없음" 명시)
-6. **밸류에이션** — 네이버 기업실적분석의 최근 확정 PER·연간 (E) Fwd PER을 우선 표시하고 내부 TTM 계산값으로 검산 / PBR·PEG / 3년 밴드 내 위치 / 동일 업종 대비 / 주가 위치 판정
+6. **밸류에이션** — DART 최근 4개 분기 순이익과 현재 시총으로 계산한 TTM PER, 네이버/FnGuide 연간 (E) F.PER·올해/내년 ROE와 업종 중앙값 비교 / PBR·PEG / 3년 밴드 내 위치 / 주가 위치 판정
 7. **LLM 분석** — 성장 가속 종목에만 표시. `(1단계) 잠정실적` → `(2단계) 정기보고서` →
    `(3단계) 5거래일 뒤 최근 10일 증권사 리포트` 배지 / 리포트 발행일·직접 링크·핵심 논점 /
    핵심 내용 / 트리거 / 시나리오 / 리스크 / 가치-가격 비교.
    - **수주 확인 포인트** — 평가 분기와 같은 DART 발췌에 `수주잔고`·`수주총액`·`신규 수주`가 실제로 있을 때만 원문 문맥을 별도 표시한다. 한 분기뿐이므로 **QoQ·증가 판정을 만들지 않으며**, 비공개와 발췌 잘림을 배지로 밝힌다.
-8. **업종 비교 표** — 상위 5개사 매출YoY·OPM·PER·스코어
+8. **업종 비교 표** — 같은 평가 분기 상위 5개사의 시총·매출·영업이익·OPM·올해/내년 ROE·최근 4분기 PER·F.PER와 표시 종목 중앙값
 9. **결과 추적** — 발표 후 D+1/5/20/60 수익률 (지수 대비)
 10. **원문 링크** — 네이버 증권 · StockEasy 종목 상세 · 접수번호 기반 DART 공시 원문. 내부 LLM 발췌 전문은 화면에 중복 노출하지 않는다.
 

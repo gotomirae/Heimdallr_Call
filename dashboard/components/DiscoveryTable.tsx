@@ -54,6 +54,12 @@ export interface DiscoveryRow {
   opStatusLabel: string | null;
   /** 영업이익률 YoY 변화(%p) — G4가 보는 값이다. */
   opmYoyDelta: number | null;
+  /** 현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익. */
+  per4q: number | null;
+  /** 네이버/FnGuide 올해 예상 EPS 기준 PER. */
+  forwardPer: number | null;
+  /** 네이버/FnGuide 올해 예상 ROE. */
+  roe: number | null;
   /** 최근 5거래일 상승률(%). */
   ret5d: number | null;
   /** 발표일 기준 초과수익(%p). 키는 Horizon. */
@@ -68,6 +74,9 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
   opmYoyDelta: "OPM YoY",
   pri: "주가 반영도",
   marketCap: "시총",
+  per4q: "최근 4Q PER",
+  forwardPer: "F.PER",
+  roe: "ROE",
   ret5d: "최근 5일",
   ...Object.fromEntries(
     HORIZONS.map((d) => [
@@ -101,6 +110,9 @@ function sortValue(r: DiscoveryRow, key: SortKey): number | null {
     case "opmYoyDelta": return r.opmYoyDelta;
     case "pri": return r.pri;
     case "marketCap": return r.marketCap;
+    case "per4q": return r.per4q;
+    case "forwardPer": return r.forwardPer;
+    case "roe": return r.roe;
     case "ret5d": return r.ret5d;
     default: {
       // `d-5`·`d0`·`d5`… — 실적 발표일 기준 초과수익
@@ -491,11 +503,11 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1360px] text-sm">
+        <table className="w-full min-w-[1580px] text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
               <th colSpan={5} className="bg-slate-900 px-3 py-1.5 text-left">종목 정보</th>
-              <th colSpan={7} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
+              <th colSpan={10} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
               <th colSpan={showTracking ? HORIZONS.length : 1}
                   className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
                 {showTracking ? "분기실적 발표" : "분류 근거"}
@@ -525,6 +537,12 @@ export default function DiscoveryTable({
                           title="주가가 이 실적을 이미 아는 정도 — 낮을수록 아직 안 올랐다" />
               <SortableTh label="시총" sortKey="marketCap" {...sortState("marketCap")}
                           onSort={toggleSort} title="현재 시가총액" />
+              <SortableTh label="최근 4Q PER" sortKey="per4q" {...sortState("per4q")}
+                          onSort={toggleSort} title="현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익" />
+              <SortableTh label="F.PER" sortKey="forwardPer" {...sortState("forwardPer")}
+                          onSort={toggleSort} title="네이버/FnGuide 올해 예상 EPS 기준 선행 PER" />
+              <SortableTh label="ROE" sortKey="roe" {...sortState("roe")}
+                          onSort={toggleSort} title="네이버/FnGuide 올해 예상 ROE" />
               <SortableTh label="최근 5일" sortKey="ret5d" {...sortState("ret5d")}
                           onSort={toggleSort}
                           title="최근 5거래일 주가 상승률" />
@@ -596,6 +614,15 @@ export default function DiscoveryTable({
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-slate-100">{fmtNum(r.pri)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-slate-200">{fmtCap(r.marketCap)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-100">
+                  {r.per4q == null ? "—" : `${r.per4q.toFixed(1)}배`}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-sky-200">
+                  {r.forwardPer == null ? "—" : `${r.forwardPer.toFixed(1)}배`}
+                </td>
+                <td className={`px-3 py-2 text-right tabular-nums ${tone(r.roe)}`}>
+                  {fmtPct(r.roe)}
+                </td>
                 <td className={`px-3 py-2 text-right tabular-nums ${tone(r.ret5d)}`}>
                   {fmtPct(r.ret5d)}
                 </td>
@@ -617,7 +644,7 @@ export default function DiscoveryTable({
             ))}
             {favoritesRestored && shown.length === 0 && (
               <tr>
-                <td colSpan={13 + (showTracking ? HORIZONS.length - 1 : 0)}
+                <td colSpan={15 + (showTracking ? HORIZONS.length : 1)}
                     className="px-3 py-8 text-center text-slate-200">
                   {favoriteOnly
                     ? "관심 종목이 없다. 발굴 목록에서 ☆를 눌러 추가해라."
