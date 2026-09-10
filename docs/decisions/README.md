@@ -20,5 +20,7 @@
 | 11 | LLM은 잠정·정기보고서·5거래일 최종갱신의 세 이벤트에만 연다 | [`011-event-driven-three-stage-analysis.md`](011-event-driven-three-stage-analysis.md) |
 | 12 | 미근거 사실 숫자는 토큰만 제거하고 정성 해석은 보존한다 | [`012-redact-unsupported-factual-numbers.md`](012-redact-unsupported-factual-numbers.md) |
 | 13 | 3단계는 최근 10일 리포트를 웹검색하고 지정 텔레그램 2곳을 우선한다 | [`013-broker-report-web-search.md`](013-broker-report-web-search.md) |
+| 14 | PRI 3.0은 성장 정당화·상승 원인·성장단가·과열을 8축으로 측정한다 | [`014-pri-3-growth-price-decomposition.md`](014-pri-3-growth-price-decomposition.md) |
+| 15 | 기업 투자 매력도 스코어를 7축으로 확장하고 현재 가격은 PRI로 분리한다 | [`015-current-investment-attractiveness-score.md`](015-current-investment-attractiveness-score.md) |
 
 새 ADR을 쓸 때는 **무엇을 / 왜 / 되돌리면 무엇이 무너지는가**를 반드시 포함한다.

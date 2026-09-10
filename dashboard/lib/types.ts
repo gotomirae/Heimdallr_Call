@@ -6,11 +6,11 @@ export type Grade = "★" | "○" | "△" | "·" | "✕";
 export const NOTIFY_GRADES: Grade[] = ["★", "○"];
 
 export const GRADE_MEANING: Record<Grade, string> = {
-  "★": "고스코어 · 미반영",
-  "○": "고스코어 · 부분반영",
-  "△": "고스코어 · 선반영 (조정 시 담을 구간)",
+  "★": "기업 매력 높음 · 주가 미반영",
+  "○": "기업 매력 높음 · 부분반영",
+  "△": "기업 매력 높음 · 선반영 (조정 관찰)",
   "·": "중간",
-  "✕": "저스코어 · 선반영",
+  "✕": "기업 매력 낮음 · 선반영",
 };
 
 export const GRADE_COLOR: Record<Grade, string> = {
@@ -172,6 +172,17 @@ export interface QuarterPriceRow {
   fiscal_quarter: number;
   close: number | null;
   trade_date: string | null;
+}
+
+export interface InvestmentScoreDetail {
+  mode?: string;
+  parts?: Record<string, number | null>;
+  raw_sum?: number;
+  denominator?: number;
+  score?: number | null;
+  confidence?: number | null;
+  excluded?: string[];
+  inputs?: Record<string, number | null>;
 }
 
 export interface WeeklyPriceRow {

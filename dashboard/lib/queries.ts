@@ -452,7 +452,7 @@ export async function getFundamentalsForQuarters(
   const out: FundamentalRow[] = [];
   const cols = [
     "code", "fiscal_year", "fiscal_quarter", "revenue", "op", "np",
-    "revenue_yoy", "op_yoy", "op_status_label", "opm", "opm_yoy_delta",
+    "revenue_yoy", "revenue_qoq", "op_yoy", "op_qoq", "op_status_label", "opm", "opm_yoy_delta",
     "ttm_revenue", "is_estimate",
   ];
   // 평가 분기가 여러 개일 때 순차 조회하면 분기 수만큼 RTT가 누적된다.

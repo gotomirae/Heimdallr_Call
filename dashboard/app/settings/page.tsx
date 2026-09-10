@@ -77,6 +77,7 @@ export default async function SettingsPage() {
 
   const axes = constants.score_axes as Record<string, number>;
   const items = constants.score_items as Record<string, number>;
+  const investment = constants.investment_score as Record<string, number | number[]>;
   const pri = constants.pri as Record<string, number>;
 
   return (
@@ -207,7 +208,30 @@ export default async function SettingsPage() {
       )}
 
       <Card
-        title="스코어 배점"
+        title="기업 투자 매력도 배점"
+        note="산업·기업·밸류·현금흐름을 결합한다. 현재 가격은 PRI와 2축 등급에서 별도로 반영한다(ADR 5). 성장 스토리는 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다."
+      >
+        <div className="grid gap-x-8 sm:grid-cols-2">
+          <div>
+            {[
+              ["산업 성장", "industry_growth"], ["산업 내 위치", "industry_position"],
+              ["실적", "earnings"],
+              ["성장 스토리", "growth_story"], ["PER · F.PER", "valuation"],
+              ["ROE", "roe"], ["FCF", "fcf"],
+            ].map(([label, key]) => (
+              <Row key={key} label={label} value={`${investment[key]}점`} />
+            ))}
+          </div>
+          <div>
+            <Row label="계산 하한" value={`${investment.min_denominator}/100`} hint="미만이면 판정 보류" />
+            <Row label="피어 최소 표본" value={`${investment.peer_min_count}종목`} />
+            <Row label="가격 반영" value="PRI 별도 축" hint="스코어와 합산하지 않음" />
+          </div>
+        </div>
+      </Card>
+
+      <Card
+        title="실적 원점수 배점 (감사용)"
         note="합계 100점. 미측정 축은 0점이 아니라 분모에서 빠진다(ADR 2) — 컨센서스가 없는 종목이 구조적으로 불리해지지 않게 하는 장치다."
       >
         <div className="grid gap-x-8 sm:grid-cols-2">
@@ -294,8 +318,8 @@ export default async function SettingsPage() {
             />
           </div>
           <div>
-            <Row label="고스코어 기준" value={`${constants.matrix.score_high}점`} />
-            <Row label="중스코어 기준" value={`${constants.matrix.score_mid}점`} />
+            <Row label="기업 고점수 기준" value={`${constants.matrix.score_high}점`} />
+            <Row label="기업 중점수 기준" value={`${constants.matrix.score_mid}점`} />
             <Row
               label="컨센서스 인정"
               value={`추정 ${constants.consensus.min_estimates}곳 이상`}

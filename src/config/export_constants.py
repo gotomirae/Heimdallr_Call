@@ -72,6 +72,11 @@ def build() -> dict:
             "final_with_consensus": constants.SCORE_DENOM_FINAL_WITH_CONSENSUS,
             "final_no_consensus": constants.SCORE_DENOM_FINAL_NO_CONSENSUS,
         },
+        "investment_score": {
+            **constants.INVESTMENT_SCORE_WEIGHTS,
+            "min_denominator": constants.INVESTMENT_SCORE_MIN_DENOMINATOR,
+            "peer_min_count": constants.INVESTMENT_PEER_MIN_COUNT,
+        },
         "pri": {
             **constants.PRI_NEW_WEIGHTS,
             "min_denominator": constants.PRI_CORE_MIN_DENOMINATOR,

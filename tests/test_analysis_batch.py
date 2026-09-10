@@ -123,10 +123,7 @@ def test_turnaround_is_excluded_from_llm_even_when_legacy_gate_passed():
 
 
 def test_attractiveness_puts_low_pri_first():
-    """★ 시간·비용이 모자라 끊겨도 중요한 종목이 먼저 처리돼야 한다.
-
-    같은 스코어면 반영도가 낮은 쪽(아직 안 오른 쪽)이 앞이다.
-    """
+    """같은 기업 점수면 주가반영도가 낮은 쪽을 먼저 해석한다."""
     a = {"score_flash": 80.0, "pri": 10.0}
     b = {"score_flash": 80.0, "pri": 60.0}
     assert attractiveness(a) > attractiveness(b)

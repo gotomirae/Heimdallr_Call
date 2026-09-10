@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import collections
 import statistics
+from dataclasses import dataclass
 from datetime import date
 
 from src.db.supabase_client import (
@@ -20,8 +21,21 @@ from src.db.supabase_client import (
     select_all,
     upsert_tolerating_missing_columns,
 )
-from src.config.constants import PRI_PEER_MIN_COUNT
+from src.config.constants import (
+    INVESTMENT_FCF_CONVERSION_ANCHORS,
+    INVESTMENT_GROWTH_STORY_ANCHORS_PCT,
+    INVESTMENT_PEER_MIN_COUNT,
+    PRI_PEER_MIN_COUNT,
+)
 from src.screener.gate import GateInput, evaluate_gate
+from src.screener.investment_score import (
+    InvestmentScoreInput,
+    InvestmentScoreResult,
+    compute_investment_score,
+    linear_score,
+    mean_measured,
+    percentile_scores,
+)
 from src.screener.matrix import classify
 from src.finance.derive import op_surprise_label, op_surprise_pct, revenue_surprise_pct
 from src.screener.pri import (
@@ -34,14 +48,14 @@ from src.screener.pri import (
     overheat_score_pct,
     peer_peg_premium_pct,
 )
-from src.screener.score import ScoreInput, compute_score
+from src.screener.score import ScoreInput, ScoreResult, compute_score
 from src.universe.sector_map import UNKNOWN_SECTOR
 from src.utils.console import enable_utf8_stdout
 
 FUND_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,op_status_label,"
     "opm,opm_yoy_delta,ttm_revenue,ttm_op,ttm_opm_delta,rev_2y_stack,"
-    "ttm_cfo,receivables,inventory,shares_yoy,is_estimate"
+    "ttm_cfo,fcf,receivables,inventory,shares_yoy,is_estimate"
 )
 UNI_COLUMNS = (
     "code,name,board,industry,sector,is_excluded,exclude_reason,sector_caveat,"
@@ -54,7 +68,7 @@ PRICE_COLUMNS = (
     "per_current_ttm,per_avg_9q,per_vs_9q_avg_pct,"
     "earnings_revision_pct,earnings_revision_price_gap_pct,"
     "valuation_reflection_pct,relative_return_pct,foreign_net_ratio_5d,rsi_14,"
-    "per,pbr,avg_value_20d"
+    "per,pbr,roe_est,roe_next_est,market_cap_krw,avg_value_20d"
 )
 CONSENSUS_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,snapshot_at"
@@ -217,6 +231,220 @@ def build_pri_inputs(
         )
         for code in index_of
     }
+
+
+@dataclass(frozen=True)
+class CombinedScore:
+    """DB의 A~D 감사 원자료와 대표 기업 투자 매력도를 함께 운반한다."""
+
+    fundamental: ScoreResult
+    investment: InvestmentScoreResult
+
+    @property
+    def score_norm(self) -> float | None:
+        return self.investment.score
+
+    @property
+    def denominator(self) -> int:
+        return self.investment.denominator
+
+    @property
+    def has_consensus(self) -> bool:
+        return self.fundamental.has_consensus
+
+    @property
+    def missing_items(self) -> dict[str, int]:
+        return self.fundamental.missing_items
+
+    @property
+    def missing_item_points(self) -> int:
+        return self.fundamental.missing_item_points
+
+    @property
+    def score_a(self) -> float | None:
+        return self.fundamental.score_a
+
+    @property
+    def score_b(self) -> float | None:
+        return self.fundamental.score_b
+
+    def as_db_row(self) -> dict:
+        return self.fundamental.as_db_row()
+
+
+def _investment_group(universe_row: dict | None) -> str | None:
+    row = universe_row or {}
+    sector = str(row.get("sector") or "").strip()
+    value = sector if sector and sector != UNKNOWN_SECTOR else row.get("industry")
+    return str(value or "").strip() or None
+
+
+def _grouped_percentiles(
+    values: dict[str, float | None],
+    groups: dict[str, tuple[int, str] | None],
+    *,
+    higher_is_better: bool,
+) -> dict[str, float | None]:
+    cohorts: dict[tuple[int, str], dict[str, float | None]] = collections.defaultdict(dict)
+    for code, value in values.items():
+        group = groups.get(code)
+        if group is not None:
+            cohorts[group][code] = value
+    out = {code: None for code in values}
+    for members in cohorts.values():
+        measured = sum(value is not None for value in members.values())
+        if measured < INVESTMENT_PEER_MIN_COUNT:
+            continue
+        out.update(percentile_scores(members, higher_is_better=higher_is_better))
+    return out
+
+
+def build_investment_scores(
+    by_code: dict[str, dict[int, dict]],
+    universe: dict[str, dict],
+    prices: dict[str, dict],
+    index_of: dict[str, int],
+    fundamentals: dict[str, ScoreResult],
+    pri_inputs: dict[str, PriInput],
+) -> dict[str, InvestmentScoreResult]:
+    """같은 평가 분기·투자섹터의 비교값으로 기업 투자 매력도를 만든다.
+
+    현재 가격은 ADR 5에 따라 점수에 넣지 않고 PRI와 2축 등급에서 별도로 반영한다.
+    """
+    codes = list(index_of)
+    groups = {
+        code: (
+            (index_of[code], group) if (group := _investment_group(universe.get(code))) else None
+        )
+        for code in codes
+    }
+    current_rows = {code: by_code[code].get(index_of[code]) or {} for code in codes}
+
+    # 산업 성장: 같은 분기·섹터의 중앙 성장률을 먼저 만들고, 섹터끼리 백분위 비교한다.
+    sector_members: dict[tuple[int, str], list[str]] = collections.defaultdict(list)
+    for code, group in groups.items():
+        if group is not None:
+            sector_members[group].append(code)
+    sector_metrics: dict[str, dict[tuple[int, str], float | None]] = {}
+    for field in ("revenue_yoy", "op_yoy"):
+        medians: dict[tuple[int, str], float | None] = {}
+        for group, members in sector_members.items():
+            measured = [_f(current_rows[code], field) for code in members]
+            measured = [value for value in measured if value is not None]
+            medians[group] = (
+                statistics.median(measured)
+                if len(measured) >= INVESTMENT_PEER_MIN_COUNT else None
+            )
+        ranked: dict[tuple[int, str], float | None] = {}
+        for period in set(index_of.values()):
+            cohort = {str(group): value for group, value in medians.items() if group[0] == period}
+            scores = percentile_scores(cohort)
+            for group, value in medians.items():
+                if group[0] == period:
+                    ranked[group] = scores.get(str(group))
+        sector_metrics[field] = ranked
+
+    industry_growth = {
+        code: (
+            mean_measured(
+                sector_metrics["revenue_yoy"].get(group),
+                sector_metrics["op_yoy"].get(group),
+            ) if group is not None else None
+        )
+        for code, group in groups.items()
+    }
+
+    # 산업 내 위치: 매출·영업이익 성장과 OPM을 같은 섹터 안에서 각각 순위화한다.
+    position_metrics = [
+        _grouped_percentiles(
+            {code: _f(current_rows[code], field) for code in codes}, groups,
+            higher_is_better=True,
+        )
+        for field in ("revenue_yoy", "op_yoy", "opm")
+    ]
+    industry_position = {
+        code: mean_measured(*(metric[code] for metric in position_metrics)) for code in codes
+    }
+
+    # 밸류와 ROE는 절대 업종 간 비교를 피하고 같은 섹터 백분위로 본다.
+    valuation_metrics = [
+        _grouped_percentiles(
+            {code: _f(prices.get(code), field) for code in codes}, groups,
+            higher_is_better=False,
+        )
+        for field in ("per_current_ttm", "fwd_per")
+    ]
+    valuation = {
+        code: mean_measured(*(metric[code] for metric in valuation_metrics)) for code in codes
+    }
+    roe_metrics = [
+        _grouped_percentiles(
+            {code: _f(prices.get(code), field) for code in codes}, groups,
+            higher_is_better=True,
+        )
+        for field in ("roe_est", "roe_next_est")
+    ]
+    roe = {code: mean_measured(*(metric[code] for metric in roe_metrics)) for code in codes}
+
+    quarter_fcf = {code: _f(current_rows[code], "fcf") for code in codes}
+    fcf_yield = {
+        code: (
+            quarter_fcf[code] / market_cap * 100.0
+            if quarter_fcf[code] is not None
+            and (market_cap := _f(prices.get(code), "market_cap_krw")) is not None
+            and market_cap > 0 else None
+        )
+        for code in codes
+    }
+    fcf_yield_rank = _grouped_percentiles(fcf_yield, groups, higher_is_better=True)
+
+    out: dict[str, InvestmentScoreResult] = {}
+    for code in codes:
+        fundamental = fundamentals[code]
+        pri_input = pri_inputs[code]
+        story = mean_measured(
+            linear_score(
+                pri_input.forecast_earnings_growth_pct,
+                INVESTMENT_GROWTH_STORY_ANCHORS_PCT,
+            ),
+            (
+                fundamental.raw.get("a3") / 4.0 * 100.0
+                if fundamental.raw.get("a3") is not None else None
+            ),
+            (
+                fundamental.raw.get("a4") / 6.0 * 100.0
+                if fundamental.raw.get("a4") is not None else None
+            ),
+        )
+        quarter_op = _f(current_rows[code], "op")
+        conversion = (
+            quarter_fcf[code] / quarter_op
+            if quarter_fcf[code] is not None and quarter_op is not None and quarter_op > 0 else None
+        )
+        fcf_score = mean_measured(
+            fcf_yield_rank[code], linear_score(conversion, INVESTMENT_FCF_CONVERSION_ANCHORS)
+        )
+        out[code] = compute_investment_score(InvestmentScoreInput(
+            industry_growth=industry_growth[code],
+            industry_position=industry_position[code],
+            earnings=fundamental.score_norm,
+            growth_story=story,
+            valuation=valuation[code],
+            roe=roe[code],
+            fcf=fcf_score,
+            inputs={
+                "fundamental_score": fundamental.score_norm,
+                "forecast_earnings_growth_pct": pri_input.forecast_earnings_growth_pct,
+                "quarter_fcf": quarter_fcf[code],
+                "fcf_yield_pct": fcf_yield[code],
+                "fcf_conversion": conversion,
+                "per_current_ttm": _f(prices.get(code), "per_current_ttm"),
+                "fwd_per": _f(prices.get(code), "fwd_per"),
+                "roe": _f(prices.get(code), "roe_est"),
+                "forward_roe": _f(prices.get(code), "roe_next_est"),
+            },
+        ))
+    return out
 
 
 def _f(row: dict | None, key: str) -> float | None:
@@ -420,7 +648,7 @@ def run(fixed: int | None, save: bool) -> int:
         cohort = {c: s for c, s in by_code.items() if index_of.get(c) == idx}
         pcts.update(sector_percentiles(cohort, universe, idx))
 
-    rows = []
+    preliminary: dict[str, tuple] = {}
     pri_inputs = build_pri_inputs(by_code, universe, prices, index_of)
     for code, index in index_of.items():
         uni = universe[code]
@@ -430,14 +658,28 @@ def run(fixed: int | None, save: bool) -> int:
         )
         gate = evaluate_gate(gate_in)
         score_in = ScoreInput(**{**score_in.__dict__, "g1_t": gate.g1})
-        score = compute_score(score_in)
+        fundamental = compute_score(score_in)
         pri = compute_pri(pri_inputs[code])
+        preliminary[code] = (uni, gate, fundamental, pri, index, score_in.is_final)
+
+    investment_scores = build_investment_scores(
+        by_code,
+        universe,
+        prices,
+        index_of,
+        {code: row[2] for code, row in preliminary.items()},
+        pri_inputs,
+    )
+    rows = []
+    for code, (uni, gate, fundamental, pri, index, is_final) in preliminary.items():
+        score = CombinedScore(fundamental, investment_scores[code])
         grade = classify(
-            score.score_norm, pri.pri,
+            score.score_norm,
+            pri.pri,
             base_effect_warning=gate.base_effect_warning,
             gate_passed=gate.passed,
         )
-        rows.append((code, uni, gate, score, pri, grade, index, score_in.is_final))
+        rows.append((code, uni, gate, score, pri, grade, index, is_final))
 
     _report(rows, latest)
     if save:
@@ -497,7 +739,7 @@ def _report(rows: list, latest: int | None) -> None:
                 checks[k] += 1
     print(f"    조건별 판정 가능 건수: {dict(checks)}")
 
-    print("\n[3] 스코어 (게이트 통과분)")
+    print("\n[3] 기업 투자 매력도 (게이트 통과분 · 가격은 PRI 별도)")
     stage_counts = collections.Counter(
         "확정" if row[7] else "잠정" for row in rows
     )
@@ -510,6 +752,13 @@ def _report(rows: list, latest: int | None) -> None:
         f"{sum(value is not None for value in percentile_preview.values())}/{len(rows)}종목"
     )
     scored = [r[3] for r in passed if r[3].score_norm is not None]
+    investment_coverage = collections.Counter(
+        key
+        for row in rows
+        for key, value in row[3].investment.parts.items()
+        if value is not None
+    )
+    print(f"    7축 측정: {dict(investment_coverage)}")
     if scored:
         values = sorted(s.score_norm for s in scored)
         print(f"    측정 {len(values)}종목 · 중앙값 {statistics.median(values):.1f} · "
@@ -521,9 +770,9 @@ def _report(rows: list, latest: int | None) -> None:
         for s in scored:
             for item in s.missing_items:
                 miss[item] += 1
-        print(f"    축 내부 결측(조용한 감점) 항목별: {dict(miss)}")
+        print(f"    실적 원점수 내부 결측 항목별: {dict(miss)}")
         avg_lost = statistics.mean(s.missing_item_points for s in scored)
-        print(f"    종목당 평균 조용한 감점 {avg_lost:.1f}점")
+        print(f"    종목당 평균 실적 원점수 미측정 {avg_lost:.1f}점")
 
         # SC6: 컨센서스 없는 종목이 상위에서 밀려나면 이 시스템의 존재 이유가 사라진다(ADR 2).
         top20 = sorted(scored, key=lambda s: s.score_norm, reverse=True)[:20]
@@ -562,9 +811,9 @@ def _report(rows: list, latest: int | None) -> None:
     print(f"    ★ 만점(100.0) 종목 {saturated}개")
     print("      위 축 내부 결측은 실제 수집값이 채워질수록 줄어야 한다. 0점으로 추정하지 않는다.")
 
-    print("\n[5] 스코어 상위 10 (게이트 통과 · 참고용)")
+    print("\n[5] 기업 투자 매력도 상위 10 (게이트 통과 · 가격은 PRI 별도)")
     top = sorted(passed, key=lambda r: r[3].score_norm or -1, reverse=True)[:10]
-    print(f"    {'종목':>16} {'코드':8} {'분기':7}{'스코어':>8}{'A':>6}{'B':>6}"
+    print(f"    {'종목':>16} {'코드':8} {'분기':7}{'매력도':>8}{'A':>6}{'B':>6}"
           f"{'YoYΔ%p':>9}  등급  경고")
     for code, uni, gate, score, pri, grade, index, _is_final in top:
         warn = "기저효과" if gate.base_effect_warning else ""
@@ -581,6 +830,8 @@ def score_stage_fields(
     score: float | None,
     is_final: bool,
     previous: dict | None,
+    *,
+    score_mode: str | None = None,
 ) -> dict[str, float | None]:
     """잠정·확정 점수를 같은 행에 보존하고 확정−잠정 차이를 만든다(T4)."""
     previous = previous or {}
@@ -588,7 +839,7 @@ def score_stage_fields(
     valid_flash = isinstance(detail, dict) and (
         detail.get("score_stage") == "flash"
         or detail.get("flash_baseline_valid") is True
-    )
+    ) and (score_mode is None or detail.get("score_mode") == score_mode)
     flash = _f(previous, "score_flash") if valid_flash else None
     final = _f(previous, "score_final")
     if is_final:
@@ -649,7 +900,7 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
         previous_flash_valid = isinstance(previous_detail, dict) and (
             previous_detail.get("score_stage") == "flash"
             or previous_detail.get("flash_baseline_valid") is True
-        )
+        ) and previous_detail.get("score_mode") == score.investment.mode
         row = {
             "code": code,
             "fiscal_year": year,
@@ -662,11 +913,19 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
                 "base_effect_checks": gate.base_effect_checks,
                 "base_effect_measurable": gate.base_effect_measurable,
                 "score_stage": "final" if is_final else "flash",
+                "score_mode": score.investment.mode,
+                "fundamental_score": score.fundamental.score_norm,
+                "investment_score": score.investment.detail,
                 "flash_baseline_valid": (not is_final) or previous_flash_valid,
             },
             "base_effect_warning": gate.base_effect_warning,
             "turnaround": gate.turnaround,
-            **score_stage_fields(score.score_norm, is_final, previous),
+            **score_stage_fields(
+                score.score_norm,
+                is_final,
+                previous,
+                score_mode=score.investment.mode,
+            ),
             "pctile_in_quarter": percentiles[key],
             "pri": pri.pri,
             "pri_detail": pri.detail,

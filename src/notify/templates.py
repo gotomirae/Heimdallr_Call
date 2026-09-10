@@ -394,8 +394,8 @@ def score_line(ctx: dict) -> str:
             f"{label} {value:.0f}/{maximum}" if value is not None else f"{label} —"
         )
     return (
-        f"🎯 <b>스코어 {_num(ctx.get('score'), 0)}</b>"
-        f" <i>({' · '.join(bits)})</i>"
+        f"🎯 <b>기업매력 {_num(ctx.get('score'), 0)}</b>"
+        f" <i>(실적근거 {' · '.join(bits)})</i>"
     )
 
 

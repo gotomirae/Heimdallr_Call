@@ -1,4 +1,4 @@
-// PRD Ref: §9 /matrix · ADR 5 (PRI를 스코어에 합산하지 않는 이유가 이 화면이다)
+// PRD Ref: §9 /matrix · ADR 5
 import MatrixScatter, { type MatrixPoint } from "@/components/MatrixScatter";
 import { getLatestScreens, getUniverse } from "@/lib/queries";
 import type { Grade } from "@/lib/types";
@@ -25,24 +25,24 @@ export default async function MatrixPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">2축 매트릭스</h1>
+        <h1 className="text-2xl font-bold">기업 매력도 × 주가반영도</h1>
         <p className="mt-1 text-sm text-slate-200">
           실적이 가속 중인 {rows.length.toLocaleString("ko-KR")}종목 ·
-          X = 스코어(펀더멘털 강도) · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
+          X = 기업 투자 매력도 · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
         </p>
         <p className="mt-1 text-xs text-slate-300">
-          두 축을 한 숫자로 합치지 않는다(ADR 5). 같은 스코어라도 이미 오른 종목과
-          안 오른 종목은 전혀 다른 투자다 — <strong>좋은 기업과 좋은 투자는 다르다.</strong>
+          두 축을 한 숫자로 합치지 않는다(ADR 5). 같은 기업 점수라도 이미 오른 종목과
+          아직 덜 오른 종목은 전혀 다른 투자다 — <strong>좋은 기업과 좋은 투자는 다르다.</strong>
         </p>
       </div>
 
-      {/* 사분면 범례 — SVG 안 라벨은 렌더되지 않아 여기로 뺐다. */}
+      {/* 기업 점수와 PRI를 교차한 범례. */}
       <div className="flex flex-wrap gap-3 text-xs">
         {[
-          { color: "#f59e0b", title: "★ 고스코어 · 미반영", note: "우하단 — 목표 구간" },
-          { color: "#10b981", title: "○ 고스코어 · 부분반영", note: "발송 대상" },
-          { color: "#6366f1", title: "△ 고스코어 · 선반영", note: "우상단 — 조정 시 담을 구간" },
-          { color: "#ef4444", title: "✕ 저스코어 · 선반영", note: "좌상단 — 제외" },
+          { color: "#f59e0b", title: "★ 기업 고점수 · 미반영", note: "목표 구간" },
+          { color: "#10b981", title: "○ 관심", note: "고점수·부분반영 또는 중점수·미반영" },
+          { color: "#6366f1", title: "△ 기업 고점수 · 선반영", note: "조정 관찰" },
+          { color: "#ef4444", title: "✕ 기업 저점수 · 선반영", note: "제외" },
           { color: "#94a3b8", title: "판정 불가", note: "성장 가속 미해당 또는 PRI 없음" },
         ].map((q) => (
           <span

@@ -488,9 +488,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             />
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">스코어</h3>
+                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">기업 투자 매력도</h3>
                 <Note>
-                  가속 강도 100점 만점 · 미측정 축은 0점이 아니라{" "}
+                  산업·실적·밸류·ROE·현금흐름 종합 100점 · 미측정 축은 0점이 아니라{" "}
                   <strong className="text-slate-100">분모 제외</strong>
                 </Note>
                 <div className="mt-2">
@@ -509,7 +509,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                     <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>
                   </span>
                   <span className="block">0~39 미반영 · 40~65 부분반영 · 66~100 선반영</span>
-                  <span className="block">스코어와 <strong>합산하지 않는다</strong> · ★ = 스코어 높음 + 반영도 낮음</span>
+                  <span className="block">기업 점수와 <strong>합산하지 않는다</strong> · ★ = 기업 매력 높음 + 반영도 낮음</span>
                 </Note>
                 <div className="mt-2">
                   <PriBreakdown pri={screen.pri} detail={screen.pri_detail} />

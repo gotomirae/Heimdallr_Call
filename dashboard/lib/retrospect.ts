@@ -137,10 +137,9 @@ export function crosstab(
 // ═══════════════════════════════════════════════════════════════════
 export function scoreBucket(score: number | null): string | null {
   if (score == null) return null;
-  if (score >= 90) return "스코어 90+";
-  if (score >= 75) return "스코어 75~89";
-  if (score >= 60) return "스코어 60~74";
-  return "스코어 60 미만";
+  if (score >= 75) return "기업점수 75+";
+  if (score >= 60) return "기업점수 60~74";
+  return "기업점수 60 미만";
 }
 
 export function priBucket(pri: number | null): string | null {
@@ -423,8 +422,8 @@ export function buildInsights(
   // ── ⑤ 스코어가 실제로 작동했나 ──────────────────────────────
   const scoreTable = tables.get("스코어 구간") ?? [];
   for (const days of usable) {
-    const hi = scoreTable.find((r) => r.key === "스코어 90+")?.cells.get(days);
-    const lo = scoreTable.find((r) => r.key === "스코어 60 미만")?.cells.get(days);
+    const hi = scoreTable.find((r) => r.key === "기업점수 75+")?.cells.get(days);
+    const lo = scoreTable.find((r) => r.key === "기업점수 60 미만")?.cells.get(days);
     if (!hi?.median || !lo?.median) continue;
     if (hi.n < MIN_SAMPLE || lo.n < MIN_SAMPLE) continue;
     insights.push({
@@ -433,7 +432,7 @@ export function buildInsights(
           ? "**스코어가 높을수록 더 올랐다** — 배점이 방향은 맞게 잡혀 있다."
           : "스코어가 높다고 더 오르지 않았다 — 배점 재검토가 필요하다.",
       evidence:
-        `${horizonLabel(days)} · 90+ ${fmtPp(hi.median)}(${hi.n}건) vs ` +
+        `${horizonLabel(days)} · 75+ ${fmtPp(hi.median)}(${hi.n}건) vs ` +
         `60 미만 ${fmtPp(lo.median)}(${lo.n}건)`,
       confidence: confidenceOf(Math.min(hi.n, lo.n)),
     });

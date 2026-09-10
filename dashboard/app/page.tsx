@@ -212,11 +212,11 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
           <div key={g}
                className="rounded border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-100"
                title={{
-                 "★": "고스코어 · 미반영 — 가장 찾던 구간",
-                 "○": "고스코어 · 부분반영",
-                 "△": "고스코어 · 선반영 (조정 시 담을 구간)",
+                 "★": "기업 매력 높음 · 주가 미반영",
+                 "○": "기업 매력 높음 · 부분반영 또는 중간 점수 · 미반영",
+                 "△": "기업 매력 높음 · 선반영",
                  "·": "중간",
-                 "✕": "저스코어 · 선반영",
+                 "✕": "기업 매력 낮음 · 선반영",
                }[g]}>
             <span className="mr-2 text-base font-bold text-white">{g}</span>
             <span className="text-slate-200">{counts.get(g) ?? 0}</span>
@@ -230,8 +230,8 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
         <table className="text-xs">
           <tbody>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-white">스코어</td>
-              <td className="text-slate-100">가속 강도 (100점 · 높을수록 좋다)</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">기업 투자 매력도</td>
+              <td className="text-slate-100">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 PRI와 등급에서 별도 반영</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 YoY</td>
@@ -260,7 +260,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-amber-300">★</td>
-              <td className="text-slate-100">스코어 높음 + 주가 반영도 낮음 = 찾던 구간</td>
+              <td className="text-slate-100">기업 점수 높음 + 주가 반영도 낮음 = 가장 찾던 구간</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표</td>

@@ -78,7 +78,7 @@ export interface DiscoveryRow {
 
 /** 정렬 상태를 글로 알릴 때 쓰는 이름. 머리글 라벨과 **같은 말**이어야 한다. */
 const SORT_LABEL: Partial<Record<SortKey, string>> = {
-  score: "스코어",
+  score: "기업 매력도",
   revenueYoy: "매출 YoY",
   revenueQoq: "매출 QoQ",
   opYoy: "영업이익 YoY",
@@ -538,8 +538,9 @@ export default function DiscoveryTable({
               <th scope="col" className="px-3 py-2.5 text-left font-semibold">종목명</th>
               <th scope="col" className="px-3 py-2.5 text-center font-semibold">등급</th>
               <th scope="col" className="px-3 py-2.5 text-left font-semibold">분기</th>
-              <SortableTh label="스코어" sortKey="score" {...sortState("score")}
-                          onSort={toggleSort} />
+              <SortableTh label="기업 매력도" sortKey="score" {...sortState("score")}
+                          onSort={toggleSort}
+                          title="산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF를 결합한 기업 점수. 현재 주가는 PRI와 등급에서 별도 반영" />
               {/* ★ 사용자 요청(2026-08-22): 게이트가 보는 성장률을 표에 직접 싣는다.
                   스코어만 있으면 "왜 이 점수인가"를 상세 화면에 들어가야 안다. */}
               <SortableTh label="매출 YoY" sortKey="revenueYoy" {...sortState("revenueYoy")}
@@ -594,10 +595,7 @@ export default function DiscoveryTable({
               <tr key={r.code} className="border-t border-slate-800 hover:bg-slate-900/60">
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200"
                     title={r.industry ?? undefined}>
-                  <div>{r.sector}</div>
-                  <div className="text-[10px] font-normal tracking-normal text-slate-400">
-                    ETF 테마 {r.sectorTheme} · {r.sectorBasis}
-                  </div>
+                  {r.sector}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <button

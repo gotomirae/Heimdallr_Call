@@ -633,6 +633,17 @@
     "final_with_consensus": 100,
     "final_no_consensus": 85
   },
+  "investment_score": {
+    "industry_growth": 10,
+    "industry_position": 10,
+    "earnings": 25,
+    "growth_story": 20,
+    "valuation": 20,
+    "roe": 8,
+    "fcf": 7,
+    "min_denominator": 60,
+    "peer_min_count": 5
+  },
   "pri": {
     "event": 15,
     "revision": 10,

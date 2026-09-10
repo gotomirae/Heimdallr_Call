@@ -85,6 +85,23 @@ PRI_OVERHEAT_MIN_SIGNALS = 2
 PRI_IMPLIED_GROWTH_YEARS = 3
 PRI_PEER_MIN_COUNT = 5
 
+# ═══ 기업 투자 매력도 (0~100 · 높을수록 매력) ═══
+# 가격은 PRI 별도 축과 2축 매트릭스에서 반영한다(ADR 5). 스코어에 넣으면 같은 가격을
+# 두 번 감점하게 되므로 산업·기업 펀더멘털 7축만 결합한다. 결측은 분모 제외(ADR 2).
+INVESTMENT_SCORE_WEIGHTS = {
+    "industry_growth": 10,
+    "industry_position": 10,
+    "earnings": 25,
+    "growth_story": 20,
+    "valuation": 20,
+    "roe": 8,
+    "fcf": 7,
+}
+INVESTMENT_SCORE_MIN_DENOMINATOR = 60
+INVESTMENT_PEER_MIN_COUNT = 5
+INVESTMENT_GROWTH_STORY_ANCHORS_PCT = (-10.0, 30.0)
+INVESTMENT_FCF_CONVERSION_ANCHORS = (-0.2, 1.0)
+
 # 구 PRI 입력을 읽는 과거 screen_results와 회귀 테스트 호환용.
 PRI_WEIGHTS = {"p1": 25, "p2": 25, "p3": 20, "p4": 10, "p5": 20}
 # 항목 하나만으로 '미반영'을 선언하지 않는 분모 하한. 최소 두 개 신호가 필요하다.

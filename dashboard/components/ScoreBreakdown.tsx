@@ -1,6 +1,6 @@
-// PRD Ref: §9.1-2 (스코어 A/B/C/D 스택 바) · ADR 2 · traps.md T26, T38
+// PRD Ref: §9.1-2 (기업 투자 매력도와 실적 원점수) · ADR 2, ADR 5
 import { AXES, AXIS_ITEMS, AXIS_MISSING_REASON, PRI_PARTS } from "@/lib/types";
-import type { PriDetail, ScreenRow } from "@/lib/types";
+import type { InvestmentScoreDetail, PriDetail, ScreenRow } from "@/lib/types";
 import { DASH, num } from "@/lib/format";
 import constants from "@/lib/constants.json";
 
@@ -11,6 +11,68 @@ const AXIS_COLOR: Record<string, string> = {
   d: "#a78bfa",
 };
 
+const INVESTMENT_PARTS = [
+  { key: "industry_growth", label: "산업 성장" },
+  { key: "industry_position", label: "산업 내 위치" },
+  { key: "earnings", label: "실적" },
+  { key: "growth_story", label: "성장 스토리" },
+  { key: "valuation", label: "PER · F.PER" },
+  { key: "roe", label: "ROE" },
+  { key: "fcf", label: "FCF" },
+] as const;
+
+function InvestmentBreakdown({
+  screen,
+  detail,
+}: {
+  screen: ScreenRow;
+  detail: InvestmentScoreDetail;
+}) {
+  const parts = detail.parts ?? {};
+  const inputs = detail.inputs ?? {};
+  const config = constants.investment_score;
+  const denominator = detail.denominator ?? 0;
+  const fcf = inputs.quarter_fcf;
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-medium text-amber-200">기업 투자 매력도</div>
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-bold">{num(screen.score_final ?? screen.score_flash, 1)}</span>
+          <span className="text-sm text-slate-200">/ 100 · 측정 신뢰도 {denominator}/100</span>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {INVESTMENT_PARTS.map((part) => {
+          const value = parts[part.key];
+          const max = Number(config[part.key]);
+          return (
+            <div key={part.key} className="flex items-center gap-2 text-sm">
+              <span className="w-32 shrink-0 text-slate-100">{part.label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded bg-slate-800">
+                {value != null && (
+                  <div className="h-full bg-amber-400" style={{ width: `${value / max * 100}%` }} />
+                )}
+              </div>
+              <span className="w-20 text-right text-xs text-slate-200">
+                {value == null ? `${DASH} 미측정` : `${value.toFixed(1)}/${max}`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
+        <div>산업 성장 {num(inputs.industry_growth, 1)}/100 · 산업 내 위치 {num(inputs.industry_position, 1)}/100</div>
+        <div>기존 실적 원점수 {num(inputs.fundamental_score, 1)} · 현재 가격은 PRI와 2축 등급에서 별도 반영</div>
+        <div>성장 스토리 {num(inputs.growth_story, 1)}/100 · 예상 이익 성장 {num(inputs.forecast_earnings_growth_pct, 1)}%</div>
+        <div>PER {num(inputs.per_current_ttm, 1)}배 · F.PER {num(inputs.fwd_per, 1)}배 · ROE {num(inputs.roe, 1)}% · F.ROE {num(inputs.forward_roe, 1)}%</div>
+        <div>최근 분기 FCF {fcf == null ? DASH : `${(fcf / 1e8).toFixed(0)}억원`} · 시총 대비 {num(inputs.fcf_yield_pct, 1)}% · 영업이익 대비 현금전환 {num(inputs.fcf_conversion, 2)}배</div>
+        <div className="mt-1 text-slate-300">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. PRI는 이 점수에 합산하지 않는다.</div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * 스코어 분해.
  *
@@ -20,6 +82,13 @@ const AXIS_COLOR: Record<string, string> = {
  * ★ 측정해서 0점인 항목도 숨기지 않는다(T38). 안 보이면 미측정과 구분되지 않는다.
  */
 export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
+  const rawInvestment = screen.gate_detail?.investment_score;
+  if (rawInvestment && typeof rawInvestment === "object") {
+    const detail = rawInvestment as InvestmentScoreDetail;
+    if (detail.mode === "investment_v1") {
+      return <InvestmentBreakdown screen={screen} detail={detail} />;
+    }
+  }
   const measured = AXES.filter(
     (axis) => (screen[`score_${axis.key}` as keyof ScreenRow] as number | null) != null
   );

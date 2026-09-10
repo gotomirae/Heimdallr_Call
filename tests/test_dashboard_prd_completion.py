@@ -184,6 +184,8 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert "turnaround: s.turnaround" in page
     for field in ("revenueQoq", "opQoq", "per4q", "forwardPer", "roe", "forwardRoe"):
         assert field in page and field in DISCOVERY
+    assert '"revenue_qoq"' in QUERIES and '"op_qoq"' in QUERIES
+    assert "ETF 테마 {r.sectorTheme}" not in DISCOVERY
     for label in (
         'label="매출 QoQ"', 'label="영업이익 YoY"', 'label="영업이익 QoQ"',
         'label="최근 4Q PER"', 'label="F.PER"', 'label="ROE"', 'label="F.ROE"',
