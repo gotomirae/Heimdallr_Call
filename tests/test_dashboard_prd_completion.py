@@ -15,6 +15,7 @@ QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(enc
 WEEKLY_CHART = (ROOT / "dashboard/components/WeeklyPriceChart.tsx").read_text(encoding="utf-8")
 NAVER = (ROOT / "dashboard/lib/naver.ts").read_text(encoding="utf-8")
 MEANING = (ROOT / "dashboard/lib/metricMeaning.ts").read_text(encoding="utf-8")
+PRI_BREAKDOWN = (ROOT / "dashboard/components/ScoreBreakdown.tsx").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -150,6 +151,18 @@ def test_pri_five_inputs_and_requested_history_are_visible():
         assert label in STOCK
     for removed in ("매출총이익", "지배순익", "TTM 영업익", "매출채권", "주식수"):
         assert removed not in STOCK
+
+
+def test_pri_v3_answers_growth_driver_peer_value_and_overheat_questions():
+    for label in (
+        "내재 성장률 갭", "주가 상승 이유", "성장 1단위당 가격", "과열 여부",
+        "멀티플 팽창 주도", "이익 성장 주도", "미래 매수자를 예측하지 않고",
+    ):
+        assert label in PRI_BREAKDOWN
+    for key in (
+        "driver", "implied_growth", "valuation_history", "valuation_peer", "overheat",
+    ):
+        assert f'key: "{key}"' in TYPES
 
 
 def test_discovery_table_has_chained_sorting_and_grouped_headers():

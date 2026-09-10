@@ -38,10 +38,14 @@ AXIS_MISSING_REASON = {
 
 #: PRI 항목 — `src/screener/pri.py`의 PRI_NEW_WEIGHTS와 같아야 한다.
 PRI_ITEMS = (
-    ("event", "실적초과반응", 30),
-    ("revision", "전망·주가괴리", 30),
-    ("valuation", "TTM·F.PER", 20),
-    ("relative", "중기상대주가", 20),
+    ("event", "실적초과반응", 15),
+    ("revision", "전망·주가괴리", 10),
+    ("driver", "멀티플주도", 15),
+    ("implied_growth", "내재성장갭", 20),
+    ("valuation_history", "역사밸류", 10),
+    ("valuation_peer", "피어성장단가", 10),
+    ("relative", "중기상대주가", 10),
+    ("overheat", "단기과열", 10),
 )
 
 KIND_FLASH = "flash"

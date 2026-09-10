@@ -255,12 +255,19 @@ export default async function SettingsPage() {
           <div>
             <Row label="실적 발표 초과반응" value={`${pri.event}점`} />
             <Row label="이익 전망·주가 괴리" value={`${pri.revision}점`} />
-            <Row label="TTM PER·F.PER 반영" value={`${pri.valuation}점`} />
+            <Row label="상승 원인(멀티플 몫)" value={`${pri.driver}점`} />
+            <Row label="내재 성장률 갭" value={`${pri.implied_growth}점`} />
+            <Row label="자기 역사 밸류" value={`${pri.valuation_history}점`} />
+            <Row label="피어 성장단가" value={`${pri.valuation_peer}점`} />
             <Row label="중기 섹터대비 주가" value={`${pri.relative}점`} />
+            <Row label="단기 과열" value={`${pri.overheat}점`} />
           </div>
           <div>
             <Row label="PRI 계산 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />
             <Row label="신뢰도 기준" value={`${pri.min_confidence}/100`} hint="미만이면 참고용" />
+            <Row label="내재 성장 역산 기간" value={`${pri.implied_growth_years}년`} />
+            <Row label="피어 중앙값 최소 표본" value={`${pri.peer_min_count}종목`} />
+            <Row label="과열 최소 측정 신호" value={`${pri.overheat_min_signals}개`} />
             <Row
               label="미반영 / 선반영 경계"
               value={`${constants.matrix.pri_low} / ${constants.matrix.pri_high}`}

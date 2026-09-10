@@ -20,23 +20,39 @@ from src.db.supabase_client import (
     select_all,
     upsert_tolerating_missing_columns,
 )
+from src.config.constants import PRI_PEER_MIN_COUNT
 from src.screener.gate import GateInput, evaluate_gate
 from src.screener.matrix import classify
 from src.finance.derive import op_surprise_label, op_surprise_pct, revenue_surprise_pct
-from src.screener.pri import PriInput, compute_pri
+from src.screener.pri import (
+    PriInput,
+    compute_pri,
+    forward_earnings_growth_pct,
+    growth_adjusted_pe,
+    implied_growth_required_pct,
+    multiple_expansion_attribution,
+    overheat_score_pct,
+    peer_peg_premium_pct,
+)
 from src.screener.score import ScoreInput, compute_score
+from src.universe.sector_map import UNKNOWN_SECTOR
 from src.utils.console import enable_utf8_stdout
 
 FUND_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label,"
+    "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,op_status_label,"
     "opm,opm_yoy_delta,ttm_revenue,ttm_op,ttm_opm_delta,rev_2y_stack,"
     "ttm_cfo,receivables,inventory,shares_yoy,is_estimate"
 )
-UNI_COLUMNS = "code,name,board,industry,is_excluded,exclude_reason,sector_caveat,listed_at,market_cap_krw"
+UNI_COLUMNS = (
+    "code,name,board,industry,sector,is_excluded,exclude_reason,sector_caveat,"
+    "listed_at,market_cap_krw"
+)
 PRICE_COLUMNS = (
     "code,snap_date,close,high_52w,low_52w,high_52w_drawdown_pct,"
+    "ret_5d,ret_12m,fwd_per,"
     "announcement_return_pct,announcement_excess_return_pct,"
-    "per_vs_9q_avg_pct,earnings_revision_pct,earnings_revision_price_gap_pct,"
+    "per_current_ttm,per_avg_9q,per_vs_9q_avg_pct,"
+    "earnings_revision_pct,earnings_revision_price_gap_pct,"
     "valuation_reflection_pct,relative_return_pct,foreign_net_ratio_5d,rsi_14,"
     "per,pbr,avg_value_20d"
 )
@@ -74,26 +90,71 @@ def load() -> tuple[dict, dict, dict, dict]:
     return by_code, universe, prices, consensus
 
 
-def build_pri_input(price: dict | None) -> PriInput:
+def build_pri_input(
+    price: dict | None,
+    *,
+    earnings_growth_12m_pct: float | None = None,
+    peer_median_growth_adjusted_pe: float | None = None,
+) -> PriInput:
     """시세 스냅샷 → PRI 입력.
 
     ★ 없는 값은 None으로 둔다 — 0으로 채우면 '미반영'으로 잘못 읽혀 ★로 승격된다(T31).
     """
     if not price:
         return PriInput()
-    # P6에서 생성한 PRI 2.0 입력이 하나라도 있으면 새 4축을 사용한다.
+    # P6에서 생성한 가격 입력과 확정 재무를 합쳐 PRI 3.0을 만든다.
     # 아직 마이그레이션 전인 과거 행은 아래 legacy 입력으로 안전하게 읽는다.
+    forecast_growth = forward_earnings_growth_pct(
+        _f(price, "per_current_ttm"), _f(price, "fwd_per")
+    )
+    required_growth = implied_growth_required_pct(
+        _f(price, "per_current_ttm"), _f(price, "per_avg_9q")
+    )
+    implied_gap = (
+        required_growth - forecast_growth
+        if required_growth is not None and forecast_growth is not None else None
+    )
+    multiple_change, multiple_share = multiple_expansion_attribution(
+        _f(price, "ret_12m"), earnings_growth_12m_pct
+    )
+    adjusted_pe = growth_adjusted_pe(_f(price, "per_current_ttm"), forecast_growth)
+    peer_premium = peer_peg_premium_pct(adjusted_pe, peer_median_growth_adjusted_pe)
+    overheat, overheat_count = overheat_score_pct(
+        rsi=_f(price, "rsi_14"),
+        ret_5d_pct=_f(price, "ret_5d"),
+        high_52w_drawdown_pct=_f(price, "high_52w_drawdown_pct"),
+    )
     new = PriInput(
         announcement_excess_return_pct=_f(price, "announcement_excess_return_pct"),
         earnings_revision_price_gap_pct=_f(price, "earnings_revision_price_gap_pct"),
         valuation_reflection_pct=_f(price, "valuation_reflection_pct"),
         relative_return_pct=_f(price, "relative_return_pct"),
+        price_return_12m_pct=_f(price, "ret_12m"),
+        earnings_growth_12m_pct=earnings_growth_12m_pct,
+        multiple_expansion_pct=multiple_change,
+        multiple_expansion_share_pct=multiple_share,
+        implied_growth_required_pct=required_growth,
+        forecast_earnings_growth_pct=forecast_growth,
+        implied_growth_gap_pct=implied_gap,
+        growth_adjusted_pe=adjusted_pe,
+        peer_median_growth_adjusted_pe=peer_median_growth_adjusted_pe,
+        peer_peg_premium_pct=peer_premium,
+        overheat_score_pct=overheat,
+        overheat_signal_count=float(overheat_count),
+        ret_5d_pct=_f(price, "ret_5d"),
+        rsi_14=_f(price, "rsi_14"),
+        high_52w_drawdown_pct=_f(price, "high_52w_drawdown_pct"),
+        foreign_net_ratio_5d_pct=_f(price, "foreign_net_ratio_5d"),
     )
     if any(value is not None for value in (
         new.announcement_excess_return_pct,
         new.earnings_revision_price_gap_pct,
+        new.multiple_expansion_share_pct,
+        new.implied_growth_gap_pct,
         new.valuation_reflection_pct,
+        new.peer_peg_premium_pct,
         new.relative_return_pct,
+        new.overheat_score_pct,
     )):
         return new
     return PriInput(
@@ -103,6 +164,59 @@ def build_pri_input(price: dict | None) -> PriInput:
         foreign_net_ratio_5d_pct=_f(price, "foreign_net_ratio_5d"),
         rsi_14=_f(price, "rsi_14"),
     )
+
+
+def earnings_growth_12m(series: dict[int, dict], index: int) -> float | None:
+    """현재 TTM 순이익의 전년 TTM 대비 성장률. 8개 분기가 모두 있어야 한다."""
+    current = [(series.get(i) or {}).get("np") for i in range(index - 3, index + 1)]
+    previous = [(series.get(i) or {}).get("np") for i in range(index - 7, index - 3)]
+    if any(value is None for value in current + previous):
+        return None
+    current_sum = sum(float(value) for value in current if value is not None)
+    previous_sum = sum(float(value) for value in previous if value is not None)
+    if current_sum <= 0 or previous_sum <= 0:
+        return None
+    return (current_sum / previous_sum - 1.0) * 100.0
+
+
+def build_pri_inputs(
+    by_code: dict[str, dict[int, dict]],
+    universe: dict[str, dict],
+    prices: dict[str, dict],
+    index_of: dict[str, int],
+) -> dict[str, PriInput]:
+    """종목 자체의 성장단가와 동일 투자섹터 중앙값을 같은 스냅샷에서 만든다."""
+    growth = {
+        code: earnings_growth_12m(by_code[code], index)
+        for code, index in index_of.items()
+    }
+    preliminary = {
+        code: build_pri_input(prices.get(code), earnings_growth_12m_pct=growth[code])
+        for code in index_of
+    }
+    peer_values: dict[str, list[float]] = collections.defaultdict(list)
+    groups: dict[str, str | None] = {}
+    for code, item in preliminary.items():
+        uni = universe.get(code) or {}
+        sector = str(uni.get("sector") or "").strip()
+        group_value = sector if sector and sector != UNKNOWN_SECTOR else uni.get("industry")
+        group = str(group_value or "").strip() or None
+        groups[code] = group
+        if group and item.growth_adjusted_pe is not None:
+            peer_values[group].append(item.growth_adjusted_pe)
+    peer_medians = {
+        group: statistics.median(values)
+        for group, values in peer_values.items()
+        if len(values) >= PRI_PEER_MIN_COUNT
+    }
+    return {
+        code: build_pri_input(
+            prices.get(code),
+            earnings_growth_12m_pct=growth[code],
+            peer_median_growth_adjusted_pe=peer_medians.get(groups[code]),
+        )
+        for code in index_of
+    }
 
 
 def _f(row: dict | None, key: str) -> float | None:
@@ -307,6 +421,7 @@ def run(fixed: int | None, save: bool) -> int:
         pcts.update(sector_percentiles(cohort, universe, idx))
 
     rows = []
+    pri_inputs = build_pri_inputs(by_code, universe, prices, index_of)
     for code, index in index_of.items():
         uni = universe[code]
         gate_in, score_in = build_inputs(
@@ -316,7 +431,7 @@ def run(fixed: int | None, save: bool) -> int:
         gate = evaluate_gate(gate_in)
         score_in = ScoreInput(**{**score_in.__dict__, "g1_t": gate.g1})
         score = compute_score(score_in)
-        pri = compute_pri(build_pri_input(prices.get(code)))
+        pri = compute_pri(pri_inputs[code])
         grade = classify(
             score.score_norm, pri.pri,
             base_effect_warning=gate.base_effect_warning,
@@ -424,6 +539,12 @@ def _report(rows: list, latest: int | None) -> None:
                   f"없음 {len(wo)}종목 중앙값 {statistics.median(wo):.1f}")
 
     print("\n[4] PRI · 등급")
+    part_coverage = collections.Counter(
+        key for row in rows for key, value in row[4].parts.items() if value is not None
+    )
+    all_denominators = collections.Counter(row[4].denominator for row in rows)
+    print(f"    축별 측정: {dict(part_coverage)}")
+    print(f"    전체 분모 분포: {dict(sorted(all_denominators.items()))}")
     pris = [r[4] for r in rows if r[4].pri is not None]
     if pris:
         values = sorted(p.pri for p in pris)

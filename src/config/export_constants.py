@@ -76,6 +76,9 @@ def build() -> dict:
             **constants.PRI_NEW_WEIGHTS,
             "min_denominator": constants.PRI_CORE_MIN_DENOMINATOR,
             "min_confidence": constants.PRI_MIN_CONFIDENCE,
+            "implied_growth_years": constants.PRI_IMPLIED_GROWTH_YEARS,
+            "peer_min_count": constants.PRI_PEER_MIN_COUNT,
+            "overheat_min_signals": constants.PRI_OVERHEAT_MIN_SIGNALS,
             # 기존 설정 검증·구 저장 결과와의 호환을 위해 평탄한 p1~p5도 남긴다.
             **constants.PRI_WEIGHTS,
         },

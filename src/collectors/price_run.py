@@ -34,7 +34,7 @@ from src.db.supabase_client import (
     select_all,
     upsert_tolerating_missing_columns,
 )
-from src.screener.pri import PriInput, compute_pri
+from src.screener.pri import PriInput, compute_pri, overheat_score_pct
 from src.utils.console import enable_utf8_stdout
 
 SPOT = {"005930": ("삼성전자", "KOSPI"), "058470": ("리노공업", "KOSDAQ"),
@@ -383,7 +383,7 @@ def save(limit: int | None) -> int:
             float(fund["np"]) if fund.get("np") is not None else None
         )
 
-    # PRI 2.0의 전망-주가 괴리 축. 외부 호출 없이 이미 저장된 컨센서스
+    # PRI의 전망-주가 괴리 축. 외부 호출 없이 이미 저장된 컨센서스
     # 빈티지를 읽는다 — 매일 추가 유료 호출을 만들지 않는다.
     consensus_history: dict[str, list[dict]] = collections.defaultdict(list)
     for row in select_all(
@@ -503,11 +503,18 @@ def save(limit: int | None) -> int:
             relative_return - revision_pct
             if relative_return is not None and revision_pct is not None else None
         )
+        overheat, overheat_count = overheat_score_pct(
+            rsi=rsi,
+            ret_5d_pct=ret_5d,
+            high_52w_drawdown_pct=drawdown,
+        )
         pri = compute_pri(PriInput(
             announcement_excess_return_pct=announcement_excess,
             earnings_revision_price_gap_pct=revision_gap,
             valuation_reflection_pct=premium,
             relative_return_pct=relative_return,
+            overheat_score_pct=overheat,
+            overheat_signal_count=float(overheat_count),
         ))
         for key, value in pri.parts.items():
             if value is not None:
@@ -563,9 +570,12 @@ def save(limit: int | None) -> int:
     elapsed = time.monotonic() - started
     print(f"\n✓ price_snapshots {saved}행 · {elapsed:.0f}초 "
           f"({len(targets) / max(elapsed, 1):.1f}건/초)")
-    print("  PRI 2.0 측정 " + " · ".join(
+    print("  PRI 원입력 측정 " + " · ".join(
         f"{key.upper()} {measured[f'pri_{key}']}"
-        for key in ("event", "revision", "valuation", "relative")
+        for key in (
+            "event", "revision", "driver", "implied_growth",
+            "valuation_history", "valuation_peer", "relative", "overheat",
+        )
     ))
     print(
         "  기간별 수익률 측정 "

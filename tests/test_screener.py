@@ -19,11 +19,23 @@ from src.config.constants import (
 )
 from src.screener.gate import GateInput, evaluate_gate
 from src.screener.matrix import CIRCLE, CROSS, DOT, STAR, TRIANGLE, classify
-from src.screener.pri import PriInput, compute_pri
+from src.screener.pri import (
+    PriInput,
+    compute_pri,
+    forward_earnings_growth_pct,
+    growth_adjusted_pe,
+    implied_growth_required_pct,
+    multiple_expansion_attribution,
+    overheat_score_pct,
+    peer_peg_premium_pct,
+)
 from src.screener.run import _qi as _qi_helper
 from src.screener.run import (
+    PRICE_COLUMNS,
     build_inputs,
+    build_pri_inputs,
     code_index_is_future,
+    earnings_growth_12m,
     last_reportable_index,
     percentile_by_period,
     score_stage_fields,
@@ -594,44 +606,128 @@ def test_pri_measured_when_two_25_point_parts_are_combined():
     assert r.pri is not None
 
 
-def test_pri_v2_scores_four_simple_axes_and_separate_confidence():
-    """PRI 2.0 손계산: 4축 만점이면 100, 신뢰도는 점수에 더하지 않는다."""
+def test_pri_v3_scores_eight_axes_and_separate_confidence():
+    """PRI 3.0 손계산: 8축 만점이면 100, 신뢰도는 점수에 더하지 않는다."""
     r = compute_pri(
         PriInput(
             announcement_excess_return_pct=30.0,
             earnings_revision_price_gap_pct=30.0,
+            multiple_expansion_share_pct=100.0,
+            implied_growth_gap_pct=20.0,
             valuation_reflection_pct=50.0,
+            peer_peg_premium_pct=50.0,
             relative_return_pct=30.0,
+            overheat_score_pct=80.0,
         )
     )
-    assert r.mode == "v2"
-    assert r.parts == pytest.approx({"event": 30, "revision": 30, "valuation": 20, "relative": 20})
+    assert r.mode == "v3"
+    assert r.parts == pytest.approx({
+        "event": 15, "revision": 10, "driver": 15, "implied_growth": 20,
+        "valuation_history": 10, "valuation_peer": 10, "relative": 10,
+        "overheat": 10,
+    })
     assert r.denominator == 100
     assert r.confidence == 100
     assert r.pri == pytest.approx(100)
 
 
-def test_pri_v2_computes_with_one_core_and_one_supporting_axis():
+def test_pri_v3_computes_with_three_independent_core_axes():
     r = compute_pri(
         PriInput(
             announcement_excess_return_pct=0.0,
-            valuation_reflection_pct=0.0,
+            multiple_expansion_share_pct=0.0,
+            implied_growth_gap_pct=0.0,
         )
     )
-    assert r.mode == "v2"
+    assert r.mode == "v3"
     assert r.confidence == 50
     assert r.pri is not None
 
 
-def test_pri_v2_does_not_decide_from_two_20_point_supporting_axes():
+def test_pri_v3_does_not_decide_from_four_ten_point_supporting_axes():
     r = compute_pri(
         PriInput(
             valuation_reflection_pct=0.0,
+            peer_peg_premium_pct=0.0,
             relative_return_pct=0.0,
+            overheat_score_pct=0.0,
         )
     )
     assert r.confidence == 40
     assert r.pri is None
+
+
+def test_pri_v3_growth_and_multiple_formulas_hand_check():
+    """주가 +50% = 이익 +20% × PER +25%; 로그 기준 멀티플 몫은 55.0%."""
+    forecast = forward_earnings_growth_pct(30.0, 20.0)
+    required = implied_growth_required_pct(40.0, 20.0)
+    multiple_change, multiple_share = multiple_expansion_attribution(50.0, 20.0)
+    assert forecast == pytest.approx(50.0)
+    assert required == pytest.approx(25.9921, abs=1e-4)
+    assert multiple_change == pytest.approx(25.0)
+    assert multiple_share == pytest.approx(55.034, abs=1e-3)
+
+
+def test_pri_v3_does_not_invent_a_rise_driver_when_price_fell():
+    multiple_change, multiple_share = multiple_expansion_attribution(-10.0, 20.0)
+    assert multiple_change == pytest.approx(-25.0)
+    assert multiple_share is None
+
+
+def test_pri_v3_growth_adjusted_price_and_peer_premium():
+    peg = growth_adjusted_pe(30.0, 20.0)
+    assert peg == pytest.approx(1.5)
+    assert peer_peg_premium_pct(peg, 1.0) == pytest.approx(50.0)
+    assert growth_adjusted_pe(30.0, 0.0) is None
+
+
+def test_pri_v3_overheat_requires_two_signals_and_reaches_full_at_extremes():
+    score, count = overheat_score_pct(
+        rsi=75.0, ret_5d_pct=15.0, high_52w_drawdown_pct=0.0,
+    )
+    assert count == 3 and score == pytest.approx(100.0)
+    score, count = overheat_score_pct(
+        rsi=75.0, ret_5d_pct=None, high_52w_drawdown_pct=None,
+    )
+    assert count == 1 and score is None
+
+
+def test_pri_v3_ttm_growth_needs_eight_positive_quarters():
+    series = {i: {"np": 10.0 if i < 4 else 15.0} for i in range(8)}
+    assert earnings_growth_12m(series, 7) == pytest.approx(50.0)
+    series[0]["np"] = None
+    assert earnings_growth_12m(series, 7) is None
+
+
+def test_pri_v3_peer_median_uses_same_sector_and_minimum_five():
+    index = 7
+    funds = {
+        str(i): {j: {"np": 10.0 if j < 4 else 15.0} for j in range(8)}
+        for i in range(6)
+    }
+    universe = {
+        str(i): {"sector": "반도체" if i < 5 else "자동차", "industry": "x"}
+        for i in range(6)
+    }
+    prices = {
+        str(i): {
+            "per_current_ttm": 30.0 + i, "fwd_per": 20.0,
+            "per_avg_9q": 20.0, "ret_12m": 50.0,
+            "announcement_excess_return_pct": 0.0,
+            "relative_return_pct": 0.0, "rsi_14": 50.0,
+            "ret_5d": 0.0, "high_52w_drawdown_pct": -20.0,
+        }
+        for i in range(6)
+    }
+    inputs = build_pri_inputs(funds, universe, prices, {str(i): index for i in range(6)})
+    assert inputs["0"].peer_median_growth_adjusted_pe is not None
+    assert inputs["5"].peer_median_growth_adjusted_pe is None
+
+
+def test_pri_v3_query_loads_every_required_valuation_input():
+    """파생 함수가 있어도 SELECT에서 빠지면 성장·피어 축이 전 종목 조용히 사라진다."""
+    for column in ("per_current_ttm", "per_avg_9q", "fwd_per", "ret_12m"):
+        assert column in PRICE_COLUMNS
 
 
 # ═══════════════════════════════════════════════════════════════════

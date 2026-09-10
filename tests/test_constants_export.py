@@ -57,6 +57,7 @@ def test_denominators_match_axis_sums():
 def test_pri_weights_sum_to_100():
     payload = build()["pri"]
     assert sum(payload[f"p{i}"] for i in range(1, 6)) == 100
+    assert sum(payload[key] for key in constants.PRI_NEW_WEIGHTS) == 100
 
 
 def test_pri_min_denominator_blocks_thin_evidence():

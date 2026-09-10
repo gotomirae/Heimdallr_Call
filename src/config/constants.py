@@ -53,18 +53,37 @@ D1_CFO_TO_OP_MIN = 0.5  # TTM CFO / TTM 영업이익 ≥ 0.5
 MIN_ESTIMATES = 2  # 추정기관 1개는 컨센서스가 아니다
 
 # ═══ PRI (주가반영도, 0~100 · 낮을수록 아직 안 올랐음) ═══
-# PRI 2.0은 실적 이벤트·전망 괴리·밸류에이션·중기 상대수익률 4축이다.
+# PRI 3.0은 이미 움직인 가격뿐 아니라 그 가격을 정당화할 이익 성장까지 함께 잰다.
 # 데이터 신뢰도는 점수에 합산하지 않고 confidence로 별도 표시한다.
-PRI_NEW_WEIGHTS = {"event": 30, "revision": 30, "valuation": 20, "relative": 20}
-# 숫자 계산 하한과 신뢰도 경고는 다른 계약이다. 50점이면 30점 핵심축
-# 하나 + 보조축 하나가 있어 단일 신호 오판을 막을 수 있다. 80점 미만은
-# 숫자를 숨기지 않고 참고용 경고를 붙인다(T146).
-PRI_CORE_MIN_DENOMINATOR = 50
+PRI_NEW_WEIGHTS = {
+    "event": 15,
+    "revision": 10,
+    "driver": 15,
+    "implied_growth": 20,
+    "valuation_history": 10,
+    "valuation_peer": 10,
+    "relative": 10,
+    "overheat": 10,
+}
+# 숫자 계산 하한과 신뢰도 경고는 다른 계약이다. PRI 3.0의 45점은 적어도
+# 세 개 독립 축이 있어 단일 신호 오판을 막는다. 80점 미만은 숫자를
+# 숨기지 않고 참고용 경고를 붙인다(T146).
+PRI_CORE_MIN_DENOMINATOR = 45
 PRI_MIN_CONFIDENCE = 80
 PRI_EVENT_ANCHORS_PCT = (-20.0, 30.0)
 PRI_REVISION_GAP_ANCHORS_PCT = (-30.0, 30.0)
 PRI_VALUATION_ANCHORS_PCT = (-30.0, 50.0)
+PRI_DRIVER_SHARE_ANCHORS_PCT = (0.0, 100.0)
+PRI_IMPLIED_GROWTH_GAP_ANCHORS_PCT = (-15.0, 20.0)
+PRI_PEER_PEG_PREMIUM_ANCHORS_PCT = (-30.0, 50.0)
 PRI_RELATIVE_RETURN_ANCHORS_PCT = (-30.0, 30.0)
+PRI_OVERHEAT_ANCHORS_PCT = (20.0, 80.0)
+PRI_OVERHEAT_RSI_ANCHORS = (50.0, 75.0)
+PRI_OVERHEAT_RET_5D_ANCHORS_PCT = (0.0, 15.0)
+PRI_OVERHEAT_DRAWDOWN_ANCHORS_PCT = (-20.0, 0.0)
+PRI_OVERHEAT_MIN_SIGNALS = 2
+PRI_IMPLIED_GROWTH_YEARS = 3
+PRI_PEER_MIN_COUNT = 5
 
 # 구 PRI 입력을 읽는 과거 screen_results와 회귀 테스트 호환용.
 PRI_WEIGHTS = {"p1": 25, "p2": 25, "p3": 20, "p4": 10, "p5": 20}
