@@ -2,6 +2,7 @@
 import { AXES, AXIS_ITEMS, AXIS_MISSING_REASON, PRI_PARTS } from "@/lib/types";
 import type { PriDetail, ScreenRow } from "@/lib/types";
 import { DASH, num } from "@/lib/format";
+import constants from "@/lib/constants.json";
 
 const AXIS_COLOR: Record<string, string> = {
   a: "#38bdf8",
@@ -138,6 +139,9 @@ export function PriBreakdown({
   const parts = detail?.parts ?? {};
   const inputs = detail?.inputs ?? {};
   const denominator = detail?.denominator ?? 0;
+  const isV2 = detail?.mode === "v2" || Object.prototype.hasOwnProperty.call(parts, "event");
+  const confidence = detail?.confidence ?? (isV2 ? denominator : null);
+  const minConfidence = Number(constants.pri.min_confidence ?? 80);
 
   const label =
     pri == null
@@ -154,6 +158,21 @@ export function PriBreakdown({
         <span className="text-3xl font-bold">{num(pri, 1)}</span>
         <span className="text-sm text-slate-200">/ 100 · {label}</span>
       </div>
+
+      {isV2 && (
+        <div className="rounded border border-sky-800/60 bg-sky-950/30 px-2 py-2 text-xs text-sky-200">
+          <div className="flex items-center justify-between">
+            <span className="font-medium">PRI 신뢰도</span>
+            <span>{confidence == null ? `${DASH}` : `${confidence.toFixed(0)}/100`}</span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded bg-slate-800">
+            <div className="h-full bg-sky-400" style={{ width: `${Math.min(confidence ?? 0, 100)}%` }} />
+          </div>
+          <div className="mt-1 text-slate-300">
+            4개 핵심 항목의 측정 가능 비중이다. {minConfidence} 미만이면 참고용으로만 본다.
+          </div>
+        </div>
+      )}
 
       {pri == null && denominator > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-xs text-amber-300">
@@ -184,12 +203,24 @@ export function PriBreakdown({
         })}
       </div>
       <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
-        <div>P1 52주 신고가 대비 {num(inputs.high_52w_drawdown_pct, 1)}% → {num(parts.p1, 1)}/25</div>
-        <div>P2 최초 발표일 종가 대비 {num(inputs.announcement_return_pct, 1)}% → {num(parts.p2, 1)}/25</div>
-        <div>P3 현재 TTM PER의 과거 9분기 평균 대비 {num(inputs.per_vs_9q_avg_pct, 1)}% → {num(parts.p3, 1)}/20</div>
-        <div>P4 발표일부터 5거래일 외국인 순매수/거래량 {num(inputs.foreign_net_ratio_5d_pct, 2)}% → {num(parts.p4, 1)}/10</div>
-        <div>P5 RSI(14) {num(inputs.rsi_14, 1)} (45가 중립) → {num(parts.p5, 1)}/20</div>
-        <div className="mt-1 text-slate-100">최종 PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
+        {isV2 ? (
+          <>
+            <div><strong>실적 발표 초과반응</strong> {num(inputs.announcement_excess_return_pct, 1)}%p → {num(parts.event, 1)}/30 · 발표 후 1·5·20일 시장·섹터보다 더 오른 정도</div>
+            <div><strong>전망·주가 괴리</strong> {num(inputs.earnings_revision_price_gap_pct, 1)}%p → {num(parts.revision, 1)}/30 · 주가가 이익 전망보다 앞선 정도</div>
+            <div><strong>TTM PER·F.PER 반영</strong> {num(inputs.valuation_reflection_pct, 1)}% → {num(parts.valuation, 1)}/20 · 과거 PER 대비 현재 배수</div>
+            <div><strong>중기 상대 주가</strong> {num(inputs.relative_return_pct, 1)}%p → {num(parts.relative, 1)}/20 · 3·6·12개월 섹터 대비 평균</div>
+            <div className="mt-1 text-slate-100">PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
+          </>
+        ) : (
+          <>
+            <div>P1 52주 신고가 대비 {num(inputs.high_52w_drawdown_pct, 1)}% → {num(parts.p1, 1)}/25</div>
+            <div>P2 최초 발표일 종가 대비 {num(inputs.announcement_return_pct, 1)}% → {num(parts.p2, 1)}/25</div>
+            <div>P3 현재 TTM PER의 과거 9분기 평균 대비 {num(inputs.per_vs_9q_avg_pct, 1)}% → {num(parts.p3, 1)}/20</div>
+            <div>P4 발표일부터 5거래일 외국인 순매수/거래량 {num(inputs.foreign_net_ratio_5d_pct, 2)}% → {num(parts.p4, 1)}/10</div>
+            <div>P5 RSI(14) {num(inputs.rsi_14, 1)} (45가 중립) → {num(parts.p5, 1)}/20</div>
+            <div className="mt-1 text-slate-100">기존 PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# PRD Ref: §5.1(L3), §6(consensus_snapshots), §4.2(C축) · traps.md T17, T30
+# PRD Ref: §5.1(L3), §6(consensus_snapshots), §4.2(C축) · traps.md T17, T30, T145
 """분기 컨센서스 **사전** 스냅샷.
 
 ★ 존재 이유(T17): 분기 컨센서스는 `(E)` 표기로 나오는데 실적이 발표되면
@@ -152,12 +152,18 @@ def fetch_quarterly_estimates(code: str) -> list[ConsensusSnapshot]:
     if not periods:
         return []
 
-    # 연간 블록은 앞쪽에 몰려 있고 12월 결산이 **연도 오름차순**으로 이어진다.
-    # 그 흐름이 끊기는 지점부터가 분기 컬럼이다(2025.12는 양쪽에 다 나온다).
+    # 연간 블록은 앞쪽에 몰려 있고 **같은 결산분기**가 연도 오름차순으로 이어진다.
+    # 12월 결산만 가정하면 9월 결산사의 `2026.09 (E)` 연간값을 같은 분기
+    # 추정치로도 저장해 PK 충돌이 나고, 더 나쁘면 연간값을 분기값으로 쓴다(T145).
+    # 그 흐름이 끊기는 지점부터가 분기 컬럼이다(결산월은 회사마다 다르다).
     annual_count = 0
     previous_year = None
+    fiscal_year_end_quarter = periods[0][1]
     for year, quarter, _ in periods:
-        if quarter == 4 and (previous_year is None or year == previous_year + 1):
+        if (
+            quarter == fiscal_year_end_quarter
+            and (previous_year is None or year == previous_year + 1)
+        ):
             annual_count += 1
             previous_year = year
         else:
@@ -182,9 +188,16 @@ def fetch_quarterly_estimates(code: str) -> list[ConsensusSnapshot]:
         ]
 
     out: list[ConsensusSnapshot] = []
+    seen_periods: set[tuple[int, int]] = set()
     for index, (year, quarter, is_estimate) in enumerate(periods):
         if not year or not is_estimate or index < annual_count:
             continue  # 연간 (E) 컬럼과 확정 분기는 건너뛴다
+        period = (year, quarter)
+        if period in seen_periods:
+            # 동일 분기 후보가 둘이면 어느 쪽이 맞는지 추측하지 않는다.
+            # 현재 종목의 분기 컨센서스를 통째로 비워 C축을 분모에서 제외한다.
+            return []
+        seen_periods.add(period)
         snap = ConsensusSnapshot(code=code, fiscal_year=year, fiscal_quarter=quarter)
         for field, row in values.items():
             if index >= len(row) or row[index] is None:
@@ -206,8 +219,8 @@ def fetch_annual_estimate(code: str) -> dict | None:
     실제로 호출하는 읽기 전용 표다. 기본 화면에는 가장 가까운 연간 (E) 한 열만
     보이지만 이 표에는 최근 3년 실적과 향후 2년 추정치가 함께 있다.
 
-    ★ 가장 가까운 (E)는 F.PER·올해 ROE, 그 다음 (E)는 내년 ROE로 쓴다.
-      두 번째 추정 행이 없으면 추측하지 않고 ``None``이다.
+    ★ 가장 가까운 (E)는 올해 F.PER·ROE, 그 다음 (E)는 내년도 F.ROE로 쓴다.
+      두 번째 추정 행이 없으면 내년도 ROE를 추측하지 않고 ``None``이다.
     ★ 열 위치는 실측 표 계약이다. 매출 다음 YoY 한 칸만 별도이고 이후는
       영업이익·순이익·EPS·PER·PBR·ROE 순이다. 행 길이가 다르면 건너뛴다.
     """
@@ -263,6 +276,7 @@ def fetch_annual_estimate(code: str) -> dict | None:
             ),
             "eps_est": current["eps_est"],
             "per": latest_actual["per"] if latest_actual else None,
+            # 발굴목록의 F.PER은 네이버 연간 표의 **올해** 예상 순이익 기준이다.
             "fwd_per": current["per"],
             "roe_est": current["roe"],
             "roe_next_est": following["roe"] if following else None,

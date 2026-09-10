@@ -172,8 +172,10 @@ def build_input(
         "price_snapshots",
         "code,snap_date,close,chg_pct,high_52w,low_52w,pos_52w,per,pbr,"
         "market_cap_krw,high_52w_drawdown_pct,announcement_date,announcement_close,"
-        "announcement_return_pct,per_current_ttm,per_avg_9q,per_avg_quarters,"
-        "per_vs_9q_avg_pct,foreign_net_ratio_5d,rsi_14",
+        "announcement_return_pct,announcement_excess_return_pct,"
+        "per_current_ttm,per_avg_9q,per_avg_quarters,per_vs_9q_avg_pct,"
+        "earnings_revision_pct,earnings_revision_price_gap_pct,"
+        "valuation_reflection_pct,relative_return_pct,foreign_net_ratio_5d,rsi_14",
         filters={"code": code},
         read_budget=read_budget,
     )]

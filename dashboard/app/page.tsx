@@ -13,7 +13,7 @@ import {
   getUniverse,
 } from "@/lib/queries";
 import { quarterLabel, qIndex } from "@/lib/format";
-import { sectorOf } from "@/lib/sector";
+import { sectorInfoOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
 import type { FundamentalRow, Grade, ScreenRow } from "@/lib/types";
 
@@ -75,6 +75,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
 
   const rows: DiscoveryRow[] = screens.map((s: ScreenRow) => {
     const u = universe.get(s.code);
+    const sectorInfo = sectorInfoOf(u);
     const o = outcomes.get(s.code);
     const f = fundByKey.get(`${s.code}|${s.fiscal_year}|${s.fiscal_quarter}`);
     const excess: DiscoveryRow["excess"] = {};
@@ -86,7 +87,9 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       name: u?.name ?? s.code,
       board: u?.board ?? null,
       // ★ DB 컬럼이 없어도 industry·products로 즉시 분류한다(DDL 불필요).
-      sector: sectorOf(u),
+      sector: sectorInfo.sector,
+      sectorTheme: sectorInfo.etfTheme,
+      sectorBasis: sectorInfo.basis,
       industry: u?.industry ?? null,
       marketCap: priceResult.prices.get(s.code)?.market_cap_krw ?? u?.market_cap_krw ?? null,
       quarter: quarterLabel(s.fiscal_year, s.fiscal_quarter),
@@ -102,12 +105,15 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       failReasons: failReasons((s.gate_detail as Record<string, unknown> | null) ?? null),
       // ★ 재무 행을 못 찾으면 null이다. 0으로 채우지 않는다 — 미수집과 '0% 성장'은 다르다.
       revenueYoy: f?.revenue_yoy ?? null,
+      revenueQoq: f?.revenue_qoq ?? null,
       opYoy: f?.op_yoy ?? null,
+      opQoq: f?.op_qoq ?? null,
       opStatusLabel: f?.op_status_label ?? null,
       opmYoyDelta: f?.opm_yoy_delta ?? null,
       per4q: priceResult.prices.get(s.code)?.per_current_ttm ?? null,
       forwardPer: priceResult.prices.get(s.code)?.fwd_per ?? null,
       roe: priceResult.prices.get(s.code)?.roe_est ?? null,
+      forwardRoe: priceResult.prices.get(s.code)?.roe_next_est ?? null,
       ret5d: priceResult.prices.get(s.code)?.ret_5d ?? null,
       excess,
     };
@@ -228,11 +234,15 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
               <td className="text-slate-100">가속 강도 (100점 · 높을수록 좋다)</td>
             </tr>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업익 YoY</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 YoY</td>
               <td className="text-slate-100">
                 평가 분기의 전년 동기 대비 성장률 ·{" "}
                 <strong className="text-slate-200">흑전·적전</strong>은 %를 만들지 않고 라벨로 쓴다
               </td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 QoQ</td>
+              <td className="text-slate-100">평가 분기의 직전 분기 대비 성장률 · 계절성 판단을 위한 참고 지표</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">OPM YoY</td>

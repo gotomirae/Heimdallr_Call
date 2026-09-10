@@ -20,7 +20,7 @@ export type ConsensusFilter = "all" | "yes" | "no";
  * 사용자가 머리글을 눌러 정렬할 수 있는 열.
  *
  * ★ `"default"`는 **"아무것도 안 눌렀다"**는 뜻이지 특정 열이 아니다.
- *   기본 정렬(최신 분기 → 스코어 → 영업익 YoY → 시총)은 여러 열을 순서대로 보므로
+ *   기본 정렬(최신 분기 → 스코어 → 영업이익 YoY → 시총)은 여러 열을 순서대로 보므로
  *   단일 열로 표현할 수 없다. 눌러서 되돌아올 자리를 남기려면 별도 값이어야 한다.
  * ★ `d-5`/`d0`/`d5`…는 실적 발표일 기준 초과수익(`HORIZONS`)이다.
  */
@@ -28,13 +28,16 @@ export type SortKey =
   | "default"
   | "score"
   | "revenueYoy"
+  | "revenueQoq"
   | "opYoy"
+  | "opQoq"
   | "opmYoyDelta"
   | "pri"
   | "marketCap"
   | "per4q"
   | "forwardPer"
   | "roe"
+  | "forwardRoe"
   | "ret5d"
   | `d${number}`;
 
@@ -73,7 +76,7 @@ export const DEFAULT_FILTERS: DiscoveryFilters = {
 /** 정렬 가능한 열인지. **모르는 값은 받지 않는다** — URL로 아무 문자열이나 올 수 있다. */
 export function isSortKey(value: string | null): value is SortKey {
   if (!value) return false;
-  if (["default", "score", "revenueYoy", "opYoy", "opmYoyDelta", "pri", "marketCap", "per4q", "forwardPer", "roe", "ret5d"].includes(value)) {
+  if (["default", "score", "revenueYoy", "revenueQoq", "opYoy", "opQoq", "opmYoyDelta", "pri", "marketCap", "per4q", "forwardPer", "roe", "forwardRoe", "ret5d"].includes(value)) {
     return true;
   }
   return /^d-?\d+$/.test(value);

@@ -47,6 +47,13 @@ ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_est       NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_est  NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
+
+-- PRI 2.0: 실적 초과반응·전망 괴리·밸류에이션·중기 상대수익률
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_excess_return_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS earnings_revision_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS earnings_revision_price_gap_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS valuation_reflection_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS relative_return_pct NUMERIC;
 ```
 
 - `IF NOT EXISTS`가 붙어 있어 **여러 번 실행해도 안전하다**(멱등).
@@ -89,8 +96,11 @@ python -m src.collectors.price_run --save
 # 발표 전 5일·당일 수익률 계산 (KIS 일봉을 다시 읽어 전 시점을 재계산한다)
 python -m src.analysis.outcome_run --save
 
-# 네이버/FnGuide F.PER·올해/내년 ROE 수집 후 당일 시세 행에도 복사한다
+# 네이버/FnGuide 올해 F.PER·ROE와 내년도 F.ROE를 수집 후 당일 시세 행에도 복사한다
 python -m src.collectors.consensus_run --save
+
+# PRI 2.0 입력을 당일 시세 행에 계산한다(저장된 컨센서스 빈티지를 재사용)
+python -m src.collectors.price_run --save
 
 # (섹터 컬럼을 만든 경우에만)
 python -m src.universe.sector_map --save

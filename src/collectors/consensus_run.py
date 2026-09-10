@@ -1,4 +1,4 @@
-# PRD Ref: §5.1(L3), §13 (P5 검증) · traps.md T17
+# PRD Ref: §5.1(L3), §13 (P5 검증) · traps.md T17, T145
 """P5 컨센서스 스냅샷 실행.
 
     python -m src.collectors.consensus_run --sample     # 시총 구간별 50종목 검증
@@ -30,6 +30,7 @@ from src.utils.console import enable_utf8_stdout
 LARGE_CAP_FLOOR = 3_000_000_000_000  # 3조
 MID_CAP_FLOOR = 500_000_000_000  # 5,000억
 SAMPLE_SIZES = {"대형": 15, "중형": 20, "소형": 15}
+SAVE_BATCH_CODES = 100
 
 
 def _bucket(market_cap: int | None) -> str:
@@ -40,6 +41,28 @@ def _bucket(market_cap: int | None) -> str:
     if market_cap >= MID_CAP_FLOOR:
         return "중형"
     return "소형"
+
+
+def _without_duplicate_periods(rows: list[dict]) -> tuple[list[dict], int]:
+    """한 수집 배치 안에서 PK 앞 3개가 겹치는 행을 모두 제외한다.
+
+    ``snapshot_at``은 한 INSERT 문 안에서 같은 ``now()``이므로 code/year/quarter가
+    겹치면 전 배치가 23505로 거부된다. 서로 다른 값 중 하나를 고르는 것은 더 위험하므로
+    불명확한 해당 기간만 버리고 C축을 결측으로 남긴다(T145).
+    """
+    counts: collections.Counter[tuple[str, int, int]] = collections.Counter(
+        (str(row.get("code") or ""), int(row.get("fiscal_year") or 0),
+         int(row.get("fiscal_quarter") or 0))
+        for row in rows
+    )
+    duplicates = {key for key, count in counts.items() if count > 1}
+    return [
+        row for row in rows
+        if (
+            str(row.get("code") or ""), int(row.get("fiscal_year") or 0),
+            int(row.get("fiscal_quarter") or 0)
+        ) not in duplicates
+    ], len(duplicates)
 
 
 def load_targets() -> list[dict]:
@@ -149,6 +172,8 @@ def save_all(limit: int | None) -> int:
     found = usable = 0
     annual_found = 0
     annual_metrics_by_code: dict[str, dict] = {}
+    inserted = duplicate_periods = 0
+    consensus_dropped: set[str] = set()
     for index, code in enumerate(codes, 1):
         snaps = snapshot(code)
         if snaps:
@@ -187,15 +212,22 @@ def save_all(limit: int | None) -> int:
                 "roe_next_year": annual.get("roe_next_year"),
             }
 
-        if index % 100 == 0:
+        if index % SAVE_BATCH_CODES == 0 or index == len(codes):
+            # 장시간 전수 수집은 100종목마다 저장한다. 마지막에 한 번만 쓰면
+            # 58분 순회 후 한 행 오류로 전부 0건이 되는 T145가 재발한다.
+            clean, duplicate_count = _without_duplicate_periods(payload)
+            duplicate_periods += duplicate_count
+            saved, missing = insert_tolerating_missing_columns(
+                db, "consensus_snapshots", clean
+            )
+            inserted += saved
+            consensus_dropped.update(missing)
+            payload.clear()
             print(f"    {index}/{len(codes)} · 확보 {found} · 인정 {usable}")
         time.sleep(REQUEST_INTERVAL_SEC)
 
-    inserted, consensus_dropped = insert_tolerating_missing_columns(
-        db, "consensus_snapshots", payload
-    )
-
-    # SC: 성장 가속 목록은 매일 읽는 price_snapshots 한 번으로 F.PER까지 보여야 한다.
+    # SC: 성장 가속 목록은 매일 읽는 price_snapshots 한 번으로 올해 F.PER·ROE와
+    #   내년도 F.ROE까지 보여야 한다.
     # 컨센서스 이력을 전부 다시 읽으면 날짜가 쌓일수록 조회량이 커지므로, 오늘 시세가
     # 실제 저장된 종목만 같은 행에 복사한다. 시세 수집 실패 종목의 빈 행은 만들지 않는다.
     today = date.today().isoformat()
@@ -224,6 +256,8 @@ def save_all(limit: int | None) -> int:
 
     print(f"\n✓ consensus_snapshots insert {inserted}행")
     print(f"  추정치 확보 {found}/{len(codes)}종목 · 컨센서스 인정(n≥2) {usable}건")
+    if duplicate_periods:
+        print(f"  ⚠ 동일 code·연도·분기 중복 {duplicate_periods}개 기간 제외 (추측 저장 안 함)")
     print(f"  당일 시세 F.PER·ROE 반영 {copied}/{len(price_updates)}행")
     if dropped:
         print(f"  ⚠ price_snapshots 미적용 컬럼: {', '.join(sorted(dropped))}")

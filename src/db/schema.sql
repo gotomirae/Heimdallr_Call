@@ -128,7 +128,10 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   roe_est NUMERIC, roe_next_est NUMERIC, roe_next_year INT,
   per_pctile_3y NUMERIC,                    -- legacy 3년 PER 밴드(신규 PRI에서 미사용)
   announcement_date DATE, announcement_close NUMERIC, announcement_return_pct NUMERIC,
+  announcement_excess_return_pct NUMERIC,
   per_current_ttm NUMERIC, per_avg_9q NUMERIC, per_avg_quarters INT, per_vs_9q_avg_pct NUMERIC,
+  earnings_revision_pct NUMERIC, earnings_revision_price_gap_pct NUMERIC,
+  valuation_reflection_pct NUMERIC, relative_return_pct NUMERIC,
   foreign_net_qty_5d BIGINT, foreign_volume_5d BIGINT, foreign_net_ratio_5d NUMERIC,
   rsi_14 NUMERIC,
   avg_value_20d NUMERIC,
@@ -352,6 +355,7 @@ ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS high_52w_drawdown_pct NUMER
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_date DATE;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_close NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_return_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS announcement_excess_return_pct NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_current_ttm NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_est NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_est NUMERIC;
@@ -359,6 +363,10 @@ ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe_next_year INT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_9q NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_avg_quarters INT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS per_vs_9q_avg_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS earnings_revision_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS earnings_revision_price_gap_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS valuation_reflection_pct NUMERIC;
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS relative_return_pct NUMERIC;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_net_qty_5d BIGINT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_volume_5d BIGINT;
 ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS foreign_net_ratio_5d NUMERIC;

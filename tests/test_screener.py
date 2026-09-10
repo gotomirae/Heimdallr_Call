@@ -594,6 +594,46 @@ def test_pri_measured_when_two_25_point_parts_are_combined():
     assert r.pri is not None
 
 
+def test_pri_v2_scores_four_simple_axes_and_separate_confidence():
+    """PRI 2.0 손계산: 4축 만점이면 100, 신뢰도는 점수에 더하지 않는다."""
+    r = compute_pri(
+        PriInput(
+            announcement_excess_return_pct=30.0,
+            earnings_revision_price_gap_pct=30.0,
+            valuation_reflection_pct=50.0,
+            relative_return_pct=30.0,
+        )
+    )
+    assert r.mode == "v2"
+    assert r.parts == pytest.approx({"event": 30, "revision": 30, "valuation": 20, "relative": 20})
+    assert r.denominator == 100
+    assert r.confidence == 100
+    assert r.pri == pytest.approx(100)
+
+
+def test_pri_v2_computes_with_one_core_and_one_supporting_axis():
+    r = compute_pri(
+        PriInput(
+            announcement_excess_return_pct=0.0,
+            valuation_reflection_pct=0.0,
+        )
+    )
+    assert r.mode == "v2"
+    assert r.confidence == 50
+    assert r.pri is not None
+
+
+def test_pri_v2_does_not_decide_from_two_20_point_supporting_axes():
+    r = compute_pri(
+        PriInput(
+            valuation_reflection_pct=0.0,
+            relative_return_pct=0.0,
+        )
+    )
+    assert r.confidence == 40
+    assert r.pri is None
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 매트릭스 9칸 전부
 # ═══════════════════════════════════════════════════════════════════

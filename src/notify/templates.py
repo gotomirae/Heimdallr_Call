@@ -36,13 +36,12 @@ AXIS_MISSING_REASON = {
     "D": "확정 재무 대기",
 }
 
-#: PRI 항목 — `src/screener/pri.py`의 PRI_WEIGHTS와 같아야 한다.
+#: PRI 항목 — `src/screener/pri.py`의 PRI_NEW_WEIGHTS와 같아야 한다.
 PRI_ITEMS = (
-    ("p1", "52주고점", 25),
-    ("p2", "발표일대비", 25),
-    ("p3", "9Q PER", 20),
-    ("p4", "외국인5일", 10),
-    ("p5", "RSI45", 20),
+    ("event", "실적초과반응", 30),
+    ("revision", "전망·주가괴리", 30),
+    ("valuation", "TTM·F.PER", 20),
+    ("relative", "중기상대주가", 20),
 )
 
 KIND_FLASH = "flash"
@@ -411,7 +410,14 @@ def pri_block(ctx: dict) -> list[str]:
     )
 
     reflected, pending, unmeasured = [], [], []
-    for key, name, maximum in PRI_ITEMS:
+    items = PRI_ITEMS if any(key in parts for key, _, _ in PRI_ITEMS) else (
+        ("p1", "52주고점", 25),
+        ("p2", "발표일대비", 25),
+        ("p3", "9Q PER", 20),
+        ("p4", "외국인5일", 10),
+        ("p5", "RSI45", 20),
+    )
+    for key, name, maximum in items:
         value = parts.get(key)
         if value is None:
             unmeasured.append(name)

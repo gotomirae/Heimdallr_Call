@@ -15,13 +15,13 @@ import type { AnalysisView } from "@/lib/analysis";
 import type { NarrativeCheck, Verdict } from "@/lib/narrativeCheck";
 import { DASH } from "@/lib/format";
 
-/** 밸류에이션 두 배수. 화면이 계산해 넘긴다 — LLM 문장의 숫자를 믿지 않는다. */
+/** 네이버 기준 투자지표. 화면이 확인해 넘긴다 — LLM 문장의 숫자를 믿지 않는다. */
 export interface ValuationView {
   per4q: number | null;
   perForward: number | null;
   forwardBasis: string | null;
-  pbr: number | null;
-  ttmNp: number | null;
+  roeCurrent: number | null;
+  roeNext: number | null;
 }
 
 /**
@@ -441,11 +441,13 @@ export default function AnalysisSection({
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">PBR</div>
+              <div className="text-[11px] text-slate-300">올해 ROE → 내년 F.ROE</div>
               <div className="mt-0.5 text-xl font-bold text-white">
-                {valuation.pbr != null ? `${valuation.pbr.toFixed(2)}배` : DASH}
+                {valuation.roeCurrent != null ? `${valuation.roeCurrent.toFixed(1)}%` : DASH}
+                <span className="mx-1 text-sm text-slate-400">→</span>
+                {valuation.roeNext != null ? `${valuation.roeNext.toFixed(1)}%` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">주가 ÷ 주당 순자산</div>
+              <div className="text-[11px] text-slate-300">네이버 연간 예상 ROE</div>
             </div>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-300">

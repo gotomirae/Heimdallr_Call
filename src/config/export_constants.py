@@ -21,6 +21,7 @@ from src.config import constants
 from src.universe.sector_map import (
     INDUSTRY_ONLY_KEYWORDS,
     SECTOR_EXCLUDES,
+    SECTOR_ETF_THEMES,
     SECTOR_RULES,
     UNKNOWN_SECTOR,
 )
@@ -48,6 +49,7 @@ def build() -> dict:
         "sector_excludes": {k: list(v) for k, v in SECTOR_EXCLUDES.items()},
         "sector_industry_only": sorted(INDUSTRY_ONLY_KEYWORDS),
         "sector_unknown": UNKNOWN_SECTOR,
+        "sector_etf_themes": dict(SECTOR_ETF_THEMES),
         "gate": {
             "market_cap_floor_krw": getattr(constants, "MARKET_CAP_FLOOR_KRW", None),
             "min_quarters_history": constants.MIN_QUARTERS_HISTORY,
@@ -71,8 +73,11 @@ def build() -> dict:
             "final_no_consensus": constants.SCORE_DENOM_FINAL_NO_CONSENSUS,
         },
         "pri": {
+            **constants.PRI_NEW_WEIGHTS,
+            "min_denominator": constants.PRI_CORE_MIN_DENOMINATOR,
+            "min_confidence": constants.PRI_MIN_CONFIDENCE,
+            # 기존 설정 검증·구 저장 결과와의 호환을 위해 평탄한 p1~p5도 남긴다.
             **constants.PRI_WEIGHTS,
-            "min_denominator": constants.PRI_MIN_DENOMINATOR,
         },
         "matrix": {
             "score_high": constants.SCORE_HIGH,

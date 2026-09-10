@@ -53,7 +53,20 @@ D1_CFO_TO_OP_MIN = 0.5  # TTM CFO / TTM 영업이익 ≥ 0.5
 MIN_ESTIMATES = 2  # 추정기관 1개는 컨센서스가 아니다
 
 # ═══ PRI (주가반영도, 0~100 · 낮을수록 아직 안 올랐음) ═══
-# 2026-09-03 사용자 지정 5축. 어느 항목이든 값이 없으면 0점이 아니라 분모에서 뺀다.
+# PRI 2.0은 실적 이벤트·전망 괴리·밸류에이션·중기 상대수익률 4축이다.
+# 데이터 신뢰도는 점수에 합산하지 않고 confidence로 별도 표시한다.
+PRI_NEW_WEIGHTS = {"event": 30, "revision": 30, "valuation": 20, "relative": 20}
+# 숫자 계산 하한과 신뢰도 경고는 다른 계약이다. 50점이면 30점 핵심축
+# 하나 + 보조축 하나가 있어 단일 신호 오판을 막을 수 있다. 80점 미만은
+# 숫자를 숨기지 않고 참고용 경고를 붙인다(T146).
+PRI_CORE_MIN_DENOMINATOR = 50
+PRI_MIN_CONFIDENCE = 80
+PRI_EVENT_ANCHORS_PCT = (-20.0, 30.0)
+PRI_REVISION_GAP_ANCHORS_PCT = (-30.0, 30.0)
+PRI_VALUATION_ANCHORS_PCT = (-30.0, 50.0)
+PRI_RELATIVE_RETURN_ANCHORS_PCT = (-30.0, 30.0)
+
+# 구 PRI 입력을 읽는 과거 screen_results와 회귀 테스트 호환용.
 PRI_WEIGHTS = {"p1": 25, "p2": 25, "p3": 20, "p4": 10, "p5": 20}
 # 항목 하나만으로 '미반영'을 선언하지 않는 분모 하한. 최소 두 개 신호가 필요하다.
 PRI_MIN_DENOMINATOR = 45

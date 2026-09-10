@@ -48,7 +48,10 @@ const PRICE_COLUMNS = [
   "ret_3m", "ret_6m", "ret_12m", "rel_ret_3m", "rel_ret_6m", "rel_ret_12m", "ret_5d",
   "market_cap_krw", "per", "pbr", "per_pctile_3y", "avg_value_20d",
   "announcement_date", "announcement_close", "announcement_return_pct",
+  "announcement_excess_return_pct",
   "per_current_ttm", "per_avg_9q", "per_avg_quarters", "per_vs_9q_avg_pct",
+  "earnings_revision_pct", "earnings_revision_price_gap_pct",
+  "valuation_reflection_pct", "relative_return_pct",
   "fwd_per", "roe_est", "roe_next_est", "roe_next_year",
   "foreign_net_qty_5d", "foreign_volume_5d", "foreign_net_ratio_5d", "rsi_14",
 ];
@@ -452,7 +455,9 @@ export async function getFundamentalsForQuarters(
     "revenue_yoy", "op_yoy", "op_status_label", "opm", "opm_yoy_delta",
     "ttm_revenue", "is_estimate",
   ];
-  for (const { year, quarter } of quarters) {
+  // 평가 분기가 여러 개일 때 순차 조회하면 분기 수만큼 RTT가 누적된다.
+  // 분기별 조건은 서로 독립적이므로 동시에 읽어 목록 첫 화면의 대기시간을 줄인다.
+  const chunks = await Promise.all(quarters.map(async ({ year, quarter }) => {
     const { rows, dropped } = await selectWithOptionalColumns<FundamentalRow>(
       "quarterly_fundamentals",
       cols,
@@ -461,15 +466,13 @@ export async function getFundamentalsForQuarters(
     );
     if (rows.length >= 1000) {
       // 잘렸다 — 페이징으로 전부 읽는다.
-      const all = await selectAll<FundamentalRow>(
+      return selectAll<FundamentalRow>(
         "quarterly_fundamentals",
         cols.filter((c) => !dropped.includes(c)).join(","),
         (q) => q.eq("fiscal_year", year).eq("fiscal_quarter", quarter)
       );
-      out.push(...all);
-    } else {
-      out.push(...rows);
     }
-  }
-  return out;
+    return rows;
+  }));
+  return chunks.flat();
 }

@@ -72,6 +72,104 @@ def _first_announcement_dates(rows: list[dict]) -> dict[tuple[str, int, int], st
     return out
 
 
+def _annual_revision_pct(rows: list[dict], today: str) -> float | None:
+    """동일 연도 컨센서스의 최근값과 약 90일 전 값의 변화율."""
+    annual = [
+        r for r in rows
+        if str(r.get("source") or "") == "naver"
+        and int(r.get("fiscal_quarter") or 0) == 0
+        and r.get("snapshot_at")
+    ]
+    if not annual:
+        return None
+    latest_year = max(int(r.get("fiscal_year") or 0) for r in annual)
+    same_year = [r for r in annual if int(r.get("fiscal_year") or 0) == latest_year]
+    same_year.sort(key=lambda r: str(r.get("snapshot_at") or ""))
+    if len(same_year) < 2:
+        return None
+    latest = same_year[-1]
+    latest_day = str(latest.get("snapshot_at") or "")[:10]
+    try:
+        latest_date = date.fromisoformat(latest_day)
+    except ValueError:
+        return None
+    cutoff = latest_date - timedelta(days=90)
+    prior = None
+    for row in reversed(same_year[:-1]):
+        try:
+            row_day = date.fromisoformat(str(row.get("snapshot_at") or "")[:10])
+        except ValueError:
+            continue
+        if row_day <= cutoff:
+            prior = row
+            break
+    if prior is None:
+        return None
+    # 순이익 전망을 우선하고, 없으면 영업이익 전망을 사용한다.
+    current = latest.get("np_est")
+    previous = prior.get("np_est")
+    if current is None or previous is None:
+        current = latest.get("op_est")
+        previous = prior.get("op_est")
+    if current is None or previous is None or float(previous) == 0:
+        return None
+    return (float(current) / float(previous) - 1.0) * 100.0
+
+
+def _latest_annual_metrics(rows: list[dict]) -> dict[str, float | int | None]:
+    """가장 최근 네이버 연간 스냅샷의 화면용 가치지표.
+
+    일일 워크플로는 price_run → consensus_run 순서라 시세 수집 때는 전날의 최신
+    연간값을 쓰고, 뒤 consensus_run이 오늘 값을 같은 행에 덮어쓴다. 수동 실행처럼
+    순서가 바뀌어도 오늘 price 행이 F.PER·ROE 없이 남지 않는다.
+    """
+    annual = [
+        row for row in rows
+        if str(row.get("source") or "") == "naver"
+        and int(row.get("fiscal_quarter") or 0) == 0
+        and row.get("snapshot_at")
+    ]
+    if not annual:
+        return {
+            "fwd_per": None, "roe_est": None,
+            "roe_next_est": None, "roe_next_year": None,
+        }
+    latest = max(
+        annual,
+        key=lambda row: (
+            str(row.get("snapshot_at") or ""),
+            int(row.get("fiscal_year") or 0),
+        ),
+    )
+    return {
+        "fwd_per": latest.get("fwd_per"),
+        "roe_est": latest.get("roe_est"),
+        "roe_next_est": latest.get("roe_next_est"),
+        "roe_next_year": latest.get("roe_next_year"),
+    }
+
+
+def _event_excess_return_pct(
+    closes: dict[str, float], index_closes: dict[str, float], announcement_date: str | None
+) -> float | None:
+    """발표 후 D+1·D+5·D+20 시장·섹터 대비 초과수익 평균."""
+    if not announcement_date:
+        return None
+    start = announcement_date.replace("-", "")[:8]
+    common = sorted(d for d in set(closes) & set(index_closes) if d >= start)
+    if not common:
+        return None
+    values: list[float] = []
+    for offset in (1, 5, 20):
+        if len(common) <= offset:
+            continue
+        base_day, target_day = common[0], common[offset]
+        stock_return = closes[target_day] / closes[base_day] - 1.0
+        index_return = index_closes[target_day] / index_closes[base_day] - 1.0
+        values.append((stock_return - index_return) * 100.0)
+    return sum(values) / len(values) if values else None
+
+
 def per_history_stats(
     net_income_by_quarter: dict[int, float | None],
     quarter_closes: dict[tuple[int, int], tuple[str, float]],
@@ -285,6 +383,21 @@ def save(limit: int | None) -> int:
             float(fund["np"]) if fund.get("np") is not None else None
         )
 
+    # PRI 2.0의 전망-주가 괴리 축. 외부 호출 없이 이미 저장된 컨센서스
+    # 빈티지를 읽는다 — 매일 추가 유료 호출을 만들지 않는다.
+    consensus_history: dict[str, list[dict]] = collections.defaultdict(list)
+    for row in select_all(
+        "consensus_snapshots",
+        "code,fiscal_year,fiscal_quarter,np_est,op_est,fwd_per,roe_est,"
+        "roe_next_est,roe_next_year,source,snapshot_at",
+        filters={"source": "naver"},
+    ):
+        consensus_history[row["code"]].append(row)
+    annual_metrics_by_code = {
+        code: _latest_annual_metrics(rows)
+        for code, rows in consensus_history.items()
+    }
+
     indexes = {name: fetch_index_closes(name, begin, end) for name in ("KOSPI", "KOSDAQ")}
     db = get_client()
     index_rows = [
@@ -312,8 +425,8 @@ def save(limit: int | None) -> int:
         if quote is None:
             continue
 
-        # ★ PRI P1(52주 고점), P2(발표일), P3(9분기 PER), P5(RSI)와
-        #   D4(20일 평균 거래대금)는 일봉이 있어야 계산된다.
+        # ★ PRI 이벤트·중기 상대수익률과 D4(20일 평균 거래대금)는
+        #   일봉이 있어야 계산된다.
         return_fields = {
             "ret_1m": None, "ret_3m": None, "ret_6m": None, "ret_12m": None,
             "rel_ret_3m": None, "rel_ret_6m": None, "rel_ret_12m": None,
@@ -359,6 +472,10 @@ def save(limit: int | None) -> int:
         )
         announcement_close = closes.get(announcement_date.replace("-", "")) if announcement_date else None
         announcement_return = return_from_base_pct(quote.close, announcement_close)
+        index_closes = indexes.get(INDEX_OF_BOARD.get(row["board"], "KOSPI"), {})
+        announcement_excess = _event_excess_return_pct(
+            closes, index_closes, announcement_date
+        )
         current_per = average_per = premium = None
         average_quarters = 0
         if evaluated:
@@ -375,12 +492,22 @@ def save(limit: int | None) -> int:
             foreign_flow = fetch_foreign_flow_5d(row["code"], announcement_date)
         except Exception:
             pass
+        relative_values = [
+            value for key, value in return_fields.items()
+            if key in {"rel_ret_3m", "rel_ret_6m", "rel_ret_12m"}
+            and value is not None
+        ]
+        relative_return = sum(relative_values) / len(relative_values) if relative_values else None
+        revision_pct = _annual_revision_pct(consensus_history.get(row["code"], []), today)
+        revision_gap = (
+            relative_return - revision_pct
+            if relative_return is not None and revision_pct is not None else None
+        )
         pri = compute_pri(PriInput(
-            high_52w_drawdown_pct=drawdown,
-            announcement_return_pct=announcement_return,
-            per_vs_9q_avg_pct=premium,
-            foreign_net_ratio_5d_pct=foreign_flow.ratio_pct if foreign_flow else None,
-            rsi_14=rsi,
+            announcement_excess_return_pct=announcement_excess,
+            earnings_revision_price_gap_pct=revision_gap,
+            valuation_reflection_pct=premium,
+            relative_return_pct=relative_return,
         ))
         for key, value in pri.parts.items():
             if value is not None:
@@ -400,13 +527,19 @@ def save(limit: int | None) -> int:
             "ret_5d": ret_5d,
             "market_cap_krw": quote.market_cap_krw,
             "per": quote.per, "pbr": quote.pbr,
+            **annual_metrics_by_code.get(row["code"], {}),
             "announcement_date": announcement_date,
             "announcement_close": announcement_close,
             "announcement_return_pct": announcement_return,
+            "announcement_excess_return_pct": announcement_excess,
             "per_current_ttm": current_per,
             "per_avg_9q": average_per,
             "per_avg_quarters": average_quarters,
             "per_vs_9q_avg_pct": premium,
+            "earnings_revision_pct": revision_pct,
+            "earnings_revision_price_gap_pct": revision_gap,
+            "valuation_reflection_pct": premium,
+            "relative_return_pct": relative_return,
             "foreign_net_qty_5d": foreign_flow.net_qty if foreign_flow else None,
             "foreign_volume_5d": foreign_flow.volume if foreign_flow else None,
             "foreign_net_ratio_5d": foreign_flow.ratio_pct if foreign_flow else None,
@@ -430,8 +563,9 @@ def save(limit: int | None) -> int:
     elapsed = time.monotonic() - started
     print(f"\n✓ price_snapshots {saved}행 · {elapsed:.0f}초 "
           f"({len(targets) / max(elapsed, 1):.1f}건/초)")
-    print("  PRI 측정 " + " · ".join(
-        f"{key.upper()} {measured[f'pri_{key}']}" for key in ("p1", "p2", "p3", "p4", "p5")
+    print("  PRI 2.0 측정 " + " · ".join(
+        f"{key.upper()} {measured[f'pri_{key}']}"
+        for key in ("event", "revision", "valuation", "relative")
     ))
     print(
         "  기간별 수익률 측정 "

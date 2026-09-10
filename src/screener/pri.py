@@ -10,6 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from src.config.constants import (
+    PRI_CORE_MIN_DENOMINATOR,
+    PRI_NEW_WEIGHTS,
+    PRI_EVENT_ANCHORS_PCT,
+    PRI_REVISION_GAP_ANCHORS_PCT,
+    PRI_VALUATION_ANCHORS_PCT,
+    PRI_RELATIVE_RETURN_ANCHORS_PCT,
     P1_HIGH_DRAWDOWN_FLOOR_PCT,
     P2_ANNOUNCEMENT_RETURN_MAX_PCT,
     P3_PER_PREMIUM_MAX_PCT,
@@ -29,6 +35,12 @@ class PriInput:
     per_vs_9q_avg_pct: float | None = None
     foreign_net_ratio_5d_pct: float | None = None
     rsi_14: float | None = None
+    # PRI 2.0 — 4개 가격반영 축. data_confidence는 점수에 합산하지 않고
+    # 측정 가능 배점으로 계산되는 신뢰도 게이트다.
+    announcement_excess_return_pct: float | None = None
+    earnings_revision_price_gap_pct: float | None = None
+    valuation_reflection_pct: float | None = None
+    relative_return_pct: float | None = None
 
 
 @dataclass
@@ -40,6 +52,8 @@ class PriResult:
     measured: tuple[str, ...] = ()
     excluded: tuple[str, ...] = ()
     inputs: dict[str, float | None] = field(default_factory=dict)
+    confidence: float | None = None
+    mode: str = "legacy"
 
     @property
     def detail(self) -> dict:
@@ -49,6 +63,8 @@ class PriResult:
             "denominator": self.denominator,
             "excluded": list(self.excluded),
             "inputs": self.inputs,
+            "confidence": self.confidence,
+            "mode": self.mode,
         }
 
 
@@ -115,7 +131,73 @@ def _p5(rsi: float | None) -> float | None:
     return midpoint + (rsi - mid) / (high - mid) * midpoint
 
 
+def _linear(value: float | None, anchors: tuple[float, float], full: float) -> float | None:
+    """두 절대 앵커 사이를 0~full로 선형 변환한다."""
+    if value is None:
+        return None
+    low, high = anchors
+    if value <= low:
+        return 0.0
+    if value >= high:
+        return float(full)
+    return (float(value) - low) / (high - low) * float(full)
+
+
+def _compute_new(data: PriInput) -> PriResult:
+    """PRI 2.0.
+
+    네 개의 가격반영 축만 점수화하고, 다섯 번째 항목인 데이터 신뢰도는
+    ``confidence``로 별도 표시한다. 신뢰도를 PRI에 더하면 데이터가 부족한
+    종목이 실제보다 저반영처럼 보이는 T31 유형의 오류가 재발한다.
+    """
+    parts = {
+        "event": _linear(data.announcement_excess_return_pct, PRI_EVENT_ANCHORS_PCT,
+                          PRI_NEW_WEIGHTS["event"]),
+        "revision": _linear(data.earnings_revision_price_gap_pct, PRI_REVISION_GAP_ANCHORS_PCT,
+                             PRI_NEW_WEIGHTS["revision"]),
+        "valuation": _linear(data.valuation_reflection_pct, PRI_VALUATION_ANCHORS_PCT,
+                              PRI_NEW_WEIGHTS["valuation"]),
+        "relative": _linear(data.relative_return_pct, PRI_RELATIVE_RETURN_ANCHORS_PCT,
+                             PRI_NEW_WEIGHTS["relative"]),
+    }
+    inputs = {
+        "announcement_excess_return_pct": data.announcement_excess_return_pct,
+        "earnings_revision_price_gap_pct": data.earnings_revision_price_gap_pct,
+        "valuation_reflection_pct": data.valuation_reflection_pct,
+        "relative_return_pct": data.relative_return_pct,
+    }
+    measured = [key for key, value in parts.items() if value is not None]
+    excluded = [key for key, value in parts.items() if value is None]
+    raw_sum = sum(value for value in parts.values() if value is not None)
+    denominator = sum(PRI_NEW_WEIGHTS[key] for key in measured)
+    confidence = float(denominator)
+    pri = raw_sum / denominator * 100 if denominator >= PRI_CORE_MIN_DENOMINATOR else None
+    return PriResult(
+        parts=parts,
+        raw_sum=raw_sum,
+        denominator=denominator,
+        pri=pri,
+        measured=tuple(measured),
+        excluded=tuple(excluded),
+        inputs=inputs,
+        confidence=confidence,
+        mode="v2",
+    )
+
+
 def compute_pri(data: PriInput) -> PriResult:
+    # 새 입력이 하나라도 있으면 PRI 2.0을 사용한다. 기존 저장 데이터와
+    # 순수 함수 회귀 테스트를 위해 구 입력만 전달된 경우에는 legacy 계산을
+    # 유지한다 — 다음 P6 수집 실행부터는 모든 새 행이 v2가 된다.
+    new_values = (
+        data.announcement_excess_return_pct,
+        data.earnings_revision_price_gap_pct,
+        data.valuation_reflection_pct,
+        data.relative_return_pct,
+    )
+    if any(value is not None for value in new_values):
+        return _compute_new(data)
+
     parts = {
         "p1": _p1(data.high_52w_drawdown_pct),
         "p2": _p2(data.announcement_return_pct),
@@ -145,4 +227,6 @@ def compute_pri(data: PriInput) -> PriResult:
         measured=tuple(measured),
         excluded=tuple(excluded),
         inputs=inputs,
+        confidence=float(denominator),
+        mode="legacy",
     )

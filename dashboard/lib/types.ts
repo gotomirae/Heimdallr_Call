@@ -115,6 +115,8 @@ export interface PriDetail {
   denominator?: number;
   excluded?: string[];
   inputs?: Record<string, number | null>;
+  confidence?: number | null;
+  mode?: string;
 }
 
 export interface PriceRow {
@@ -141,13 +143,18 @@ export interface PriceRow {
   announcement_date: string | null;
   announcement_close: number | null;
   announcement_return_pct: number | null;
+  announcement_excess_return_pct: number | null;
   per_current_ttm: number | null;
   per_avg_9q: number | null;
   per_avg_quarters: number | null;
   per_vs_9q_avg_pct: number | null;
-  /** 네이버 올해 예상 EPS 기준 PER. 컨센서스 수집 뒤 당일 시세 행에 복사된다. */
+  earnings_revision_pct: number | null;
+  earnings_revision_price_gap_pct: number | null;
+  valuation_reflection_pct: number | null;
+  relative_return_pct: number | null;
+  /** 네이버 올해 예상 순이익 기준 선행 PER. 컨센서스 수집 뒤 당일 시세 행에 복사된다. */
   fwd_per: number | null;
-  /** 네이버/FnGuide 연간 컨센서스의 올해·내년 ROE. */
+  /** 네이버/FnGuide 연간 컨센서스의 올해·내년 ROE. 목록은 각각 ROE/F.ROE로 표시한다. */
   roe_est: number | null;
   roe_next_est: number | null;
   roe_next_year: number | null;
@@ -244,9 +251,8 @@ export const AXIS_MISSING_REASON: Record<string, string> = {
 };
 
 export const PRI_PARTS = [
-  { key: "p1", label: "52주 신고가 대비", max: 25 },
-  { key: "p2", label: "발표일 대비 등락", max: 25 },
-  { key: "p3", label: "9분기 평균 PER 대비", max: 20 },
-  { key: "p4", label: "발표 후 외국인 5일", max: 10 },
-  { key: "p5", label: "RSI 45 기준", max: 20 },
+  { key: "event", label: "실적 발표 초과반응", max: 30 },
+  { key: "revision", label: "전망·주가 괴리", max: 30 },
+  { key: "valuation", label: "TTM PER·F.PER 반영", max: 20 },
+  { key: "relative", label: "중기 상대 주가", max: 20 },
 ] as const;

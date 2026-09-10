@@ -37,7 +37,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "분기 내 백분위",
         "FCF",
         "과거 9분기 평균 PER 대비",
-        "참고 PEG",
+        "PEG (네이버)",
         "섹터 비교",
         "종목별 결과 추적",
         "네이버 증권 기업실적분석",
@@ -49,6 +49,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         assert label in STOCK
 
     assert 'title="공시 발췌"' not in STOCK
+    assert "PBR" not in STOCK
 
 
 def test_watchlist_replaces_duplicate_all_stocks_route():
@@ -168,9 +169,12 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert 'gate: "growth"' in filters
     assert 'r.category !== gate' in DISCOVERY
     assert "turnaround: s.turnaround" in page
-    for field in ("per4q", "forwardPer", "roe"):
+    for field in ("revenueQoq", "opQoq", "per4q", "forwardPer", "roe", "forwardRoe"):
         assert field in page and field in DISCOVERY
-    for label in ('label="최근 4Q PER"', 'label="F.PER"', 'label="ROE"'):
+    for label in (
+        'label="매출 QoQ"', 'label="영업이익 YoY"', 'label="영업이익 QoQ"',
+        'label="최근 4Q PER"', 'label="F.PER"', 'label="ROE"', 'label="F.ROE"',
+    ):
         assert label in DISCOVERY
     assert "r.turnaround &&" not in DISCOVERY, "등급 칸에는 턴어라운드 문구를 중복 표시하지 않는다"
 

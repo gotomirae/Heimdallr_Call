@@ -253,14 +253,14 @@ export default async function SettingsPage() {
       >
         <div className="grid gap-x-8 sm:grid-cols-2">
           <div>
-            <Row label="P1 52주 신고가 대비" value={`${pri.p1}점`} />
-            <Row label="P2 발표 당일 종가 대비" value={`${pri.p2}점`} />
-            <Row label="P3 과거 9분기 평균 PER 대비" value={`${pri.p3}점`} />
-            <Row label="P4 발표 후 5거래일 외국인 수급" value={`${pri.p4}점`} />
-            <Row label="P5 RSI 45 기준" value={`${pri.p5}점`} />
+            <Row label="실적 발표 초과반응" value={`${pri.event}점`} />
+            <Row label="이익 전망·주가 괴리" value={`${pri.revision}점`} />
+            <Row label="TTM PER·F.PER 반영" value={`${pri.valuation}점`} />
+            <Row label="중기 섹터대비 주가" value={`${pri.relative}점`} />
           </div>
           <div>
-            <Row label="분모 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />
+            <Row label="PRI 계산 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />
+            <Row label="신뢰도 기준" value={`${pri.min_confidence}/100`} hint="미만이면 참고용" />
             <Row
               label="미반영 / 선반영 경계"
               value={`${constants.matrix.pri_low} / ${constants.matrix.pri_high}`}

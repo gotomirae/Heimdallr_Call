@@ -16,7 +16,7 @@ import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
 import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
-import { forwardPer, trailing4qPer, ttmNetIncome } from "@/lib/valuation";
+import { trailing4qPer, ttmNetIncome } from "@/lib/valuation";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
 import { getOutcomesForCode } from "@/lib/outcome";
 import { getNaverLiveSnapshot } from "@/lib/naver";
@@ -350,20 +350,16 @@ export default async function StockPage({ params }: { params: { code: string } }
   const ttmNp =
     year && quarter ? ttmNetIncome(funds, year, quarter) : null;
   const calculatedPer4q = trailing4qPer(capForPer, ttmNp);
-  const per4q = liveQuote ? naverLive.per4q : calculatedPer4q;
-  const fwd = forwardPer(annualConsensus, funds, capForPer);
-  const forwardPerValue = liveQuote ? naverLive.fwdPer : fwd.per;
+  // 투자지표의 주 원천은 네이버다. 실시간 integration이 실패하면 저장된
+  // 네이버 연간 스냅샷으로 물러서고, 다른 출처의 PER을 섞지 않는다.
+  const per4q = liveQuote ? naverLive.per4q : annualConsensus?.per ?? null;
+  const forwardPerValue = liveQuote ? naverLive.fwdPer : annualConsensus?.fwd_per ?? null;
   const currentRoe = liveAnnual ? naverLive.roe : annualConsensus?.roe_est ?? null;
   const currentRoeYear = liveAnnual ? naverLive.roeYear : annualConsensus?.fiscal_year ?? null;
   const nextRoe = liveAnnual ? naverLive.roeNext : annualConsensus?.roe_next_est ?? null;
   const nextRoeYear = liveAnnual ? naverLive.roeNextYear : annualConsensus?.roe_next_year ?? null;
-  const currentPbr = liveQuote ? naverLive.pbr : price?.pbr ?? null;
-  // 표준 PEG(연간 예상 성장률)가 아니라, 현재 화면이 실제로 가진 같은 분기
-  // EPS YoY를 분모로 한 참고값이다. 0 이하·결측은 만들지 않는다.
-  const referencePeg =
-    per4q != null && evaluated?.eps_yoy != null && evaluated.eps_yoy > 0
-      ? per4q / evaluated.eps_yoy
-      : null;
+  // PEG는 네이버 integration이 공개한 값만 사용한다. 공개하지 않는 종목은 결측이다.
+  const referencePeg = liveQuote ? naverLive.peg : null;
 
   const chartPoints = toChartPoints(funds, CHART_QUARTERS);
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
@@ -704,9 +700,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           valuation={{
             per4q,
             perForward: forwardPerValue,
-            forwardBasis: liveQuote ? "네이버 증권 추정 EPS" : fwd.basis,
-            pbr: currentPbr,
-            ttmNp,
+            forwardBasis: liveQuote ? "네이버 증권 추정 PER" : "네이버 연간 컨센서스",
+            roeCurrent: currentRoe,
+            roeNext: nextRoe,
           }}
         />
       </Card> : <Card title="LLM 분석 제외">
@@ -837,10 +833,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               출처: <strong>네이버 증권 추정PER</strong>({priceBasisDate ?? "기준일 미상"}). 최근
               3개월 증권사 예상 EPS 평균이며 네이버 공개값을 변형하지 않았다.
-              {!liveQuote && fwd.basis ? (
-                <> Heimdallr 향후 4분기 검산값은 {fwd.per != null ? `${fwd.per.toFixed(1)}배` : DASH}
-                  ({fwd.basis})다.</>
-              ) : !liveQuote ? (
+              {!liveQuote && annualConsensus?.fwd_per == null ? (
                 <> <strong className="text-slate-200">연간 컨센서스가 없어 계산하지 않았다.</strong></>
               ) : null}
             </p>
@@ -873,13 +866,13 @@ export default async function StockPage({ params }: { params: { code: string } }
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">⑤ 참고 PEG</div>
+            <div className="text-xs font-semibold text-slate-200">⑤ PEG (네이버)</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {referencePeg != null ? referencePeg.toFixed(2) : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              최근 4분기 PER ÷ 평가 분기 EPS YoY(%). 연간 예상 성장률을 쓰는 표준 PEG가
-              아닌 참고값이다. EPS YoY가 0 이하이거나 없으면 계산하지 않는다.
+              네이버증권이 공개한 PEG만 표시한다. 네이버가 값을 제공하지 않으면 다른 성장률로
+              대체하지 않고 —로 둔다.
             </p>
           </div>
         </div>
@@ -908,9 +901,6 @@ export default async function StockPage({ params }: { params: { code: string } }
           </p>
         )}
 
-        {currentPbr != null && (
-          <Note>PBR {currentPbr.toFixed(2)}배 — 네이버 현재 주가 ÷ 최근 분기 주당 순자산.</Note>
-        )}
       </Card>
 
       <Card title="섹터 비교" note={stockSector + " · 같은 평가 분기 스코어 상위 5개"}>

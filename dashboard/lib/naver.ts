@@ -2,6 +2,7 @@
 
 const NAVER_BASE = "https://m.stock.naver.com/api/stock";
 const NAVER_REVALIDATE_SECONDS = 60;
+const NAVER_TIMEOUT_MS = 5000;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -17,6 +18,7 @@ export interface NaverLiveSnapshot {
   low52w: number | null;
   per4q: number | null;
   fwdPer: number | null;
+  peg: number | null;
   pbr: number | null;
   roeYear: number | null;
   roe: number | null;
@@ -59,6 +61,7 @@ function marketCapOf(value: unknown): number | null {
 async function naverJson(path: string): Promise<UnknownRecord> {
   const response = await fetch(`${NAVER_BASE}/${path}`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; HeimdallrCall/1.0)" },
+    signal: AbortSignal.timeout(NAVER_TIMEOUT_MS),
     next: { revalidate: NAVER_REVALIDATE_SECONDS },
   });
   if (!response.ok) throw new Error(`Naver HTTP ${response.status}`);
@@ -90,6 +93,8 @@ function parseQuote(body: UnknownRecord) {
     low52w: numberOf(values.get("lowPriceOf52Weeks")),
     per4q: numberOf(values.get("per")),
     fwdPer: numberOf(values.get("cnsPer")),
+    // 네이버가 PEG를 공개하지 않는 종목은 null로 둔다. 다른 성장률로 대체하지 않는다.
+    peg: numberOf(values.get("peg")) ?? numberOf(values.get("cnsPeg")),
     pbr: numberOf(values.get("pbr")),
   };
 }
@@ -148,6 +153,7 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     low52w: quote?.low52w ?? null,
     per4q: quote?.per4q ?? null,
     fwdPer: quote?.fwdPer ?? null,
+    peg: quote?.peg ?? null,
     pbr: quote?.pbr ?? null,
     roeYear: annual?.current.year ?? null,
     roe: annual?.current.value ?? null,
@@ -155,4 +161,3 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     roeNext: annual?.next.value ?? null,
   };
 }
-

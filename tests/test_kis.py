@@ -23,7 +23,11 @@ from src.collectors.kis_prices import (
     window_return_pct,
 )
 from src.collectors.quarter_prices import quarter_end_closes, quarter_of
-from src.collectors.price_run import build_return_fields, per_history_stats
+from src.collectors.price_run import (
+    _latest_annual_metrics,
+    build_return_fields,
+    per_history_stats,
+)
 from src.db.supabase_client import (
     insert_tolerating_missing_columns,
     missing_column_of,
@@ -59,6 +63,25 @@ def test_per_history_uses_ttm_net_income_and_nine_quarter_average():
     assert average == pytest.approx(10)
     assert count == 6  # 4개 분기가 완성된 2024.4Q부터
     assert premium == pytest.approx(25)
+
+
+def test_latest_annual_metrics_follow_snapshot_not_row_order():
+    rows = [
+        {
+            "source": "naver", "fiscal_year": 2026, "fiscal_quarter": 0,
+            "snapshot_at": "2026-09-10T00:00:00Z", "fwd_per": 8.2,
+            "roe_est": 14.0, "roe_next_est": 15.0, "roe_next_year": 2027,
+        },
+        {
+            "source": "naver", "fiscal_year": 2026, "fiscal_quarter": 0,
+            "snapshot_at": "2026-09-09T00:00:00Z", "fwd_per": 9.1,
+            "roe_est": 13.0, "roe_next_est": 14.0, "roe_next_year": 2027,
+        },
+    ]
+    assert _latest_annual_metrics(rows) == {
+        "fwd_per": 8.2, "roe_est": 14.0,
+        "roe_next_est": 15.0, "roe_next_year": 2027,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════

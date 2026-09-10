@@ -127,6 +127,9 @@ def test_sector_rules_are_exported():
     for row, (name, keywords) in zip(exported, SECTOR_RULES):
         assert row["keywords"] == list(keywords), f"{name} 키워드가 어긋났다"
     assert data["sector_unknown"] == UNKNOWN_SECTOR
+    themes = data["sector_etf_themes"]
+    assert set(themes) == {name for name, _ in SECTOR_RULES} | {UNKNOWN_SECTOR}
+    assert themes["반도체"] == "반도체"
 
 
 def _strip_ts_comments(source: str) -> str:

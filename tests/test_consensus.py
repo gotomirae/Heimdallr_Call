@@ -1,4 +1,4 @@
-# PRD Ref: §5.1(L3), §4.2(C축) · ADR 2 · traps.md T17, T30
+# PRD Ref: §5.1(L3), §4.2(C축) · ADR 2 · traps.md T17, T30, T145
 """P5 컨센서스 테스트. 합성 HTML로 돌아 외부 I/O가 없다."""
 
 from __future__ import annotations
@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from src.collectors.consensus import ConsensusSnapshot, fetch_annual_estimate, fetch_quarterly_estimates
+from src.collectors.consensus_run import _without_duplicate_periods
 
 
 class _FakeResponse:
@@ -99,7 +100,7 @@ def test_units_are_converted_from_eok_to_won(patched):
 
 
 def test_naver_annual_per_and_forward_per_are_parsed(patched):
-    """네이버 기업실적분석 표의 최근 확정 PER과 연간 (E) PER을 그대로 보존한다."""
+    """네이버 표의 최근 확정 PER과 올해 선행 PER·올해/내년 ROE를 보존한다."""
     annual = fetch_annual_estimate("005930")
     assert annual is not None
     assert annual["per"] == 6.40
@@ -169,6 +170,37 @@ def test_leading_blank_header_does_not_shift_columns(monkeypatch):
     assert len(snaps) == 1
     assert (snaps[0].fiscal_year, snaps[0].fiscal_quarter) == (2026, 2)
     assert snaps[0].revenue_est == 5_012 * 100_000_000  # 20,334억이 아니다
+
+
+def test_non_december_fiscal_year_annual_estimate_is_not_a_quarter(monkeypatch):
+    """9월 결산사 연간 2026.09(E)를 분기 2026.3Q로 중복 저장하지 않는다(T145)."""
+    header = [
+        "2023.09", "2024.09", "2025.09", "2026.09 (E)",
+        "2025.06", "2025.09", "2025.12", "2026.03", "2026.06", "2026.09 (E)",
+    ]
+    rows = {
+        "매출액": ["780", "811", "898", "1,403", "220", "237", "303", "345", "363", "398"],
+        "영업이익": ["-42", "6", "-259", "162", "0", "-270", "21", "44", "41", "57"],
+    }
+    monkeypatch.setattr(
+        "src.collectors.consensus.http_get",
+        lambda *a, **kw: _FakeResponse(_analysis_html(header, rows)),
+    )
+    snaps = fetch_quarterly_estimates("042520")
+    assert len(snaps) == 1
+    assert (snaps[0].fiscal_year, snaps[0].fiscal_quarter) == (2026, 3)
+    assert snaps[0].revenue_est == 398 * 100_000_000
+
+
+def test_duplicate_period_guard_drops_ambiguous_period_only():
+    rows = [
+        {"code": "042520", "fiscal_year": 2026, "fiscal_quarter": 3, "revenue_est": 1403},
+        {"code": "042520", "fiscal_year": 2026, "fiscal_quarter": 3, "revenue_est": 398},
+        {"code": "005930", "fiscal_year": 2026, "fiscal_quarter": 3, "revenue_est": 10},
+    ]
+    clean, duplicate_count = _without_duplicate_periods(rows)
+    assert duplicate_count == 1
+    assert clean == [rows[2]]
 
 
 def test_missing_section_returns_empty(monkeypatch):

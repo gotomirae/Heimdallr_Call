@@ -32,6 +32,10 @@ export interface DiscoveryRow {
   name: string;
   board: string | null;
   sector: string;
+  /** ETF와 비교 가능한 넓은 투자 테마. */
+  sectorTheme: string;
+  /** 분류 근거: 주요제품 우선, 없으면 ETF 유사 테마. */
+  sectorBasis: "주요제품" | "ETF 유사 테마" | "미분류";
   industry: string | null;
   marketCap: number | null;
   quarter: string;
@@ -48,18 +52,24 @@ export interface DiscoveryRow {
   failReasons: string[];
   /** 평가 분기의 매출 성장률(%). */
   revenueYoy: number | null;
+  /** 평가 분기의 매출 QoQ(%). */
+  revenueQoq: number | null;
   /** 평가 분기의 영업이익 성장률(%). 정렬 3순위이자 이 표의 주인공이다. */
   opYoy: number | null;
+  /** 평가 분기의 영업이익 QoQ(%). */
+  opQoq: number | null;
   /** 부호 전환 라벨('흑전'·'적전'…). opYoy가 null일 때 대신 보여준다(T25). */
   opStatusLabel: string | null;
   /** 영업이익률 YoY 변화(%p) — G4가 보는 값이다. */
   opmYoyDelta: number | null;
   /** 현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익. */
   per4q: number | null;
-  /** 네이버/FnGuide 올해 예상 EPS 기준 PER. */
+  /** 네이버증권 올해 예상 순이익 기준 선행 PER. */
   forwardPer: number | null;
-  /** 네이버/FnGuide 올해 예상 ROE. */
+  /** 네이버증권 올해 예상 ROE. */
   roe: number | null;
+  /** 네이버증권 내년도 예상 ROE(F.ROE). */
+  forwardRoe: number | null;
   /** 최근 5거래일 상승률(%). */
   ret5d: number | null;
   /** 발표일 기준 초과수익(%p). 키는 Horizon. */
@@ -70,13 +80,16 @@ export interface DiscoveryRow {
 const SORT_LABEL: Partial<Record<SortKey, string>> = {
   score: "스코어",
   revenueYoy: "매출 YoY",
-  opYoy: "영업익 YoY",
+  revenueQoq: "매출 QoQ",
+  opYoy: "영업이익 YoY",
+  opQoq: "영업이익 QoQ",
   opmYoyDelta: "OPM YoY",
   pri: "주가 반영도",
   marketCap: "시총",
   per4q: "최근 4Q PER",
   forwardPer: "F.PER",
   roe: "ROE",
+  forwardRoe: "F.ROE",
   ret5d: "최근 5일",
   ...Object.fromEntries(
     HORIZONS.map((d) => [
@@ -86,7 +99,7 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
   ),
 };
 
-/** 기본 정렬 — 최신 분기 → 스코어 → 영업익 YoY → 시총. 결측은 맨 뒤. */
+/** 기본 정렬 — 최신 분기 → 스코어 → 영업이익 YoY → 시총. 결측은 맨 뒤. */
 function byDefault(a: DiscoveryRow, b: DiscoveryRow): number {
   return (
     (b.quarterIndex - a.quarterIndex) ||
@@ -106,13 +119,16 @@ function sortValue(r: DiscoveryRow, key: SortKey): number | null {
   switch (key) {
     case "score": return r.score;
     case "revenueYoy": return r.revenueYoy;
+    case "revenueQoq": return r.revenueQoq;
     case "opYoy": return r.opYoy;
+    case "opQoq": return r.opQoq;
     case "opmYoyDelta": return r.opmYoyDelta;
     case "pri": return r.pri;
     case "marketCap": return r.marketCap;
     case "per4q": return r.per4q;
     case "forwardPer": return r.forwardPer;
     case "roe": return r.roe;
+    case "forwardRoe": return r.forwardRoe;
     case "ret5d": return r.ret5d;
     default: {
       // `d-5`·`d0`·`d5`… — 실적 발표일 기준 초과수익
@@ -503,18 +519,21 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1580px] text-sm">
+        <table className="w-full min-w-[1900px] text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
               <th colSpan={5} className="bg-slate-900 px-3 py-1.5 text-left">종목 정보</th>
-              <th colSpan={10} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
+              <th colSpan={13} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
               <th colSpan={showTracking ? HORIZONS.length : 1}
                   className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
                 {showTracking ? "분기실적 발표" : "분류 근거"}
               </th>
             </tr>
             <tr>
-              <th scope="col" className="px-3 py-2.5 text-left font-semibold">섹터</th>
+              <th scope="col" className="px-3 py-2.5 text-left font-semibold"
+                  title="주요 제품을 우선 분류하고, 제품 정보가 없을 때 ETF와 비교 가능한 투자 테마를 사용한다">
+                섹터
+              </th>
               <th scope="col" className="px-3 py-2.5 text-center font-semibold">관심</th>
               <th scope="col" className="px-3 py-2.5 text-left font-semibold">종목명</th>
               <th scope="col" className="px-3 py-2.5 text-center font-semibold">등급</th>
@@ -526,9 +545,15 @@ export default function DiscoveryTable({
               <SortableTh label="매출 YoY" sortKey="revenueYoy" {...sortState("revenueYoy")}
                           onSort={toggleSort}
                           title="평가 분기의 매출 성장률(전년 동기 대비) — G1이 보는 값" />
-              <SortableTh label="영업익 YoY" sortKey="opYoy" {...sortState("opYoy")}
+              <SortableTh label="매출 QoQ" sortKey="revenueQoq" {...sortState("revenueQoq")}
+                          onSort={toggleSort}
+                          title="평가 분기의 매출 성장률(직전 분기 대비)" />
+              <SortableTh label="영업이익 YoY" sortKey="opYoy" {...sortState("opYoy")}
                           onSort={toggleSort} tone="text-amber-200"
                           title="평가 분기의 영업이익 성장률(전년 동기 대비) — G2가 보는 값이자 기본 정렬 기준" />
+              <SortableTh label="영업이익 QoQ" sortKey="opQoq" {...sortState("opQoq")}
+                          onSort={toggleSort} tone="text-amber-200"
+                          title="평가 분기의 영업이익 성장률(직전 분기 대비)" />
               <SortableTh label="OPM YoY" sortKey="opmYoyDelta" {...sortState("opmYoyDelta")}
                           onSort={toggleSort}
                           title="영업이익률의 전년 동기 대비 변화(%p) — G4가 보는 값" />
@@ -540,9 +565,11 @@ export default function DiscoveryTable({
               <SortableTh label="최근 4Q PER" sortKey="per4q" {...sortState("per4q")}
                           onSort={toggleSort} title="현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익" />
               <SortableTh label="F.PER" sortKey="forwardPer" {...sortState("forwardPer")}
-                          onSort={toggleSort} title="네이버/FnGuide 올해 예상 EPS 기준 선행 PER" />
+                          onSort={toggleSort} title="네이버증권 올해 예상 순이익 기준 선행 PER" />
               <SortableTh label="ROE" sortKey="roe" {...sortState("roe")}
-                          onSort={toggleSort} title="네이버/FnGuide 올해 예상 ROE" />
+                          onSort={toggleSort} title="네이버증권 올해 예상 ROE" />
+              <SortableTh label="F.ROE" sortKey="forwardRoe" {...sortState("forwardRoe")}
+                          onSort={toggleSort} title="네이버증권 내년도 예상 ROE" />
               <SortableTh label="최근 5일" sortKey="ret5d" {...sortState("ret5d")}
                           onSort={toggleSort}
                           title="최근 5거래일 주가 상승률" />
@@ -567,7 +594,10 @@ export default function DiscoveryTable({
               <tr key={r.code} className="border-t border-slate-800 hover:bg-slate-900/60">
                 <td className="whitespace-nowrap px-3 py-2 text-slate-200"
                     title={r.industry ?? undefined}>
-                  {r.sector}
+                  <div>{r.sector}</div>
+                  <div className="text-[10px] font-normal tracking-normal text-slate-400">
+                    ETF 테마 {r.sectorTheme} · {r.sectorBasis}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-center">
                   <button
@@ -604,8 +634,14 @@ export default function DiscoveryTable({
                 <td className={`px-3 py-2 text-right tabular-nums ${tone(r.revenueYoy)}`}>
                   {fmtPct(r.revenueYoy)}
                 </td>
+                <td className={`px-3 py-2 text-right tabular-nums ${tone(r.revenueQoq)}`}>
+                  {fmtPct(r.revenueQoq)}
+                </td>
                 <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${tone(r.opYoy)}`}>
                   {growthCell(r.opYoy, r.opStatusLabel)}
+                </td>
+                <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${tone(r.opQoq)}`}>
+                  {fmtPct(r.opQoq)}
                 </td>
                 <td className={`px-3 py-2 text-right tabular-nums ${tone(r.opmYoyDelta)}`}>
                   {r.opmYoyDelta == null
@@ -622,6 +658,9 @@ export default function DiscoveryTable({
                 </td>
                 <td className={`px-3 py-2 text-right tabular-nums ${tone(r.roe)}`}>
                   {fmtPct(r.roe)}
+                </td>
+                <td className={`px-3 py-2 text-right tabular-nums ${tone(r.forwardRoe)}`}>
+                  {fmtPct(r.forwardRoe)}
                 </td>
                 <td className={`px-3 py-2 text-right tabular-nums ${tone(r.ret5d)}`}>
                   {fmtPct(r.ret5d)}

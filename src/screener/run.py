@@ -35,7 +35,9 @@ FUND_COLUMNS = (
 UNI_COLUMNS = "code,name,board,industry,is_excluded,exclude_reason,sector_caveat,listed_at,market_cap_krw"
 PRICE_COLUMNS = (
     "code,snap_date,close,high_52w,low_52w,high_52w_drawdown_pct,"
-    "announcement_return_pct,per_vs_9q_avg_pct,foreign_net_ratio_5d,rsi_14,"
+    "announcement_return_pct,announcement_excess_return_pct,"
+    "per_vs_9q_avg_pct,earnings_revision_pct,earnings_revision_price_gap_pct,"
+    "valuation_reflection_pct,relative_return_pct,foreign_net_ratio_5d,rsi_14,"
     "per,pbr,avg_value_20d"
 )
 CONSENSUS_COLUMNS = (
@@ -79,6 +81,21 @@ def build_pri_input(price: dict | None) -> PriInput:
     """
     if not price:
         return PriInput()
+    # P6에서 생성한 PRI 2.0 입력이 하나라도 있으면 새 4축을 사용한다.
+    # 아직 마이그레이션 전인 과거 행은 아래 legacy 입력으로 안전하게 읽는다.
+    new = PriInput(
+        announcement_excess_return_pct=_f(price, "announcement_excess_return_pct"),
+        earnings_revision_price_gap_pct=_f(price, "earnings_revision_price_gap_pct"),
+        valuation_reflection_pct=_f(price, "valuation_reflection_pct"),
+        relative_return_pct=_f(price, "relative_return_pct"),
+    )
+    if any(value is not None for value in (
+        new.announcement_excess_return_pct,
+        new.earnings_revision_price_gap_pct,
+        new.valuation_reflection_pct,
+        new.relative_return_pct,
+    )):
+        return new
     return PriInput(
         high_52w_drawdown_pct=_f(price, "high_52w_drawdown_pct"),
         announcement_return_pct=_f(price, "announcement_return_pct"),
@@ -270,7 +287,8 @@ def target_index(series: dict, fixed: int | None, ceiling: int | None = None) ->
 def run(fixed: int | None, save: bool) -> int:
     by_code, universe, prices, consensus = load()
     print(f"시세 스냅샷 {len(prices)}종목 로드 · "
-          f"상대수익률 측정 {sum(1 for p in prices.values() if p.get('rel_ret_3m') is not None)}")
+          f"PRI 중기 상대수익률 측정 "
+          f"{sum(1 for p in prices.values() if p.get('relative_return_pct') is not None)}")
     print(f"컨센서스 {len(consensus)}건 로드 · "
           f"추정기관 2곳 이상 {sum(1 for c in consensus.values() if (c.get('n_estimates') or 0) >= 2)}")
 

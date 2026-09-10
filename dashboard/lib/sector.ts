@@ -19,6 +19,8 @@ interface Rule {
 
 const RULES: Rule[] = (constants.sector_rules ?? []) as Rule[];
 export const UNKNOWN_SECTOR: string = constants.sector_unknown ?? "기타";
+const ETF_THEMES: Record<string, string> =
+  (constants.sector_etf_themes ?? {}) as Record<string, string>;
 
 /** 규칙별 제외어. 이 말이 있으면 그 규칙은 건너뛴다. */
 const EXCLUDES: Record<string, string[]> =
@@ -31,6 +33,14 @@ const INDUSTRY_ONLY = new Set<string>(
 
 /** 화면 필터에 쓸 전체 목록. 규칙 순서 + 기타. */
 export const ALL_SECTORS: string[] = [...RULES.map((r) => r.sector), UNKNOWN_SECTOR];
+
+export type SectorBasis = "주요제품" | "ETF 유사 테마" | "미분류";
+
+export interface SectorInfo {
+  sector: string;
+  etfTheme: string;
+  basis: SectorBasis;
+}
 
 function haystack(...parts: (string | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").toLowerCase();
@@ -94,13 +104,53 @@ export function classifySector(
 }
 
 /**
+ * 발굴 목록에 표시할 투자 섹터 정보.
+ *
+ * 주요 제품이 있으면 제품을 최우선으로 삼고, 제품으로 식별되지 않을 때만
+ * KRX 업종을 ETF와 비교 가능한 넓은 테마로 사용한다. ETF 상품명 자체는
+ * 운용사별로 바뀌므로 상품 코드를 저장하지 않는다.
+ */
+export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
+  if (!u) return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류" };
+  if (u.sector) {
+    const productSector = firstHit(haystack(u.products), false);
+    const industrySector = firstHit(haystack(u.industry), true);
+    const basis: SectorBasis = productSector === u.sector
+      ? "주요제품"
+      : industrySector === u.sector
+        ? "ETF 유사 테마"
+        : "주요제품";
+    return {
+      sector: u.sector,
+      etfTheme: ETF_THEMES[u.sector] ?? u.sector,
+      basis,
+    };
+  }
+  const productSector = firstHit(haystack(u.products), false);
+  if (productSector) {
+    return {
+      sector: productSector,
+      etfTheme: ETF_THEMES[productSector] ?? productSector,
+      basis: "주요제품",
+    };
+  }
+  const industrySector = firstHit(haystack(u.industry), true);
+  if (industrySector) {
+    return {
+      sector: industrySector,
+      etfTheme: ETF_THEMES[industrySector] ?? industrySector,
+      basis: "ETF 유사 테마",
+    };
+  }
+  return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류" };
+}
+
+/**
  * 종목의 섹터. DB 컬럼이 있으면 그것을, 없으면 읽는 시점에 분류한다.
  *
  * ★ KRX 업종명으로 떨어지지 **않는다.** 그 이름은 투자 판단에 쓸 수 없고,
  *   화면에 그대로 나오면 섹터 열이 있으나 마나가 된다(사용자 지적).
  */
 export function sectorOf(u: UniverseRow | undefined): string {
-  if (!u) return UNKNOWN_SECTOR;
-  if (u.sector) return u.sector;
-  return classifySector(u.industry, u.products, u.name);
+  return sectorInfoOf(u).sector;
 }
