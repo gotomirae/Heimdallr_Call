@@ -200,12 +200,13 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "기업 매력도" not in DISCOVERY
     assert "원본" not in DISCOVERY
     assert 'const state = !active ? "기본"' in DISCOVERY
-    assert "등급(★→○→△→·→✕)" in DISCOVERY
+    assert "등급 → 섹터 기회" in (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
-    for offset in ('left-0', 'left-[112px]', 'left-[156px]', 'left-[268px]', 'left-[316px]'):
+    for offset in ('left-0', 'left-[112px]', 'left-[156px]'):
         assert offset in DISCOVERY
-    assert "w-[386px]" in DISCOVERY and "종목 정보" in DISCOVERY
+    assert 'sticky left-[268px]' not in DISCOVERY and 'sticky left-[316px]' not in DISCOVERY
+    assert "w-[268px]" in DISCOVERY and "종목 정보" in DISCOVERY
     assert "sectorProcess: sectorInfo.process" in page
     assert '<sup className="ml-1' in DISCOVERY
     assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
@@ -213,12 +214,17 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
 
 def test_discovery_refreshes_official_macro_context_without_news_scoring():
     macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
+    filters = (ROOT / "dashboard/lib/discoveryFilters.ts").read_text(encoding="utf-8")
     page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
     assert "www.bok.or.kr" in macro and "공식 RSS" in macro
     assert "revalidate: 6 * 60 * 60" in macro
     assert "뉴스 제목의 출현 횟수를 점수로 만들지는 않는다" in macro
     assert "getMacroContext()" in page
     assert "현재 추천 정렬 · 매 갱신 자동 계산" in DISCOVERY
+    assert "macroContext.summary.current" in DISCOVERY
+    assert "macroContext.summary.forward" in DISCOVERY
+    assert "cyclePrimarySort(sorts, key)" in DISCOVERY
+    assert "return [{ key, dir: \"desc\" }, ...rest]" in filters
 
 
 def test_only_growth_acceleration_renders_llm_and_links_are_exact():

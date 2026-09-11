@@ -20,7 +20,7 @@ export type ConsensusFilter = "all" | "yes" | "no";
  * 사용자가 머리글을 눌러 정렬할 수 있는 열.
  *
  * ★ `"default"`는 **"아무것도 안 눌렀다"**는 뜻이지 특정 열이 아니다.
- *   기본 정렬(최신 분기 → 스코어 → 영업이익 YoY → 시총)은 여러 열을 순서대로 보므로
+ *   기본 정렬(최신 분기 → 등급 → 동적 섹터 → 현재 매크로 추천축)은 여러 열을 순서대로 보므로
  *   단일 열로 표현할 수 없다. 눌러서 되돌아올 자리를 남기려면 별도 값이어야 한다.
  * ★ `d-5`/`d0`/`d5`…는 실적 발표일 기준 초과수익(`HORIZONS`)이다.
  */
@@ -45,6 +45,24 @@ export type SortDir = "asc" | "desc";
 export interface SortRule {
   key: Exclude<SortKey, "default">;
   dir: SortDir;
+}
+
+/**
+ * 클릭한 열을 항상 1순위로 올린다.
+ *
+ * 예전에는 새 열을 체인의 맨 뒤에 붙여, 앞선 정렬값이 다른 대부분의 행에서는
+ * 방금 누른 오름·내림이 전혀 보이지 않았다. 기존 열은 동률 해소용으로 보존하되
+ * 사용자가 누른 열이 즉시 전체 목록의 주 정렬이 되어야 한다.
+ */
+export function cyclePrimarySort(
+  sorts: SortRule[],
+  key: Exclude<SortKey, "default">
+): SortRule[] {
+  const current = sorts.find((rule) => rule.key === key);
+  const rest = sorts.filter((rule) => rule.key !== key);
+  if (!current) return [{ key, dir: "desc" }, ...rest];
+  if (current.dir === "desc") return [{ key, dir: "asc" }, ...rest];
+  return rest;
 }
 
 /** 발굴 목록의 화면 상태 전부. 여기 없는 값은 저장되지도 복원되지도 않는다. */
