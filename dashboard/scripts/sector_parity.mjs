@@ -26,11 +26,11 @@ const source = readFileSync(join(libDir, "sector.ts"), "utf8").replace(
 const shim = join(libDir, `.sector-parity-${process.pid}.ts`);
 writeFileSync(shim, source, "utf8");
 
-let classifySector;
+let classifySector, classifySemiconductorProcess;
 try {
   const createJiti = jitiPkg.createJiti ?? jitiPkg;
   const jiti = createJiti(fileURLToPath(import.meta.url), { interopDefault: true });
-  ({ classifySector } = jiti(shim));
+  ({ classifySector, classifySemiconductorProcess } = jiti(shim));
 } finally {
   rmSync(shim, { force: true });
 }
@@ -44,5 +44,11 @@ const input = await new Promise((done) => {
 
 const cases = JSON.parse(input);
 process.stdout.write(
-  JSON.stringify(cases.map(([industry, products]) => classifySector(industry, products)))
+  JSON.stringify(cases.map(([industry, products]) => {
+    const sector = classifySector(industry, products);
+    return {
+      sector,
+      process: classifySemiconductorProcess(industry, products, sector),
+    };
+  }))
 );

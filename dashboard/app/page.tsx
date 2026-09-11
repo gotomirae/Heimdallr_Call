@@ -90,6 +90,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       board: u?.board ?? null,
       // ★ DB 컬럼이 없어도 industry·products로 즉시 분류한다(DDL 불필요).
       sector: sectorInfo.sector,
+      sectorProcess: sectorInfo.process,
       sectorTheme: sectorInfo.etfTheme,
       sectorBasis: sectorInfo.basis,
       industry: u?.industry ?? null,

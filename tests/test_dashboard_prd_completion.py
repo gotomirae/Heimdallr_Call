@@ -195,6 +195,7 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
 
 
 def test_discovery_defaults_to_current_investment_value_and_freezes_identity_columns():
+    page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
     assert 'label="투자 매력도"' in DISCOVERY
     assert "기업 매력도" not in DISCOVERY
     assert "원본" not in DISCOVERY
@@ -205,6 +206,9 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     for offset in ('left-0', 'left-[112px]', 'left-[156px]', 'left-[268px]', 'left-[316px]'):
         assert offset in DISCOVERY
     assert "w-[386px]" in DISCOVERY and "종목 정보" in DISCOVERY
+    assert "sectorProcess: sectorInfo.process" in page
+    assert '<sup className="ml-1' in DISCOVERY
+    assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
 
 
 def test_discovery_refreshes_official_macro_context_without_news_scoring():

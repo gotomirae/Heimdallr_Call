@@ -36,6 +36,12 @@ const SEMICONDUCTOR_EQUIPMENT_STANDALONE: string[] =
   (constants.semiconductor_equipment_standalone ?? []) as string[];
 const SEMICONDUCTOR_SPECIFIC_ORDER: string[] =
   (constants.semiconductor_specific_order ?? []) as string[];
+const SEMICONDUCTOR_FRONT_PROCESS_KEYWORDS: string[] =
+  (constants.semiconductor_front_process_keywords ?? []) as string[];
+const SEMICONDUCTOR_BACK_PROCESS_KEYWORDS: string[] =
+  (constants.semiconductor_back_process_keywords ?? []) as string[];
+const SEMICONDUCTOR_BACK_PROCESS_OVERRIDES: string[] =
+  (constants.semiconductor_back_process_overrides ?? []) as string[];
 const SEMICONDUCTOR_SECTORS = new Set([...SEMICONDUCTOR_SPECIFIC_ORDER, "반도체 IDM"]);
 
 /** 화면 필터에 쓸 전체 목록. 규칙 순서 + 기타. */
@@ -47,6 +53,7 @@ export interface SectorInfo {
   sector: string;
   etfTheme: string;
   basis: SectorBasis;
+  process: "전" | "후" | null;
 }
 
 function haystack(...parts: (string | null | undefined)[]): string {
@@ -67,11 +74,15 @@ function semiconductorHit(text: string, allowIndustryWords: boolean): string | n
     .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
   const contextPositions = SEMICONDUCTOR_CONTEXT
     .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
+  const specificPositions = SEMICONDUCTOR_SPECIFIC_ORDER.flatMap((sector) =>
+    (rulesBySector.get(sector) ?? [])
+      .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0)
+  );
   const standaloneEquipment = SEMICONDUCTOR_EQUIPMENT_STANDALONE
     .some((keyword) => text.includes(keyword));
   if (contextPositions.length === 0 && !standaloneEquipment) return null;
 
-  const anchor = Math.min(...equipmentPositions, ...contextPositions);
+  const anchor = Math.min(...specificPositions, ...contextPositions);
   const competitorPositions: number[] = [];
   for (const rule of RULES) {
     if (SEMICONDUCTOR_SECTORS.has(rule.sector)) continue;
@@ -83,11 +94,47 @@ function semiconductorHit(text: string, allowIndustryWords: boolean): string | n
     }
   }
   if (competitorPositions.length > 0 && Math.min(...competitorPositions) < anchor) return null;
-  for (const sector of ["반도체 소재", "반도체 부품"]) {
+  for (const sector of ["반도체 DSP", "반도체 소재"]) {
     if ((rulesBySector.get(sector) ?? []).some((keyword) => text.includes(keyword))) return sector;
   }
+  const partsHit = (rulesBySector.get("반도체 부품") ?? [])
+    .some((keyword) => text.includes(keyword));
+  if (partsHit && !text.includes("부착장비")) return "반도체 부품";
   if (equipmentPositions.length > 0) return equipment;
+  if ((rulesBySector.get("반도체 OSAT") ?? []).some((keyword) => text.includes(keyword))) {
+    return "반도체 OSAT";
+  }
   return "반도체 IDM";
+}
+
+/** 소재·부품·장비의 사용 공정을 표시한다. IDM·DSP는 단일 공정으로 추정하지 않는다. */
+export function classifySemiconductorProcess(
+  industry: string | null | undefined,
+  products: string | null | undefined,
+  sector?: string | null
+): "전" | "후" | null {
+  const resolved = sector ?? classifySector(industry, products);
+  if (resolved === "반도체 OSAT") return "후";
+  if (resolved === "반도체 IDM" || resolved === "반도체 DSP" || !resolved.startsWith("반도체")) {
+    return null;
+  }
+  const text = haystack(products, industry);
+  const explicitFront = text.indexOf("전공정");
+  const explicitBack = text.indexOf("후공정");
+  if (explicitFront >= 0 || explicitBack >= 0) {
+    if (explicitFront < 0) return "후";
+    if (explicitBack < 0) return "전";
+    return explicitFront < explicitBack ? "전" : "후";
+  }
+  if (SEMICONDUCTOR_BACK_PROCESS_OVERRIDES.some((keyword) => text.includes(keyword))) return "후";
+  const front = SEMICONDUCTOR_FRONT_PROCESS_KEYWORDS
+    .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
+  const back = SEMICONDUCTOR_BACK_PROCESS_KEYWORDS
+    .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
+  if (front.length === 0 && back.length === 0) return null;
+  if (front.length === 0) return "후";
+  if (back.length === 0) return "전";
+  return Math.min(...front) < Math.min(...back) ? "전" : "후";
 }
 
 function firstHit(text: string, allowIndustryWords: boolean): string | null {
@@ -151,7 +198,7 @@ export function classifySector(
  * 운용사별로 바뀌므로 상품 코드를 저장하지 않는다.
  */
 export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
-  if (!u) return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류" };
+  if (!u) return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류", process: null };
   if (u.sector) {
     const productSector = firstHit(haystack(u.products), false);
     const industrySector = firstHit(haystack(u.industry), true);
@@ -164,6 +211,7 @@ export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
       sector: u.sector,
       etfTheme: ETF_THEMES[u.sector] ?? u.sector,
       basis,
+      process: classifySemiconductorProcess(u.industry, u.products, u.sector),
     };
   }
   const productSector = firstHit(haystack(u.products), false);
@@ -172,6 +220,7 @@ export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
       sector: productSector,
       etfTheme: ETF_THEMES[productSector] ?? productSector,
       basis: "주요제품",
+      process: classifySemiconductorProcess(u.industry, u.products, productSector),
     };
   }
   const industrySector = firstHit(haystack(u.industry), true);
@@ -180,9 +229,10 @@ export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
       sector: industrySector,
       etfTheme: ETF_THEMES[industrySector] ?? industrySector,
       basis: "ETF 유사 테마",
+      process: classifySemiconductorProcess(u.industry, u.products, industrySector),
     };
   }
-  return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류" };
+  return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류", process: null };
 }
 
 /**

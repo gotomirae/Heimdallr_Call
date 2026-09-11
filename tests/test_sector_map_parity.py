@@ -21,14 +21,14 @@ from pathlib import Path
 
 import pytest
 
-from src.universe.sector_map import classify_sector
+from src.universe.sector_map import classify_sector, classify_semiconductor_process
 from tests.sector_labels import LABELED_CASES
 
 DASHBOARD = Path(__file__).resolve().parents[1] / "dashboard"
 SCRIPT = DASHBOARD / "scripts" / "sector_parity.mjs"
 
 
-def _run_typescript(cases: list[tuple[str | None, str | None]]) -> list[str]:
+def _run_typescript(cases: list[tuple[str | None, str | None]]) -> list[dict[str, str | None]]:
     payload = json.dumps([[i, p] for i, p in cases], ensure_ascii=False)
     proc = subprocess.run(
         [shutil.which("node") or "node", str(SCRIPT)],
@@ -55,10 +55,13 @@ pytestmark = pytest.mark.skipif(
 def test_typescript_matches_python_on_labeled_cases():
     cases = [(industry, products) for _, industry, products, _ in LABELED_CASES]
     ts_results = _run_typescript(cases)
-    py_results = [
-        classify_sector(name, industry, products)
-        for name, industry, products, _ in LABELED_CASES
-    ]
+    py_results = []
+    for name, industry, products, _ in LABELED_CASES:
+        sector = classify_sector(name, industry, products)
+        py_results.append({
+            "sector": sector,
+            "process": classify_semiconductor_process(industry, products, sector),
+        })
 
     assert len(ts_results) == len(py_results)
     mismatched = [
@@ -77,6 +80,9 @@ def test_parity_harness_actually_detects_a_mismatch():
     대조기가 조용히 무력화되면(예: 빈 배열만 돌려주면) 위 테스트는 영원히 통과한다.
     """
     ts_results = _run_typescript([(None, "반도체 후공정장비"), (None, "협동로봇")])
-    assert ts_results == ["반도체 장비", "기계·로봇"], (
+    assert ts_results == [
+        {"sector": "반도체 장비", "process": "후"},
+        {"sector": "기계·로봇", "process": None},
+    ], (
         f"대조기가 엉뚱한 값을 준다 — 이 상태의 통과는 의미가 없다: {ts_results}"
     )

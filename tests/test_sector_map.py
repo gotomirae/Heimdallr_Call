@@ -15,6 +15,7 @@ from src.universe.sector_map import (
     SECTOR_EXCLUDES,
     SECTOR_RULES,
     UNKNOWN_SECTOR,
+    classify_semiconductor_process,
     classify_sector,
 )
 from tests.sector_labels import LABELED_CASES
@@ -81,10 +82,11 @@ def test_all_sectors_includes_unknown_and_is_unique():
     assert len(ALL_SECTORS) == len(set(ALL_SECTORS)), "섹터명이 중복됐다"
 
 
-def test_semiconductor_uses_exactly_four_investment_cycles():
+def test_semiconductor_uses_exactly_six_investment_cycles():
     semiconductor = {sector for sector in ALL_SECTORS if sector.startswith("반도체")}
     assert semiconductor == {
         "반도체 IDM", "반도체 소재", "반도체 부품", "반도체 장비",
+        "반도체 DSP", "반도체 OSAT",
     }
     assert "반도체" not in ALL_SECTORS and "반도체장비" not in ALL_SECTORS
 
@@ -95,7 +97,23 @@ def test_semiconductor_specific_evidence_beats_generic_word():
     assert classify_sector(None, None, "반도체 검사용 소켓") == "반도체 부품"
     assert classify_sector(None, None, "반도체 장비용 소모성 부품") == "반도체 부품"
     assert classify_sector(None, None, "반도체 Overlay 계측 장비") == "반도체 장비"
+    assert classify_sector(None, None, "반도체 설계 서비스") == "반도체 DSP"
+    assert classify_sector(None, None, "반도체 테스트 서비스") == "반도체 OSAT"
+    assert classify_sector(None, None, "반도체테스트핸들러") == "반도체 장비"
     assert classify_sector(None, "반도체 제조업", "반도체 제조") == "반도체 IDM"
+
+
+def test_semiconductor_process_marks_only_evidenced_front_or_back_end():
+    assert classify_semiconductor_process(None, "고압 수소 어닐링 장비", "반도체 장비") == "전"
+    assert classify_semiconductor_process(None, "반도체 후공정장비", "반도체 장비") == "후"
+    assert classify_semiconductor_process(None, "반도체 CMP Slurry", "반도체 소재") == "전"
+    assert classify_semiconductor_process(None, "반도체 테스트 소켓", "반도체 부품") == "후"
+    assert classify_semiconductor_process(None, "반도체 테스트 서비스", "반도체 OSAT") == "후"
+    assert classify_semiconductor_process(None, "메모리 웨이퍼 테스터", "반도체 장비") == "후"
+    assert classify_semiconductor_process(None, "반도체 전공정용 패턴결함 검사장비", "반도체 장비") == "전"
+    assert classify_semiconductor_process(None, "주문형 반도체", "반도체 DSP") is None
+    assert classify_semiconductor_process(None, "반도체 제조", "반도체 IDM") is None
+    assert classify_semiconductor_process(None, "반도체용 기타 부품", "반도체 부품") is None
 
 
 def test_every_result_is_a_declared_sector():

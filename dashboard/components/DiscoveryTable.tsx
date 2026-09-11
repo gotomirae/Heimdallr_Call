@@ -34,6 +34,8 @@ export interface DiscoveryRow {
   name: string;
   board: string | null;
   sector: string;
+  /** 반도체 전·후공정 표식. 근거가 없으면 추정하지 않는다. */
+  sectorProcess: "전" | "후" | null;
   /** ETF와 비교 가능한 넓은 투자 테마. */
   sectorTheme: string;
   /** 분류 근거: 주요제품 우선, 없으면 ETF 유사 테마. */
@@ -729,6 +731,12 @@ export default function DiscoveryTable({
                 <td className="sticky left-0 z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   {r.sector}
+                  {r.sectorProcess && (
+                    <sup className="ml-1 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
+                         title={`${r.sectorProcess}공정`}>
+                      {r.sectorProcess}
+                    </sup>
+                  )}
                 </td>
                 <td className="sticky left-[112px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
