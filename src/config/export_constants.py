@@ -23,6 +23,9 @@ from src.universe.sector_map import (
     SECTOR_EXCLUDES,
     SECTOR_ETF_THEMES,
     SECTOR_RULES,
+    SEMICONDUCTOR_CONTEXT,
+    SEMICONDUCTOR_EQUIPMENT_STANDALONE,
+    SEMICONDUCTOR_SPECIFIC_ORDER,
     UNKNOWN_SECTOR,
 )
 from src.utils.console import enable_utf8_stdout
@@ -36,6 +39,10 @@ def build() -> dict:
         "_generated_by": "python -m src.config.export_constants",
         "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
         "dashboard_refresh_seconds": constants.DASHBOARD_REFRESH_SECONDS,
+        "discovery_ranking": {
+            "sector_min_candidates": constants.DISCOVERY_SECTOR_MIN_CANDIDATES,
+            "sector_top_n": constants.DISCOVERY_SECTOR_TOP_N,
+        },
         # ★ 섹터 분류 규칙을 함께 내보낸다.
         #   대시보드가 `industry`·`products`로 **읽는 시점에** 분류하므로
         #   DB에 `sector` 컬럼이 없어도 투자 섹터명이 보인다.
@@ -48,6 +55,9 @@ def build() -> dict:
         #   옛 방식으로 분류해 **같은 종목이 화면과 DB에서 다른 섹터로 보인다.**
         "sector_excludes": {k: list(v) for k, v in SECTOR_EXCLUDES.items()},
         "sector_industry_only": sorted(INDUSTRY_ONLY_KEYWORDS),
+        "semiconductor_context": list(SEMICONDUCTOR_CONTEXT),
+        "semiconductor_equipment_standalone": list(SEMICONDUCTOR_EQUIPMENT_STANDALONE),
+        "semiconductor_specific_order": list(SEMICONDUCTOR_SPECIFIC_ORDER),
         "sector_unknown": UNKNOWN_SECTOR,
         "sector_etf_themes": dict(SECTOR_ETF_THEMES),
         "gate": {

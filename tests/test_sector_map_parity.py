@@ -77,6 +77,6 @@ def test_parity_harness_actually_detects_a_mismatch():
     대조기가 조용히 무력화되면(예: 빈 배열만 돌려주면) 위 테스트는 영원히 통과한다.
     """
     ts_results = _run_typescript([(None, "반도체 후공정장비"), (None, "협동로봇")])
-    assert ts_results == ["반도체장비", "기계·로봇"], (
+    assert ts_results == ["반도체 장비", "기계·로봇"], (
         f"대조기가 엉뚱한 값을 준다 — 이 상태의 통과는 의미가 없다: {ts_results}"
     )

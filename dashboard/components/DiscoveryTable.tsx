@@ -10,7 +10,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MultiSelect from "@/components/MultiSelect";
+import constants from "@/lib/constants.json";
 import { GRADE_COLOR, GRADE_MEANING, type Grade } from "@/lib/types";
+import type { MacroContext } from "@/lib/macroContext";
 import { HORIZONS, horizonLabel } from "@/lib/outcome";
 import type { GrowthCategory } from "@/lib/growthCategory";
 import {
@@ -78,7 +80,7 @@ export interface DiscoveryRow {
 
 /** 정렬 상태를 글로 알릴 때 쓰는 이름. 머리글 라벨과 **같은 말**이어야 한다. */
 const SORT_LABEL: Partial<Record<SortKey, string>> = {
-  score: "기업 매력도",
+  score: "투자 매력도",
   revenueYoy: "매출 YoY",
   revenueQoq: "매출 QoQ",
   opYoy: "영업이익 YoY",
@@ -99,11 +101,20 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
   ),
 };
 
-/** 기본 정렬 — 최신 분기 → 스코어 → 영업이익 YoY → 시총. 결측은 맨 뒤. */
-function byDefault(a: DiscoveryRow, b: DiscoveryRow): number {
+const GRADE_RANK = new Map<Grade, number>(["★", "○", "△", "·", "✕"].map((g, i) => [g as Grade, i]));
+
+/** 기본 정렬 — 가격과 기업 점수를 합산하지 않고 순서대로 비교한다(ADR 5). */
+function byDefault(
+  a: DiscoveryRow,
+  b: DiscoveryRow,
+  sectorRank: ReadonlyMap<string, number>
+): number {
   return (
     (b.quarterIndex - a.quarterIndex) ||
+    ((GRADE_RANK.get(a.grade as Grade) ?? 99) - (GRADE_RANK.get(b.grade as Grade) ?? 99)) ||
+    ((sectorRank.get(a.sector) ?? 99) - (sectorRank.get(b.sector) ?? 99)) ||
     ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
+    ((a.pri ?? Infinity) - (b.pri ?? Infinity)) ||
     ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
     ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
   );
@@ -159,7 +170,7 @@ function SortableTh({
   tone?: string;
 }) {
   const active = priority != null && dir != null;
-  const state = !active ? "원본" : dir === "desc" ? "내림" : "오름";
+  const state = !active ? "기본" : dir === "desc" ? "내림" : "오름";
   return (
     <th
       scope="col"
@@ -210,6 +221,70 @@ const CAP_LABEL: Record<CapFilter, string> = {
 
 const GRADE_ORDER: Grade[] = ["★", "○", "△", "·", "✕"];
 
+interface SectorPriority {
+  sector: string;
+  candidates: number;
+  attractive: number;
+  attractiveRate: number;
+  underreflectedRate: number;
+  positiveOpRate: number;
+  medianScore: number | null;
+  medianPri: number | null;
+  medianRet5d: number | null;
+}
+
+const RANKING_CONFIG = constants.discovery_ranking as {
+  sector_min_candidates: number;
+  sector_top_n: number;
+};
+const PRI_LOW = Number(constants.matrix.pri_low);
+
+function median(values: (number | null)[]): number | null {
+  const measured = values.filter((value): value is number => value != null).sort((a, b) => a - b);
+  if (measured.length === 0) return null;
+  const mid = Math.floor(measured.length / 2);
+  return measured.length % 2 ? measured[mid] : (measured[mid - 1] + measured[mid]) / 2;
+}
+
+/** 최신 행의 실적·가격에서 매번 다시 만드는 섹터 우선순위. 외부 뉴스 빈도는 점수화하지 않는다. */
+function buildSectorPriorities(rows: DiscoveryRow[]): SectorPriority[] {
+  const buckets = new Map<string, DiscoveryRow[]>();
+  for (const row of rows) {
+    if (row.gatePassed !== true || row.sector === "기타") continue;
+    const bucket = buckets.get(row.sector) ?? [];
+    bucket.push(row);
+    buckets.set(row.sector, bucket);
+  }
+  return [...buckets.entries()]
+    .filter(([, members]) => members.length >= RANKING_CONFIG.sector_min_candidates)
+    .map(([sector, members]) => {
+      const attractive = members.filter((row) => row.grade === "★" || row.grade === "○").length;
+      const measuredPri = members.filter((row) => row.pri != null);
+      const measuredOp = members.filter((row) => row.opYoy != null);
+      return {
+        sector,
+        candidates: members.length,
+        attractive,
+        attractiveRate: attractive / members.length,
+        underreflectedRate: measuredPri.length === 0 ? 0
+          : measuredPri.filter((row) => (row.pri as number) <= PRI_LOW).length / measuredPri.length,
+        positiveOpRate: measuredOp.length === 0 ? 0
+          : measuredOp.filter((row) => (row.opYoy as number) > 0).length / measuredOp.length,
+        medianScore: median(members.map((row) => row.score)),
+        medianPri: median(members.map((row) => row.pri)),
+        medianRet5d: median(members.map((row) => row.ret5d)),
+      };
+    })
+    .filter((row) => row.attractive > 0)
+    .sort((a, b) =>
+      (b.attractiveRate - a.attractiveRate) ||
+      (b.underreflectedRate - a.underreflectedRate) ||
+      ((b.medianScore ?? -Infinity) - (a.medianScore ?? -Infinity)) ||
+      (b.positiveOpRate - a.positiveOpRate) ||
+      (b.attractive - a.attractive)
+    );
+}
+
 function fmtCap(v: number | null): string {
   if (v == null) return "—";
   return v >= 1e12 ? `${(v / 1e12).toFixed(1)}조` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억`;
@@ -257,9 +332,13 @@ function loadFavorites(): string[] {
 export default function DiscoveryTable({
   rows,
   favoriteOnly = false,
+  dataAsOf,
+  macroContext,
 }: {
   rows: DiscoveryRow[];
   favoriteOnly?: boolean;
+  dataAsOf: string | null;
+  macroContext: MacroContext;
 }) {
   // ★ 첫 렌더는 **반드시 기본값**이어야 한다. sessionStorage를 렌더 중에 읽으면
   //   서버가 그린 HTML과 달라져 하이드레이션이 깨진다(화면이 통째로 다시 그려진다).
@@ -321,7 +400,7 @@ export default function DiscoveryTable({
 
   /**
    * 머리글 클릭. 선택한 순서가 1·2·3차 정렬 순서다. 같은 열은
-   * 원본 → 내림 → 오름 → 원본으로 순환한다.
+   * 기본 → 내림 → 오름 → 기본으로 순환한다.
    *
    * ★ 새 열을 처음 누르면 **내림차순**이다. 이 표에서 궁금한 것은 거의 언제나
    *   "가장 높은 종목"이므로, 오름차순으로 시작하면 매번 두 번씩 눌러야 한다.
@@ -363,6 +442,11 @@ export default function DiscoveryTable({
   const quarters = useMemo(
     () => [...new Set(rows.map((r) => r.quarter))].sort().reverse(),
     [rows]
+  );
+  const sectorPriorities = useMemo(() => buildSectorPriorities(rows), [rows]);
+  const sectorRank = useMemo(
+    () => new Map(sectorPriorities.map((row, index) => [row.sector, index])),
+    [sectorPriorities]
   );
 
   const filtered = useMemo(() => {
@@ -409,9 +493,9 @@ export default function DiscoveryTable({
           const diff = rule.dir === "asc" ? av - bv : bv - av;
           if (diff) return diff;
         }
-        return byDefault(a, b);
+        return byDefault(a, b, sectorRank);
       });
-  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts]);
+  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts, sectorRank]);
 
   const shown = filtered.slice(0, MAX_ROWS);
   const select =
@@ -485,6 +569,52 @@ export default function DiscoveryTable({
         )}
       </div>
 
+      {!favoriteOnly && (
+        <div className="rounded-lg border border-sky-800/70 bg-sky-950/30 px-3 py-2.5 text-sm text-slate-100">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <strong className="text-sky-200">현재 추천 정렬 · 매 갱신 자동 계산</strong>
+            <span className="text-xs text-slate-300">시장·실적 기준 {dataAsOf ?? "기준일 미측정"}</span>
+          </div>
+          <p className="mt-1">
+            최신 분기 → <strong className="text-amber-300">등급(★→○→△→·→✕)</strong> →
+            섹터 기회 순위 → <strong className="text-white">투자 매력도 높은 순</strong> →
+            <strong className="text-emerald-300">주가 반영도 낮은 순</strong> → 영업이익 YoY 순이다.
+            점수와 가격은 합산하지 않고 차례로 비교한다.
+          </p>
+          {sectorPriorities.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+              {sectorPriorities.slice(0, RANKING_CONFIG.sector_top_n).map((sector, index) => (
+                <span key={sector.sector} className="rounded border border-slate-700 bg-slate-950/70 px-2 py-1">
+                  <strong className="text-sky-200">{index + 1}. {sector.sector}</strong>
+                  {" · ★/○ "}{sector.attractive}/{sector.candidates}
+                  {" · 점수 "}{fmtNum(sector.medianScore)}
+                  {" · PRI "}{fmtNum(sector.medianPri)}
+                  {" · 5일 "}{fmtPct(sector.medianRet5d)}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="mt-1.5 text-xs text-slate-300">
+            {macroContext.items.length > 0 ? (
+              <>
+                공식 매크로 확인: {macroContext.items.map((item, index) => (
+                  <span key={`${item.url}-${index}`}>
+                    {index > 0 && " · "}
+                    <a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline">
+                      {item.title}
+                    </a>
+                  </span>
+                ))}. {macroContext.flags.rates && "금리·물가 국면은 F.PER·ROE·FCF를 우선 확인한다. "}
+                {macroContext.flags.industry && "산업·수출 신호는 섹터의 ★/○ 비중과 실제 이익 가속으로 확인한다. "}
+                {macroContext.flags.geopolitics && "지정학·통상 위험은 PRI와 최근 과열을 함께 확인한다."}
+              </>
+            ) : (
+              "공식 매크로 원문을 불러오지 못했다. 이 경우 뉴스는 추정하지 않고 최신 실적·가격 정렬만 적용한다."
+            )}
+          </div>
+        </div>
+      )}
+
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
         <span className="text-slate-300">
@@ -496,7 +626,7 @@ export default function DiscoveryTable({
             스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
         <span className="ml-2 text-xs text-slate-300">
           {sorts.length === 0 ? (
-            "원본 순서: 최신 분기 → 스코어 → 영업이익 YoY → 시총"
+            "기본 순서: 최신 분기 → 등급 → 섹터 기회 → 투자 매력도 → 주가 반영도 → 영업이익 YoY"
           ) : (
             <>
               다중 정렬: {sorts.map((rule, index) => (
@@ -510,7 +640,7 @@ export default function DiscoveryTable({
               <button type="button"
                       onClick={() => patch({ sorts: [] })}
                       className="ml-2 underline hover:text-white">
-                원본으로
+                기본으로
               </button>
             </>
           )}
@@ -519,10 +649,13 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1900px] text-sm">
+        <table className="w-full min-w-[1840px] border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
-              <th colSpan={5} className="bg-slate-900 px-3 py-1.5 text-left">종목 정보</th>
+              <th colSpan={5}
+                  className="sticky left-0 z-40 w-[386px] min-w-[386px] max-w-[386px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
+                종목 정보
+              </th>
               <th colSpan={13} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
               <th colSpan={showTracking ? HORIZONS.length : 1}
                   className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
@@ -530,17 +663,17 @@ export default function DiscoveryTable({
               </th>
             </tr>
             <tr>
-              <th scope="col" className="px-3 py-2.5 text-left font-semibold"
+              <th scope="col" className="sticky left-0 z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
                   title="주요 제품을 우선 분류하고, 제품 정보가 없을 때 ETF와 비교 가능한 투자 테마를 사용한다">
                 섹터
               </th>
-              <th scope="col" className="px-3 py-2.5 text-center font-semibold">관심</th>
-              <th scope="col" className="px-3 py-2.5 text-left font-semibold">종목명</th>
-              <th scope="col" className="px-3 py-2.5 text-center font-semibold">등급</th>
-              <th scope="col" className="px-3 py-2.5 text-left font-semibold">분기</th>
-              <SortableTh label="기업 매력도" sortKey="score" {...sortState("score")}
+              <th scope="col" className="sticky left-[112px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="sticky left-[156px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold">종목명</th>
+              <th scope="col" className="sticky left-[268px] z-40 w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2.5 text-center font-semibold">등급</th>
+              <th scope="col" className="sticky left-[316px] z-40 w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">분기</th>
+              <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
                           onSort={toggleSort}
-                          title="산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF를 결합한 기업 점수. 현재 주가는 PRI와 등급에서 별도 반영" />
+                          title="산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF를 결합한 투자 점수. 현재 주가는 PRI와 등급에서 별도 반영" />
               {/* ★ 사용자 요청(2026-08-22): 게이트가 보는 성장률을 표에 직접 싣는다.
                   스코어만 있으면 "왜 이 점수인가"를 상세 화면에 들어가야 안다. */}
               <SortableTh label="매출 YoY" sortKey="revenueYoy" {...sortState("revenueYoy")}
@@ -592,12 +725,12 @@ export default function DiscoveryTable({
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr key={r.code} className="border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="whitespace-nowrap px-3 py-2 text-slate-200"
+              <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
+                <td className="sticky left-0 z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   {r.sector}
                 </td>
-                <td className="px-3 py-2 text-center">
+                <td className="sticky left-[112px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(r.code)}
@@ -611,12 +744,12 @@ export default function DiscoveryTable({
                   </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
-                <td className="whitespace-nowrap px-3 py-2">
+                <td className="sticky left-[156px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 group-hover:bg-slate-900">
                   <Link href={`/stock/${r.code}`} className="font-medium text-sky-300 hover:underline">
                     {r.name}
                   </Link>
                 </td>
-                <td className="px-3 py-2 text-center">
+                <td className="sticky left-[268px] z-10 w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   {r.grade ? (
                     <span className="text-base font-bold" style={{ color: GRADE_COLOR[r.grade] }}>
                       {r.grade}
@@ -625,7 +758,7 @@ export default function DiscoveryTable({
                     <span className="text-slate-300">—</span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-slate-200">{r.quarter}</td>
+                <td className="sticky left-[316px] z-10 w-[70px] min-w-[70px] max-w-[70px] whitespace-nowrap bg-slate-950 px-2 py-2 text-slate-200 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">{r.quarter}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums text-white">
                   {fmtNum(r.score)}
                 </td>

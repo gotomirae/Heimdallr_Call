@@ -130,7 +130,7 @@ def test_sector_rules_are_exported():
     assert data["sector_unknown"] == UNKNOWN_SECTOR
     themes = data["sector_etf_themes"]
     assert set(themes) == {name for name, _ in SECTOR_RULES} | {UNKNOWN_SECTOR}
-    assert themes["반도체"] == "반도체"
+    assert themes["반도체 IDM"] == "반도체 IDM"
 
 
 def _strip_ts_comments(source: str) -> str:

@@ -307,6 +307,13 @@ def test_quarterly_backfill_has_manual_code_refresh():
     assert "--refresh-finalized" in body
 
 
+def test_daily_sector_classification_precedes_investment_scoring():
+    body = _text(WORKFLOWS / "universe_daily.yml")
+    sector = body.index("python -m src.universe.sector_map --save")
+    screen = body.index("python -m src.screener.run --save")
+    assert sector < screen, "새 섹터를 저장하기 전에 점수를 계산하면 당일 피어 비교가 옛 분류를 쓴다"
+
+
 def test_scheduled_quarterly_backfill_is_incremental():
     """전 종목 3개년을 매번 돌면 실측 2시간에 잘려 후속 스텝이 전부 스킵된다(T133)."""
     body = _text(WORKFLOWS / "quarterly_backfill.yml")

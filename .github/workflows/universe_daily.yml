@@ -63,6 +63,11 @@ jobs:
       - name: 유니버스 갱신
         run: python -m src.universe.build --save
 
+      # 투자 섹터는 투자 매력도의 산업 성장·산업 내 위치·피어 밸류 분모다.
+      # 반드시 스크리닝보다 먼저 저장해야 당일 점수가 새 분류를 사용한다.
+      - name: 투자 섹터 분류
+        run: python -m src.universe.sector_map --save
+
       - name: 시세 · 지수 스냅샷
         run: python -m src.collectors.price_run --save
 
@@ -78,13 +83,6 @@ jobs:
 
       - name: 정밀 재무 반영 스크리닝
         run: python -m src.screener.run --save
-
-      # 투자 섹터 재분류 — 유니버스가 갱신되면 신규 상장분도 분류해야 한다.
-      # ★ 순수 규칙이라 외부 호출이 없다(빠르다). 실패해도 잡을 세우지 않는다 —
-      #   섹터가 비면 화면이 KRX 업종명으로 떨어질 뿐이다.
-      - name: 투자 섹터 분류
-        continue-on-error: true
-        run: python -m src.universe.sector_map --save
 
       # 주간 종가 차트와 LLM 가치-가격 시차 분석용 분기말 가격.
       # ★ 스크리닝 **뒤에** 돌린다 — 게이트 통과 종목만 채우므로 등급이 갱신된

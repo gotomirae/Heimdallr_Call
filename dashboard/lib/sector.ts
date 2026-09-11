@@ -30,6 +30,13 @@ const EXCLUDES: Record<string, string[]> =
 const INDUSTRY_ONLY = new Set<string>(
   (constants.sector_industry_only ?? []) as string[]
 );
+const SEMICONDUCTOR_CONTEXT: string[] =
+  (constants.semiconductor_context ?? []) as string[];
+const SEMICONDUCTOR_EQUIPMENT_STANDALONE: string[] =
+  (constants.semiconductor_equipment_standalone ?? []) as string[];
+const SEMICONDUCTOR_SPECIFIC_ORDER: string[] =
+  (constants.semiconductor_specific_order ?? []) as string[];
+const SEMICONDUCTOR_SECTORS = new Set([...SEMICONDUCTOR_SPECIFIC_ORDER, "반도체 IDM"]);
 
 /** 화면 필터에 쓸 전체 목록. 규칙 순서 + 기타. */
 export const ALL_SECTORS: string[] = [...RULES.map((r) => r.sector), UNKNOWN_SECTOR];
@@ -53,13 +60,46 @@ function haystack(...parts: (string | null | undefined)[]): string {
  *   달라지면 같은 종목이 화면과 DB에서 다른 섹터로 보인다 — 에러는 나지 않는다.
  *   `tests/test_sector_map_parity.py`가 두 구현을 실제 값으로 대조한다.
  */
+function semiconductorHit(text: string, allowIndustryWords: boolean): string | null {
+  const rulesBySector = new Map(RULES.map((rule) => [rule.sector, rule.keywords]));
+  const equipment = SEMICONDUCTOR_SPECIFIC_ORDER[0];
+  const equipmentPositions = (rulesBySector.get(equipment) ?? [])
+    .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
+  const contextPositions = SEMICONDUCTOR_CONTEXT
+    .map((keyword) => text.indexOf(keyword)).filter((position) => position >= 0);
+  const standaloneEquipment = SEMICONDUCTOR_EQUIPMENT_STANDALONE
+    .some((keyword) => text.includes(keyword));
+  if (contextPositions.length === 0 && !standaloneEquipment) return null;
+
+  const anchor = Math.min(...equipmentPositions, ...contextPositions);
+  const competitorPositions: number[] = [];
+  for (const rule of RULES) {
+    if (SEMICONDUCTOR_SECTORS.has(rule.sector)) continue;
+    if ((EXCLUDES[rule.sector] ?? []).some((bad) => text.includes(bad))) continue;
+    for (const keyword of rule.keywords) {
+      if (!allowIndustryWords && INDUSTRY_ONLY.has(keyword)) continue;
+      const position = text.indexOf(keyword);
+      if (position >= 0) competitorPositions.push(position);
+    }
+  }
+  if (competitorPositions.length > 0 && Math.min(...competitorPositions) < anchor) return null;
+  for (const sector of ["반도체 소재", "반도체 부품"]) {
+    if ((rulesBySector.get(sector) ?? []).some((keyword) => text.includes(keyword))) return sector;
+  }
+  if (equipmentPositions.length > 0) return equipment;
+  return "반도체 IDM";
+}
+
 function firstHit(text: string, allowIndustryWords: boolean): string | null {
   if (!text) return null;
+  const semiconductor = semiconductorHit(text, allowIndustryWords);
+  if (semiconductor !== null) return semiconductor;
   let bestPos = Number.MAX_SAFE_INTEGER;
   let bestOrder = Number.MAX_SAFE_INTEGER;
   let best: string | null = null;
 
   RULES.forEach((r, order) => {
+    if (SEMICONDUCTOR_SECTORS.has(r.sector)) return;
     const bad = EXCLUDES[r.sector] ?? [];
     if (bad.some((b) => text.includes(b))) return; // 제외어 → 이 규칙은 없는 셈
 

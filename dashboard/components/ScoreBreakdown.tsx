@@ -36,7 +36,7 @@ function InvestmentBreakdown({
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-xs font-medium text-amber-200">기업 투자 매력도</div>
+        <div className="text-xs font-medium text-amber-200">투자 매력도</div>
         <div className="flex items-baseline gap-3">
           <span className="text-3xl font-bold">{num(screen.score_final ?? screen.score_flash, 1)}</span>
           <span className="text-sm text-slate-200">/ 100 · 측정 신뢰도 {denominator}/100</span>

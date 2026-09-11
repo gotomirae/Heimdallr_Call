@@ -39,9 +39,9 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
         <ScatterChart margin={{ top: 16, right: 24, bottom: 24, left: 8 }}>
           <CartesianGrid stroke="#1e293b" />
           <XAxis
-            type="number" dataKey="score" name="기업 매력도" domain={[0, 100]}
+            type="number" dataKey="score" name="투자 매력도" domain={[0, 100]}
             stroke="#cbd5e1" fontSize={12}
-            label={{ value: "기업 투자 매력도 →", position: "insideBottom", offset: -12, fill: "#cbd5e1", fontSize: 12 }}
+            label={{ value: "투자 매력도(기업·산업) →", position: "insideBottom", offset: -12, fill: "#cbd5e1", fontSize: 12 }}
           />
           <YAxis
             type="number" dataKey="pri" name="주가반영도" domain={[0, 100]}
@@ -75,7 +75,7 @@ export default function MatrixScatter({ points }: { points: MatrixPoint[] }) {
                     {p.grade ?? "·"} {p.name} <span className="text-slate-300">{p.code}</span>
                   </div>
                   <div className="text-slate-200">
-                    기업 매력도 {p.score.toFixed(1)} · 반영도 {p.pri.toFixed(1)}
+                    투자 매력도 {p.score.toFixed(1)} · 반영도 {p.pri.toFixed(1)}
                   </div>
                   <div className="mt-1 text-slate-300">클릭하면 상세로 이동</div>
                 </div>

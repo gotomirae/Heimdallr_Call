@@ -25,10 +25,10 @@ export default async function MatrixPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">기업 매력도 × 주가반영도</h1>
+        <h1 className="text-2xl font-bold">투자 매력도 × 주가반영도</h1>
         <p className="mt-1 text-sm text-slate-200">
           실적이 가속 중인 {rows.length.toLocaleString("ko-KR")}종목 ·
-          X = 기업 투자 매력도 · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
+          X = 투자 매력도(기업·산업) · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
         </p>
         <p className="mt-1 text-xs text-slate-300">
           두 축을 한 숫자로 합치지 않는다(ADR 5). 같은 기업 점수라도 이미 오른 종목과

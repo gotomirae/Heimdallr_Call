@@ -15,6 +15,7 @@ import {
 import { quarterLabel, qIndex } from "@/lib/format";
 import { sectorInfoOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
+import { getMacroContext } from "@/lib/macroContext";
 import type { FundamentalRow, Grade, ScreenRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +43,13 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
 
 export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
-  const [{ rows: screens, dropped }, universe, priceResult, outcomeResult] =
+  const [{ rows: screens, dropped }, universe, priceResult, outcomeResult, macroContext] =
     await Promise.all([
       getLatestScreens({ accelerating: false }),
       getUniverse(),
       getAllLatestPrices(),
       getOutcomes(),
+      getMacroContext(),
     ]);
 
   // ── 성장률 열의 재료 ────────────────────────────────────────────
@@ -127,6 +129,11 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
     if (r.grade) counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
   }
   const notifyCount = (counts.get("★") ?? 0) + (counts.get("○") ?? 0);
+  const dataAsOf = [...priceResult.prices.values()]
+    .map((price) => price.snap_date)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
 
   return (
     <div className="space-y-4">
@@ -212,11 +219,11 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
           <div key={g}
                className="rounded border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-100"
                title={{
-                 "★": "기업 매력 높음 · 주가 미반영",
-                 "○": "기업 매력 높음 · 부분반영 또는 중간 점수 · 미반영",
-                 "△": "기업 매력 높음 · 선반영",
+                 "★": "투자 매력 높음 · 주가 미반영",
+                 "○": "투자 매력 높음 · 부분반영 또는 중간 점수 · 미반영",
+                 "△": "투자 매력 높음 · 선반영",
                  "·": "중간",
-                 "✕": "기업 매력 낮음 · 선반영",
+                 "✕": "투자 매력 낮음 · 선반영",
                }[g]}>
             <span className="mr-2 text-base font-bold text-white">{g}</span>
             <span className="text-slate-200">{counts.get(g) ?? 0}</span>
@@ -224,13 +231,18 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
         ))}
       </div>}
 
-      <DiscoveryTable rows={rows} favoriteOnly={watchlistOnly} />
+      <DiscoveryTable
+        rows={rows}
+        favoriteOnly={watchlistOnly}
+        dataAsOf={dataAsOf}
+        macroContext={macroContext}
+      />
 
       <div className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm">
         <table className="text-xs">
           <tbody>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-white">기업 투자 매력도</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-white">투자 매력도</td>
               <td className="text-slate-100">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 PRI와 등급에서 별도 반영</td>
             </tr>
             <tr>

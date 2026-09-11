@@ -17,6 +17,10 @@
 ★ 규칙 순서가 곧 우선순위다. 위에 있을수록 좁고 확실한 규칙이다.
   '반도체 장비'는 '기계'보다, '원전'은 '전력인프라'보다 먼저 걸려야 한다.
 
+★ 반도체는 투자 사이클이 서로 다른 IDM·소재·부품·장비로만 나눈다.
+  단순히 `반도체`라는 말의 위치만 보면 동진쎄미켐 같은 소재사가 IDM이 된다.
+  그래서 반도체 맥락이 있는 문장에서는 구체적인 밸류체인 증거어를 먼저 본다.
+
 ═══════════════════════════════════════════════════════════════════
 2026-08-20 개정 — 라벨 표본 78종목 기준 정확도 70.5% → (아래 실측)
   그때까지 잰 것은 **미분류율뿐이었다.** '틀리게 가린 비율'은 아무도 재지 않았고,
@@ -54,15 +58,32 @@ SECTOR_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
                   "감시장비", "국방")),
     ("2차전지", ("2차전지", "이차전지", "리튬", "양극재", "음극재", "분리막", "전해질",
                  "전해액", "배터리", "전지")),
-    # ★ '반도체 후공정'·'반도체 제조용'은 '반도체'와 **같은 위치에서 시작**한다.
-    #   그래서 동점이 되고, 규칙 순서가 앞인 반도체장비가 이긴다(한미반도체·원익IPS).
-    ("반도체장비", ("반도체장비", "반도체 장비", "반도체 후공정", "반도체 제조용",
+    # ★ 네 하위 섹터의 구체적 증거어는 `_semiconductor_hit`이 먼저 판정한다.
+    ("반도체 장비", ("반도체장비", "반도체 장비", "반도체 후공정장비", "반도체 제조용 기계",
                     "후공정장비", "전공정", "식각", "증착", "노광", "cmp", "cvd",
-                    "어닐링", "웨이퍼 가공", "테스트핸들러", "프로브카드",
+                    "어닐링", "웨이퍼 가공", "테스트핸들러",
                     "본더", "다이서", "반도체 검사", "반도체금형", "드라이스트립",
-                    "레이저 마커", "레이저마커", "세정장비", "이온주입")),
-    ("반도체", ("반도체", "웨이퍼", "메모리", "dram", "낸드", "시스템반도체", "파운드리",
-                "집적회로", "패키징", "hbm")),
+                    "레이저 마커", "레이저마커", "세정장비", "이온주입", "검사장비",
+                    "검사 장비", "테스터", "계측장비", "계측 장비", "이송장치",
+                    "이송 장치", "제조장비", "제조 장비", "진공펌프", "진공 펌프",
+                    "로봇시스템", "로봇 시스템", "모션시스템", "모션 시스템",
+                    "부착장비", "배관설비", "습도제어 system")),
+    ("반도체 소재", ("반도체 소재", "반도체소재", "반도체 재료", "반도체재료",
+                    "반도체용 재료", "반도체용재료", "반도체 공정 소재", "반도체 공정재료",
+                    "반도체 화학재료", "화학재료", "화학소재", "감광제", "현상액",
+                    "포토레지스트", "photoresist", "반도체용 가스", "반도체용 특수가스",
+                    "반도체 특수가스", "특수가스", "케미컬", "프리커서", "precursor",
+                    "전구체", "박막재료", "슬러리", "slurry", "실리콘 웨이퍼", "웨이퍼 제조")),
+    ("반도체 부품", ("반도체 부품", "반도체부품", "반도체패키징", "반도체 패키징",
+                    "패키지 기판", "패키지기판", "ic 기판", "ic기판", "테스트 소켓",
+                    "테스트소켓", "반도체 소켓", "반도체소켓", "소켓", "리노핀", "프로브 카드",
+                    "프로브카드", "리드 프레임", "리드프레임", "반도체패키지", "패키지용",
+                    "substrate", "인쇄회로기판", "module pcb", "메모리 모듈", "솔더볼",
+                    "solderball", "범핑", "bumping", "펠리클", "포커스링", "석영유리",
+                    "합성쿼츠", "히터블록", "반도체용링", "반도체 테스트", "반도체테스트",
+                    "반도체 신뢰성", "반도체용세금선", "소모성 부품", "장비 부품")),
+    ("반도체 IDM", ("반도체", "메모리", "dram", "nand", "낸드", "시스템반도체",
+                   "파운드리", "foundry", "집적회로", "hbm", "팹리스", "fabless", "웨이퍼")),
     # ★ PCB·전자부품은 별도 섹터다. 반도체로 묶으면 밸류체인이 뭉개지고,
     #   '기타'로 두면 39종목(미분류 최다)이 통째로 사라진다.
     ("전자부품", ("인쇄회로", "pcb", "fpcb", "mlb", "전자부품", "커넥터", "적층세라믹",
@@ -186,8 +207,10 @@ SECTOR_ETF_THEMES: dict[str, str] = {
     "원전": "원자력·원전",
     "방산·우주": "방산·우주항공",
     "2차전지": "2차전지",
-    "반도체장비": "반도체장비",
-    "반도체": "반도체",
+    "반도체 IDM": "반도체 IDM",
+    "반도체 소재": "반도체 소재",
+    "반도체 부품": "반도체 부품",
+    "반도체 장비": "반도체 장비",
     "전자부품": "전자부품",
     "디스플레이": "디스플레이",
     "전력인프라": "전력기기·전력인프라",
@@ -225,6 +248,79 @@ def _haystack(*parts: str | None) -> str:
     return re.sub(r"\s+", " ", joined).lower()
 
 
+#: 반도체 문맥. 소재의 `감광제`처럼 디스플레이에도 쓰이는 단어는 이 문맥이
+#: 함께 있을 때만 반도체로 보낸다. 반면 장비 증거어는 기존 실측(HPSP 등) 때문에
+#: 단독으로도 충분한 증거로 인정한다.
+SEMICONDUCTOR_CONTEXT: tuple[str, ...] = (
+    "반도체", "메모리", "dram", "nand", "낸드", "hbm", "파운드리", "foundry",
+    "팹리스", "fabless", "집적회로", "웨이퍼",
+)
+#: 반도체라는 말이 없어도 공정 장비로 볼 수 있는 좁은 증거어. `검사장비`처럼
+#: 의료·자동차에도 쓰이는 일반어는 여기에 넣지 않고 반도체 문맥을 요구한다.
+SEMICONDUCTOR_EQUIPMENT_STANDALONE: tuple[str, ...] = (
+    "후공정장비", "전공정", "식각", "증착", "노광", "cmp", "cvd", "어닐링",
+    "웨이퍼 가공", "테스트핸들러", "본더", "다이서", "반도체 검사", "반도체금형",
+    "드라이스트립", "레이저 마커", "레이저마커", "세정장비", "이온주입",
+)
+SEMICONDUCTOR_SPECIFIC_ORDER: tuple[str, ...] = (
+    "반도체 장비", "반도체 소재", "반도체 부품",
+)
+SEMICONDUCTOR_SECTORS: frozenset[str] = frozenset({
+    *SEMICONDUCTOR_SPECIFIC_ORDER, "반도체 IDM",
+})
+
+
+def _semiconductor_hit(text: str, *, allow_industry_words: bool) -> str | None:
+    """반도체 밸류체인을 구체적 증거어 → IDM 순으로 판정한다.
+
+    이 선판정은 네 하위 섹터 안에서만 위치 우선 원칙을 보완한다. 다른 산업은
+    기존처럼 제품에 먼저 적힌 본업이 이긴다.
+    """
+    if not text:
+        return None
+    rules = dict(SECTOR_RULES)
+    equipment_hits = [
+        text.find(keyword) for keyword in rules[SEMICONDUCTOR_SPECIFIC_ORDER[0]]
+        if text.find(keyword) >= 0
+    ]
+    has_context = any(keyword in text for keyword in SEMICONDUCTOR_CONTEXT)
+    standalone_equipment = any(
+        keyword in text for keyword in SEMICONDUCTOR_EQUIPMENT_STANDALONE
+    )
+    if not has_context and not standalone_equipment:
+        return None
+
+    context_positions = [
+        text.find(keyword) for keyword in SEMICONDUCTOR_CONTEXT if text.find(keyword) >= 0
+    ]
+    anchor = min(equipment_hits + context_positions)
+    competitor_positions: list[int] = []
+    for sector, keywords in SECTOR_RULES:
+        if sector in SEMICONDUCTOR_SECTORS:
+            continue
+        if any(bad in text for bad in SECTOR_EXCLUDES.get(sector, ())):
+            continue
+        usable = (
+            keywords if allow_industry_words
+            else tuple(keyword for keyword in keywords if keyword not in INDUSTRY_ONLY_KEYWORDS)
+        )
+        competitor_positions.extend(
+            pos for pos in (text.find(keyword) for keyword in usable) if pos >= 0
+        )
+    # 본업으로 먼저 적힌 다른 산업이 있으면 그 정체성을 보존한다(삼성전기 등).
+    if competitor_positions and min(competitor_positions) < anchor:
+        return None
+
+    # 같은 문장에 장비와 소재·부품이 함께 있으면 무엇을 파는지 더 구체적인
+    # 소재·부품 증거가 이긴다(CMP slurry, 장비용 소모성 부품, 검사용 소켓).
+    for sector in ("반도체 소재", "반도체 부품"):
+        if any(keyword in text for keyword in rules[sector]):
+            return sector
+    if equipment_hits:
+        return SEMICONDUCTOR_SPECIFIC_ORDER[0]
+    return "반도체 IDM"
+
+
 def _first_hit(text: str, *, allow_industry_words: bool) -> str | None:
     """가장 **앞에서** 걸린 섹터. 같은 위치면 규칙 순서가 앞선 쪽.
 
@@ -237,9 +333,14 @@ def _first_hit(text: str, *, allow_industry_words: bool) -> str | None:
     """
     if not text:
         return None
+    semiconductor = _semiconductor_hit(text, allow_industry_words=allow_industry_words)
+    if semiconductor is not None:
+        return semiconductor
     best: tuple[int, int] | None = None
     best_sector: str | None = None
     for order, (sector, keywords) in enumerate(SECTOR_RULES):
+        if sector in SEMICONDUCTOR_SECTORS:
+            continue  # 네 하위 섹터는 문맥까지 보는 `_semiconductor_hit`만 판정한다.
         if any(bad in text for bad in SECTOR_EXCLUDES.get(sector, ())):
             continue  # 제외어에 걸리면 이 규칙은 없는 셈 친다
         usable = (
@@ -264,10 +365,10 @@ def classify_sector(
     """투자 섹터명을 돌려준다. 못 가리면 `기타`.
 
     ★ **제품을 업종보다 먼저** 본다. 업종만 보면 '특수 목적용 기계 제조업' 93종목이
-      전부 같은 섹터가 되는데, 그 안에 반도체장비·디스플레이장비·조선기자재가 섞여 있다.
+      전부 같은 섹터가 되는데, 그 안에 반도체 장비·디스플레이장비·조선기자재가 섞여 있다.
 
     실측 대조 (2026-08-17, 실제 DB 값 그대로):
-      한미반도체   / 특수 목적용 기계  / '반도체 후공정장비,반도체금형…'  → 반도체장비
+      한미반도체   / 특수 목적용 기계  / '반도체 후공정장비,반도체금형…'  → 반도체 장비
       두산에너빌리티 / 일반 목적용 기계  / '기관,터어빈,선박용엔진,주단조품…' → 전력인프라
       셀트리온     / 기초 의약물질    / '램시마, 트룩시마, 허쥬마'        → 바이오·제약
       동성화인텍   / 기초 화학물질    / '초저온 보냉재'                 → 조선·해운

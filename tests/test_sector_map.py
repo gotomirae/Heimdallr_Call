@@ -23,11 +23,11 @@ from tests.sector_labels import LABELED_CASES
 #: (회사명, 업종, 제품, 기대 섹터) — **전부 실제 DB 값 그대로**(2026-08-17).
 REAL_CASES = [
     ("한미반도체", "특수 목적용 기계 제조업",
-     "반도체 후공정장비,반도체금형 제조/부동산 매매,임대", "반도체장비"),
+     "반도체 후공정장비,반도체금형 제조/부동산 매매,임대", "반도체 장비"),
     ("두산에너빌리티", "일반 목적용 기계 제조업",
      "기관,터어빈,선박용엔진,주단조품,제강제품 제조/종합건설", "전력인프라"),
     ("셀트리온", "기초 의약물질 제조업", "램시마, 트룩시마, 허쥬마", "바이오·제약"),
-    ("SK하이닉스", "반도체 제조업", "반도체,컴퓨터,통신기기 제조,도매", "반도체"),
+    ("SK하이닉스", "반도체 제조업", "반도체,컴퓨터,통신기기 제조,도매", "반도체 IDM"),
     ("삼성중공업", "선박 및 보트 건조업",
      "선박(벌크선,원유운반선),철구조물,에너지플랜트 생산,판매/토목건축업", "조선·해운"),
     ("한국전력공사", "전기업", "전력자원개발,발전,송전,전력용기자재확보", "전력인프라"),
@@ -54,7 +54,7 @@ def test_products_beat_industry():
     업종만 보면 전부 같은 섹터가 된다.
     """
     machine = "특수 목적용 기계 제조업"
-    assert classify_sector("A", machine, "반도체 후공정장비") == "반도체장비"
+    assert classify_sector("A", machine, "반도체 후공정장비") == "반도체 장비"
     assert classify_sector("B", machine, "TFT-LCD검사장비") == "디스플레이"
     assert classify_sector("C", machine, None) == "기계·로봇"
 
@@ -69,8 +69,8 @@ def test_rule_order_puts_narrow_first():
     """좁은 규칙이 넓은 규칙보다 앞에 있어야 한다."""
     order = [name for name, _ in SECTOR_RULES]
     assert order.index("원전") < order.index("전력인프라")
-    assert order.index("반도체장비") < order.index("반도체")
-    assert order.index("반도체장비") < order.index("기계·로봇")
+    assert order.index("반도체 장비") < order.index("반도체 IDM")
+    assert order.index("반도체 장비") < order.index("기계·로봇")
     assert order.index("전력인프라") < order.index("조선·해운"), (
         "두산에너빌리티의 '터어빈'이 '선박용엔진'보다 먼저 걸려야 한다"
     )
@@ -79,6 +79,23 @@ def test_rule_order_puts_narrow_first():
 def test_all_sectors_includes_unknown_and_is_unique():
     assert UNKNOWN_SECTOR in ALL_SECTORS
     assert len(ALL_SECTORS) == len(set(ALL_SECTORS)), "섹터명이 중복됐다"
+
+
+def test_semiconductor_uses_exactly_four_investment_cycles():
+    semiconductor = {sector for sector in ALL_SECTORS if sector.startswith("반도체")}
+    assert semiconductor == {
+        "반도체 IDM", "반도체 소재", "반도체 부품", "반도체 장비",
+    }
+    assert "반도체" not in ALL_SECTORS and "반도체장비" not in ALL_SECTORS
+
+
+def test_semiconductor_specific_evidence_beats_generic_word():
+    assert classify_sector(None, None, "반도체용 특수가스") == "반도체 소재"
+    assert classify_sector(None, None, "반도체 CMP Slurry") == "반도체 소재"
+    assert classify_sector(None, None, "반도체 검사용 소켓") == "반도체 부품"
+    assert classify_sector(None, None, "반도체 장비용 소모성 부품") == "반도체 부품"
+    assert classify_sector(None, None, "반도체 Overlay 계측 장비") == "반도체 장비"
+    assert classify_sector(None, "반도체 제조업", "반도체 제조") == "반도체 IDM"
 
 
 def test_every_result_is_a_declared_sector():
@@ -145,7 +162,7 @@ def test_position_beats_rule_order():
 
 def test_rule_order_still_breaks_ties():
     """위치가 같으면 규칙 순서가 정한다 — 둘 다 0번째에서 걸리는 경우."""
-    assert classify_sector(None, None, "반도체 후공정장비") == "반도체장비"
+    assert classify_sector(None, None, "반도체 후공정장비") == "반도체 장비"
 
 
 def test_excludes_kill_substring_collisions():
@@ -155,7 +172,7 @@ def test_excludes_kill_substring_collisions():
     """
     assert classify_sector(None, None, "바이러스백신 프로그램") == "소프트웨어·IT"
     assert classify_sector(None, None, "연료전지") == "신재생에너지"
-    assert classify_sector(None, None, "고압 수소 어닐링 장비") == "반도체장비"
+    assert classify_sector(None, None, "고압 수소 어닐링 장비") == "반도체 장비"
     # '스테인리스'의 '리스'가 금융으로 갔다.
     assert classify_sector(None, None, "열연코일,냉연강판,스테인리스 제조") == "철강·금속"
 
@@ -172,7 +189,7 @@ def test_company_name_is_not_matched():
 def test_industry_only_keywords_ignored_in_products():
     """★ 제품 칸에 업종명을 복사해 넣은 공시가 흔하다 — 그게 본업을 덮으면 안 된다."""
     samsung = "통신 및 방송 장비 제조(무선) 제품, 반도체 제조(메모리) 제품"
-    assert classify_sector(None, "통신 및 방송 장비 제조업", samsung) == "반도체"
+    assert classify_sector(None, "통신 및 방송 장비 제조업", samsung) == "반도체 IDM"
     # 업종 칸에서는 여전히 근거가 된다.
     assert classify_sector(None, "통신 및 방송 장비 제조업", None) == "통신·네트워크"
 

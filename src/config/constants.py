@@ -382,6 +382,10 @@ KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부
 
 # ═══ 운영 ═══
 DASHBOARD_REFRESH_SECONDS = 60
+# 발굴 목록의 자동 섹터 우선순위는 표본이 너무 작은 섹터를 제외한다.
+# 1~2종목만 있는 섹터의 100%를 전체 산업의 강세로 읽으면 조용히 과대평가된다.
+DISCOVERY_SECTOR_MIN_CANDIDATES = 3
+DISCOVERY_SECTOR_TOP_N = 3
 SEASON_MODE = optional_env("SEASON_MODE", "off")  # 'on'이면 공시 폴링 15분 주기
 KST = "Asia/Seoul"
 POSTGREST_PAGE_SIZE = 1000  # max-rows 1,000 — 초과 테이블은 반드시 range() 페이징(T7)

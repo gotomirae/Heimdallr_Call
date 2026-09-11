@@ -58,7 +58,7 @@ export interface DiscoveryFilters {
   cap: CapFilter;
   consensus: ConsensusFilter;
   quarter: string;
-  /** 머리글을 누른 순서대로 적용하는 다중 정렬. 빈 배열이면 원본(기본) 순서다. */
+  /** 머리글을 누른 순서대로 적용하는 다중 정렬. 빈 배열이면 기본 순서다. */
   sorts: SortRule[];
 }
 

@@ -141,6 +141,8 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **반도체 4분류·현재 추천 정렬 (2026-09-11)** — IDM **40**·소재 **12**·부품 **26**·장비 **29**를 운영 1,376행에 반영하고, 최신분기→등급→동적 섹터→투자 매력도→PRI 기본 정렬·공식 거시 RSS·고정 5열을 완성했다.
+  추천 **조선·해운/운송·물류/반도체 장비**, 렌더 **200·1,670,855자**, **833 passed·1 skipped·3 deselected**, build **10/10**. ADR 16·T152~153.
 - **기업 투자 매력도·QoQ 운영 반영 (2026-09-11)** — 산업·실적·성장·PER/F.PER·ROE·최근 분기 FCF 7축 기업 점수와 PRI 2축을 유지하고 QoQ SELECT를 복구했다. 운영 **1,150행**, 점수 **270/275**, ★ **32**·○ **86**; 삼성전자 **92.8·PRI 20.0·QoQ +28.1%/+56.4%**, 렌더 **200·1,448,237자**, **828 passed**, build **10/10**, CI·Vercel 성공. ADR 15·T149~151.
 - **PRI 3.0 성장·가격 통합 (2026-09-10)** — 내재 성장률 갭·12M 이익/멀티플 분해·역사/피어 성장단가·현재 과열을 기존 신호와 8축으로 통합했다.
   운영 **1,150행**, PRI **800종목**, ★ **66**·○ **85**, 고영 **26.78·신뢰도 90**, 렌더 **200·220,677B**, **823 passed·1 skipped·3 deselected**, build **10/10**. ADR 14·T147~148.
@@ -246,6 +248,3 @@ python -m pytest tests/
   검증 **628 passed · 1 skipped · network 3 deselected**, Dashboard build 성공. ADR 9.
 - **Provider offline eval (2026-08-28)** — 5축 결정론 평가·동일 사례집 강제(T105)·합성 replay **100/100**.
   전체 **641 passed · 1 skipped · network 3 deselected**. 실 Provider 비교·유료 호출·DB 쓰기 0건.
-- **사례집 Stage B (2026-08-28)** — Supabase **27/30 GET**, 엘앤씨바이오·롯데정밀화학·한화시스템
-  replay **3/3**(각 8분기·동분기 발췌·시크릿 0). DB/DART/Provider 쓰기 0; Windows temp ACL
-  오염 방어(T118). **709 passed · 1 skipped · 3 deselected**; OpenAI Primary 보류.

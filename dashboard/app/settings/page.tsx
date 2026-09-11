@@ -208,7 +208,7 @@ export default async function SettingsPage() {
       )}
 
       <Card
-        title="기업 투자 매력도 배점"
+        title="투자 매력도 배점"
         note="산업·기업·밸류·현금흐름을 결합한다. 현재 가격은 PRI와 2축 등급에서 별도로 반영한다(ADR 5). 성장 스토리는 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다."
       >
         <div className="grid gap-x-8 sm:grid-cols-2">

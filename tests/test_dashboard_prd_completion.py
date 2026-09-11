@@ -176,7 +176,7 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert "sorts: SortRule[]" in filters
     assert "sorts.map" in DISCOVERY
     assert "priority: index + 1" in DISCOVERY
-    assert "원본" in DISCOVERY and "내림" in DISCOVERY and "오름" in DISCOVERY
+    assert "기본" in DISCOVERY and "내림" in DISCOVERY and "오름" in DISCOVERY
     for category in ("성장 가속", "매출 YoY 둔화 + 영익 YoY 가속", "턴어라운드", "기타", "전 종목"):
         assert category in DISCOVERY
     assert 'gate: "growth"' in filters
@@ -192,6 +192,29 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     ):
         assert label in DISCOVERY
     assert "r.turnaround &&" not in DISCOVERY, "등급 칸에는 턴어라운드 문구를 중복 표시하지 않는다"
+
+
+def test_discovery_defaults_to_current_investment_value_and_freezes_identity_columns():
+    assert 'label="투자 매력도"' in DISCOVERY
+    assert "기업 매력도" not in DISCOVERY
+    assert "원본" not in DISCOVERY
+    assert 'const state = !active ? "기본"' in DISCOVERY
+    assert "등급(★→○→△→·→✕)" in DISCOVERY
+    assert "sectorRank.get(a.sector)" in DISCOVERY
+    assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
+    for offset in ('left-0', 'left-[112px]', 'left-[156px]', 'left-[268px]', 'left-[316px]'):
+        assert offset in DISCOVERY
+    assert "w-[386px]" in DISCOVERY and "종목 정보" in DISCOVERY
+
+
+def test_discovery_refreshes_official_macro_context_without_news_scoring():
+    macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
+    page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
+    assert "www.bok.or.kr" in macro and "공식 RSS" in macro
+    assert "revalidate: 6 * 60 * 60" in macro
+    assert "뉴스 제목의 출현 횟수를 점수로 만들지는 않는다" in macro
+    assert "getMacroContext()" in page
+    assert "현재 추천 정렬 · 매 갱신 자동 계산" in DISCOVERY
 
 
 def test_only_growth_acceleration_renders_llm_and_links_are_exact():
