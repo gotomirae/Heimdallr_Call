@@ -4,7 +4,8 @@
   "dashboard_refresh_seconds": 60,
   "dashboard_db_retry_delays_ms": [
     150,
-    450
+    600,
+    1500
   ],
   "discovery_initial_rows": 120,
   "discovery_row_step": 120,

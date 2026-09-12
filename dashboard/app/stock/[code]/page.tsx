@@ -33,6 +33,7 @@ import {
   getScreenForCode,
   getScreensForQuarter,
   getUniverse,
+  getUniverseForCode,
 } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -75,23 +76,55 @@ function median(values: Array<number | null | undefined>): number | null {
     : (measured[middle - 1] + measured[middle]) / 2;
 }
 
+/**
+ * 상세 화면의 보조 자료 하나가 일시 실패해도 종목 전체를 500으로 만들지 않는다.
+ * 필수 앵커는 `getUniverseForCode` 한 행뿐이고, 나머지는 결측으로 명시한다.
+ */
+async function withDetailFallback<T>(
+  label: string,
+  promise: Promise<T>,
+  fallback: T,
+  warnings: Set<string>
+): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    warnings.add(label);
+    console.warn(`[stock-detail] ${label} 조회 실패, 결측으로 계속 렌더`, error);
+    return fallback;
+  }
+}
+
 export default async function StockPage({ params }: { params: { code: string } }) {
   const code = params.code;
+  const detailWarnings = new Set<string>();
 
-  const [universe, funds, price, screenResult, dailyPrices, disclosures, outcomeResult, naverLive] =
+  const [stock, universe, funds, price, screenResult, dailyPrices, disclosures, outcomeResult, naverLive] =
     await Promise.all([
-      getUniverse(),
-      getFundamentals(code),
-      getLatestPrice(code),
-      getScreenForCode(code),
-      getNaverDailyPrices(code),
-      getDisclosures(code, 40),
-      getOutcomesForCode(code),
-      getNaverLiveSnapshot(code),
+      getUniverseForCode(code),
+      withDetailFallback("섹터 비교", getUniverse(), new Map(), detailWarnings),
+      withDetailFallback("분기 재무", getFundamentals(code), [], detailWarnings),
+      withDetailFallback("저장 시세", getLatestPrice(code), null, detailWarnings),
+      withDetailFallback(
+        "스크리닝 판정",
+        getScreenForCode(code),
+        { row: null, history: [], dropped: [] },
+        detailWarnings
+      ),
+      withDetailFallback("일간 시세", getNaverDailyPrices(code), [], detailWarnings),
+      withDetailFallback("최근 공시", getDisclosures(code, 40), [], detailWarnings),
+      withDetailFallback(
+        "결과 추적",
+        getOutcomesForCode(code),
+        { rows: [], dropped: [] },
+        detailWarnings
+      ),
+      withDetailFallback("네이버 현재값", getNaverLiveSnapshot(code), null, detailWarnings),
     ]);
 
-  const stock = universe.get(code);
   if (!stock) notFound();
+  // 전수 유니버스가 실패해도 현재 종목의 이름·섹터는 잃지 않는다.
+  universe.set(code, stock);
 
   const screen = screenResult.row;
   const currentCategory = screen == null ? null : growthCategory(screen);
@@ -112,16 +145,46 @@ export default async function StockPage({ params }: { params: { code: string } }
     quarterScreenResult,
     quarterFundamentals,
   ] = await Promise.all([
-    year && quarter ? getConsensus(code, year, quarter) : Promise.resolve(null),
-    isGrowthAcceleration && year && quarter ? getAnalysis(code, year, quarter) : Promise.resolve(null),
-    year ? getAnnualConsensus(code, year) : Promise.resolve(null),
-    nextPeriod ? getConsensus(code, nextPeriod.year, nextPeriod.quarter) : Promise.resolve(null),
-    year && quarter ? getDisclosureExcerpt(code, year, quarter) : Promise.resolve(null),
     year && quarter
-      ? getScreensForQuarter(year, quarter)
+      ? withDetailFallback("분기 컨센서스", getConsensus(code, year, quarter), null, detailWarnings)
+      : Promise.resolve(null),
+    isGrowthAcceleration && year && quarter
+      ? withDetailFallback("LLM 분석", getAnalysis(code, year, quarter), null, detailWarnings)
+      : Promise.resolve(null),
+    year
+      ? withDetailFallback("연간 컨센서스", getAnnualConsensus(code, year), null, detailWarnings)
+      : Promise.resolve(null),
+    nextPeriod
+      ? withDetailFallback(
+          "다음 분기 컨센서스",
+          getConsensus(code, nextPeriod.year, nextPeriod.quarter),
+          null,
+          detailWarnings
+        )
+      : Promise.resolve(null),
+    year && quarter
+      ? withDetailFallback(
+          "공시 발췌",
+          getDisclosureExcerpt(code, year, quarter),
+          null,
+          detailWarnings
+        )
+      : Promise.resolve(null),
+    year && quarter
+      ? withDetailFallback(
+          "섹터 스크리닝 비교",
+          getScreensForQuarter(year, quarter),
+          { rows: [], dropped: [] },
+          detailWarnings
+        )
       : Promise.resolve({ rows: [], dropped: [] }),
     year && quarter
-      ? getFundamentalsForQuarters([{ year, quarter }])
+      ? withDetailFallback(
+          "섹터 재무 비교",
+          getFundamentalsForQuarters([{ year, quarter }]),
+          [],
+          detailWarnings
+        )
       : Promise.resolve([]),
   ]);
 
@@ -140,7 +203,9 @@ export default async function StockPage({ params }: { params: { code: string } }
   //     분석 이후 실제 실적이 나왔기 때문이다.
   //   ★ 어느 분기 분석인지를 화면에 반드시 밝힌다 — 안 밝히면 옛 해석을
   //     이번 분기 해석으로 읽게 된다.
-  const fallback = isGrowthAcceleration && !analysisPayload ? await getLatestAnalysis(code) : null;
+  const fallback = isGrowthAcceleration && !analysisPayload
+    ? await withDetailFallback("최근 LLM 분석", getLatestAnalysis(code), null, detailWarnings)
+    : null;
   const analysis = readAnalysis(analysisPayload ?? fallback?.payload ?? null);
   const analysisYear = analysisPayload ? year : fallback?.fiscal_year ?? null;
   const analysisQuarter = analysisPayload ? quarter : fallback?.fiscal_quarter ?? null;
@@ -305,21 +370,31 @@ export default async function StockPage({ params }: { params: { code: string } }
   const sectorPeerRows = await Promise.all(
     displayedSectorScreens.map(async (peerScreen) => {
       const isCurrent = peerScreen.code === code;
-      const [peerFunds, peerPrice, peerAnnual, peerNaver] = isCurrent
-        ? [funds, price, annualConsensus, naverLive]
+      // 비교 종목마다 네이버 3개 + 전 분기 재무를 다시 읽으면 상세 한 번에 수십 요청이
+      // 생긴다. 비교군은 저장된 최신 시세/연간 컨센서스를 쓰고 현재 종목만 실시간값을 쓴다.
+      const [peerPrice, peerAnnual] = isCurrent
+        ? [price, annualConsensus]
         : await Promise.all([
-            getFundamentals(peerScreen.code),
-            getLatestPrice(peerScreen.code),
-            year ? getAnnualConsensus(peerScreen.code, year) : Promise.resolve(null),
-            getNaverLiveSnapshot(peerScreen.code),
+            withDetailFallback(
+              "비교군 저장 시세",
+              getLatestPrice(peerScreen.code),
+              null,
+              detailWarnings
+            ),
+            year
+              ? withDetailFallback(
+                  "비교군 연간 컨센서스",
+                  getAnnualConsensus(peerScreen.code, year),
+                  null,
+                  detailWarnings
+                )
+              : Promise.resolve(null),
           ]);
       const peerFund = quarterFundByCode.get(peerScreen.code) ?? null;
       const peerCap =
         isCurrent
           ? currentMarketCap
           : peerPrice?.market_cap_krw ?? universe.get(peerScreen.code)?.market_cap_krw ?? null;
-      const peerTtmNp =
-        year && quarter ? ttmNetIncome(peerFunds, year, quarter) : null;
       return {
         code: peerScreen.code,
         name: universe.get(peerScreen.code)?.name ?? peerScreen.code,
@@ -328,11 +403,15 @@ export default async function StockPage({ params }: { params: { code: string } }
         revenue: peerFund?.revenue ?? null,
         op: peerFund?.op ?? null,
         opm: peerFund?.opm ?? null,
-        roeCurrent: peerNaver?.roe ?? peerAnnual?.roe_est ?? null,
-        roeNext: peerNaver?.roeNext ?? peerAnnual?.roe_next_est ?? null,
-        roeNextYear: peerNaver?.roeNextYear ?? peerAnnual?.roe_next_year ?? null,
-        per4q: peerNaver?.per4q ?? peerAnnual?.per ?? trailing4qPer(peerCap, peerTtmNp),
-        forwardPer: peerNaver?.fwdPer ?? peerAnnual?.fwd_per ?? null,
+        roeCurrent: isCurrent ? naverLive?.roe ?? peerAnnual?.roe_est ?? null : peerAnnual?.roe_est ?? null,
+        roeNext: isCurrent ? naverLive?.roeNext ?? peerAnnual?.roe_next_est ?? null : peerAnnual?.roe_next_est ?? null,
+        roeNextYear: isCurrent ? naverLive?.roeNextYear ?? peerAnnual?.roe_next_year ?? null : peerAnnual?.roe_next_year ?? null,
+        per4q: isCurrent
+          ? naverLive?.per4q ?? peerAnnual?.per ?? peerPrice?.per_current_ttm ?? null
+          : peerAnnual?.per ?? peerPrice?.per_current_ttm ?? null,
+        forwardPer: isCurrent
+          ? naverLive?.fwdPer ?? peerAnnual?.fwd_per ?? null
+          : peerAnnual?.fwd_per ?? null,
       };
     })
   );
@@ -405,6 +484,11 @@ export default async function StockPage({ params }: { params: { code: string } }
 
   return (
     <div className="space-y-5">
+      {detailWarnings.size > 0 && (
+        <div className="rounded border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-100">
+          일부 보조 자료가 잠시 연결되지 않아 결측으로 표시했습니다. 화면은 계속 사용할 수 있습니다: {Array.from(detailWarnings).join(" · ")}
+        </div>
+      )}
       {/* 1. 헤더 */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>

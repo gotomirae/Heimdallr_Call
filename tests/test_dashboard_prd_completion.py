@@ -79,6 +79,15 @@ def test_dashboard_transient_reads_retry_without_hiding_permanent_errors():
     assert "0이 아니라 미수집" in HOME
 
 
+def test_stock_detail_isolates_optional_reads_and_does_not_refetch_live_peer_data():
+    assert "getUniverseForCode(code)" in STOCK
+    assert "withDetailFallback" in STOCK
+    assert "일부 보조 자료가 잠시 연결되지 않아 결측으로 표시했습니다" in STOCK
+    assert "peerAnnual?.per ?? peerPrice?.per_current_ttm" in STOCK
+    assert STOCK.count("getNaverLiveSnapshot(") == 1
+    assert "getFundamentals(peerScreen.code)" not in STOCK
+
+
 def test_discovery_table_renders_rows_progressively_without_dropping_full_data():
     assert "constants.discovery_initial_rows" in DISCOVERY
     assert "constants.discovery_row_step" in DISCOVERY

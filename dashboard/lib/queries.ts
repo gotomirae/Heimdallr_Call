@@ -114,6 +114,16 @@ export async function getUniverse(): Promise<Map<string, UniverseRow>> {
   return new Map(all.map((r) => [r.code, r]));
 }
 
+/** 상세 진입의 필수 앵커. 전수 유니버스 조회가 흔들려도 종목 자체는 한 행으로 찾는다. */
+export async function getUniverseForCode(code: string): Promise<UniverseRow | null> {
+  const { rows } = await selectWithOptionalColumns<UniverseRow>(
+    "krx_universe",
+    UNIVERSE_COLUMNS,
+    (q, cols) => q.select(cols).eq("code", code).limit(1)
+  );
+  return rows[0] ?? null;
+}
+
 /**
  * 전 종목의 **최신** 스크리닝 결과. 누락 컬럼은 루프로 걷어낸다(§9.2).
  *

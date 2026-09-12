@@ -404,7 +404,7 @@ KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부
 # ═══ 운영 ═══
 DASHBOARD_REFRESH_SECONDS = 60
 # 서버 렌더 DB 읽기 재시도 대기(ms). 4xx·스키마 오류는 대상이 아니며, 연결·pool·timeout만 쓴다.
-DASHBOARD_DB_RETRY_DELAYS_MS = (150, 450)
+DASHBOARD_DB_RETRY_DELAYS_MS = (150, 600, 1500)
 # 발굴 표는 전수 데이터를 보존하되 초기 DOM을 작게 그리고 같은 수만큼 점진 확장한다.
 DISCOVERY_INITIAL_ROWS = 120
 DISCOVERY_ROW_STEP = 120
