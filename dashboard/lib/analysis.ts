@@ -125,6 +125,15 @@ export interface BrokerReport {
   keyPoint: string | null;
 }
 
+export interface NarrativeVerification {
+  claim: string | null;
+  sourceTitle: string | null;
+  sourceDate: string | null;
+  url: string | null;
+  verdict: "실현" | "진행중" | "미실현" | "판정불가" | null;
+  evidence: string | null;
+}
+
 export interface AnalysisView {
   thesis: string | null;
   whyNow: string | null;
@@ -143,6 +152,7 @@ export interface AnalysisView {
   risks: Risk[];
   nextDataToWatch: string[];
   brokerReports: BrokerReport[];
+  narrativeVerification: NarrativeVerification[];
   brokerReportSearchPerformed: boolean;
   howICouldBeWrong: string | null;
   isEmpty: boolean;
@@ -314,6 +324,19 @@ export function readAnalysis(payload: unknown): AnalysisView {
             channel: report ? asString(report.channel) : null,
             url: report ? asString(report.url) : null,
             keyPoint: report ? asString(report.key_point) : null,
+          };
+        })
+      : [],
+    narrativeVerification: root
+      ? asArray(root.narrative_verification).map((raw) => {
+          const item = asRecord(raw);
+          return {
+            claim: item ? asString(item.claim) : null,
+            sourceTitle: item ? asString(item.source_title) : null,
+            sourceDate: item ? asString(item.source_date) : null,
+            url: item ? asString(item.url) : null,
+            verdict: item ? asString(item.verdict) as NarrativeVerification["verdict"] : null,
+            evidence: item ? asString(item.evidence) : null,
           };
         })
       : [],

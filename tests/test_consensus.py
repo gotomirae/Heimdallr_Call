@@ -100,11 +100,11 @@ def test_units_are_converted_from_eok_to_won(patched):
 
 
 def test_naver_annual_per_and_forward_per_are_parsed(patched):
-    """네이버 표의 최근 확정 PER과 올해 선행 PER·올해/내년 ROE를 보존한다."""
+    """네이버 표의 올해/내년 예상 PER·ROE를 같은 연도축으로 보존한다."""
     annual = fetch_annual_estimate("005930")
     assert annual is not None
-    assert annual["per"] == 6.40
-    assert annual["fwd_per"] == 6.61
+    assert annual["per"] == 6.61
+    assert annual["fwd_per"] == 6.22
     assert annual["roe_est"] == 13.68
     assert annual["roe_next_est"] == 13.40
     assert annual["roe_next_year"] == 2027
@@ -122,8 +122,8 @@ def test_annual_per_survives_when_net_income_estimate_is_missing(monkeypatch):
     annual = fetch_annual_estimate("005930")
     assert annual is not None
     assert annual["np_est"] is None
-    assert annual["per"] == 6.40
-    assert annual["fwd_per"] == 6.61
+    assert annual["per"] == 6.61
+    assert annual["fwd_per"] == 6.22
 
 
 def test_missing_next_year_roe_is_not_invented(monkeypatch):
@@ -136,6 +136,7 @@ def test_missing_next_year_roe_is_not_invented(monkeypatch):
     assert annual["roe_est"] == 13.68
     assert annual["roe_next_est"] is None
     assert annual["roe_next_year"] is None
+    assert annual["fwd_per"] is None
 
 
 # 실측 변형: 헤더 앞에 **빈 칸**이 있고 연간 컬럼이 **3개**인 종목이 있다

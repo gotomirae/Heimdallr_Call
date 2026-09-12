@@ -113,7 +113,7 @@ ANALYSIS_SCHEMA: dict = {
                 "reason": {
                     "type": "string",
                     "description": "그 판정의 근거. **밸류에이션 블록에 주어진 두 배수**"
-                                   "(최근 4개 분기 PER · 향후 4개 분기 선행 PER)와 PBR, "
+                                   "(네이버 올해 PER(예상) · 내년 F.PER(예상))과 PBR, "
                                    "52주 신고가 대비 등락, 발표일 종가 대비 등락, 과거 9분기 "
                                    "평균 PER 대비, 외국인 5거래일 수급, RSI를 인용하라. "
                                    "**입력에 없는 PER을 지어내지 마라** — '계산 불가'로 "
@@ -199,6 +199,23 @@ ANALYSIS_SCHEMA: dict = {
                     },
                 },
                 "required": ["publisher", "title", "published_at", "channel", "url", "key_point"],
+                "additionalProperties": False,
+            },
+        },
+        "narrative_verification": {
+            "type": "array",
+            "description": "지난 4개 분기 경영진 발언·실적 전망이 이번 분기 숫자로 실현됐는지 출처별 대조. 검증 가능한 출처가 없으면 빈 배열",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "claim": {"type": "string", "description": "당시 경영진·실적발표에서 제시한 구체적 주장"},
+                    "source_title": {"type": "string"},
+                    "source_date": {"type": "string", "description": "YYYY-MM-DD"},
+                    "url": {"type": "string", "description": "검색 결과에서 확인된 직접 URL"},
+                    "verdict": {"type": "string", "enum": ["실현", "진행중", "미실현", "판정불가"]},
+                    "evidence": {"type": "string", "description": "이번 분기 구조화 실적에서 확인한 숫자 또는 판정 불가 이유"},
+                },
+                "required": ["claim", "source_title", "source_date", "url", "verdict", "evidence"],
                 "additionalProperties": False,
             },
         },
@@ -359,9 +376,8 @@ SYSTEM_PROMPT = """\
 
 입력의 '밸류에이션' 항목에는 두 가지가 있다.
 
-- **최근 4개 분기 순이익 기준 PER** — 실제로 번 돈 기준. 추정이 없다.
-- **향후 4개 분기 선행 PER** — 연간 컨센서스 기준. 이익이 늘 것을 반영한 배수라
-  가속 구간에서는 앞의 것보다 낮게 나온다.
+- **올해 PER(예상)** — 네이버 기업실적분석의 올해 연간 예상 PER.
+- **내년 F.PER(예상)** — 같은 표의 내년 연간 예상 PER. 두 배수의 연도축을 섞지 마라.
 
 **PER을 말할 때는 반드시 이 둘 중 어느 것인지 밝히고 둘 다 언급하라.**
 '계산 불가'로 주어졌으면 그 사실과 이유를 그대로 쓰고 **다른 데서 숫자를 가져오지 마라.**

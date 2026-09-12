@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS consensus_snapshots (
   code TEXT NOT NULL,
   fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   revenue_est NUMERIC, op_est NUMERIC, np_est NUMERIC, eps_est NUMERIC,
-  per NUMERIC, fwd_per NUMERIC,              -- 네이버 최근 확정 / 연간 (E) PER
+  per NUMERIC, fwd_per NUMERIC,              -- 네이버 올해 (E) / 내년 (E) PER
   roe_est NUMERIC, roe_next_est NUMERIC,     -- 네이버 올해 / 내년 (E) ROE
   roe_next_year INT,
   n_estimates INT,                          -- < 2면 컨센서스로 인정하지 않음

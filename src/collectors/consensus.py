@@ -219,8 +219,8 @@ def fetch_annual_estimate(code: str) -> dict | None:
     실제로 호출하는 읽기 전용 표다. 기본 화면에는 가장 가까운 연간 (E) 한 열만
     보이지만 이 표에는 최근 3년 실적과 향후 2년 추정치가 함께 있다.
 
-    ★ 가장 가까운 (E)는 올해 F.PER·ROE, 그 다음 (E)는 내년도 F.ROE로 쓴다.
-      두 번째 추정 행이 없으면 내년도 ROE를 추측하지 않고 ``None``이다.
+    ★ 가장 가까운 (E)는 올해 PER·ROE, 그 다음 (E)는 내년도 F.PER·F.ROE로 쓴다.
+      두 번째 추정 행이 없으면 내년도 값을 추측하지 않고 ``None``이다.
     ★ 열 위치는 실측 표 계약이다. 매출 다음 YoY 한 칸만 별도이고 이후는
       영업이익·순이익·EPS·PER·PBR·ROE 순이다. 행 길이가 다르면 건너뛴다.
     """
@@ -231,7 +231,6 @@ def fetch_annual_estimate(code: str) -> dict | None:
             timeout=40.0,
         )
         soup = BeautifulSoup(decode_html(resp), "html.parser")
-        actuals: list[dict] = []
         estimates: list[dict] = []
         for tr in soup.find_all("tr"):
             cells = [cell.get_text(" ", strip=True) for cell in tr.find_all(["th", "td"])]
@@ -249,17 +248,14 @@ def fetch_annual_estimate(code: str) -> dict | None:
                 "per": _to_number(cells[6]),
                 "roe": _to_number(cells[8]),
             }
-            (estimates if match.group(2) == "E" else actuals).append(row)
+            if match.group(2) == "E":
+                estimates.append(row)
 
         estimates.sort(key=lambda row: row["fiscal_year"])
         if not estimates:
             return None
         current = estimates[0]
         following = estimates[1] if len(estimates) > 1 else None
-        prior_actuals = [
-            row for row in actuals if row["fiscal_year"] < current["fiscal_year"]
-        ]
-        latest_actual = max(prior_actuals, key=lambda row: row["fiscal_year"], default=None)
         out = {
             "fiscal_year": current["fiscal_year"],
             "revenue_est": (
@@ -275,9 +271,11 @@ def fetch_annual_estimate(code: str) -> dict | None:
                 if current["np_est"] is not None else None
             ),
             "eps_est": current["eps_est"],
-            "per": latest_actual["per"] if latest_actual else None,
-            # 발굴목록의 F.PER은 네이버 연간 표의 **올해** 예상 순이익 기준이다.
-            "fwd_per": current["per"],
+            # 화면 계약: 올해 PER 열은 네이버의 **올해 예상 PER**, F.PER은
+            # **내년 예상 PER**이다. 직전 확정연도 PER을 섞으면 각 열의 시간축이
+            # 한 해씩 뒤로 밀리면서도 숫자는 그럴듯해 조용히 틀린다.
+            "per": current["per"],
+            "fwd_per": following["per"] if following else None,
             "roe_est": current["roe"],
             "roe_next_est": following["roe"] if following else None,
             "roe_next_year": following["fiscal_year"] if following else None,

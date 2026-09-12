@@ -44,7 +44,7 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("quarter_prices", "close", "—", "상세화면 9분기 차트의 주가 라인 (테이블)"),
     ("weekly_prices", "close", "—", "상세화면 실제 주간 종가 차트 (테이블)"),
     ("consensus_snapshots", "per", "NUMERIC", "네이버 최근 확정 PER"),
-    ("consensus_snapshots", "fwd_per", "NUMERIC", "네이버 올해 (E) 선행 PER"),
+    ("consensus_snapshots", "fwd_per", "NUMERIC", "네이버 내년 (E) 선행 PER"),
     ("consensus_snapshots", "roe_est", "NUMERIC", "네이버 올해 (E) ROE"),
     ("consensus_snapshots", "roe_next_est", "NUMERIC", "네이버 내년 (E) ROE"),
     ("consensus_snapshots", "roe_next_year", "INT", "네이버 다음 추정 연도"),

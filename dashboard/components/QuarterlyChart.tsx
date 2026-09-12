@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { SERIES_COLOR, type ChartPoint } from "@/lib/chart";
+import { fundamentalMetricMeanings, type MetricMeaning } from "@/lib/metricMeaning";
 
 const tooltipStyle = { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 6 };
 
@@ -45,7 +46,18 @@ function QuarterAxis() {
   return <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} tickLine={false} />;
 }
 
-function RevenuePanel({ points }: { points: ChartPoint[] }) {
+function Explanation({ items }: { items: MetricMeaning[] }) {
+  return <div className="mt-2 grid gap-2 sm:grid-cols-2">
+    {items.map((item) => <div key={item.label} className="rounded border border-slate-800 bg-slate-900/60 p-2.5">
+      <div className="text-[11px] font-bold text-sky-200">현재 위치 · {item.label}</div>
+      <div className="mt-0.5 text-xs font-semibold text-slate-100">{item.value}</div>
+      <p className="mt-1 text-[11px] leading-relaxed text-slate-300">{item.meaning}</p>
+      <p className="mt-1 text-[10px] leading-relaxed text-amber-200">다음 확인: {item.watch}</p>
+    </div>)}
+  </div>;
+}
+
+function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액</strong><span className="text-slate-400">억원</span></div>
     <div className="h-40"><ResponsiveContainer width="100%" height="100%"><BarChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
@@ -53,10 +65,11 @@ function RevenuePanel({ points }: { points: ChartPoint[] }) {
       <Tooltip formatter={(v) => [fmt(v, "억"), "매출액"]} contentStyle={tooltipStyle} />
       <Bar dataKey="revenue" name="매출액" fill="#2563eb" isAnimationActive={false}><LabelList dataKey="revenue" position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </BarChart></ResponsiveContainer></div>
+    <Explanation items={[meaning]} />
   </div>;
 }
 
-function EarningsPanel({ points }: { points: ChartPoint[] }) {
+function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">영업이익 · OPM</strong><span className="text-slate-400">억원 · %</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
@@ -67,10 +80,11 @@ function EarningsPanel({ points }: { points: ChartPoint[] }) {
       <Bar yAxisId="amount" dataKey="op" name="영업이익" fill="#0891b2" isAnimationActive={false}><LabelList dataKey="op" position="top" fill="#bae6fd" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Line yAxisId="percent" dataKey="opm" name="OPM" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opm" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
+    <Explanation items={meanings} />
   </div>;
 }
 
-function GrowthLinePanel({ points }: { points: ChartPoint[] }) {
+function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
   const revenueMeasured = points.filter((point) => point.revenueYoy != null).length;
   const opMeasured = points.filter((point) => point.opYoy != null).length;
   const measured = revenueMeasured + opMeasured;
@@ -101,10 +115,11 @@ function GrowthLinePanel({ points }: { points: ChartPoint[] }) {
       </table>
     </div>
     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">두 성장률을 실제 % 값 그대로 한 좌표에 놓았다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
+    <Explanation items={meanings} />
   </div>;
 }
 
-function OrdersPanel({ points }: { points: ChartPoint[] }) {
+function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">수주잔고 · 신규수주</strong><span className="text-slate-400">억원</span></div>
@@ -113,15 +128,17 @@ function OrdersPanel({ points }: { points: ChartPoint[] }) {
       <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar dataKey="newOrders" name="신규수주" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </ComposedChart></ResponsiveContainer></div>}
+    <Explanation items={[meaning]} />
   </div>;
 }
 
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (!points.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
+  const meanings = fundamentalMetricMeanings(points);
   return <div className="grid gap-3 md:grid-cols-2">
-    <RevenuePanel points={points} />
-    <EarningsPanel points={points} />
-    <GrowthLinePanel points={points} />
-    <OrdersPanel points={points} />
+    <RevenuePanel points={points} meaning={meanings[0]} />
+    <EarningsPanel points={points} meanings={meanings.slice(1, 3)} />
+    <GrowthLinePanel points={points} meanings={meanings.slice(3, 5)} />
+    <OrdersPanel points={points} meaning={meanings[5]} />
   </div>;
 }

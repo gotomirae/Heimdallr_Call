@@ -23,13 +23,14 @@ import {
   type Row,
 } from "@/lib/retrospect";
 import { discoveryHref } from "@/lib/discoveryFilters";
-import { getAllScreens, getFundamentalsForQuarters, getUniverse } from "@/lib/queries";
+import { getAllConsensusForQuarter, getAllScreens, getFundamentalsForQuarters, getUniverse } from "@/lib/queries";
 import {
   MIN_SECTOR_SAMPLE,
   aggregateSectors,
+  nextRisingSectors,
   outlook,
-  risingSectors,
   usableSectors,
+  withNextQuarterConsensus,
 } from "@/lib/sectorEarnings";
 import { playFor, projectSector } from "@/lib/sectorPlaybook";
 import { DASH } from "@/lib/format";
@@ -156,10 +157,15 @@ export default async function OutcomePage() {
   const toYQ = (i: number) => ({ year: Math.floor(i / 4), quarter: (i % 4) + 1 });
   const curQ = quarterIndexes.length > 0 ? toYQ(quarterIndexes[0]) : null;
   const prevQ = curQ ? toYQ(quarterIndexes[0] - 1) : null;
+  const nextQ = curQ ? toYQ(quarterIndexes[0] + 1) : null;
+  const yearAgoNextQ = nextQ ? { year: nextQ.year - 1, quarter: nextQ.quarter } : null;
 
-  const funds = curQ && prevQ
-    ? await getFundamentalsForQuarters([curQ, prevQ])
-    : [];
+  const [funds, nextConsensus] = curQ && prevQ && nextQ && yearAgoNextQ
+    ? await Promise.all([
+        getFundamentalsForQuarters([curQ, prevQ, yearAgoNextQ]),
+        getAllConsensusForQuarter(nextQ.year, nextQ.quarter),
+      ])
+    : [[], new Map()];
 
   // ★ 분기까지 맞춘 색인을 함께 넘긴다 — 최신 행만 쓰면 분기가 쌓인 뒤
   //   2026.2Q 결과에 다른 분기 판정이 붙는다(T40).
@@ -178,11 +184,17 @@ export default async function OutcomePage() {
   const tables = new Map<string, Row[]>(
     FEATURE_GROUPS.map((g) => [g.title, crosstab(rows, g.keyOf)])
   );
-  const sectorRows = curQ && prevQ
-    ? aggregateSectors(universe, funds, screensByQuarter, curQ, prevQ)
+  const sectorRows = curQ && prevQ && yearAgoNextQ
+    ? withNextQuarterConsensus(
+        aggregateSectors(universe, funds, screensByQuarter, curQ, prevQ),
+        universe,
+        funds.filter((f) => f.fiscal_year === curQ.year && f.fiscal_quarter === curQ.quarter),
+        funds.filter((f) => f.fiscal_year === yearAgoNextQ.year && f.fiscal_quarter === yearAgoNextQ.quarter),
+        nextConsensus
+      )
     : [];
   const sectorUsable = usableSectors(sectorRows);
-  const rising = risingSectors(sectorRows);
+  const rising = nextRisingSectors(sectorRows);
   const outlookRows = outlook(sectorRows);
 
   const { insights, bestTiming, caveats } = buildInsights(rows, tables);
@@ -456,7 +468,7 @@ export default async function OutcomePage() {
       >
         {sectorUsable.length > 0 ? (
           <div className="max-h-[60vh] overflow-auto rounded border border-slate-700">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="sticky top-0 z-20 bg-slate-800 text-xs uppercase text-slate-100">
                 <tr>
                   <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
@@ -476,6 +488,18 @@ export default async function OutcomePage() {
                   <th scope="col" className="px-3 py-2 text-right font-medium"
                       title="지난 분기 대비 가속 종목 비율의 변화 — 서프라이즈가 늘었나">
                     전분기 대비
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium text-amber-200"
+                      title="네이버 종목별 다음 분기 매출 컨센서스의 섹터 중앙값">
+                    다음Q 매출 YoY
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium text-amber-200"
+                      title="네이버 종목별 다음 분기 영업이익 컨센서스의 섹터 중앙값">
+                    다음Q 영업익 YoY
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium text-emerald-200"
+                      title="컨센서스상 매출·영업이익 성장률이 모두 더 빨라질 종목 비율">
+                    다음Q 가속
                   </th>
                 </tr>
               </thead>
@@ -513,6 +537,16 @@ export default async function OutcomePage() {
                         ? DASH
                         : `${r.accelRateDelta >= 0 ? "+" : ""}${r.accelRateDelta.toFixed(0)}%p`}
                     </td>
+                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.nextRevenueYoy)}`}>
+                      {r.nextRevenueYoy == null ? DASH : `${r.nextRevenueYoy >= 0 ? "+" : ""}${r.nextRevenueYoy.toFixed(1)}%`}
+                    </td>
+                    <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.nextOpYoy)}`}>
+                      {r.nextOpYoy == null ? DASH : `${r.nextOpYoy >= 0 ? "+" : ""}${r.nextOpYoy.toFixed(1)}%`}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-emerald-100">
+                      {r.projectedAccelRate == null ? DASH : `${(r.projectedAccelRate * 100).toFixed(0)}%`}
+                      {r.nextCoverage > 0 && <span className="ml-1 text-xs text-slate-300">({r.nextCoverage})</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -528,10 +562,10 @@ export default async function OutcomePage() {
         {rising.length > 0 && (
           <div className="mt-4 rounded-lg border border-emerald-700/60 bg-emerald-950/20 p-3">
             <div className="text-sm font-bold text-emerald-200">
-              지난 분기보다 가속 종목이 늘어난 섹터
+              다음 분기에 가속 종목이 늘어날 것으로 보이는 섹터
             </div>
             <p className="mt-0.5 text-xs text-slate-200">
-              개별 종목이 아니라 섹터 전체가 좋아지는 신호
+              네이버 다음 분기 컨센서스와 전년 동분기 실적을 종목별 대조한 결과
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {rising.map((r, i) => (
@@ -545,10 +579,10 @@ export default async function OutcomePage() {
                       }`}>
                   {r.sector}{" "}
                   <span className="tabular-nums">
-                    {(r.prevAccelRate! * 100).toFixed(0)}% → {(r.accelRate! * 100).toFixed(0)}%
+                    {(r.accelRate! * 100).toFixed(0)}% → {(r.projectedAccelRate! * 100).toFixed(0)}%
                   </span>
                   <span className="ml-1 text-xs text-emerald-200">
-                    ({r.accelRateDelta! >= 0 ? "+" : ""}{r.accelRateDelta!.toFixed(0)}%p)
+                    ({r.projectedAccelDelta! >= 0 ? "+" : ""}{r.projectedAccelDelta!.toFixed(0)}%p)
                   </span>
                 </Link>
               ))}
@@ -560,8 +594,8 @@ export default async function OutcomePage() {
       {/* ═══ ⑤ 다음 분기 전망 — 섹터별 이벤트·지표·전망값 (사용자 지정) ═══ */}
       {outlookRows.length > 0 && (
         <Card
-          title="다음 분기 전망 — 섹터별"
-          note="성장률 범위는 이번 분기 실측에서 계산했다(예측 모델이 아니다). 이벤트·지표는 그 섹터에서 주가를 움직이는 것들이다."
+          title={`다음 분기 전망 — 섹터별${nextQ ? ` (${nextQ.year}.${nextQ.quarter}Q)` : ""}`}
+          note="네이버 종목별 다음 분기 컨센서스를 전년 동분기·이번 분기 실적과 대조한 섹터 중앙값이다. 표본 5개 미만은 추세 기반 조건부 범위로만 보인다."
         >
           <div className="space-y-3">
             {outlookRows.slice(0, 14).map((o) => {
@@ -596,7 +630,7 @@ export default async function OutcomePage() {
                         <th className="pr-3 text-right font-medium">이번 분기</th>
                         <th className="pr-3 text-right font-medium">섹터 내 범위</th>
                         <th className="pr-3 text-right font-medium">전분기 대비</th>
-                        <th className="text-right font-medium text-amber-200">다음 분기 예상</th>
+                        <th className="text-right font-medium text-amber-200">다음 분기 YoY</th>
                       </tr>
                     </thead>
                     <tbody className="tabular-nums">
@@ -613,7 +647,11 @@ export default async function OutcomePage() {
                         <td className={`pr-3 text-right ${toneOf(row.revenueYoyDelta)}`}>
                           {row.revenueYoyDelta == null ? DASH : `${row.revenueYoyDelta >= 0 ? "+" : ""}${row.revenueYoyDelta.toFixed(1)}%p`}
                         </td>
-                        <td className="text-right font-bold text-amber-200">{band(proj.revenue)}</td>
+                        <td className="text-right font-bold text-amber-200">
+                          {row.nextRevenueYoy != null
+                            ? `${row.nextRevenueYoy >= 0 ? "+" : ""}${row.nextRevenueYoy.toFixed(1)}%`
+                            : band(proj.revenue)}
+                        </td>
                       </tr>
                       <tr>
                         <td className="pr-3 font-semibold text-slate-100">영업이익</td>
@@ -628,10 +666,21 @@ export default async function OutcomePage() {
                         <td className={`pr-3 text-right ${toneOf(row.opYoyDelta)}`}>
                           {row.opYoyDelta == null ? DASH : `${row.opYoyDelta >= 0 ? "+" : ""}${row.opYoyDelta.toFixed(1)}%p`}
                         </td>
-                        <td className="text-right font-bold text-amber-200">{band(proj.op)}</td>
+                        <td className="text-right font-bold text-amber-200">
+                          {row.nextOpYoy != null
+                            ? `${row.nextOpYoy >= 0 ? "+" : ""}${row.nextOpYoy.toFixed(1)}%`
+                            : band(proj.op)}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
+
+                  <p className="mt-2 text-xs text-slate-200">
+                    <span className="font-semibold text-amber-100">다음 분기 전분기 대비 · </span>
+                    매출 {row.nextRevenueQoq == null ? DASH : `${row.nextRevenueQoq >= 0 ? "+" : ""}${row.nextRevenueQoq.toFixed(1)}%`}
+                    {" · "}영업이익 {row.nextOpQoq == null ? DASH : `${row.nextOpQoq >= 0 ? "+" : ""}${row.nextOpQoq.toFixed(1)}%`}
+                    {" · "}컨센서스 표본 {row.nextCoverage}종목
+                  </p>
 
                   {/* 섹터별 이벤트·지표 — 일괄 문구를 대체한다 */}
                   <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
@@ -668,12 +717,11 @@ export default async function OutcomePage() {
             })}
           </div>
           <p className="mt-3 text-xs text-slate-200">
-            <strong className="text-slate-100">다음 분기 예상</strong>은 이번 분기 중앙값을 하단,
-            전분기 대비 변화의 절반을 더한 값을 상단으로 잡았다 — 성장률 변화는 평균회귀가
-            강해 모멘텀을 온전히 연장하지 않는다.{" "}
-            <strong className="text-amber-200">예측 모델이 아니라 &ldquo;이 추세가 이어지면
-            이 범위&rdquo;라는 조건부 서술이다.</strong>{" "}
-            이벤트·지표는 산업 지식으로 정리한 것이며 전망값은 여기서 오지 않는다.
+            <strong className="text-slate-100">다음 분기 예상</strong>은 네이버 증권의 종목별
+            매출·영업이익 컨센서스를 사용한다. 같은 분기 전년 실적이 양수일 때만 YoY를,
+            이번 분기 실적이 양수일 때만 QoQ를 계산하며 부호 전환은 성장률로 만들지 않는다.
+            컨센서스가 없거나 섹터 표본이 부족한 경우에만 이번 분기 실측과 직전 변화의 절반을
+            연장한 조건부 범위를 표시한다. 이벤트·지표는 확인 체크리스트이며 전망 숫자의 원천이 아니다.
           </p>
         </Card>
       )}

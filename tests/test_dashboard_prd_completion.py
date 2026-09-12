@@ -12,10 +12,14 @@ HOME = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
 DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
-WEEKLY_CHART = (ROOT / "dashboard/components/WeeklyPriceChart.tsx").read_text(encoding="utf-8")
+DAILY_CHART = (ROOT / "dashboard/components/DailyPriceChart.tsx").read_text(encoding="utf-8")
 NAVER = (ROOT / "dashboard/lib/naver.ts").read_text(encoding="utf-8")
 MEANING = (ROOT / "dashboard/lib/metricMeaning.ts").read_text(encoding="utf-8")
 PRI_BREAKDOWN = (ROOT / "dashboard/components/ScoreBreakdown.tsx").read_text(encoding="utf-8")
+OUTCOME = (ROOT / "dashboard/app/outcome/page.tsx").read_text(encoding="utf-8")
+SECTOR_EARNINGS = (ROOT / "dashboard/lib/sectorEarnings.ts").read_text(encoding="utf-8")
+ANALYSIS_VIEW = (ROOT / "dashboard/lib/analysis.ts").read_text(encoding="utf-8")
+ANALYSIS_SECTION = (ROOT / "dashboard/components/AnalysisSection.tsx").read_text(encoding="utf-8")
 
 
 def test_query_contract_includes_existing_prd_columns():
@@ -42,7 +46,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "섹터 비교",
         "종목별 결과 추적",
         "네이버 증권 기업실적분석",
-        "주간 종가",
+        "일간 종가",
         "올해 → 내년 ROE",
         "최신 분기 매출",
         "F.PER",
@@ -76,15 +80,17 @@ def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
     assert "trailing4qPer" in STOCK
 
 
-def test_quarter_chart_uses_opm_and_weekly_price_matches_its_period():
+def test_quarter_chart_uses_opm_and_daily_price_matches_its_period():
     for label in ("매출", "매출액 YoY", "영업이익", "영업이익 YoY", "OPM", "수주잔고", "신규수주"):
         assert label in QUARTER_CHART
     assert 'dataKey="close"' not in QUARTER_CHART
-    assert "fromDate={weeklyFromDate}" in STOCK
-    assert "MACD (12·26·9)" in WEEKLY_CHART and "RSI (14)" in WEEKLY_CHART
-    assert "normalizeWeeklyRows" in WEEKLY_CHART
-    assert "macdPoints" in WEEKLY_CHART
-    assert "네이버 일봉 → ISO 주 마지막 거래일" in WEEKLY_CHART
+    assert "fromDate={dailyFromDate}" in STOCK
+    assert "MACD (일간 12·26·9)" in DAILY_CHART and "RSI (일간 14)" in DAILY_CHART
+    assert "normalizeDailyRows" in DAILY_CHART
+    assert "macdPoints" in DAILY_CHART
+    assert "실적 발표" in DAILY_CHART and "ReferenceLine" in DAILY_CHART
+    assert "api.finance.naver.com/siseJson.naver" in NAVER
+    assert "appendNextQuarterConsensus" in STOCK
 
 
 def test_stock_detail_uses_live_naver_quote_and_exact_valuation_source():
@@ -93,8 +99,8 @@ def test_stock_detail_uses_live_naver_quote_and_exact_valuation_source():
     for field in ("priceDate", "per4q", "fwdPer", "roe"):
         assert field in NAVER and field in STOCK
     assert "최대 1분 캐시" in STOCK
-    assert "네이버 증권 현재 PER" in STOCK
-    assert "네이버 증권 추정PER" in STOCK
+    assert "네이버 올해 PER(예상)" in STOCK
+    assert "네이버 내년 F.PER" in STOCK
 
 
 def test_growth_dashboard_title_and_quarter_chart_display_contract():
@@ -107,11 +113,11 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert (
         QUARTER_CHART.index("<RevenuePanel")
         < QUARTER_CHART.index("<EarningsPanel")
-        < QUARTER_CHART.index('<GrowthLinePanel points={points} />')
+        < QUARTER_CHART.index('<GrowthLinePanel points={points}')
     )
     assert '"revenueYoy"' in QUARTER_CHART
     assert '"opYoy"' in QUARTER_CHART
-    assert '<GrowthLinePanel points={points} />' in QUARTER_CHART
+    assert '<GrowthLinePanel points={points}' in QUARTER_CHART
     assert 'name="매출액 YoY"' in QUARTER_CHART
     assert 'name="영업이익 YoY"' in QUARTER_CHART
     assert QUARTER_CHART.count("<YAxis") == 4, "YoY 두 선은 YAxis 하나를 공유해야 한다"
@@ -127,10 +133,11 @@ def test_ten_quarters_and_every_chart_metric_has_deterministic_meaning():
     assert ".slice(0, CHART_QUARTERS)" in STOCK
     for label in (
         "매출액", "영업이익", "OPM", "매출액 YoY", "영업이익 YoY",
-        "수주잔고 · 신규수주", "실제 주간 종가", "MACD", "RSI",
+        "수주잔고 · 신규수주", "네이버 일간 종가", "MACD", "RSI",
     ):
         assert label in MEANING
-    assert "metricMeanings" in STOCK
+    assert "fundamentalMetricMeanings" in QUARTER_CHART
+    assert "priceMeaning" in DAILY_CHART and "macdMeaning" in DAILY_CHART and "rsiMeaning" in DAILY_CHART
 
 
 def test_llm_stage_timeline_is_event_driven_and_visible():
@@ -188,7 +195,7 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert "ETF 테마 {r.sectorTheme}" not in DISCOVERY
     for label in (
         'label="매출 QoQ"', 'label="영업이익 YoY"', 'label="영업이익 QoQ"',
-        'label="최근 4Q PER"', 'label="F.PER"', 'label="ROE"', 'label="F.ROE"',
+        'label="올해 PER(예상)"', 'label="내년 F.PER"', 'label="올해 ROE(예상)"', 'label="내년 F.ROE"',
     ):
         assert label in DISCOVERY
     assert "r.turnaround &&" not in DISCOVERY, "등급 칸에는 턴어라운드 문구를 중복 표시하지 않는다"
@@ -200,7 +207,9 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "기업 매력도" not in DISCOVERY
     assert "원본" not in DISCOVERY
     assert 'const state = !active ? "기본"' in DISCOVERY
-    assert "등급 → 섹터 기회" in (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
+    macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
+    assert "섹터 기회 → 높은 투자 매력도" in macro
+    assert "→ 등급 → 최신 분기" in macro
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
     for offset in ('left-0', 'left-[112px]', 'left-[156px]'):
@@ -225,6 +234,18 @@ def test_discovery_refreshes_official_macro_context_without_news_scoring():
     assert "macroContext.summary.forward" in DISCOVERY
     assert "cyclePrimarySort(sorts, key)" in DISCOVERY
     assert "return [{ key, dir: \"desc\" }, ...rest]" in filters
+
+
+def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_visible():
+    assert "getAllConsensusForQuarter" in QUERIES and "getAllConsensusForQuarter" in OUTCOME
+    for field in (
+        "nextRevenueYoy", "nextOpYoy", "nextRevenueQoq", "nextOpQoq",
+        "projectedAccelRate", "projectedAccelDelta",
+    ):
+        assert field in SECTOR_EARNINGS and field in OUTCOME
+    assert "nextRisingSectors" in OUTCOME
+    assert "narrative_verification" in ANALYSIS_VIEW
+    assert "지난 4개 분기 경영진 내러티브 검증" in ANALYSIS_SECTION
 
 
 def test_only_growth_acceleration_renders_llm_and_links_are_exact():

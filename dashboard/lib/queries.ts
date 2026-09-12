@@ -358,6 +358,47 @@ export async function getAnnualConsensus(
   return rows[0] ?? null;
 }
 
+/** 발굴 목록용 최신 연간 컨센서스. 이력 테이블이므로 전수 페이징 후 종목별 최신을 고른다. */
+export async function getAllLatestAnnualConsensus(): Promise<Map<string, ConsensusRow>> {
+  const rows = await selectAll<ConsensusRow>(
+    "consensus_snapshots",
+    CONSENSUS_COLUMNS.join(","),
+    (q) => q.eq("fiscal_quarter", 0).eq("source", "naver")
+  );
+  const latest = new Map<string, ConsensusRow>();
+  for (const row of rows) {
+    const previous = latest.get(row.code);
+    const newer = !previous ||
+      row.fiscal_year > previous.fiscal_year ||
+      (row.fiscal_year === previous.fiscal_year && String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? ""));
+    if (newer) latest.set(row.code, row);
+  }
+  return latest;
+}
+
+/** 결과 탭용 특정 분기 네이버 컨센서스. 이력은 종목별 최신 스냅샷 한 건만 남긴다. */
+export async function getAllConsensusForQuarter(
+  year: number,
+  quarter: number
+): Promise<Map<string, ConsensusRow>> {
+  const rows = await selectAll<ConsensusRow>(
+    "consensus_snapshots",
+    CONSENSUS_COLUMNS.join(","),
+    (q) => q
+      .eq("fiscal_year", year)
+      .eq("fiscal_quarter", quarter)
+      .eq("source", "naver")
+  );
+  const latest = new Map<string, ConsensusRow>();
+  for (const row of rows) {
+    const previous = latest.get(row.code);
+    if (!previous || String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? "")) {
+      latest.set(row.code, row);
+    }
+  }
+  return latest;
+}
+
 export async function getConsensus(
   code: string,
   year: number,

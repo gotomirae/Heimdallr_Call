@@ -207,6 +207,39 @@ export default function AnalysisSection({
         </div>
       )}
 
+      {(analysis.brokerReportSearchPerformed || analysis.narrativeVerification.length > 0) && (
+        <div className="rounded-lg border border-indigo-700/60 bg-indigo-950/20 p-4">
+          <div className="text-xs font-semibold uppercase text-indigo-200">
+            지난 4개 분기 경영진 내러티브 검증
+          </div>
+          <Note>
+            실적발표·경영진 인터뷰의 당시 주장을 이번 분기 구조화 실적과 대조한다.
+            직접 URL이 검색 결과에서 확인된 항목만 남긴다.
+          </Note>
+          {analysis.narrativeVerification.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-200">검증 가능한 과거 원문을 찾지 못해 판정을 만들지 않았다.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {analysis.narrativeVerification.map((item, index) => (
+                <li key={`${item.url}-${index}`} className="rounded border border-slate-700 bg-slate-950/40 p-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                    <span className="rounded bg-indigo-500/15 px-1.5 py-0.5 font-semibold text-indigo-100">{item.verdict ?? DASH}</span>
+                    <span>{item.sourceDate ?? DASH}</span>
+                    {item.url ? (
+                      <a href={item.url} target="_blank" rel="noreferrer" className="underline decoration-indigo-500/60 underline-offset-2 hover:text-indigo-200">
+                        {item.sourceTitle ?? item.url}
+                      </a>
+                    ) : <span>{item.sourceTitle ?? DASH}</span>}
+                  </div>
+                  {item.claim && <p className="mt-1 text-sm text-slate-100"><strong>당시 주장 · </strong>{item.claim}</p>}
+                  {item.evidence && <p className="mt-1 text-sm text-slate-200"><strong>이번 분기 확인 · </strong>{item.evidence}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* ★ 실적 변화 — 원인 / 결과 / 전망 (사용자 요청).
           2026-08-17 이전에 저장된 행에는 없다 → 있을 때만 그린다. */}
       {(analysis.earningsChange.cause ||

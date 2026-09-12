@@ -7,6 +7,8 @@ export interface MetricMeaning {
   value: string;
   meaning: string;
   watch: string;
+  /** 지표를 실제 매수·매도 판단에 어떻게 연결할지. 단독 신호로 쓰지는 않는다. */
+  action?: string;
 }
 
 function finite(value: number | null | undefined): value is number {
@@ -106,47 +108,68 @@ function orderMeaning(points: ChartPoint[]): MetricMeaning {
   };
 }
 
-function priceMeaning(points: TechnicalPoint[]): MetricMeaning {
+export function priceMeaning(points: TechnicalPoint[], high52w?: number | null): MetricMeaning {
   const latest = points.at(-1);
-  if (!latest) return { label: "실제 주간 종가", value: "측정 불가", meaning: "실적과 가격의 시차를 판단할 수 없다.", watch: "네이버 일봉 수집 상태" };
+  if (!latest) return { label: "네이버 일간 종가", value: "측정 불가", meaning: "실적과 가격의 시차를 판단할 수 없다.", watch: "네이버 일봉 수집 상태" };
   const closes = points.map((point) => point.close);
   const high = Math.max(...closes), low = Math.min(...closes);
   const position = high > low ? (latest.close - low) / (high - low) * 100 : null;
+  const referenceHigh = high52w != null && high52w > 0 ? high52w : high;
+  const drawdown = referenceHigh > 0 ? (latest.close / referenceHigh - 1) * 100 : null;
+  const recent = points.slice(-21);
+  const monthReturn = recent.length >= 2 ? (latest.close / recent[0].close - 1) * 100 : null;
   return {
-    label: "실제 주간 종가",
-    value: `${latest.trade_date} ${latest.close.toLocaleString("ko-KR")}원${position == null ? "" : ` · 표시 구간 ${position.toFixed(0)}% 위치`}`,
-    meaning: position == null ? "표시 구간 가격 범위가 없어 위치를 판단할 수 없다." : position >= 70 ? "표시 구간 상단이다. 좋은 실적이 이미 가격에 반영됐을 가능성을 함께 점검해야 한다." : position <= 30 ? "표시 구간 하단이다. 미반영 기회일 수도 있지만 시장이 본 리스크가 무엇인지 확인해야 한다." : "표시 구간 중간이다. 가격만으로 과열·침체를 단정하기 어렵다.",
+    label: "네이버 일간 종가",
+    value: `${latest.trade_date} ${latest.close.toLocaleString("ko-KR")}원${drawdown == null ? "" : ` · 52주 고점 대비 ${drawdown.toFixed(1)}%`}`,
+    meaning: position == null
+      ? "표시 구간 가격 범위가 없어 위치를 판단할 수 없다."
+      : `${position >= 70 ? "표시 구간 상단" : position <= 30 ? "표시 구간 하단" : "표시 구간 중간"}이다. ` +
+        `${monthReturn == null ? "최근 한 달 방향은 측정하지 못했다." : `최근 20거래일 수익률은 ${signed(monthReturn, "%")}다.`} ` +
+        "하락 이유는 가격 모양만으로 단정하지 않고 아래 LLM의 실적·업황·수급 근거와 대조한다.",
     watch: "실적 발표 뒤 가격과 지수대비 수익률의 방향",
+    action: position != null && position <= 30
+      ? "하단이라는 이유만으로 매수하지 말고, 실적 가속 유지와 MACD 회복을 함께 확인해 분할 접근한다."
+      : "고점에 가까울수록 추격보다 다음 실적 확인 또는 기술적 눌림을 기다린다.",
   };
 }
 
-function macdMeaning(points: TechnicalPoint[]): MetricMeaning {
+export function macdMeaning(points: TechnicalPoint[]): MetricMeaning {
   const measured = points.filter((point) => finite(point.macd) && finite(point.signal) && finite(point.histogram));
   const latest = measured.at(-1), previous = measured.at(-2);
-  if (!latest) return { label: "MACD(주봉 12·26·9)", value: "측정 불가", meaning: "26주 이상의 주간 종가와 9주 신호선 준비가 필요하다.", watch: "주간 종가 수집 길이" };
+  if (!latest) return { label: "MACD(일간 12·26·9)", value: "측정 불가", meaning: "26거래일 이상의 일간 종가와 9일 신호선 준비가 필요하다.", watch: "일간 종가 수집 길이" };
   const expanding = previous ? Math.abs(latest.histogram!) > Math.abs(previous.histogram!) : null;
   const bullish = latest.macd! >= latest.signal!;
   return {
-    label: "MACD(주봉 12·26·9)",
+    label: "MACD(일간 12·26·9)",
     value: `${latest.trade_date} MACD ${latest.macd!.toFixed(1)} · Signal ${latest.signal!.toFixed(1)} · Histogram ${signed(latest.histogram!, "")}`,
-    meaning: `${bullish ? "MACD가 신호선 위라 주간 추세 모멘텀은 상승 우위다." : "MACD가 신호선 아래라 주간 추세 모멘텀은 하락 우위다."}${expanding == null ? "" : expanding ? " 두 선의 간격이 커져 현재 방향의 힘이 강해지고 있다." : " 두 선의 간격이 줄어 현재 방향의 힘은 약해지고 있다."}`,
+    meaning: `${bullish ? "최근 12일 가격의 평균이 26일 평균보다 빠르게 올라 MACD가 신호선 위다." : "최근 12일 가격의 평균이 26일 평균보다 약해 MACD가 신호선 아래다."}${expanding == null ? "" : expanding ? " Histogram 절대값도 커져 현재 방향의 힘이 강해지고 있다." : " Histogram 절대값이 줄어 현재 방향의 힘은 약해지고 있다."}`,
     watch: "신호선 교차와 Histogram 방향 전환",
+    action: bullish
+      ? "실적 가속이 유지되고 RSI가 과열권이 아닐 때 눌림 후 Histogram 재확대를 매수 확인 신호로 쓴다. MACD가 다시 신호선 아래로 내려가면 비중 확대를 멈춘다."
+      : "신규 매수는 MACD 상향 교차와 Histogram 양수 전환을 기다린다. 보유 중이면 지지선 이탈과 함께 하향 모멘텀이 확대될 때 축소를 검토한다.",
   };
 }
 
-function rsiMeaning(points: TechnicalPoint[]): MetricMeaning {
+export function rsiMeaning(points: TechnicalPoint[]): MetricMeaning {
   const latest = [...points].reverse().find((point) => finite(point.rsi));
-  if (!latest) return { label: "RSI(주봉 14)", value: "측정 불가", meaning: "15주 이상의 주간 종가가 필요하다.", watch: "주간 종가 수집 길이" };
+  if (!latest) return { label: "RSI(일간 14)", value: "측정 불가", meaning: "15거래일 이상의 일간 종가가 필요하다.", watch: "일간 종가 수집 길이" };
   const rsi = latest.rsi!;
   return {
-    label: "RSI(주봉 14)",
+    label: "RSI(일간 14)",
     value: `${latest.trade_date} ${rsi.toFixed(1)}`,
-    meaning: rsi >= 70 ? "70 이상 과열권이다. 강한 추세일 수 있지만 단기 기대가 과도한지 점검할 위치다." : rsi <= 30 ? "30 이하 과매도권이다. 반등 여지는 있지만 하락 원인이 해소됐다는 뜻은 아니다." : rsi >= 45 ? "중립선 45 위, 과열권 70 아래다. 상승 힘은 남아 있지만 과열로 단정할 단계는 아니다." : "중립선 45 아래, 과매도권 30 위다. 하락 힘이 우세하지만 극단적 침체는 아니다.",
+    meaning: rsi >= 70 ? "최근 14거래일 상승폭이 하락폭보다 크게 누적돼 70 이상 과열권이다. 강한 추세이기도 하지만 단기 기대가 앞섰을 수 있다." : rsi <= 30 ? "최근 14거래일 하락폭이 우세해 30 이하 과매도권이다. 반등 여지는 있지만 하락 원인이 해소됐다는 뜻은 아니다." : rsi >= 45 ? "최근 14거래일 상승·하락 힘이 중립 이상이고 과열권 70 아래다." : "최근 14거래일 하락 힘이 우세하지만 30 이하의 극단적 과매도는 아니다.",
     watch: "45선 회복·이탈과 70/30 진입 여부",
+    action: rsi >= 70
+      ? "추격 매수는 피하고 RSI가 70 아래로 식은 뒤 MACD가 유지되는지 확인한다. 고점 갱신 실패와 RSI 하락이 겹치면 일부 이익 실현을 검토한다."
+      : rsi <= 30
+        ? "과매도만 보고 매수하지 말고 RSI 30 재돌파와 MACD Histogram 개선을 확인해 분할 진입한다."
+        : rsi >= 45
+          ? "45 위를 지키는 눌림은 추세 매수 후보지만, 실적 발표 직전에는 포지션을 나눠 이벤트 위험을 줄인다."
+          : "45 회복 전에는 반등을 추세 전환으로 단정하지 않는다. 보유자는 30 진입보다 실적 훼손 여부를 먼저 확인한다.",
   };
 }
 
-export function metricMeanings(points: ChartPoint[], technical: TechnicalPoint[]): MetricMeaning[] {
+export function fundamentalMetricMeanings(points: ChartPoint[]): MetricMeaning[] {
   return [
     amountMeaning(points, "revenue", "매출액"),
     amountMeaning(points, "op", "영업이익"),
@@ -154,6 +177,12 @@ export function metricMeanings(points: ChartPoint[], technical: TechnicalPoint[]
     yoyMeaning(points, "revenueYoy", "매출액 YoY"),
     yoyMeaning(points, "opYoy", "영업이익 YoY"),
     orderMeaning(points),
+  ];
+}
+
+export function metricMeanings(points: ChartPoint[], technical: TechnicalPoint[]): MetricMeaning[] {
+  return [
+    ...fundamentalMetricMeanings(points),
     priceMeaning(technical),
     macdMeaning(technical),
     rsiMeaning(technical),

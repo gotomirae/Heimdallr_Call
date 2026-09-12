@@ -152,7 +152,7 @@ export interface PriceRow {
   earnings_revision_price_gap_pct: number | null;
   valuation_reflection_pct: number | null;
   relative_return_pct: number | null;
-  /** 네이버 올해 예상 순이익 기준 선행 PER. 컨센서스 수집 뒤 당일 시세 행에 복사된다. */
+  /** 네이버 내년 예상 PER. 컨센서스 수집 뒤 당일 시세 행에 복사된다. */
   fwd_per: number | null;
   /** 네이버/FnGuide 연간 컨센서스의 올해·내년 ROE. 목록은 각각 ROE/F.ROE로 표시한다. */
   roe_est: number | null;
@@ -187,6 +187,12 @@ export interface InvestmentScoreDetail {
 
 export interface WeeklyPriceRow {
   code: string;
+  trade_date: string;
+  close: number;
+}
+
+/** 네이버 일봉. 상세 차트는 주간으로 접지 않고 이 간격 그대로 MACD·RSI를 계산한다. */
+export interface DailyPriceRow {
   trade_date: string;
   close: number;
 }

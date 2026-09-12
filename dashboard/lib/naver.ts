@@ -1,6 +1,8 @@
-// PRD Ref: §9.1-1, §9.1-6 — 상세 화면의 네이버 현재 시세·가치지표
+// PRD Ref: §9.1-1, §9.1-3, §9.1-6 — 네이버 현재 시세·일봉·가치지표
 
 const NAVER_BASE = "https://m.stock.naver.com/api/stock";
+const NAVER_DAILY_URL = "https://api.finance.naver.com/siseJson.naver";
+const NAVER_WISE_ANNUAL_URL = "https://navercomp.wisereport.co.kr/v2/company/cF1002.aspx";
 const NAVER_REVALIDATE_SECONDS = 60;
 const NAVER_TIMEOUT_MS = 5000;
 
@@ -17,13 +19,20 @@ export interface NaverLiveSnapshot {
   high52w: number | null;
   low52w: number | null;
   per4q: number | null;
+  perYear: number | null;
   fwdPer: number | null;
+  fwdPerYear: number | null;
   peg: number | null;
   pbr: number | null;
   roeYear: number | null;
   roe: number | null;
   roeNextYear: number | null;
   roeNext: number | null;
+}
+
+export interface NaverDailyPrice {
+  trade_date: string;
+  close: number;
 }
 
 function record(value: unknown): UnknownRecord | null {
@@ -112,34 +121,132 @@ function parseAnnual(body: UnknownRecord) {
     .filter((row) => row.key && Number.isFinite(row.year))
     .sort((left, right) => left.year - right.year);
   const rows = Array.isArray(financeInfo?.rowList) ? financeInfo.rowList : [];
-  const roeRow = rows.map(record).find((row) => row?.title === "ROE");
-  const columns = record(roeRow?.columns);
-  const roeAt = (index: number) => {
+  const metricAt = (title: string, index: number) => {
     const estimate = estimates[index];
+    const metricRow = rows.map(record).find((row) => row?.title === title);
+    const columns = record(metricRow?.columns);
     const cell = estimate && columns ? record(columns[estimate.key]) : null;
     return {
       year: estimate?.year ?? null,
       value: numberOf(cell?.value),
     };
   };
-  return { current: roeAt(0), next: roeAt(1) };
+  return {
+    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value },
+    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value },
+  };
+}
+
+function stripHtml(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** 모바일 연간 JSON이 다음 예상 연도를 생략하는 종목을 WiseReport 원표로 보완한다. */
+function parseWiseAnnual(html: string) {
+  const estimates: Array<{ year: number; per: number | null; roe: number | null }> = [];
+  for (const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...row[1].matchAll(/<(?:th|td)\b[^>]*>([\s\S]*?)<\/(?:th|td)>/gi)]
+      .map((cell) => stripHtml(cell[1]));
+    if (cells.length < 9) continue;
+    const matched = cells[0].replace(/\s/g, "").match(/^(\d{4})\(E\)$/);
+    if (!matched) continue;
+    estimates.push({ year: Number(matched[1]), per: numberOf(cells[6]), roe: numberOf(cells[8]) });
+  }
+  estimates.sort((left, right) => left.year - right.year);
+  return {
+    current: estimates[0] ?? { year: null, per: null, roe: null },
+    next: estimates[1] ?? { year: null, per: null, roe: null },
+  };
+}
+
+async function wiseAnnual(code: string) {
+  const params = new URLSearchParams({ cmp_cd: code, finGubun: "MAIN", frq: "0" });
+  const response = await fetch(`${NAVER_WISE_ANNUAL_URL}?${params}`, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; HeimdallrCall/1.0)" },
+    signal: AbortSignal.timeout(NAVER_TIMEOUT_MS),
+    next: { revalidate: NAVER_REVALIDATE_SECONDS },
+  });
+  if (!response.ok) throw new Error(`Naver WiseReport HTTP ${response.status}`);
+  return parseWiseAnnual(await response.text());
+}
+
+/** 네이버 일봉. 같은 날짜 중복은 마지막 값만 남기고 일자 오름차순으로 돌려준다. */
+export async function getNaverDailyPrices(
+  code: string,
+  years = 3
+): Promise<NaverDailyPrice[]> {
+  if (!/^[0-9A-Z]{6}$/.test(code)) return [];
+  const end = new Date();
+  const start = new Date(Date.UTC(end.getUTCFullYear() - years, end.getUTCMonth(), end.getUTCDate()));
+  const ymd = (day: Date) =>
+    `${day.getUTCFullYear()}${String(day.getUTCMonth() + 1).padStart(2, "0")}${String(day.getUTCDate()).padStart(2, "0")}`;
+  const params = new URLSearchParams({
+    symbol: code,
+    requestType: "1",
+    startTime: ymd(start),
+    endTime: ymd(end),
+    timeframe: "day",
+  });
+  try {
+    const response = await fetch(`${NAVER_DAILY_URL}?${params}`, {
+      headers: {
+        Referer: "https://finance.naver.com/",
+        "User-Agent": "Mozilla/5.0 (compatible; HeimdallrCall/1.0)",
+      },
+      signal: AbortSignal.timeout(NAVER_TIMEOUT_MS),
+      next: { revalidate: 60 * 60 },
+    });
+    if (!response.ok) return [];
+    const raw = await response.text();
+    const rows = JSON.parse(raw.trim().replace(/'/g, '"')) as unknown;
+    if (!Array.isArray(rows)) return [];
+    const latest = new Map<string, NaverDailyPrice>();
+    for (const rawRow of rows.slice(1)) {
+      if (!Array.isArray(rawRow) || typeof rawRow[0] !== "string") continue;
+      const date = dateOf(rawRow[0]);
+      const close = numberOf(rawRow[4]);
+      if (date && close != null && close > 0) latest.set(date, { trade_date: date, close });
+    }
+    return [...latest.values()].sort((left, right) => left.trade_date.localeCompare(right.trade_date));
+  } catch {
+    return [];
+  }
 }
 
 /**
  * 상세 화면용 네이버 우선 스냅샷.
  *
- * 현재가·PER·F.PER은 같은 integration 응답에서 읽어 기준 시점을 섞지 않는다.
- * ROE는 같은 네이버 모바일 재무 JSON의 `(E)` 열만 사용한다. 두 번째 추정 연도가
- * 없으면 저장 DB 값으로 꾸며내지 않고 null로 둔다.
+ * 현재가는 integration 응답을 쓴다. PER·ROE는 같은 네이버 모바일 연간 재무
+ * JSON의 `(E)` 열을 사용해 올해와 내년의 시간축을 정확히 맞춘다. 두 번째 추정
+ * 연도가 없으면 저장 DB 값으로 꾸며내지 않고 null로 둔다.
  */
 export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnapshot | null> {
   if (!/^[0-9A-Z]{6}$/.test(code)) return null;
-  const [quoteResult, annualResult] = await Promise.allSettled([
+  const [quoteResult, annualResult, wiseResult] = await Promise.allSettled([
     naverJson(`${encodeURIComponent(code)}/integration`),
     naverJson(`${encodeURIComponent(code)}/finance/annual`),
+    wiseAnnual(code),
   ]);
   const quote = quoteResult.status === "fulfilled" ? parseQuote(quoteResult.value) : null;
-  const annual = annualResult.status === "fulfilled" ? parseAnnual(annualResult.value) : null;
+  const mobileAnnual = annualResult.status === "fulfilled" ? parseAnnual(annualResult.value) : null;
+  const wise = wiseResult.status === "fulfilled" ? wiseResult.value : null;
+  const annual = mobileAnnual || wise ? {
+    current: {
+      year: mobileAnnual?.current.year ?? wise?.current.year ?? null,
+      per: mobileAnnual?.current.per ?? wise?.current.per ?? null,
+      roe: mobileAnnual?.current.roe ?? wise?.current.roe ?? null,
+    },
+    next: {
+      year: mobileAnnual?.next.year ?? wise?.next.year ?? null,
+      per: mobileAnnual?.next.per ?? wise?.next.per ?? null,
+      roe: mobileAnnual?.next.roe ?? wise?.next.roe ?? null,
+    },
+  } : null;
   if (!quote && !annual) return null;
   return {
     quoteAvailable: quote != null,
@@ -151,13 +258,15 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     marketCapKrw: quote?.marketCapKrw ?? null,
     high52w: quote?.high52w ?? null,
     low52w: quote?.low52w ?? null,
-    per4q: quote?.per4q ?? null,
-    fwdPer: quote?.fwdPer ?? null,
+    per4q: annual?.current.per ?? null,
+    perYear: annual?.current.year ?? null,
+    fwdPer: annual?.next.per ?? null,
+    fwdPerYear: annual?.next.year ?? null,
     peg: quote?.peg ?? null,
     pbr: quote?.pbr ?? null,
     roeYear: annual?.current.year ?? null,
-    roe: annual?.current.value ?? null,
+    roe: annual?.current.roe ?? null,
     roeNextYear: annual?.next.year ?? null,
-    roeNext: annual?.next.value ?? null,
+    roeNext: annual?.next.roe ?? null,
   };
 }

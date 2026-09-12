@@ -206,38 +206,32 @@ def _fmt_valuation(v: dict) -> str:
     """
     if not v:
         return "- 밸류에이션: (계산 불가 — 시가총액 또는 순이익 데이터가 없다)"
-    lines = ["- 밸류에이션 (**논할 때는 네이버 컨센서스 선행 PER을 우선하라**)"]
+    lines = ["- 밸류에이션 (**화면과 동일하게 네이버 올해·내년 예상 PER만 사용하라**)"]
 
     if v.get("per_naver") is not None:
-        lines.append(f"  · 네이버 증권 최근 확정 PER: **{v['per_naver']:.1f}배**")
+        lines.append(f"  · 네이버 증권 올해 PER(예상): **{v['per_naver']:.1f}배**")
+    else:
+        lines.append("  · 네이버 증권 올해 PER(예상): **계산 불가**")
     if v.get("per_forward_naver") is not None:
         lines.append(
-            f"  · 네이버 증권 연간 (E) 선행 PER: **{v['per_forward_naver']:.1f}배** "
-            "(출처: 네이버 증권 기업실적분석) — 밸류에이션 판단에서 이 값을 우선 언급하라"
+            f"  · 네이버 증권 내년 F.PER(예상): **{v['per_forward_naver']:.1f}배** "
+            "(출처: 네이버 증권 기업실적분석)"
         )
+    else:
+        lines.append("  · 네이버 증권 내년 F.PER(예상): **계산 불가** (내년 연간 컨센서스 없음)")
 
+    # 숫자 grounding과 과거 replay를 위해 계산값은 검산용으로 유지한다. 화면의
+    # '올해 PER/내년 F.PER'로 부르거나 주 판단값으로 사용해서는 안 된다.
     per4q = v.get("per_trailing_4q")
     if per4q is not None:
         lines.append(
-            f"  · 최근 4개 분기 순이익 기준 PER: **{per4q:.1f}배** "
-            f"(분모 {v['ttm_np'] / 1e8:,.0f}억 · 실제로 번 돈, 추정 없음)"
+            f"  · 검산용 TTM 순이익 PER: **{per4q:.1f}배** "
+            f"(분모 {v['ttm_np'] / 1e8:,.0f}억 · UI 올해 PER 아님)"
         )
-    else:
-        lines.append(
-            "  · 최근 4개 분기 순이익 기준 PER: **계산 불가** "
-            f"({v.get('per_trailing_reason', '4개 분기가 모이지 않았거나 누적 순이익이 0 이하')}) "
-            "— 연율화해서 만들어내지 마라"
-        )
-
     fwd = v.get("per_forward")
     if fwd is not None:
         lines.append(
-            f"  · 향후 4개 분기 선행 PER: **{fwd:.1f}배** ({v.get('per_forward_basis')})"
-        )
-    else:
-        lines.append(
-            "  · 향후 4개 분기 선행 PER: **계산 불가** (연간 컨센서스가 없다) "
-            "— 커버리지 공백이 이 시스템의 표적 구간이다"
+            f"  · 검산용 시총÷연간 추정순이익: **{fwd:.1f}배** ({v.get('per_forward_basis')}; UI 내년 F.PER 아님)"
         )
 
     if v.get("pbr") is not None:
@@ -395,12 +389,16 @@ def build_user_message(data: AnalysisInput) -> str:
             "publisher·title·published_at·직접 URL을 검색 결과에서 확인하지 못하면 제외하라. "
             "해당 리포트가 없으면 broker_reports는 빈 배열로 두고 절대 만들어내지 마라.",
             "컨센서스 변화는 네이버/WiseReport 수치이며 리포트 원문이 아니다. 변화가 없어도 검색은 수행한다.",
+            "④ 같은 검색 결과에서 지난 4개 분기의 실적발표·경영진 인터뷰·가이던스 원문을 찾고, "
+            "당시의 구체적 주장이 이번 분기 구조화 실적으로 실현됐는지 narrative_verification에 대조하라. "
+            "날짜·직접 URL·실제 주장을 확인한 항목만 남기고, 숫자로 확인할 수 없으면 판정불가로 써라. "
+            "텔레그램 요약을 경영진 발언으로 바꾸거나 출처를 추정하지 마라.",
             json.dumps(data.report_context, ensure_ascii=False),
         ]
     # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
     #   기준이라 실적이 급가속하면 2~3배 과대평가된다(실측: 고영 131.6 vs 실제 40.5).
     #   이 시스템은 정확히 그런 종목만 고르므로 왜곡이 항상 최악으로 걸린다.
-    #   대신 **다시 계산한 두 배수**를 라벨과 함께 준다.
+    #   대신 네이버 연간 표의 **올해 예상·내년 예상 PER**을 라벨과 함께 준다.
     price_for_llm = {k: v for k, v in (data.price or {}).items() if k != "per"}
     parts += [
         "",
@@ -578,14 +576,23 @@ def analysis_result_from_response(
     # 스키마는 문자열이라 통과하므로 Provider의 실제 검색 결과와 교차한다.
     if data.analysis_stage == "report_final":
         payload.setdefault("broker_reports", [])
+        payload.setdefault("narrative_verification", [])
+    source_urls = {url.rstrip("/") for url in response.source_urls}
     raw_reports = payload.get("broker_reports")
     if isinstance(raw_reports, list):
-        source_urls = {url.rstrip("/") for url in response.source_urls}
         payload["broker_reports"] = [
             report for report in raw_reports
             if isinstance(report, dict)
             and isinstance(report.get("url"), str)
             and report["url"].rstrip("/") in source_urls
+        ]
+    raw_narratives = payload.get("narrative_verification")
+    if isinstance(raw_narratives, list):
+        payload["narrative_verification"] = [
+            item for item in raw_narratives
+            if isinstance(item, dict)
+            and isinstance(item.get("url"), str)
+            and item["url"].rstrip("/") in source_urls
         ]
 
     # ★ schema가 정상이어도 모델이 공시 숫자를 다른 단위로 환산하면 재무 숫자를

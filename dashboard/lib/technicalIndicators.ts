@@ -1,7 +1,7 @@
-// PRD Ref: §9.1-3 — 주간 종가 기반 MACD(12,26,9)와 RSI(14)
-import type { WeeklyPriceRow } from "./types";
+// PRD Ref: §9.1-3 — 일간 종가 기반 MACD(12,26,9)와 RSI(14)
+import type { DailyPriceRow, WeeklyPriceRow } from "./types";
 
-export interface TechnicalPoint extends WeeklyPriceRow { macd: number | null; signal: number | null; histogram: number | null; rsi: number | null; }
+export interface TechnicalPoint extends DailyPriceRow { macd: number | null; signal: number | null; histogram: number | null; rsi: number | null; }
 
 function isoWeekKey(value: string): string {
   const day = new Date(`${value.slice(0, 10)}T00:00:00Z`);
@@ -22,6 +22,16 @@ export function normalizeWeeklyRows(rows: WeeklyPriceRow[]): WeeklyPriceRow[] {
   return [...latest.values()].sort((left, right) => left.trade_date.localeCompare(right.trade_date));
 }
 
+/** 일봉 중복·비정상값 제거. 일간 지표에서는 주별 접기를 절대 하지 않는다. */
+export function normalizeDailyRows(rows: DailyPriceRow[]): DailyPriceRow[] {
+  const latest = new Map<string, DailyPriceRow>();
+  for (const row of rows) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.trade_date) || !Number.isFinite(row.close) || row.close <= 0) continue;
+    latest.set(row.trade_date, row);
+  }
+  return [...latest.values()].sort((left, right) => left.trade_date.localeCompare(right.trade_date));
+}
+
 function ema(values: number[], period: number): Array<number | null> {
   const out: Array<number | null> = Array(values.length).fill(null);
   if (values.length < period) return out;
@@ -32,7 +42,7 @@ function ema(values: number[], period: number): Array<number | null> {
   return out;
 }
 
-export function technicalIndicators(rows: WeeklyPriceRow[]): TechnicalPoint[] {
+export function technicalIndicators(rows: DailyPriceRow[]): TechnicalPoint[] {
   const prices = rows.map((row) => row.close);
   const fast = ema(prices, 12), slow = ema(prices, 26);
   const macd = prices.map((_, i) => fast[i] != null && slow[i] != null ? fast[i]! - slow[i]! : null);

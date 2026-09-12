@@ -4,7 +4,7 @@
 //   `QuarterlyChart.tsx`는 `"use client"`라 서버 컴포넌트가 그 파일에서
 //   컴포넌트가 아닌 export를 가져오면 런타임에 `is not a function`으로 죽는다.
 //   빌드와 타입 검사는 통과한다 — 실제로 페이지를 열어봐야 잡힌다(T41).
-import type { FundamentalRow } from "./types";
+import type { ConsensusRow, FundamentalRow } from "./types";
 
 export interface ChartPoint {
   label: string;
@@ -81,6 +81,49 @@ export function toChartPoints(
   }));
 
   return points;
+}
+
+function growth(current: number | null, yearAgo: number | null): number | null {
+  if (current == null || yearAgo == null || yearAgo <= 0) return null;
+  return (current / yearAgo - 1) * 100;
+}
+
+function opTransition(current: number | null, yearAgo: number | null): string | null {
+  if (current == null || yearAgo == null) return null;
+  if (yearAgo <= 0 && current > 0) return "흑전";
+  if (yearAgo > 0 && current <= 0) return "적전";
+  if (yearAgo < 0 && current < 0) return Math.abs(current) < Math.abs(yearAgo) ? "적자축소" : "적자확대";
+  return null;
+}
+
+/** 최신 실제 분기 뒤에 네이버 다음 분기 컨센서스 한 점을 붙인다. */
+export function appendNextQuarterConsensus(
+  points: ChartPoint[],
+  consensus: ConsensusRow | null,
+  fundamentals: FundamentalRow[],
+  count = CHART_QUARTERS
+): ChartPoint[] {
+  if (!consensus || (consensus.revenue_est == null && consensus.op_est == null)) return points;
+  const yearAgo = fundamentals.find(
+    (row) => row.fiscal_year === consensus.fiscal_year - 1 && row.fiscal_quarter === consensus.fiscal_quarter
+  );
+  const revenue = consensus.revenue_est;
+  const op = consensus.op_est;
+  const row: ChartPoint = {
+    label: `${qLabel(consensus.fiscal_year, consensus.fiscal_quarter)}(E)`,
+    revenue: revenue == null ? null : revenue / 1e8,
+    op: op == null ? null : op / 1e8,
+    revenueYoy: growth(revenue, yearAgo?.revenue ?? null),
+    opYoy: op != null && op > 0 ? growth(op, yearAgo?.op ?? null) : null,
+    opm: revenue != null && revenue > 0 && op != null ? op / revenue * 100 : null,
+    orderBacklog: null,
+    newOrders: null,
+    opStatusLabel: opTransition(op, yearAgo?.op ?? null),
+    ttmRevenue: null,
+    isEstimate: true,
+    isCurrentQuarter: true,
+  };
+  return [...points, row].slice(-count);
 }
 
 /**

@@ -12,7 +12,7 @@
 // ★ 표본이 적은 섹터는 **결론에 쓰지 않는다.** 2종목 섹터의 중앙값이 1위가 되면
 //   화면은 그럴듯한데 조언으로는 틀린다(T67).
 
-import type { FundamentalRow, ScreenRow, UniverseRow } from "./types";
+import type { ConsensusRow, FundamentalRow, ScreenRow, UniverseRow } from "./types";
 import { median } from "./outcome";
 import { sectorOf } from "./sector";
 
@@ -44,6 +44,15 @@ export interface SectorEarnings {
   /** 지난 분기 중앙값(전망 근거로 화면에 함께 보여준다). */
   prevRevenueYoy: number | null;
   prevOpYoy: number | null;
+  /** 네이버의 다음 분기 종목 컨센서스를 섹터 중앙값으로 집계한 값. */
+  nextRevenueYoy: number | null;
+  nextOpYoy: number | null;
+  nextRevenueQoq: number | null;
+  nextOpQoq: number | null;
+  nextCoverage: number;
+  projectedAccelerated: number;
+  projectedAccelRate: number | null;
+  projectedAccelDelta: number | null;
 }
 
 /** 사분위. 중앙값 하나로는 "섹터 전체가 좋은가, 몇 종목만 좋은가"를 못 가른다. */
@@ -137,6 +146,14 @@ export function aggregateSectors(
       accelRateDelta: rate != null && prevRate != null ? (rate - prevRate) * 100 : null,
       revenueYoyDelta: rev != null && prevRev != null ? rev - prevRev : null,
       opYoyDelta: op != null && prevOp != null ? op - prevOp : null,
+      nextRevenueYoy: null,
+      nextOpYoy: null,
+      nextRevenueQoq: null,
+      nextOpQoq: null,
+      nextCoverage: 0,
+      projectedAccelerated: 0,
+      projectedAccelRate: null,
+      projectedAccelDelta: null,
     });
   }
   // ★★ 정렬 순서는 **영업이익 YoY → 매출 YoY → 가속 비율**이다(사용자 지정 2026-08-22).
@@ -148,6 +165,68 @@ export function aggregateSectors(
       ((b.revenueYoy ?? -Infinity) - (a.revenueYoy ?? -Infinity)) ||
       ((b.accelRate ?? -Infinity) - (a.accelRate ?? -Infinity))
   );
+}
+
+function safeGrowth(current: number | null, base: number | null): number | null {
+  return current != null && base != null && base > 0 ? ((current / base) - 1) * 100 : null;
+}
+
+/**
+ * 종목별 다음 분기 컨센서스를 같은 분기 전년 실적·이번 분기 실적과 대조해 섹터 전망을 붙인다.
+ * 영업이익 부호 전환은 성장률로 만들지 않는다. `None`과 0을 섞지 않는 동일 원칙이다.
+ */
+export function withNextQuarterConsensus(
+  rows: SectorEarnings[],
+  universe: Map<string, UniverseRow>,
+  currentFunds: FundamentalRow[],
+  yearAgoNextFunds: FundamentalRow[],
+  nextConsensus: Map<string, ConsensusRow>
+): SectorEarnings[] {
+  const current = new Map(currentFunds.map((row) => [row.code, row]));
+  const yearAgo = new Map(yearAgoNextFunds.map((row) => [row.code, row]));
+  const grouped = new Map<string, Array<{
+    revenueYoy: number | null; opYoy: number | null;
+    revenueQoq: number | null; opQoq: number | null;
+    accelerated: boolean | null;
+  }>>();
+
+  for (const [code, consensus] of nextConsensus) {
+    const cur = current.get(code);
+    const base = yearAgo.get(code);
+    if (!cur || !base) continue;
+    const revenueYoy = safeGrowth(consensus.revenue_est, base.revenue);
+    const opYoy = safeGrowth(consensus.op_est, base.op);
+    const revenueQoq = safeGrowth(consensus.revenue_est, cur.revenue);
+    const opQoq = safeGrowth(consensus.op_est, cur.op);
+    const accelerated = revenueYoy != null && opYoy != null &&
+      cur.revenue_yoy != null && cur.op_yoy != null
+      ? revenueYoy > cur.revenue_yoy && opYoy > cur.op_yoy
+      : null;
+    const sector = sectorOf(universe.get(code));
+    const bucket = grouped.get(sector) ?? [];
+    bucket.push({ revenueYoy, opYoy, revenueQoq, opQoq, accelerated });
+    grouped.set(sector, bucket);
+  }
+
+  return rows.map((row) => {
+    const bucket = grouped.get(row.sector) ?? [];
+    const judged = bucket.filter((item) => item.accelerated != null);
+    const projectedAccelerated = judged.filter((item) => item.accelerated).length;
+    const projectedAccelRate = judged.length ? projectedAccelerated / judged.length : null;
+    return {
+      ...row,
+      nextRevenueYoy: median(pick(bucket, (item) => item.revenueYoy)),
+      nextOpYoy: median(pick(bucket, (item) => item.opYoy)),
+      nextRevenueQoq: median(pick(bucket, (item) => item.revenueQoq)),
+      nextOpQoq: median(pick(bucket, (item) => item.opQoq)),
+      nextCoverage: bucket.length,
+      projectedAccelerated,
+      projectedAccelRate,
+      projectedAccelDelta: projectedAccelRate != null && row.accelRate != null
+        ? (projectedAccelRate - row.accelRate) * 100
+        : null,
+    };
+  });
 }
 
 /** 결론에 쓸 수 있는 섹터만. */
@@ -179,25 +258,31 @@ export interface SectorOutlook {
 export function outlook(rows: SectorEarnings[]): SectorOutlook[] {
   return usableSectors(rows)
     .map((r) => {
-      const revUp = r.revenueYoyDelta;
-      const rateUp = r.accelRateDelta;
+      const hasConsensus = r.nextCoverage >= MIN_SECTOR_SAMPLE &&
+        r.nextRevenueYoy != null && r.nextOpYoy != null;
+      const revUp = hasConsensus && r.revenueYoy != null
+        ? (r.nextRevenueYoy as number) - r.revenueYoy
+        : r.revenueYoyDelta;
+      const opUp = hasConsensus && r.opYoy != null
+        ? (r.nextOpYoy as number) - r.opYoy
+        : r.opYoyDelta;
+      const rateUp = hasConsensus ? r.projectedAccelDelta : r.accelRateDelta;
       let momentum: Momentum = "판정불가";
       let basis: string;
 
-      if (revUp == null || rateUp == null) {
+      if (revUp == null || opUp == null || rateUp == null) {
         basis = "지난 분기 비교 데이터가 부족해 방향을 판단하지 않았다.";
-      } else if (revUp > 0 && rateUp > 0) {
+      } else if (revUp > 0 && opUp > 0 && rateUp > 0) {
         momentum = "가속";
-        basis = `매출 성장률 중앙값 ${revUp >= 0 ? "+" : ""}${revUp.toFixed(1)}%p, ` +
-          `가속 종목 비율 ${rateUp >= 0 ? "+" : ""}${rateUp.toFixed(0)}%p — 둘 다 개선됐다.`;
-      } else if (revUp < 0 && rateUp < 0) {
+        basis = `${hasConsensus ? "네이버 다음 분기 컨센서스" : "직전 추세"}: 매출 ${revUp >= 0 ? "+" : ""}${revUp.toFixed(1)}%p, ` +
+          `영업이익 ${opUp >= 0 ? "+" : ""}${opUp.toFixed(1)}%p, 가속 종목 비율 ${rateUp >= 0 ? "+" : ""}${rateUp.toFixed(0)}%p.`;
+      } else if (revUp < 0 && opUp < 0 && rateUp < 0) {
         momentum = "둔화";
-        basis = `매출 성장률 중앙값 ${revUp.toFixed(1)}%p, ` +
-          `가속 종목 비율 ${rateUp.toFixed(0)}%p — 둘 다 나빠졌다.`;
+        basis = `${hasConsensus ? "네이버 다음 분기 컨센서스" : "직전 추세"}: 매출 ${revUp.toFixed(1)}%p, ` +
+          `영업이익 ${opUp.toFixed(1)}%p, 가속 종목 비율 ${rateUp.toFixed(0)}%p.`;
       } else {
         momentum = "유지";
-        basis = `매출 성장률 ${revUp >= 0 ? "+" : ""}${revUp.toFixed(1)}%p vs ` +
-          `가속 비율 ${rateUp >= 0 ? "+" : ""}${rateUp.toFixed(0)}%p — 방향이 엇갈린다.`;
+        basis = `${hasConsensus ? "네이버 다음 분기 컨센서스" : "직전 추세"}: 매출·영업이익·가속 비율의 방향이 엇갈린다.`;
       }
 
       const watch =
@@ -220,5 +305,13 @@ export function risingSectors(rows: SectorEarnings[], limit = 5): SectorEarnings
   return usableSectors(rows)
     .filter((r) => r.accelRateDelta != null)
     .sort((a, b) => (b.accelRateDelta as number) - (a.accelRateDelta as number))
+    .slice(0, limit);
+}
+
+/** 네이버 컨센서스상 다음 분기에 가속 종목 비율이 늘어나는 섹터. */
+export function nextRisingSectors(rows: SectorEarnings[], limit = 5): SectorEarnings[] {
+  return usableSectors(rows)
+    .filter((r) => r.nextCoverage >= MIN_SECTOR_SAMPLE && (r.projectedAccelDelta ?? 0) > 0)
+    .sort((a, b) => (b.projectedAccelDelta as number) - (a.projectedAccelDelta as number))
     .slice(0, limit);
 }

@@ -69,7 +69,7 @@ export interface DiscoveryRow {
   opmYoyDelta: number | null;
   /** 현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익. */
   per4q: number | null;
-  /** 네이버증권 올해 예상 순이익 기준 선행 PER. */
+  /** 네이버증권 내년 예상 순이익 기준 F.PER. */
   forwardPer: number | null;
   /** 네이버증권 올해 예상 ROE. */
   roe: number | null;
@@ -91,8 +91,8 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
   opmYoyDelta: "OPM YoY",
   pri: "주가 반영도",
   marketCap: "시총",
-  per4q: "최근 4Q PER",
-  forwardPer: "F.PER",
+  per4q: "올해 PER(예상)",
+  forwardPer: "내년 F.PER",
   roe: "ROE",
   forwardRoe: "F.ROE",
   ret5d: "최근 5일",
@@ -113,36 +113,34 @@ function byDefault(
   sectorRank: ReadonlyMap<string, number>,
   sortMode: MacroContext["sortMode"]
 ): number {
-  const identityOrder = (
-    (b.quarterIndex - a.quarterIndex) ||
-    ((GRADE_RANK.get(a.grade as Grade) ?? 99) - (GRADE_RANK.get(b.grade as Grade) ?? 99)) ||
-    ((sectorRank.get(a.sector) ?? 99) - (sectorRank.get(b.sector) ?? 99))
-  );
-  if (identityOrder) return identityOrder;
+  let macroOrder = (sectorRank.get(a.sector) ?? 99) - (sectorRank.get(b.sector) ?? 99);
   if (sortMode === "quality_price") {
-    return (
-      ((a.pri ?? Infinity) - (b.pri ?? Infinity)) ||
+    macroOrder ||= (
       ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
+      ((a.pri ?? Infinity) - (b.pri ?? Infinity)) ||
       ((a.forwardPer ?? Infinity) - (b.forwardPer ?? Infinity)) ||
       ((b.forwardRoe ?? -Infinity) - (a.forwardRoe ?? -Infinity)) ||
-      ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
-      ((a.ret5d ?? Infinity) - (b.ret5d ?? Infinity)) ||
-      ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
+      ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity))
     );
-  }
-  if (sortMode === "earnings_growth") {
-    return (
+  } else if (sortMode === "earnings_growth") {
+    macroOrder ||= (
       ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
       ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
       ((b.forwardRoe ?? -Infinity) - (a.forwardRoe ?? -Infinity)) ||
+      ((a.pri ?? Infinity) - (b.pri ?? Infinity))
+    );
+  } else {
+    macroOrder ||= (
+      ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
       ((a.pri ?? Infinity) - (b.pri ?? Infinity)) ||
-      ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
+      ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity))
     );
   }
+  if (macroOrder) return macroOrder;
+  // 추천축을 모두 비교한 뒤에만 등급·최신분기를 동률 해소로 쓴다.
   return (
-    ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
-    ((a.pri ?? Infinity) - (b.pri ?? Infinity)) ||
-    ((b.opYoy ?? -Infinity) - (a.opYoy ?? -Infinity)) ||
+    ((GRADE_RANK.get(a.grade as Grade) ?? 99) - (GRADE_RANK.get(b.grade as Grade) ?? 99)) ||
+    (b.quarterIndex - a.quarterIndex) ||
     ((b.marketCap ?? -Infinity) - (a.marketCap ?? -Infinity))
   );
 }
@@ -714,13 +712,13 @@ export default function DiscoveryTable({
                           title="주가가 이 실적을 이미 아는 정도 — 낮을수록 아직 안 올랐다" />
               <SortableTh label="시총" sortKey="marketCap" {...sortState("marketCap")}
                           onSort={toggleSort} title="현재 시가총액" />
-              <SortableTh label="최근 4Q PER" sortKey="per4q" {...sortState("per4q")}
-                          onSort={toggleSort} title="현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익" />
-              <SortableTh label="F.PER" sortKey="forwardPer" {...sortState("forwardPer")}
-                          onSort={toggleSort} title="네이버증권 올해 예상 순이익 기준 선행 PER" />
-              <SortableTh label="ROE" sortKey="roe" {...sortState("roe")}
+              <SortableTh label="올해 PER(예상)" sortKey="per4q" {...sortState("per4q")}
+                          onSort={toggleSort} title="네이버증권 연간 기업실적분석의 올해 예상 PER" />
+              <SortableTh label="내년 F.PER" sortKey="forwardPer" {...sortState("forwardPer")}
+                          onSort={toggleSort} title="네이버증권 연간 기업실적분석의 내년 예상 PER" />
+              <SortableTh label="올해 ROE(예상)" sortKey="roe" {...sortState("roe")}
                           onSort={toggleSort} title="네이버증권 올해 예상 ROE" />
-              <SortableTh label="F.ROE" sortKey="forwardRoe" {...sortState("forwardRoe")}
+              <SortableTh label="내년 F.ROE" sortKey="forwardRoe" {...sortState("forwardRoe")}
                           onSort={toggleSort} title="네이버증권 내년도 예상 ROE" />
               <SortableTh label="최근 5일" sortKey="ret5d" {...sortState("ret5d")}
                           onSort={toggleSort}

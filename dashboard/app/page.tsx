@@ -7,6 +7,7 @@ import Link from "next/link";
 import DiscoveryTable, { type DiscoveryRow } from "@/components/DiscoveryTable";
 import { HORIZONS, excessField, type OutcomeRow, getOutcomes } from "@/lib/outcome";
 import {
+  getAllLatestAnnualConsensus,
   getAllLatestPrices,
   getFundamentalsForQuarters,
   getLatestScreens,
@@ -43,13 +44,14 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
 
 export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
-  const [{ rows: screens, dropped }, universe, priceResult, outcomeResult, macroContext] =
+  const [{ rows: screens, dropped }, universe, priceResult, outcomeResult, macroContext, annualConsensus] =
     await Promise.all([
       getLatestScreens({ accelerating: false }),
       getUniverse(),
       getAllLatestPrices(),
       getOutcomes(),
       getMacroContext(),
+      getAllLatestAnnualConsensus(),
     ]);
 
   // ── 성장률 열의 재료 ────────────────────────────────────────────
@@ -113,10 +115,10 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       opQoq: f?.op_qoq ?? null,
       opStatusLabel: f?.op_status_label ?? null,
       opmYoyDelta: f?.opm_yoy_delta ?? null,
-      per4q: priceResult.prices.get(s.code)?.per_current_ttm ?? null,
-      forwardPer: priceResult.prices.get(s.code)?.fwd_per ?? null,
-      roe: priceResult.prices.get(s.code)?.roe_est ?? null,
-      forwardRoe: priceResult.prices.get(s.code)?.roe_next_est ?? null,
+      per4q: annualConsensus.get(s.code)?.per ?? null,
+      forwardPer: annualConsensus.get(s.code)?.fwd_per ?? null,
+      roe: annualConsensus.get(s.code)?.roe_est ?? null,
+      forwardRoe: annualConsensus.get(s.code)?.roe_next_est ?? null,
       ret5d: priceResult.prices.get(s.code)?.ret_5d ?? null,
       excess,
     };
