@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 QUERIES = (ROOT / "dashboard/lib/queries.ts").read_text(encoding="utf-8")
+SUPABASE = (ROOT / "dashboard/lib/supabase.ts").read_text(encoding="utf-8")
 TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
 STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8")
 HOME = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
@@ -65,6 +66,23 @@ def test_watchlist_replaces_duplicate_all_stocks_route():
     assert not (ROOT / "dashboard/app/screener/page.tsx").exists()
     assert "localStorage" in DISCOVERY
     assert "^[0-9A-Z]{6}$" in DISCOVERY, "T6 영숫자 종목코드도 관심 종목에 남아야 한다"
+
+
+def test_dashboard_transient_reads_retry_without_hiding_permanent_errors():
+    for code in ("PGRST000", "PGRST001", "PGRST002", "PGRST003", "53300", "57014"):
+        assert code in SUPABASE
+    assert "readWithTransientRetry" in SUPABASE
+    assert "TRANSIENT_HTTP_STATUSES" in SUPABASE
+    assert "if (error.code !== UNDEFINED_COLUMN) throw error" in SUPABASE
+    assert "withReadFallback" in HOME
+    assert "0이 아니라 미수집" in HOME
+
+
+def test_discovery_table_renders_rows_progressively_without_dropping_full_data():
+    assert "constants.discovery_initial_rows" in DISCOVERY
+    assert "constants.discovery_row_step" in DISCOVERY
+    assert "filtered.slice(0, visibleLimit)" in DISCOVERY
+    assert "setVisibleLimit((current) => current + ROW_STEP)" in DISCOVERY
 
 
 def test_cost_history_pages_and_exposes_forecast_basis():
@@ -208,7 +226,7 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "원본" not in DISCOVERY
     assert 'const state = !active ? "기본"' in DISCOVERY
     macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
-    assert "섹터 기회 → 높은 투자 매력도" in macro
+    assert "→ 높은 투자 매력도" in macro
     assert "→ 등급 → 최신 분기" in macro
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
@@ -221,19 +239,32 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
 
 
-def test_discovery_refreshes_official_macro_context_without_news_scoring():
+def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
     filters = (ROOT / "dashboard/lib/discoveryFilters.ts").read_text(encoding="utf-8")
     page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
-    assert "www.bok.or.kr" in macro and "공식 RSS" in macro
-    assert "revalidate: 6 * 60 * 60" in macro
-    assert "뉴스 제목의 출현 횟수를 점수로 만들지는 않는다" in macro
+    for source in ("federalreserve.gov", "bls.gov", "bea.gov", "imf.org"):
+        assert source in macro
+    assert "미국 중심" in macro and "preferredSectors" in macro
+    assert "페이지 요청 중 네트워크 I/O도 하지 않는다" in macro
+    assert "fetch(" not in macro
     assert "getMacroContext()" in page
-    assert "현재 추천 정렬 · 매 갱신 자동 계산" in DISCOVERY
+    assert "미국·글로벌 매크로 추천 정렬" in DISCOVERY
     assert "macroContext.summary.current" in DISCOVERY
     assert "macroContext.summary.forward" in DISCOVERY
     assert "cyclePrimarySort(sorts, key)" in DISCOVERY
-    assert "return [{ key, dir: \"desc\" }, ...rest]" in filters
+    assert "return [...sorts, { key, dir: \"desc\" }]" in filters
+    assert "removeSortRule(sorts, rule.key)" in DISCOVERY
+
+
+def test_dashboard_refresh_yields_to_interaction_and_stock_links_do_not_prefetch():
+    refresh = (ROOT / "dashboard/components/AutoRefresh.tsx").read_text(encoding="utf-8")
+    assert "INTERACTION_GRACE_MS" in refresh
+    assert "pendingRef.current" in refresh
+    assert "pointerdown" in refresh and "keydown" in refresh and "wheel" in refresh
+    assert "클릭/입력 중에는 보류" in refresh
+    assert "prefetch={false}" in DISCOVERY
+    assert (ROOT / "dashboard/app/error.tsx").exists()
 
 
 def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_visible():

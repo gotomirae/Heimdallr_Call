@@ -66,6 +66,11 @@ const COLUMNS = [
   "excess_dm5", "excess_d0", "excess_d1", "excess_d5", "excess_d20", "excess_d60",
 ];
 
+const DISCOVERY_COLUMNS = [
+  "code", "fiscal_year", "fiscal_quarter",
+  "excess_dm5", "excess_d0", "excess_d5", "excess_d20", "excess_d60",
+];
+
 export async function getOutcomes(): Promise<{
   rows: OutcomeRow[];
   dropped: string[];
@@ -82,6 +87,23 @@ export async function getOutcomes(): Promise<{
           COLUMNS.filter((c) => !dropped.includes(c)).join(",")
         )
       : rows;
+  return { rows: all, dropped };
+}
+
+/** 발굴 목록의 발표 전후 열에 필요한 값만 읽는다. */
+export async function getDiscoveryOutcomes(): Promise<{
+  rows: OutcomeRow[];
+  dropped: string[];
+}> {
+  const { rows, dropped } = await selectWithOptionalColumns<OutcomeRow>(
+    "outcome_tracking",
+    DISCOVERY_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  const columns = DISCOVERY_COLUMNS.filter((column) => !dropped.includes(column)).join(",");
+  const all = rows.length >= 1000
+    ? await selectAll<OutcomeRow>("outcome_tracking", columns)
+    : rows;
   return { rows: all, dropped };
 }
 

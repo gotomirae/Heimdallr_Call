@@ -62,6 +62,19 @@ const CONSENSUS_COLUMNS = [
   "roe_est", "roe_next_est", "roe_next_year", "source", "snapshot_at",
 ];
 
+// 발굴 목록은 상세 점수 분해·시세 30여 열을 쓰지 않는다. 목록 전환마다 그 열을
+// 1,000여 행씩 받으면 같은 결과를 그리는 데 전송량과 JSON 파싱만 늘어난다.
+const DISCOVERY_SCREEN_COLUMNS = [
+  "code", "fiscal_year", "fiscal_quarter", "gate_passed", "gate_detail",
+  "base_effect_warning", "turnaround", "score_flash", "score_final",
+  "has_consensus", "pri", "grade",
+];
+const DISCOVERY_PRICE_COLUMNS = ["code", "snap_date", "market_cap_krw", "ret_5d"];
+const DISCOVERY_CONSENSUS_COLUMNS = [
+  "code", "fiscal_year", "fiscal_quarter", "per", "fwd_per",
+  "roe_est", "roe_next_est", "source", "snapshot_at",
+];
+
 /**
  * ★ `screen_results`는 분기 이력이 쌓이는 테이블이다(T40).
  *   종목당 여러 행이 남으므로 **반드시 종목별 최신 1행으로 접어야 한다.**
@@ -154,6 +167,23 @@ export async function getAllScreens(): Promise<{ rows: ScreenRow[]; dropped: str
         )
       : rows;
   return { rows: all, dropped };
+}
+
+/** 발굴 목록 전용 최소 열. 상세 화면 계약은 `getLatestScreens`에 그대로 둔다. */
+export async function getLatestDiscoveryScreens(): Promise<{
+  rows: ScreenRow[];
+  dropped: string[];
+}> {
+  const { rows, dropped } = await selectWithOptionalColumns<ScreenRow>(
+    "screen_results",
+    DISCOVERY_SCREEN_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  const columns = DISCOVERY_SCREEN_COLUMNS.filter((column) => !dropped.includes(column)).join(",");
+  const all = rows.length >= 1000
+    ? await selectAll<ScreenRow>("screen_results", columns)
+    : rows;
+  return { rows: Array.from(foldLatest(all).values()), dropped };
 }
 
 /**
@@ -295,6 +325,28 @@ export async function getDisclosures(
   return (data as unknown as DisclosureRow[]) ?? [];
 }
 
+/** 발굴 목록 전용 최신 시세 최소 열. */
+export async function getAllLatestDiscoveryPrices(): Promise<{
+  prices: Map<string, PriceRow>;
+  dropped: string[];
+}> {
+  const { rows, dropped } = await selectWithOptionalColumns<PriceRow>(
+    "price_snapshots",
+    DISCOVERY_PRICE_COLUMNS,
+    (q, cols) => q.select(cols).range(0, 4999)
+  );
+  const columns = DISCOVERY_PRICE_COLUMNS.filter((column) => !dropped.includes(column)).join(",");
+  const all = rows.length >= 1000
+    ? await selectAll<PriceRow>("price_snapshots", columns)
+    : rows;
+  const latest = new Map<string, PriceRow>();
+  for (const row of all) {
+    const previous = latest.get(row.code);
+    if (!previous || row.snap_date > previous.snap_date) latest.set(row.code, row);
+  }
+  return { prices: latest, dropped };
+}
+
 export async function getWeeklyPrices(code: string): Promise<WeeklyPriceRow[]> {
   try {
     const { data, error } = await supabase
@@ -370,6 +422,23 @@ export async function getAllLatestAnnualConsensus(): Promise<Map<string, Consens
     const previous = latest.get(row.code);
     const newer = !previous ||
       row.fiscal_year > previous.fiscal_year ||
+      (row.fiscal_year === previous.fiscal_year && String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? ""));
+    if (newer) latest.set(row.code, row);
+  }
+  return latest;
+}
+
+/** 발굴 목록 전용 연간 컨센서스 최소 열. */
+export async function getAllLatestDiscoveryConsensus(): Promise<Map<string, ConsensusRow>> {
+  const rows = await selectAll<ConsensusRow>(
+    "consensus_snapshots",
+    DISCOVERY_CONSENSUS_COLUMNS.join(","),
+    (q) => q.eq("fiscal_quarter", 0).eq("source", "naver")
+  );
+  const latest = new Map<string, ConsensusRow>();
+  for (const row of rows) {
+    const previous = latest.get(row.code);
+    const newer = !previous || row.fiscal_year > previous.fiscal_year ||
       (row.fiscal_year === previous.fiscal_year && String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? ""));
     if (newer) latest.set(row.code, row);
   }

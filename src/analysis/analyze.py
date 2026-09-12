@@ -98,6 +98,8 @@ class AnalysisInput:
     disclosures: list[dict] = field(default_factory=list)
     analysis_stage: str | None = None
     report_context: dict | None = None
+    #: 3단계에서만 싣는 직전 4개 분기 정기보고서의 제한 발췌와 DART 직접 링크.
+    narrative_history: list[dict] = field(default_factory=list)
     #: 데이터 기준일(YYYY-MM-DD). 모델이 "지금이 언제인지" 알아야
     #  다음 분기 전망과 트리거 시점을 제대로 잡는다.
     as_of: str | None = None
@@ -395,6 +397,14 @@ def build_user_message(data: AnalysisInput) -> str:
             "텔레그램 요약을 경영진 발언으로 바꾸거나 출처를 추정하지 마라.",
             json.dumps(data.report_context, ensure_ascii=False),
         ]
+        if data.narrative_history:
+            parts += [
+                "",
+                "## 4-2. 직전 4개 분기 DART 내러티브 근거",
+                "아래는 프로그램이 접수번호까지 확인한 1차 출처다. 각 주장을 이번 분기 매출·영업이익·OPM과 "
+                "대조하라. 발췌에 없는 경영진 의도는 추정하지 말고, 숫자로 드러나지 않으면 판정불가로 남겨라.",
+                json.dumps(data.narrative_history, ensure_ascii=False),
+            ]
     # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
     #   기준이라 실적이 급가속하면 2~3배 과대평가된다(실측: 고영 131.6 vs 실제 40.5).
     #   이 시스템은 정확히 그런 종목만 고르므로 왜곡이 항상 최악으로 걸린다.
@@ -578,6 +588,13 @@ def analysis_result_from_response(
         payload.setdefault("broker_reports", [])
         payload.setdefault("narrative_verification", [])
     source_urls = {url.rstrip("/") for url in response.source_urls}
+    # 직전 4분기 DART 링크는 검색 결과가 아니라 프로그램이 접수번호로 검증한 입력 출처다.
+    # 이를 Provider 검색 URL에만 한정하면 1차 출처가 오히려 삭제된다.
+    source_urls.update(
+        str(item.get("url")).rstrip("/")
+        for item in data.narrative_history
+        if isinstance(item, dict) and item.get("url")
+    )
     raw_reports = payload.get("broker_reports")
     if isinstance(raw_reports, list):
         payload["broker_reports"] = [

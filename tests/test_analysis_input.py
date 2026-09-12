@@ -179,6 +179,24 @@ def test_report_final_prompt_prioritizes_two_channels_and_exact_date_window():
     assert "변화가 없어도 검색은 수행" in message
 
 
+def test_report_final_includes_verified_four_quarter_narrative_sources():
+    history = [{
+        "fiscal_year": 2026,
+        "fiscal_quarter": 1,
+        "source_title": "2026년 1분기 정기보고서",
+        "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=202605150001",
+        "excerpt": "[설비] AI 서버용 생산능력 확대",
+    }]
+    message = build_user_message(_input(
+        report_context={"report_search": {}},
+        narrative_history=history,
+    ))
+    assert "직전 4개 분기 DART 내러티브 근거" in message
+    assert "202605150001" in message
+    assert "이번 분기 매출·영업이익·OPM" in message
+    assert "숫자로 드러나지 않으면 판정불가" in message
+
+
 # ── 회귀 방어: 스키마가 요구하는 것 ↔ 입력이 주는 것 ──────────────────
 
 

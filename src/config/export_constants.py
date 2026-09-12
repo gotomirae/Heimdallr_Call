@@ -42,6 +42,9 @@ def build() -> dict:
         "_generated_by": "python -m src.config.export_constants",
         "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
         "dashboard_refresh_seconds": constants.DASHBOARD_REFRESH_SECONDS,
+        "dashboard_db_retry_delays_ms": list(constants.DASHBOARD_DB_RETRY_DELAYS_MS),
+        "discovery_initial_rows": constants.DISCOVERY_INITIAL_ROWS,
+        "discovery_row_step": constants.DISCOVERY_ROW_STEP,
         "discovery_ranking": {
             "sector_min_candidates": constants.DISCOVERY_SECTOR_MIN_CANDIDATES,
             "sector_top_n": constants.DISCOVERY_SECTOR_TOP_N,

@@ -41,7 +41,7 @@ from src.analysis.analyze import (
     validate_payload,
 )
 from src.analysis.eligibility import is_growth_acceleration
-from src.analysis.run import FUND_COLUMNS, build_input
+from src.analysis.run import FUND_COLUMNS, build_input, load_narrative_history
 from src.analysis.freshness import (
     facts_hash,
     render_excerpt,
@@ -521,6 +521,8 @@ def run(
             )
             data.analysis_stage = stage
             data.report_context = r.get("_report_context")
+            if stage == "report_final":
+                data.narrative_history = load_narrative_history(code, year, quarter)
             evidence_hash = evidence_hash or facts_hash(data.quarters, data.excerpt)
             # 검색비는 3단계에만 붙는다. 1·2단계는 구조화 데이터와 공시 발췌만 쓴다.
             result = analyze(data, env="prod", web_search=(stage == "report_final"))

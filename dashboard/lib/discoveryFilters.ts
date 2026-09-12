@@ -48,20 +48,29 @@ export interface SortRule {
 }
 
 /**
- * 클릭한 열을 항상 1순위로 올린다.
+ * 먼저 고른 정렬을 고정하고 새 열을 다음 우선순위로 붙인다.
  *
- * 새 열을 눌러도 앞서 선택한 열의 오름·내림 상태는 동률 해소용으로 보존한다.
- * 새 열을 체인 끝에 붙이면 행이 정렬되지 않은 것처럼 보이는 T156을 되풀이한다.
+ * 같은 열은 그 자리에서 내림↔오름만 바뀐다. 세 번째 클릭으로 규칙을 몰래
+ * 없애지 않는다. 제거는 화면의 개별 × 버튼 또는 `기본으로`가 명시적으로 한다.
  */
 export function cyclePrimarySort(
   sorts: SortRule[],
   key: Exclude<SortKey, "default">
 ): SortRule[] {
-  const current = sorts.find((rule) => rule.key === key);
-  const rest = sorts.filter((rule) => rule.key !== key);
-  if (!current) return [{ key, dir: "desc" }, ...rest];
-  if (current.dir === "desc") return [{ key, dir: "asc" }, ...rest];
-  return rest;
+  const index = sorts.findIndex((rule) => rule.key === key);
+  if (index < 0) return [...sorts, { key, dir: "desc" }];
+  return sorts.map((rule, at) => at === index
+    ? { ...rule, dir: rule.dir === "desc" ? "asc" : "desc" }
+    : rule
+  );
+}
+
+/** 한 규칙만 명시적으로 제거하며 나머지 우선순위와 방향은 보존한다. */
+export function removeSortRule(
+  sorts: SortRule[],
+  key: Exclude<SortKey, "default">
+): SortRule[] {
+  return sorts.filter((rule) => rule.key !== key);
 }
 
 /** 발굴 목록의 화면 상태 전부. 여기 없는 값은 저장되지도 복원되지도 않는다. */

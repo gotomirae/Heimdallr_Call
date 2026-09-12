@@ -316,6 +316,10 @@ BROKER_REPORT_PRIORITY_CHANNELS = (
     ("선진짱 주식공부방", "https://t.me/s/sunstudy1234"),
     ("소중한추억.", "https://t.me/s/DOC_POOL"),
 )
+# 3단계에서 지난 4개 분기 정기보고서 발췌를 함께 대조할 총 글자 수.
+# 현재 분기 EXCERPT_MAX_CHARS와 별도다. 네 분기 원문을 전부 싣지 않고 출처별 핵심
+# 앞부분만 균등 배분해 LLM_INPUT_TOKEN_BUDGET 안에서 내러티브 실현 여부를 검증한다.
+NARRATIVE_HISTORY_MAX_CHARS = 3_600
 
 # ═══ 공시 발췌 길이 — **여기 한 곳만이다** ═══
 # ★★ 이 값이 두 곳에 흩어져 조용히 어긋나 있었다(T100 · 2026-08-24 실측).
@@ -399,6 +403,11 @@ KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부
 
 # ═══ 운영 ═══
 DASHBOARD_REFRESH_SECONDS = 60
+# 서버 렌더 DB 읽기 재시도 대기(ms). 4xx·스키마 오류는 대상이 아니며, 연결·pool·timeout만 쓴다.
+DASHBOARD_DB_RETRY_DELAYS_MS = (150, 450)
+# 발굴 표는 전수 데이터를 보존하되 초기 DOM을 작게 그리고 같은 수만큼 점진 확장한다.
+DISCOVERY_INITIAL_ROWS = 120
+DISCOVERY_ROW_STEP = 120
 # 발굴 목록의 자동 섹터 우선순위는 표본이 너무 작은 섹터를 제외한다.
 # 1~2종목만 있는 섹터의 100%를 전체 산업의 강세로 읽으면 조용히 과대평가된다.
 DISCOVERY_SECTOR_MIN_CANDIDATES = 3

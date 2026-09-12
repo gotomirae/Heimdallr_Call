@@ -212,6 +212,34 @@ def test_report_references_are_kept_only_when_the_provider_actually_found_the_ur
     assert result.web_search_requests == 1
 
 
+def test_verified_dart_narrative_source_does_not_require_a_duplicate_web_search():
+    url = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=202605150001"
+    data = AnalysisInput(
+        code="005930",
+        name="삼성전자",
+        board="KOSPI",
+        analysis_stage="report_final",
+        narrative_history=[{"url": url, "excerpt": "AI 설비 투자"}],
+    )
+    response = _response({
+        "narrative_verification": [{
+            "url": url,
+            "claim": "AI 설비 투자 확대",
+            "evidence": "이번 분기 실적 대조",
+        }],
+    })
+
+    result = analysis_result_from_response(
+        data,
+        response,
+        cost_usd=0.01,
+        max_output_tokens=1_000,
+        request_user_message="AI 설비 투자",
+    )
+
+    assert result.payload["narrative_verification"][0]["url"] == url
+
+
 def test_redactor_keeps_supported_numbers_and_removes_only_bad_claims():
     data = AnalysisInput(code="097230", name="HJ중공업", board="KOSPI")
     payload = {"why_now": "매출은 100억원이고 근거 없는 목표가 17,000원이다."}

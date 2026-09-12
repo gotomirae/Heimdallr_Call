@@ -1,4 +1,4 @@
-// PRD Ref: §9, §10 — 최근 공식 매크로 맥락을 발굴 목록에 연결한다.
+// PRD Ref: §9, §10 — 미국 중심 글로벌 매크로 맥락을 발굴 목록에 연결한다.
 
 export interface MacroItem {
   title: string;
@@ -17,6 +17,8 @@ export interface MacroContext {
   };
   /** PRI와 투자 점수를 합산하지 않고, 현재 거시국면에 맞춰 비교 순서만 바꾼다. */
   sortMode: "quality_price" | "earnings_growth" | "balanced";
+  /** 공식 매크로의 실물 수혜가 구조화 실적에서도 확인되는 섹터를 먼저 비교한다. */
+  preferredSectors: string[];
   summary: {
     current: string;
     forward: string;
@@ -24,128 +26,73 @@ export interface MacroContext {
   };
 }
 
-const BOK_RSS = "https://www.bok.or.kr/portal/bbs/B0000552/news.rss?menuNo=200690";
-
-// 2026-09-12 확인. RSS가 잠시 실패해도 마지막으로 검증한 공식 원문과 해석을 숨기지 않는다.
-// 새 수치가 확인되면 이 세 항목과 아래 요약을 함께 갱신한다.
+// 2026-09-12 공식 원문 확인. 대시보드 렌더 때 외부 사이트를 다시 부르지 않는다.
+// ★ 외부 RSS를 핵심 렌더 경로에 두면 공급자 응답이 느린 날 화면 전체 스트림이
+//   4초 이상 열린 채 남는다. 공식 자료 갱신은 검증 후 이 스냅샷을 바꾸고, 화면은
+//   Supabase 조회와 독립적으로 즉시 같은 판단을 사용한다.
 const VERIFIED_OFFICIAL_ITEMS: MacroItem[] = [
   {
-    title: "한국은행 통화신용정책보고서(2026년 9월)",
-    url: "https://www.bok.or.kr/portal/bbs/B0000156/view.do?menuNo=200067&nttId=11064613",
+    title: "미 연준 FOMC 성명 (2026-07-29)",
+    url: "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm",
+    publishedAt: "2026-07-29",
+  },
+  {
+    title: "미 연준 통화정책보고서 (2026년 7월)",
+    url: "https://www.federalreserve.gov/monetarypolicy/2026-07-mpr-summary.htm",
+    publishedAt: "2026-07-10",
+  },
+  {
+    title: "미국 2026년 8월 고용 (BLS)",
+    url: "https://www.bls.gov/news.release/empsit.htm",
+    publishedAt: "2026-09-04",
+  },
+  {
+    title: "미국 2026년 8월 생산자물가 (BLS)",
+    url: "https://www.bls.gov/news.release/ppi.nr0.htm",
     publishedAt: "2026-09-10",
   },
   {
-    title: "한국은행 경제전망보고서(2026년 8월)",
-    url: "https://www.bok.or.kr/portal/bbs/P0002359/view.do?depth=201150&menuNo=200066&nttId=11064210&oldMenuNo=201150&pageIndex=1&pageUnit=10&programType=newsData&searchCnd=1&searchKwd=",
-    publishedAt: "2026-08-27",
+    title: "미국 2026년 2분기 GDP 2차 추정 (BEA)",
+    url: "https://www.bea.gov/data/gdp/gross-domestic-product",
+    publishedAt: "2026-08-26",
   },
   {
-    title: "KDI 경제동향 2026년 9월",
-    url: "https://www.kdi.re.kr/research/monTrends?year=2026",
-    publishedAt: "2026-09-07",
+    title: "IMF 세계경제전망 업데이트 (2026년 7월)",
+    url: "https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026",
+    publishedAt: "2026-07-08",
   },
 ];
 
-function decodeXml(value: string): string {
-  return value
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tag(block: string, name: string): string | null {
-  const match = block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
-  return match ? decodeXml(match[1]) : null;
-}
-
-function uniqueByUrl<T extends { url: string }>(items: T[]): T[] {
-  return items.filter((item, index) => items.findIndex((candidate) => candidate.url === item.url) === index);
-}
-
-function summarize(flags: MacroContext["flags"], hasOfficialItems: boolean): Pick<MacroContext, "sortMode" | "summary"> {
-  const sortMode = flags.rates || flags.geopolitics ? "quality_price" : flags.industry ? "earnings_growth" : "balanced";
-  const current = !hasOfficialItems
-    ? "현재: 공식 매크로 원문을 불러오지 못해 거시상황을 추정하지 않습니다."
-    : "현재: 한국은행은 기준금리를 2.50%에서 3.00%로 두 차례 올렸고 물가는 상당 기간 2% 목표를 웃돌 것으로 봤습니다. KDI는 AI 인프라 투자와 반도체 중심 수출·설비투자가 강하지만 소비 회복은 완만하다고 판단했습니다.";
-  const forward = !hasOfficialItems
-    ? "전망: 원문이 복구될 때까지 최신 실적과 가격 데이터만으로 보수적으로 선별합니다."
-    : "전망: 한국은행은 성장률을 2026년 3.3%·2027년 2.9%, 소비자물가를 2.7%·2.3%로 봅니다. 반도체·AI 투자 주도 이익 개선은 이어질 수 있지만, 추가 금리 인상과 중동·미국 통상정책·수도권 주택·가계대출이 멀티플 하방 위험입니다.";
-  const recommendedSort = sortMode === "quality_price"
-    ? "추천 정렬: 섹터 기회 → 높은 투자 매력도 → 낮은 PRI → 낮은 내년 F.PER → 높은 내년 F.ROE → 높은 영업이익 YoY → 등급 → 최신 분기"
-    : sortMode === "earnings_growth"
-      ? "추천 정렬: 섹터 기회 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
-      : "추천 정렬: 섹터 기회 → 높은 투자 매력도 → 낮은 PRI → 높은 영업이익 YoY → 등급 → 최신 분기";
-  return { sortMode, summary: { current, forward, recommendedSort } };
-}
+const CURRENT_CONTEXT: MacroContext = {
+  source: "미 연준·BLS·BEA·IMF 공식 자료 (2026-09-12 확인)",
+  checkedAt: "2026-09-12",
+  items: VERIFIED_OFFICIAL_ITEMS,
+  flags: { rates: true, industry: true, geopolitics: true },
+  sortMode: "quality_price",
+  // AI 설비투자·데이터센터 전력 수요의 직접 공급망부터 둔다. 방산·조선은 지정학적
+  // 수요가 실적으로 확인된 경우의 다음 묶음이다. 이 목록만으로 종목을 통과시키지는
+  // 않고 buildSectorPriorities의 ★/○·PRI·실적 조건을 만족한 섹터 안에서만 승격한다.
+  preferredSectors: [
+    "반도체 장비", "반도체 소재", "반도체 부품", "반도체 DSP", "반도체 OSAT",
+    "반도체 IDM", "전력인프라", "통신·네트워크", "방산·우주", "조선·해운",
+  ],
+  summary: {
+    current: "현재(미국 중심): 연준은 정책금리를 3.50~3.75%로 동결했지만 물가는 2% 목표보다 높다고 봤습니다. 미국 8월 고용은 +16.2만명·실업률 4.1%로 버티는 반면, 8월 생산자물가는 전월 대비 +0.4%로 금리 민감 성장주의 멀티플 부담이 남아 있습니다.",
+    forward: "글로벌 전망: IMF는 세계 성장률을 2026년 3.0%·2027년 3.4%로 보며, 전쟁·에너지 충격을 AI 투자 붐이 일부 상쇄한다고 판단했습니다. 미국의 AI·데이터센터 설비투자와 연결된 반도체·전력 공급망은 우선 보되, 고금리·통상·지정학 위험 때문에 실제 이익·낮은 PRI·낮은 F.PER를 함께 확인합니다.",
+    recommendedSort: "추천 정렬: 미국 AI·글로벌 공급망 적합 섹터 → 높은 투자 매력도 → 낮은 PRI → 낮은 내년 F.PER → 높은 내년 F.ROE → 높은 영업이익 YoY → 등급 → 최신 분기",
+  },
+};
 
 /**
- * 한국은행 공식 RSS만 읽는다. 실패하면 빈 맥락으로 내려가며 종목 정렬 자체는
- * 최신 실적·가격으로 계속 작동한다. 뉴스 제목의 출현 횟수를 점수로 만들지는 않는다.
+ * 공식 원문을 검증해 둔 스냅샷을 반환한다.
+ *
+ * 뉴스 제목 빈도나 감성은 점수로 만들지 않는다. 외부 공식 사이트의 순간 장애가
+ * 대시보드 연결·클릭까지 붙들지 않도록 페이지 요청 중 네트워크 I/O도 하지 않는다.
  */
 export async function getMacroContext(): Promise<MacroContext> {
-  const checkedAt = new Date().toISOString();
-  try {
-    const response = await fetch(BOK_RSS, {
-      next: { revalidate: 6 * 60 * 60 },
-      signal: AbortSignal.timeout(4_000),
-      headers: { "User-Agent": "Heimdallr-Call/1.0 macro-context" },
-    });
-    if (!response.ok) throw new Error(`BOK RSS ${response.status}`);
-    const xml = await response.text();
-    const candidates = [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)]
-      .map((match) => {
-        const block = match[1];
-        const title = tag(block, "title") ?? "";
-        const description = tag(block, "description") ?? "";
-        return {
-          title,
-          description,
-          url: tag(block, "link") ?? BOK_RSS,
-          publishedAt: tag(block, "pubDate"),
-        };
-      })
-      .filter((item) => item.title);
-    const relevant = candidates.filter((item) =>
-      /통화정책|금리|물가|경제전망|기업경영|수출|반도체|관세|중동|금융시장/.test(
-        `${item.title} ${item.description}`
-      )
-    );
-    const pool = relevant.length > 0 ? relevant : candidates;
-    // 전망·산업·물가를 하나씩 고른다. 단순 최신 3건은 같은 주제 보도자료가 화면을
-    // 독점해 향후 경로가 사라질 수 있다.
-    const selected = uniqueByUrl([
-      ...VERIFIED_OFFICIAL_ITEMS,
-      ...pool.filter((item) => /경제전망|통화정책/.test(`${item.title} ${item.description}`)).slice(0, 1),
-      ...pool.filter((item) => /기업경영|수출|반도체|산업|투자/.test(`${item.title} ${item.description}`)).slice(0, 1),
-      ...pool.filter((item) => /물가|금리|금융시장/.test(`${item.title} ${item.description}`)).slice(0, 1),
-      ...pool,
-    ]).slice(0, 5);
-    const corpus = pool.map((item) => `${item.title} ${item.description}`).join(" ");
-    const flags = {
-      rates: /금리|통화정책|물가|인플레이션/.test(corpus),
-      industry: /수출|반도체|기업경영|산업|투자/.test(corpus),
-      geopolitics: /중동|관세|통상|지정학/.test(corpus),
-    };
-    return {
-      source: "한국은행·KDI 공식 자료",
-      checkedAt,
-      items: selected.map(({ title, url, publishedAt }) => ({ title, url, publishedAt })),
-      flags,
-      ...summarize(flags, selected.length > 0),
-    };
-  } catch {
-    return {
-      source: "한국은행·KDI 공식 자료 (2026-09-12 확인)",
-      checkedAt,
-      items: VERIFIED_OFFICIAL_ITEMS,
-      flags: { rates: true, industry: true, geopolitics: true },
-      ...summarize({ rates: true, industry: true, geopolitics: true }, true),
-    };
-  }
+  return {
+    ...CURRENT_CONTEXT,
+    items: [...CURRENT_CONTEXT.items],
+    preferredSectors: [...CURRENT_CONTEXT.preferredSectors],
+  };
 }

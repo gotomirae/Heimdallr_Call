@@ -5,12 +5,12 @@
 //   어느 쪽이 최신인지 모르게 된다.
 import Link from "next/link";
 import DiscoveryTable, { type DiscoveryRow } from "@/components/DiscoveryTable";
-import { HORIZONS, excessField, type OutcomeRow, getOutcomes } from "@/lib/outcome";
+import { HORIZONS, excessField, type OutcomeRow, getDiscoveryOutcomes } from "@/lib/outcome";
 import {
-  getAllLatestAnnualConsensus,
-  getAllLatestPrices,
+  getAllLatestDiscoveryConsensus,
+  getAllLatestDiscoveryPrices,
   getFundamentalsForQuarters,
-  getLatestScreens,
+  getLatestDiscoveryScreens,
   getUniverse,
 } from "@/lib/queries";
 import { quarterLabel, qIndex } from "@/lib/format";
@@ -22,6 +22,26 @@ import type { FundamentalRow, Grade, ScreenRow } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 const GRADE_ORDER: Grade[] = ["★", "○", "△", "·", "✕"];
+
+/**
+ * 부가 조회 하나가 잠깐 실패해도 핵심 스크리닝 목록은 보여 준다. 결측을 0으로 만들지 않고
+ * 화면과 서버 로그 양쪽에 원인을 남긴다. 스크린·유니버스는 핵심이라 이 폴백을 쓰지 않는다.
+ */
+async function withReadFallback<T>(
+  label: string,
+  promise: Promise<T>,
+  fallback: T
+): Promise<{ value: T; warning: string | null }> {
+  try {
+    return { value: await promise, warning: null };
+  } catch (error) {
+    console.error(`[dashboard] ${label} 조회 실패`, error);
+    return {
+      value: fallback,
+      warning: `${label} 연결이 일시적으로 끊겨 해당 값은 미수집으로 표시했다.`,
+    };
+  }
+}
 
 /**
  * 게이트 탈락 사유를 사람 말로.
@@ -44,15 +64,21 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
 
 export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
-  const [{ rows: screens, dropped }, universe, priceResult, outcomeResult, macroContext, annualConsensus] =
+  const [screenResult, universe, priceLoad, outcomeLoad, macroContext, consensusLoad] =
     await Promise.all([
-      getLatestScreens({ accelerating: false }),
+      getLatestDiscoveryScreens(),
       getUniverse(),
-      getAllLatestPrices(),
-      getOutcomes(),
+      withReadFallback("시세", getAllLatestDiscoveryPrices(), { prices: new Map(), dropped: [] }),
+      withReadFallback("발표 후 수익률", getDiscoveryOutcomes(), { rows: [], dropped: [] }),
       getMacroContext(),
-      getAllLatestAnnualConsensus(),
+      withReadFallback("컨센서스", getAllLatestDiscoveryConsensus(), new Map()),
     ]);
+  const { rows: screens, dropped } = screenResult;
+  const priceResult = priceLoad.value;
+  const outcomeResult = outcomeLoad.value;
+  const annualConsensus = consensusLoad.value;
+  const connectionWarnings = [priceLoad.warning, outcomeLoad.warning, consensusLoad.warning]
+    .filter((warning): warning is string => warning != null);
 
   // ── 성장률 열의 재료 ────────────────────────────────────────────
   // ★ `screen_results`에는 YoY 원자료가 없다(점수만 있다). 표에 매출·영업이익 YoY를
@@ -62,9 +88,15 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
   const quarterKeys = [
     ...new Set(screens.map((s) => qIndex(s.fiscal_year, s.fiscal_quarter))),
   ];
-  const funds = await getFundamentalsForQuarters(
-    quarterKeys.map((k) => ({ year: Math.floor(k / 4), quarter: (k % 4) + 1 }))
+  const fundLoad = await withReadFallback(
+    "분기 실적",
+    getFundamentalsForQuarters(
+      quarterKeys.map((k) => ({ year: Math.floor(k / 4), quarter: (k % 4) + 1 }))
+    ),
+    []
   );
+  const funds = fundLoad.value;
+  if (fundLoad.warning) connectionWarnings.push(fundLoad.warning);
   const fundByKey = new Map<string, FundamentalRow>(
     funds.map((f) => [`${f.code}|${f.fiscal_year}|${f.fiscal_quarter}`, f])
   );
@@ -215,6 +247,15 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
           ⚠ 발표일 기준 추적 컬럼이 없다: {outcomeResult.dropped.join(", ")}.
           <strong className="ml-1">0%가 아니라 미수집이다.</strong>
         </p>
+      )}
+      {connectionWarnings.length > 0 && (
+        <div className="rounded border border-amber-700 bg-amber-900/30 px-3 py-2 text-sm text-amber-100">
+          <strong>일부 데이터 연결 지연</strong>
+          <ul className="mt-1 list-disc pl-5">
+            {connectionWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+          <span className="text-amber-200">0이 아니라 미수집이며, 다음 자동 갱신에서 다시 확인한다.</span>
+        </div>
       )}
 
       {!watchlistOnly && <div className="flex flex-wrap gap-2">

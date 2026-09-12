@@ -12,6 +12,30 @@ from src.collectors import excerpt_run
 from src.finance.backfill import recent_periodic_targets
 
 
+def test_narrative_history_uses_prior_four_quarters_and_latest_correction(monkeypatch):
+    from src.analysis.run import load_narrative_history
+
+    rows = []
+    for year, quarter in ((2025, 2), (2025, 3), (2025, 4), (2026, 1), (2026, 2)):
+        rows.append({
+            "code": "000001", "fiscal_year": year, "fiscal_quarter": quarter,
+            "rcept_no": f"{year}{quarter}001", "sections": {"사업": f"{year}.{quarter}Q 주장"},
+        })
+    rows.append({
+        **rows[-2], "rcept_no": "202610999", "sections": {"사업": "정정된 1Q 주장"},
+    })
+    monkeypatch.setattr("src.analysis.run.select_all", lambda *args, **kwargs: list(reversed(rows)))
+
+    history = load_narrative_history("000001", 2026, 2)
+
+    assert [(row["fiscal_year"], row["fiscal_quarter"]) for row in history] == [
+        (2025, 2), (2025, 3), (2025, 4), (2026, 1),
+    ]
+    assert "정정된 1Q 주장" in history[-1]["excerpt"]
+    assert "2026.2Q 주장" not in str(history)
+    assert all("rcpNo=" in row["url"] for row in history)
+
+
 def test_hash_ignores_collection_time_but_detects_financial_change():
     q = {"fiscal_year": 2026, "fiscal_quarter": 2, "revenue": 100}
     assert facts_hash([q], None) == facts_hash([{**q, "revenue": 100.0, "updated_at": "later"}], None)

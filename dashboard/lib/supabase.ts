@@ -1,6 +1,7 @@
 // PRD Ref: §9.2 (방어 코드) · traps.md T7, T40
 // 대시보드는 anon key + RLS(읽기 전용)로 Supabase를 직접 조회한다.
 import { createClient } from "@supabase/supabase-js";
+import constants from "./constants.json";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -42,6 +43,69 @@ const PAGE_SIZE = 1000;
 const UNDEFINED_COLUMN = "42703";
 
 /**
+ * 서버 렌더 한 번이 여러 PostgREST 조회를 병렬로 수행하므로, 짧은 DB 연결 흔들림 하나가
+ * 페이지 전체 500으로 번지지 않게 한다. 영구적인 4xx·스키마 오류는 즉시 올린다.
+ */
+const READ_RETRY_DELAYS_MS = constants.dashboard_db_retry_delays_ms;
+const TRANSIENT_POSTGREST_CODES = new Set([
+  "PGRST000", "PGRST001", "PGRST002", "PGRST003",
+  "53300", "57014",
+]);
+const TRANSIENT_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+type ReadError = { code?: string; message?: string };
+type ReadResult = {
+  data: unknown;
+  error: ReadError | null;
+  status?: number;
+};
+
+function isTransientReadError(error: ReadError | null, status?: number): boolean {
+  if (!error) return false;
+  if (status != null && TRANSIENT_HTTP_STATUSES.has(status)) return true;
+  const code = String(error.code ?? "").toUpperCase();
+  if (code.startsWith("08") || TRANSIENT_POSTGREST_CODES.has(code)) return true;
+  return /timeout|timed out|connection|fetch failed|network|socket|too many clients/i.test(
+    String(error.message ?? "")
+  );
+}
+
+function isTransientThrownError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === "TypeError" ||
+    /timeout|timed out|connection|fetch failed|network|socket/i.test(error.message);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readWithTransientRetry<T extends ReadResult>(
+  run: () => PromiseLike<T>,
+  label: string
+): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const result = await run();
+      if (!isTransientReadError(result.error, result.status) || attempt >= READ_RETRY_DELAYS_MS.length) {
+        return result;
+      }
+      console.warn(
+        `[dashboard-db] ${label} 일시 오류, 재시도 ${attempt + 1}/${READ_RETRY_DELAYS_MS.length}`,
+        result.error?.code ?? result.status ?? "network"
+      );
+    } catch (error) {
+      if (!isTransientThrownError(error) || attempt >= READ_RETRY_DELAYS_MS.length) throw error;
+      console.warn(
+        `[dashboard-db] ${label} 연결 예외, 재시도 ${attempt + 1}/${READ_RETRY_DELAYS_MS.length}`
+      );
+    }
+    // 동시에 실패한 서버리스 인스턴스가 같은 순간에 다시 몰리지 않도록 작은 지터를 둔다.
+    await wait(READ_RETRY_DELAYS_MS[attempt] + Math.floor(Math.random() * 50));
+  }
+}
+
+/**
  * 에러 메시지에서 없는 컬럼 이름을 뽑는다.
  * PostgREST 메시지 예: `column screen_results.updated_at does not exist`
  */
@@ -74,7 +138,10 @@ export async function selectWithOptionalColumns<T>(
 
   // 컬럼 수만큼만 돌면 반드시 끝난다 — 무한 루프 방지.
   for (let attempt = 0; attempt <= columns.length; attempt += 1) {
-    const { data, error } = await build(supabase.from(table), remaining.join(","));
+    const { data, error } = await readWithTransientRetry(
+      () => build(supabase.from(table), remaining.join(",")),
+      `${table} optional-select`
+    );
     if (!error) {
       return { rows: (data as T[]) ?? [], dropped };
     }
@@ -107,7 +174,10 @@ export async function selectAll<T>(
   for (let offset = 0; ; offset += PAGE_SIZE) {
     let query: any = supabase.from(table).select(columns);
     if (refine) query = refine(query);
-    const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
+    const { data, error } = await readWithTransientRetry(
+      () => query.range(offset, offset + PAGE_SIZE - 1),
+      `${table} range ${offset}-${offset + PAGE_SIZE - 1}`
+    );
     if (error) throw error;
     const chunk = (data as T[]) ?? [];
     out.push(...chunk);

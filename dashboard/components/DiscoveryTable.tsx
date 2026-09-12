@@ -20,6 +20,7 @@ import {
   cyclePrimarySort,
   fromQuery,
   loadStored,
+  removeSortRule,
   saveStored,
   toQuery,
   type CapFilter,
@@ -248,6 +249,7 @@ const GRADE_ORDER: Grade[] = ["★", "○", "△", "·", "✕"];
 
 interface SectorPriority {
   sector: string;
+  macroRank: number;
   candidates: number;
   attractive: number;
   attractiveRate: number;
@@ -271,8 +273,15 @@ function median(values: (number | null)[]): number | null {
   return measured.length % 2 ? measured[mid] : (measured[mid - 1] + measured[mid]) / 2;
 }
 
-/** 최신 행의 실적·가격에서 매번 다시 만드는 섹터 우선순위. 외부 뉴스 빈도는 점수화하지 않는다. */
-function buildSectorPriorities(rows: DiscoveryRow[]): SectorPriority[] {
+/**
+ * 최신 행의 실적·가격에서 만드는 섹터 우선순위.
+ * 공식 미국·글로벌 매크로는 기회 묶음만 정하고, 실제 승격은 ★/○가 있는 섹터에 한한다.
+ */
+function buildSectorPriorities(
+  rows: DiscoveryRow[],
+  preferredSectors: readonly string[]
+): SectorPriority[] {
+  const macroRanks = new Map(preferredSectors.map((sector, index) => [sector, index]));
   const buckets = new Map<string, DiscoveryRow[]>();
   for (const row of rows) {
     if (row.gatePassed !== true || row.sector === "기타") continue;
@@ -288,6 +297,7 @@ function buildSectorPriorities(rows: DiscoveryRow[]): SectorPriority[] {
       const measuredOp = members.filter((row) => row.opYoy != null);
       return {
         sector,
+        macroRank: macroRanks.get(sector) ?? Number.MAX_SAFE_INTEGER,
         candidates: members.length,
         attractive,
         attractiveRate: attractive / members.length,
@@ -302,6 +312,7 @@ function buildSectorPriorities(rows: DiscoveryRow[]): SectorPriority[] {
     })
     .filter((row) => row.attractive > 0)
     .sort((a, b) =>
+      (a.macroRank - b.macroRank) ||
       (b.attractiveRate - a.attractiveRate) ||
       (b.underreflectedRate - a.underreflectedRate) ||
       ((b.medianScore ?? -Infinity) - (a.medianScore ?? -Infinity)) ||
@@ -337,8 +348,9 @@ function growthCell(value: number | null, label: string | null): string {
   return label ?? "—";
 }
 
-/** 표시 상한. 넘으면 **잘랐다는 사실을 화면에 밝힌다** — 조용히 truncate 금지. */
-const MAX_ROWS = 400;
+/** 초기 DOM을 작게 유지하고 필요할 때만 늘린다. 전수 데이터는 필터·정렬에 그대로 쓴다. */
+const INITIAL_ROWS = constants.discovery_initial_rows;
+const ROW_STEP = constants.discovery_row_step;
 const FAVORITES_KEY = "heimdallr.favorite_codes.v1";
 
 function loadFavorites(): string[] {
@@ -371,6 +383,7 @@ export default function DiscoveryTable({
   const [filters, setFilters] = useState<DiscoveryFilters>(DEFAULT_FILTERS);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesRestored, setFavoritesRestored] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_ROWS);
   // ★★ **ref가 아니라 state여야 한다.** ref로 두면 복원 effect가 `true`로 바꾼 값을
   //   같은 커밋의 저장 effect가 곧바로 읽어, 아직 **기본값인** filters를 저장해
   //   방금 복원한 값을 덮어쓴다. 실측: 결과 추적 탭에 갔다 돌아오면 필터가 초기화됐다.
@@ -418,14 +431,15 @@ export default function DiscoveryTable({
   }
 
   function patch(next: Partial<DiscoveryFilters>) {
+    setVisibleLimit(INITIAL_ROWS);
     setFilters((f) => ({ ...f, ...next }));
   }
 
   const { query, gate, grades, sectors, cap, consensus, quarter, sorts } = filters;
 
   /**
-   * 머리글 클릭. 선택한 순서가 1·2·3차 정렬 순서다. 같은 열은
-   * 기본 → 내림 → 오름 → 기본으로 순환한다.
+   * 머리글 클릭. 선택한 순서가 1·2·3차 정렬 순서다. 앞서 고른 규칙은
+   * 우선순위와 방향이 고정되고, 같은 열을 다시 누를 때만 내림↔오름이 바뀐다.
    *
    * ★ 새 열을 처음 누르면 **내림차순**이다. 이 표에서 궁금한 것은 거의 언제나
    *   "가장 높은 종목"이므로, 오름차순으로 시작하면 매번 두 번씩 눌러야 한다.
@@ -463,7 +477,10 @@ export default function DiscoveryTable({
     () => [...new Set(rows.map((r) => r.quarter))].sort().reverse(),
     [rows]
   );
-  const sectorPriorities = useMemo(() => buildSectorPriorities(rows), [rows]);
+  const sectorPriorities = useMemo(
+    () => buildSectorPriorities(rows, macroContext.preferredSectors),
+    [rows, macroContext.preferredSectors]
+  );
   const sectorRank = useMemo(
     () => new Map(sectorPriorities.map((row, index) => [row.sector, index])),
     [sectorPriorities]
@@ -494,9 +511,9 @@ export default function DiscoveryTable({
         }
         return true;
       })
-      // ★★ 기본 정렬은 공식 매크로에서 판정한 국면에 따라 비교축의 순서만 바꾼다.
-      //    PRI와 투자 점수를 합산하지 않으며(ADR 5), 최신 분기·등급·동적 섹터가 먼저다.
-      //    사용자가 머리글을 누르면 그 열이 1순위가 되고 결측은 방향과 무관하게 맨 뒤다.
+      // ★★ 기본 정렬은 공식 매크로의 섹터 기회와 국면에 따라 비교축 순서를 바꾼다.
+      //    PRI와 투자 점수를 합산하지 않는다(ADR 5). 사용자가 머리글을 차례로 누르면
+      //    먼저 선택한 규칙을 고정한 채 다음 규칙이 동률을 푼다.
       .sort((a, b) => {
         for (const rule of sorts) {
           const av = sortValue(a, rule.key);
@@ -515,7 +532,7 @@ export default function DiscoveryTable({
       });
   }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts, sectorRank, macroContext.sortMode]);
 
-  const shown = filtered.slice(0, MAX_ROWS);
+  const shown = filtered.slice(0, visibleLimit);
   const select =
     "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-slate-100";
   const showTracking = gate === "growth" || gate === "turnaround" || gate === "all";
@@ -590,7 +607,7 @@ export default function DiscoveryTable({
       {!favoriteOnly && (
         <div className="rounded-lg border border-sky-800/70 bg-sky-950/30 px-3 py-2.5 text-sm text-slate-100">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <strong className="text-sky-200">현재 추천 정렬 · 매 갱신 자동 계산</strong>
+            <strong className="text-sky-200">미국·글로벌 매크로 추천 정렬 · 실적 갱신 자동 계산</strong>
             <span className="text-xs text-slate-300">시장·실적 기준 {dataAsOf ?? "기준일 미측정"}</span>
           </div>
           <div className="mt-1 space-y-0.5 leading-5">
@@ -614,7 +631,7 @@ export default function DiscoveryTable({
           <div className="mt-1.5 text-xs text-slate-400">
             {macroContext.items.length > 0 ? (
               <>
-                공식 매크로 확인: {macroContext.items.map((item, index) => (
+                공식 매크로 확인({macroContext.source}): {macroContext.items.map((item, index) => (
                   <span key={`${item.url}-${index}`}>
                     {index > 0 && " · "}
                     <a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline">
@@ -649,6 +666,15 @@ export default function DiscoveryTable({
                   {index > 0 && <span className="text-slate-500"> → </span>}
                   <strong className="text-sky-300">{index + 1}. {SORT_LABEL[rule.key] ?? rule.key}</strong>{" "}
                   {rule.dir === "desc" ? "내림차순" : "오름차순"}
+                  <button
+                    type="button"
+                    onClick={() => patch({ sorts: removeSortRule(sorts, rule.key) })}
+                    className="ml-1 rounded px-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    aria-label={`${SORT_LABEL[rule.key] ?? rule.key} 정렬 제거`}
+                    title="이 정렬만 제거"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
               <span className="text-slate-400"> · 미측정은 맨 뒤</span>
@@ -767,7 +793,11 @@ export default function DiscoveryTable({
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
                 <td className="sticky left-[156px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
-                  <Link href={`/stock/${r.code}`} className="font-medium text-sky-300 hover:underline">
+                  <Link
+                    href={`/stock/${r.code}`}
+                    prefetch={false}
+                    className="font-medium text-sky-300 hover:underline"
+                  >
                     {r.name}
                   </Link>
                 </td>
@@ -848,11 +878,19 @@ export default function DiscoveryTable({
         </table>
       </div>
 
-      {filtered.length > MAX_ROWS && (
-        <p className="text-sm text-amber-200">
-          ⚠ 상위 {MAX_ROWS}종목만 표시했다 (최신 분기 · 스코어 순) — 조건에{" "}
-          {filtered.length.toLocaleString("ko-KR")}종목이 걸렸다. 필터를 좁혀라.
-        </p>
+      {filtered.length > shown.length && (
+        <div className="flex items-center gap-3 text-sm text-slate-200">
+          <button
+            type="button"
+            onClick={() => setVisibleLimit((current) => current + ROW_STEP)}
+            className="rounded border border-sky-600 bg-sky-950/60 px-3 py-1.5 font-semibold text-sky-100 hover:bg-sky-900/70"
+          >
+            다음 {Math.min(ROW_STEP, filtered.length - shown.length)}종목 더 보기
+          </button>
+          <span>
+            {shown.length.toLocaleString("ko-KR")} / {filtered.length.toLocaleString("ko-KR")}종목 표시
+          </span>
+        </div>
       )}
     </div>
   );

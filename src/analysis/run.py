@@ -19,7 +19,7 @@ from src.analysis.analyze import (
     save,
     validate_payload,
 )
-from src.config.constants import LLM_INPUT_TOKEN_BUDGET
+from src.config.constants import LLM_INPUT_TOKEN_BUDGET, NARRATIVE_HISTORY_MAX_CHARS
 from src.db.supabase_client import (
     PostgrestReadBudget,
     ReadBudgetExceeded,
@@ -118,6 +118,75 @@ def load_excerpt(
                    "fiscal_year": fetched_year,
                    "fiscal_quarter": fetched_quarter,
                    "rcept_no": newest_disc["rcept_no"]})
+
+
+def load_narrative_history(
+    code: str,
+    year: int,
+    quarter: int,
+    *,
+    read_budget: PostgrestReadBudget | None = None,
+) -> list[dict]:
+    """3단계용 직전 4개 분기 정기보고서 근거와 DART 직접 링크.
+
+    같은 분기 정정본이 여러 개면 가장 큰 접수번호 하나만 쓴다. 현재 분기보다 뒤인
+    자료는 절대 넣지 않으며, 전체 글자 예산을 실제 보유 분기에 균등 배분한다.
+    """
+    try:
+        rows = select_all(
+            "disclosure_excerpts",
+            "rcept_no,code,fiscal_year,fiscal_quarter,sections",
+            filters={"code": code},
+            read_budget=read_budget,
+        )
+    except ReadBudgetExceeded:
+        raise
+    except Exception:
+        return []
+
+    target = year * 4 + (quarter - 1)
+    by_period: dict[tuple[int, int], dict] = {}
+    for row in rows:
+        ry, rq = row.get("fiscal_year"), row.get("fiscal_quarter")
+        if not isinstance(ry, int) or not isinstance(rq, int):
+            continue
+        index = ry * 4 + (rq - 1)
+        if not target - 4 <= index < target or not row.get("sections"):
+            continue
+        key = (ry, rq)
+        previous = by_period.get(key)
+        if previous is None or str(row.get("rcept_no") or "") > str(previous.get("rcept_no") or ""):
+            by_period[key] = row
+
+    selected = [by_period[key] for key in sorted(by_period)]
+    if not selected:
+        return []
+    per_report = max(1, NARRATIVE_HISTORY_MAX_CHARS // len(selected))
+    history: list[dict] = []
+    for row in selected:
+        sections = row.get("sections") or {}
+        # 보고서 전체 앞부분만 자르면 늘 마지막 `주요계약·연구개발`이 사라진다(T100).
+        # 가진 절에 예산을 균등 배분해 각 절의 근거를 최소한 하나씩 보존한다.
+        label_chars = sum(len(str(name)) + 3 for name in sections)
+        per_section = max(1, (per_report - label_chars) // max(1, len(sections)))
+        body = "\n".join(
+            f"[{name}] {str(text)[:per_section]}"
+            for name, text in sections.items()
+        )
+        original_chars = sum(len(str(text)) for text in sections.values())
+        rcept_no = str(row.get("rcept_no") or "")
+        history.append({
+            "fiscal_year": row["fiscal_year"],
+            "fiscal_quarter": row["fiscal_quarter"],
+            "source_title": f"{row['fiscal_year']}년 {row['fiscal_quarter']}분기 정기보고서",
+            "url": (
+                f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
+                if rcept_no else None
+            ),
+            "excerpt": body,
+            "truncated": original_chars > per_report,
+        })
+    return history
 
 
 def build_input(
