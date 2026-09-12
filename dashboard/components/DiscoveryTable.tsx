@@ -14,7 +14,11 @@ import constants from "@/lib/constants.json";
 import { GRADE_COLOR, GRADE_MEANING, type Grade } from "@/lib/types";
 import type { MacroContext } from "@/lib/macroContext";
 import { HORIZONS, horizonLabel } from "@/lib/outcome";
-import type { GrowthCategory } from "@/lib/growthCategory";
+import {
+  unpackDiscoveryRow,
+  type DiscoveryRow,
+  type DiscoveryRowWire,
+} from "@/lib/discoveryRow";
 import {
   DEFAULT_FILTERS,
   cyclePrimarySort,
@@ -30,57 +34,6 @@ import {
   type SortDir,
   type SortKey,
 } from "@/lib/discoveryFilters";
-
-export interface DiscoveryRow {
-  code: string;
-  name: string;
-  board: string | null;
-  sector: string;
-  /** 반도체 전·후공정 표식. 근거가 없으면 추정하지 않는다. */
-  sectorProcess: "전" | "후" | null;
-  /** ETF와 비교 가능한 넓은 투자 테마. */
-  sectorTheme: string;
-  /** 분류 근거: 주요제품 우선, 없으면 ETF 유사 테마. */
-  sectorBasis: "주요제품" | "ETF 유사 테마" | "미분류";
-  industry: string | null;
-  marketCap: number | null;
-  quarter: string;
-  /** 정렬 1순위. `연*4 + (분기−1)` — 문자열로 비교하면 연도 경계에서 조용히 틀린다. */
-  quarterIndex: number;
-  gatePassed: boolean | null;
-  turnaround: boolean | null;
-  category: GrowthCategory;
-  grade: Grade | null;
-  score: number | null;
-  pri: number | null;
-  hasConsensus: boolean | null;
-  baseEffect: boolean | null;
-  failReasons: string[];
-  /** 평가 분기의 매출 성장률(%). */
-  revenueYoy: number | null;
-  /** 평가 분기의 매출 QoQ(%). */
-  revenueQoq: number | null;
-  /** 평가 분기의 영업이익 성장률(%). 정렬 3순위이자 이 표의 주인공이다. */
-  opYoy: number | null;
-  /** 평가 분기의 영업이익 QoQ(%). */
-  opQoq: number | null;
-  /** 부호 전환 라벨('흑전'·'적전'…). opYoy가 null일 때 대신 보여준다(T25). */
-  opStatusLabel: string | null;
-  /** 영업이익률 YoY 변화(%p) — G4가 보는 값이다. */
-  opmYoyDelta: number | null;
-  /** 현재 시총 ÷ 평가 분기까지 최근 4개 분기 순이익. */
-  per4q: number | null;
-  /** 네이버증권 내년 예상 순이익 기준 F.PER. */
-  forwardPer: number | null;
-  /** 네이버증권 올해 예상 ROE. */
-  roe: number | null;
-  /** 네이버증권 내년도 예상 ROE(F.ROE). */
-  forwardRoe: number | null;
-  /** 최근 5거래일 상승률(%). */
-  ret5d: number | null;
-  /** 발표일 기준 초과수익(%p). 키는 Horizon. */
-  excess: Partial<Record<(typeof HORIZONS)[number], number | null>>;
-}
 
 /** 정렬 상태를 글로 알릴 때 쓰는 이름. 머리글 라벨과 **같은 말**이어야 한다. */
 const SORT_LABEL: Partial<Record<SortKey, string>> = {
@@ -367,16 +320,17 @@ function loadFavorites(): string[] {
 }
 
 export default function DiscoveryTable({
-  rows,
+  wireRows,
   favoriteOnly = false,
   dataAsOf,
   macroContext,
 }: {
-  rows: DiscoveryRow[];
+  wireRows: DiscoveryRowWire[];
   favoriteOnly?: boolean;
   dataAsOf: string | null;
   macroContext: MacroContext;
 }) {
+  const rows = useMemo(() => wireRows.map(unpackDiscoveryRow), [wireRows]);
   // ★ 첫 렌더는 **반드시 기본값**이어야 한다. sessionStorage를 렌더 중에 읽으면
   //   서버가 그린 HTML과 달라져 하이드레이션이 깨진다(화면이 통째로 다시 그려진다).
   //   복원은 마운트 후 effect에서 한다.

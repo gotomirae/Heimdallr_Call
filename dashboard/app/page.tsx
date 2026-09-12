@@ -4,7 +4,7 @@
 //   보나, 탈락까지 보나"뿐인데 그건 필터 하나다. 탭이 둘이면 열 구성이 갈라져
 //   어느 쪽이 최신인지 모르게 된다.
 import Link from "next/link";
-import DiscoveryTable, { type DiscoveryRow } from "@/components/DiscoveryTable";
+import DiscoveryTable from "@/components/DiscoveryTable";
 import { HORIZONS, excessField, type OutcomeRow, getDiscoveryOutcomes } from "@/lib/outcome";
 import {
   getAllLatestDiscoveryConsensus,
@@ -17,6 +17,7 @@ import { quarterLabel, qIndex } from "@/lib/format";
 import { sectorInfoOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
 import { getMacroContext } from "@/lib/macroContext";
+import { packDiscoveryRow, type DiscoveryRow } from "@/lib/discoveryRow";
 import type { FundamentalRow, Grade, ScreenRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -276,7 +277,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       </div>}
 
       <DiscoveryTable
-        rows={rows}
+        wireRows={rows.map(packDiscoveryRow)}
         favoriteOnly={watchlistOnly}
         dataAsOf={dataAsOf}
         macroContext={macroContext}

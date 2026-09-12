@@ -11,6 +11,7 @@ TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
 STOCK = (ROOT / "dashboard/app/stock/[code]/page.tsx").read_text(encoding="utf-8")
 HOME = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
 DISCOVERY = (ROOT / "dashboard/components/DiscoveryTable.tsx").read_text(encoding="utf-8")
+DISCOVERY_ROW = (ROOT / "dashboard/lib/discoveryRow.ts").read_text(encoding="utf-8")
 COST_ROUTE = (ROOT / "dashboard/app/api/cost/route.ts").read_text(encoding="utf-8")
 QUARTER_CHART = (ROOT / "dashboard/components/QuarterlyChart.tsx").read_text(encoding="utf-8")
 DAILY_CHART = (ROOT / "dashboard/components/DailyPriceChart.tsx").read_text(encoding="utf-8")
@@ -83,6 +84,16 @@ def test_discovery_table_renders_rows_progressively_without_dropping_full_data()
     assert "constants.discovery_row_step" in DISCOVERY
     assert "filtered.slice(0, visibleLimit)" in DISCOVERY
     assert "setVisibleLimit((current) => current + ROW_STEP)" in DISCOVERY
+
+
+def test_discovery_rows_use_compact_wire_contract_and_restore_all_outcomes():
+    assert "wireRows={rows.map(packDiscoveryRow)}" in HOME
+    assert "wireRows.map(unpackDiscoveryRow)" in DISCOVERY
+    assert "export type DiscoveryRowWire = [" in DISCOVERY_ROW
+    for day in (-5, 0, 5, 20, 60):
+        assert f"row.excess[{day}] ?? null" in DISCOVERY_ROW
+    for field in ("code", "sectorProcess", "failReasons", "forwardRoe", "ret5d", "excess"):
+        assert f"{field}:" in DISCOVERY_ROW
 
 
 def test_cost_history_pages_and_exposes_forecast_basis():
