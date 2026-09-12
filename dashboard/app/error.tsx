@@ -6,6 +6,13 @@ import { useEffect, useState } from "react";
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const [online, setOnline] = useState(true);
 
+  function reconnect() {
+    // SC: §10.0 — Server Component 오류는 경계만 reset하면 같은 실패 결과가 남을 수 있다.
+    // 로컬 필터는 localStorage에 보존되므로 전체 문서를 다시 요청해 DB 연결도 새로 만든다.
+    reset();
+    window.location.reload();
+  }
+
   useEffect(() => {
     const sync = () => setOnline(navigator.onLine);
     sync();
@@ -25,7 +32,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
       <p className="mt-2 text-slate-300">현재 화면 상태는 브라우저에 보존됩니다. 연결이 돌아오면 다시 시도하세요.</p>
       <button
         type="button"
-        onClick={reset}
+        onClick={reconnect}
         disabled={!online}
         className="mt-3 rounded border border-amber-600 px-3 py-1.5 font-medium text-amber-100 hover:bg-amber-900/50 disabled:cursor-not-allowed disabled:opacity-50"
       >

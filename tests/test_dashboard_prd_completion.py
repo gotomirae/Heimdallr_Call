@@ -281,12 +281,15 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
 
 def test_dashboard_refresh_yields_to_interaction_and_stock_links_do_not_prefetch():
     refresh = (ROOT / "dashboard/components/AutoRefresh.tsx").read_text(encoding="utf-8")
+    error_page = (ROOT / "dashboard/app/error.tsx").read_text(encoding="utf-8")
     assert "INTERACTION_GRACE_MS" in refresh
     assert "pendingRef.current" in refresh
     assert "pointerdown" in refresh and "keydown" in refresh and "wheel" in refresh
     assert "클릭/입력 중에는 보류" in refresh
     assert "prefetch={false}" in DISCOVERY
     assert (ROOT / "dashboard/app/error.tsx").exists()
+    assert "reset();" in error_page
+    assert "window.location.reload();" in error_page
 
 
 def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_visible():
