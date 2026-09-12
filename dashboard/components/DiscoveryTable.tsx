@@ -150,6 +150,7 @@ function SortableTh({
 }) {
   const active = priority != null && dir != null;
   const state = !active ? "기본" : dir === "desc" ? "내림" : "오름";
+  const nextState = !active ? "오름차순" : dir === "asc" ? "내림차순" : "기본";
   return (
     <th
       scope="col"
@@ -162,7 +163,7 @@ function SortableTh({
         onClick={() => onSort(sortKey)}
         className="inline-flex w-full items-center justify-end gap-1.5 whitespace-nowrap hover:text-white"
         // ★ 지금 상태와 **다음에 무슨 일이 일어나는지**를 함께 읽어 준다.
-        aria-label={`${label} 기준 정렬 (${state}${active ? `, ${priority}순위` : ""})`}
+        aria-label={`${label} 기준 정렬 (${state}${active ? `, ${priority}순위` : ""}; 다음: ${nextState})`}
       >
         <span>{label}</span>
         {active && (
@@ -393,10 +394,8 @@ export default function DiscoveryTable({
 
   /**
    * 머리글 클릭. 선택한 순서가 1·2·3차 정렬 순서다. 앞서 고른 규칙은
-   * 우선순위와 방향이 고정되고, 같은 열을 다시 누를 때만 내림↔오름이 바뀐다.
-   *
-   * ★ 새 열을 처음 누르면 **내림차순**이다. 이 표에서 궁금한 것은 거의 언제나
-   *   "가장 높은 종목"이므로, 오름차순으로 시작하면 매번 두 번씩 눌러야 한다.
+   * 우선순위와 방향이 고정된다. 같은 열은 기본 → 오름 → 내림 → 기본으로 순환하며,
+   * 기본 복귀 때도 다른 열의 정렬 규칙은 건드리지 않는다.
    */
   function toggleSort(key: SortKey) {
     if (key === "default") return patch({ sorts: [] });

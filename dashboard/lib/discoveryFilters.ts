@@ -50,17 +50,18 @@ export interface SortRule {
 /**
  * 먼저 고른 정렬을 고정하고 새 열을 다음 우선순위로 붙인다.
  *
- * 같은 열은 그 자리에서 내림↔오름만 바뀐다. 세 번째 클릭으로 규칙을 몰래
- * 없애지 않는다. 제거는 화면의 개별 × 버튼 또는 `기본으로`가 명시적으로 한다.
+ * 각 열은 기본 → 오름차순 → 내림차순 → 기본 순서로 순환한다.
+ * 기본으로 돌아갈 때는 그 열만 제거하고, 앞서 고른 다른 열의 우선순위와 방향은 보존한다.
  */
 export function cyclePrimarySort(
   sorts: SortRule[],
   key: Exclude<SortKey, "default">
 ): SortRule[] {
   const index = sorts.findIndex((rule) => rule.key === key);
-  if (index < 0) return [...sorts, { key, dir: "desc" }];
+  if (index < 0) return [...sorts, { key, dir: "asc" }];
+  if (sorts[index].dir === "desc") return removeSortRule(sorts, key);
   return sorts.map((rule, at) => at === index
-    ? { ...rule, dir: rule.dir === "desc" ? "asc" : "desc" }
+    ? { ...rule, dir: "desc" }
     : rule
   );
 }

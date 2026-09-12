@@ -273,7 +273,9 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert "macroContext.summary.current" in DISCOVERY
     assert "macroContext.summary.forward" in DISCOVERY
     assert "cyclePrimarySort(sorts, key)" in DISCOVERY
-    assert "return [...sorts, { key, dir: \"desc\" }]" in filters
+    assert "return [...sorts, { key, dir: \"asc\" }]" in filters
+    assert 'if (sorts[index].dir === "desc") return removeSortRule(sorts, key)' in filters
+    assert 'const nextState = !active ? "오름차순"' in DISCOVERY
     assert "removeSortRule(sorts, rule.key)" in DISCOVERY
 
 
