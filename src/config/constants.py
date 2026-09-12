@@ -122,6 +122,23 @@ PRI_HIGH = 65
 FLASH_DAILY_MAX = 15
 NOTIFY_GRADES = ("★", "○")  # △와 ·는 대시보드에만
 
+# ═══ 기술적 매수 관찰 알림 ═══
+# 펀더멘털을 먼저 통과한 종목만 일봉 기술 신호를 본다. 절대 MACD 차이는 주가가
+# 비싼 종목일수록 커지므로 반드시 종가 대비 %로 비교한다(T158).
+TECHNICAL_ALERT_DAILY_MAX = 2
+TECHNICAL_COMPANY_GROWTH_QUARTERS = 2
+TECHNICAL_SECTOR_GROWTH_QUARTERS = 2
+TECHNICAL_SECTOR_MIN_MEMBERS = 5
+TECHNICAL_CORRECTION_DRAWDOWN_MAX_PCT = -20.0
+# "하락"은 20거래일 수익률이 음수인 경우로 정의한다. 조정폭 하한은 별도 50일 고점 기준이다.
+TECHNICAL_FALLING_RET_20D_RANGE_PCT = (-100.0, 0.0)
+TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT = 3.0
+TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT = 8.0
+TECHNICAL_MACD_GAP_MAX_ABS_PCT = 0.30
+TECHNICAL_MACD_RISING_DAYS = 3
+TECHNICAL_RSI_MAX = 50.0
+TECHNICAL_RSI_RISING_DAYS = 3
+
 # ═══ 정규화 분모 (PRD §4.2 — 이 프로젝트에서 가장 중요한 계산 규칙) ═══
 # 측정 불가능한 축은 0점 처리하지 않고 분모에서 제외한다.
 #   score_norm = raw_sum / (100 - sum(미측정축_배점)) * 100

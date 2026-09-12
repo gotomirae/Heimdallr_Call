@@ -314,6 +314,14 @@ def test_daily_sector_classification_precedes_investment_scoring():
     assert sector < screen, "새 섹터를 저장하기 전에 점수를 계산하면 당일 피어 비교가 옛 분류를 쓴다"
 
 
+def test_daily_digest_sends_technical_setup_before_summary():
+    body = _text(WORKFLOWS / "daily_digest.yml")
+    technical = body.index("python -m src.notify.technical_alert --send")
+    digest = body.index("python -m src.notify.batch --digest --send")
+    assert technical < digest
+    assert "continue-on-error: true" in body[:digest]
+
+
 def test_scheduled_quarterly_backfill_is_incremental():
     """전 종목 3개년을 매번 돌면 실측 2시간에 잘려 후속 스텝이 전부 스킵된다(T133)."""
     body = _text(WORKFLOWS / "quarterly_backfill.yml")

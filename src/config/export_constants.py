@@ -112,6 +112,18 @@ def build() -> dict:
         "notify": {
             "grades": list(constants.NOTIFY_GRADES),
             "daily_max": constants.FLASH_DAILY_MAX,
+            "technical_daily_max": constants.TECHNICAL_ALERT_DAILY_MAX,
+            "technical_company_growth_quarters": constants.TECHNICAL_COMPANY_GROWTH_QUARTERS,
+            "technical_sector_growth_quarters": constants.TECHNICAL_SECTOR_GROWTH_QUARTERS,
+            "technical_sector_min_members": constants.TECHNICAL_SECTOR_MIN_MEMBERS,
+            "technical_correction_drawdown_max_pct": constants.TECHNICAL_CORRECTION_DRAWDOWN_MAX_PCT,
+            "technical_falling_ret_20d_range_pct": list(constants.TECHNICAL_FALLING_RET_20D_RANGE_PCT),
+            "technical_sideways_ret_10d_abs_max_pct": constants.TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT,
+            "technical_sideways_range_10d_max_pct": constants.TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT,
+            "technical_macd_gap_max_abs_pct": constants.TECHNICAL_MACD_GAP_MAX_ABS_PCT,
+            "technical_macd_rising_days": constants.TECHNICAL_MACD_RISING_DAYS,
+            "technical_rsi_max": constants.TECHNICAL_RSI_MAX,
+            "technical_rsi_rising_days": constants.TECHNICAL_RSI_RISING_DAYS,
         },
         "consensus": {"min_estimates": constants.MIN_ESTIMATES},
         "cost": {

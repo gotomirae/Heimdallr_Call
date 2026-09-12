@@ -585,6 +585,47 @@ def upgrade_message(ctx: dict) -> str:
     return "\n".join(lines)
 
 
+def technical_setup_message(ctx: dict) -> str:
+    """📈 펀더멘털 선행 필터를 통과한 MACD 상향 접근 알림."""
+    company = ctx.get("company_growth") or {}
+    sector = ctx.get("sector_growth") or {}
+    technical = ctx.get("technical") or {}
+    revenue = company.get("revenue_yoy") or []
+    op = company.get("op_yoy") or []
+    sector_revenue = sector.get("revenue_yoy") or []
+    sector_op = sector.get("op_yoy") or []
+    lines = [
+        f"{PREFIX}<b>📈 네이버 일봉 MACD 상향 접근 · 매수 관찰</b>",
+        "",
+        f"<b>{esc(ctx.get('name'))}</b> <code>{esc(ctx.get('code'))}</code>"
+        f" · {esc(ctx.get('sector'))} · {esc(ctx.get('grade'))}",
+        f"🏭 산업 {len(sector_revenue)}Q 중앙값  매출 {join_arrow(sector_revenue)} · 영업익 {join_arrow(sector_op)}",
+        f"📊 기업 {len(revenue)}Q YoY     매출 {join_arrow(revenue)} · 영업익 {join_arrow(op)}",
+        f"📉 가격 {esc(technical.get('price_regime'))} · 50일 고점 대비 "
+        f"{_pct(technical.get('drawdown_50d_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
+        f"〰️ MACD {signed(technical.get('macd'), 0, 2, '')} / Signal "
+        f"{signed(technical.get('signal'), 0, 2, '')} · Gap "
+        f"{signed(technical.get('histogram_pct'), 0, 3, '%')}",
+        f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · 50 이하 상승추세",
+        "",
+        "⚠️ 아직 골든크로스 전이다. 다음 거래일 MACD 상향 돌파와 저점 유지 확인 시 분할 접근하고, "
+        "조정 저점 이탈 또는 히스토그램 재하락 시 관찰을 취소한다.",
+    ]
+    if ctx.get("url") or ctx.get("naver_url"):
+        parts = []
+        if ctx.get("url"):
+            parts.append(f'<a href="{ctx["url"]}">대시보드</a>')
+        if ctx.get("naver_url"):
+            parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
+        lines += ["", "🔗 " + " · ".join(parts)]
+    return "\n".join(lines)
+
+
+def join_arrow(values: list | tuple) -> str:
+    """성장률 이력을 `+1.0% → +2.0%`로 표시한다."""
+    return " → ".join(_pct(value) for value in values) if values else DASH
+
+
 def budget_message(ctx: dict) -> str:
     """💸 월 실링 도달 통지 (PRD §7.3). 큐로 이월했음을 알린다."""
     return "\n".join([

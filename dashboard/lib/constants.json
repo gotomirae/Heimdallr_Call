@@ -952,7 +952,22 @@
       "★",
       "○"
     ],
-    "daily_max": 15
+    "daily_max": 15,
+    "technical_daily_max": 2,
+    "technical_company_growth_quarters": 2,
+    "technical_sector_growth_quarters": 2,
+    "technical_sector_min_members": 5,
+    "technical_correction_drawdown_max_pct": -20.0,
+    "technical_falling_ret_20d_range_pct": [
+      -100.0,
+      0.0
+    ],
+    "technical_sideways_ret_10d_abs_max_pct": 3.0,
+    "technical_sideways_range_10d_max_pct": 8.0,
+    "technical_macd_gap_max_abs_pct": 0.3,
+    "technical_macd_rising_days": 3,
+    "technical_rsi_max": 50.0,
+    "technical_rsi_rising_days": 3
   },
   "consensus": {
     "min_estimates": 2

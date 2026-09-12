@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS outcome_tracking (
 -- ═══════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS notifications (
   id BIGSERIAL PRIMARY KEY,
-  code TEXT, kind TEXT,                     -- 'flash'|'daily'|'budget'|'upgrade'
+  code TEXT, kind TEXT,                     -- 'flash'|'daily'|'budget'|'upgrade'|'technical_setup'
   fiscal_year INT, fiscal_quarter INT,
   sent_at TIMESTAMPTZ DEFAULT now(), payload JSONB,
   UNIQUE (code, fiscal_year, fiscal_quarter, kind)   -- ★ 중복 발송 차단 (SC4)

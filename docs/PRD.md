@@ -570,7 +570,7 @@ CREATE TABLE outcome_tracking (
 -- ═══ 운영 ═══
 CREATE TABLE notifications (
   id BIGSERIAL PRIMARY KEY,
-  code TEXT, kind TEXT,                     -- 'flash'|'daily'|'budget'|'upgrade'
+  code TEXT, kind TEXT,                     -- 'flash'|'daily'|'budget'|'upgrade'|'technical_setup'
   fiscal_year INT, fiscal_quarter INT,
   sent_at TIMESTAMPTZ DEFAULT now(), payload JSONB,
   UNIQUE (code, fiscal_year, fiscal_quarter, kind)   -- ★ 중복 발송 차단
@@ -933,6 +933,24 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 △(기업 고점수·선반영) 종목의 PRI가 하락해 ○/★로 승격되면 알린다. **조정 시 담을 종목**을
 놓치지 않기 위한 장치다.
 
+### 8.6 📈 성장 지속 · MACD 상향 접근 알림 (평일 17:30 KST)
+
+LLM 없이 결정론적으로 다음 조건을 모두 만족한 종목만 **매수 관찰** 알림으로 보낸다.
+
+1. 같은 투자 섹터의 매출·영업이익 YoY 중앙값이 2개 분기 연속 양수이며 분기당 표본이 5종목 이상
+2. 해당 기업의 매출·영업이익 YoY가 각각 2개 분기 연속 상승하고 현재 영업이익이 양수
+3. 네이버 일봉 기준 50거래일 고점 대비 -20% 이하 조정 후, 20일 수익률이 음수인 하락 또는
+   10일 수익률 ±3%·고저폭 8% 이내 횡보
+4. 일간 MACD(12·26·9)가 Signal 아래에 있고, `MACD−Signal`이 3거래일 연속 상승하면서
+   종가 대비 절대 간격 0.30% 이내
+5. RSI(14) ≤ 50이며 최근 3거래일 연속 상승
+
+알림에는 산업·기업 성장률 이력, 조정폭, MACD/Signal/Gap, RSI, 대시보드·네이버 링크를 표시한다.
+골든크로스는 아직 확정 전임을 명시하고 다음 거래일 돌파·저점 유지 확인 뒤 분할 접근하도록 안내한다.
+같은 종목·평가 분기·`technical_setup`은 한 번만 보내 반복 알림을 막는다.
+하루 발송 상한은 2건이며, 조건을 통과한 후보 중 MACD 히스토그램의 종가 대비 절대 간격이
+가장 작은 종목부터 투자 매력도 점수·종목코드 순으로 정렬한다.
+
 ---
 
 ## 9. 대시보드 (Next.js 14 App Router + Supabase anon + Tailwind + Recharts)
@@ -981,7 +999,7 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 | `universe_daily.yml` | `0 21 * * *` (06:00 KST) | KIND+네이버+corpCode 갱신, 시세·지수 및 전 유니버스 네이버 컨센서스/PER 수집, 정밀 재무 보충, PRI·점수 재계산 → 5거래일 창이 닫힌 ★·○의 최근 10일 리포트 웹검색·3단계 LLM |
 | `disclosure_poll.yml` | 매일 `*/30 0-14 * * *` + 야간 `17 15,18,21 * * *` | DART 폴링 → 새 잠정/정기보고서 재무·발췌 → ★·○ 1·2단계 LLM → 스크리닝 → ⚡알림 |
 | `llm_batch.yml` | 자동 스케줄 없음 | 명시적 장애 복구용 수동 배치. ★·○만 처리 |
-| `daily_digest.yml` | `30 8 * * 1-5` (17:30 KST) | 일일 요약 발송 |
+| `daily_digest.yml` | `30 8 * * 1-5` (17:30 KST) | 성장 지속·MACD 상향 접근 알림 후 일일 요약 발송 |
 | `quarterly_backfill.yml` | `0 20 1,15 * *` + 수동 | 최근 45일 미반영 정기보고서 증분 백필 → 1차 게이트 → 정밀 재무(게이트 통과분) → D축 포함 `score_final` 재계산. 전체 연도는 수동 복구 옵션 |
 | `outcome_update.yml` | `0 22 * * 1-5` (07:00 KST) | D+1/5/20/60 수익률 갱신 |
 | `promotion_check.yml` | `0 22 * * 1` (월요일) | △→○/★ 승격 확인 및 알림 |

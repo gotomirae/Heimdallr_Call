@@ -33,4 +33,9 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e .
+      # 펀더멘털 지속 조건을 먼저 통과한 종목만 네이버 일봉으로 기술 신호를 본다.
+      # 실패해도 기존 일일 요약은 계속 보낸다.
+      - name: 성장 지속 · MACD 상향 접근 알림
+        continue-on-error: true
+        run: python -m src.notify.technical_alert --send
       - run: python -m src.notify.batch --digest --send
