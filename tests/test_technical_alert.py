@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import pytest
+import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from src.config.constants import TECHNICAL_ALERT_DAILY_MAX
 from src.notify import technical_alert
@@ -13,7 +16,7 @@ from src.notify.technical_alert import (
     growth_candidates,
     unsent_matches,
 )
-from src.notify.templates import technical_setup_message
+from src.notify.templates import daily_digest, technical_setup_message
 from src.screener.technical_setup import (
     company_growth_streak,
     sector_growth_continuity,
@@ -52,6 +55,9 @@ def test_sector_requires_positive_two_quarter_medians_and_five_members():
     members[1][101]["op_yoy"] = -100
     members[2][101]["op_yoy"] = -100
     assert sector_growth_continuity(members, 102) is None
+    falling = [{101: {"revenue_yoy": 20, "op_yoy": 20},
+                102: {"revenue_yoy": 10, "op_yoy": 10}} for _ in range(5)]
+    assert sector_growth_continuity(falling, 102) is None
 
 
 def _approaching_prices() -> dict[str, float]:
@@ -63,14 +69,36 @@ def _approaching_prices() -> dict[str, float]:
 
 
 def test_technical_setup_is_below_signal_rising_and_not_overheated():
-    result = technical_setup(_approaching_prices())
+    result = technical_setup(_approaching_prices(), announcement_date="20260001")
     assert result is not None
     assert result.histogram < 0
     assert result.macd < result.signal
     assert result.rsi <= 50
     assert result.drawdown_50d_pct <= -20
     assert result.price_regime in {"하락 중 반등 접근", "조정 후 횡보"}
-    assert result.qualifies is True
+    assert result.announcement_return_pct is not None and result.announcement_return_pct < 0
+    assert result.macd_approaching is True
+    assert result.rsi_rising is False  # RSI 16은 사용자 지정 40~50 회복 구간이 아니다.
+    assert result.qualifies is False
+
+
+def test_announcement_anchor_and_rsi_band_are_required(monkeypatch):
+    from src.screener import technical_setup as screening
+
+    prices = _approaching_prices()
+    assert screening.technical_setup(prices).qualifies is False
+    original = screening._rsi_series
+
+    def recovering(values):
+        measured = original(values)
+        measured[-3:] = [41.0, 44.0, 47.0]
+        return measured
+
+    monkeypatch.setattr(screening, "_rsi_series", recovering)
+    result = screening.technical_setup(prices, announcement_date="20260001")
+    assert result is not None and result.qualifies is True
+    assert result.announcement_close == 100
+    assert result.announcement_return_pct == pytest.approx(-22)
 
 
 def test_no_alert_after_macd_has_already_crossed():
@@ -134,3 +162,65 @@ def test_daily_technical_alert_limit_is_two():
     assert _daily_limit(100) == 2
     assert _daily_limit(1) == 1
     assert _daily_limit(-1) == 0
+
+
+def test_first_announcement_uses_matching_fiscal_quarter():
+    dates = technical_alert.first_announcement_dates([
+        {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2, "disclosed_at": "2026-08-15T01:00:00Z"},
+        {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2, "disclosed_at": "2026-08-12T01:00:00Z"},
+        {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 1, "disclosed_at": "2026-05-10T01:00:00Z"},
+    ])
+    assert dates[("000001", 2026, 2)] == "2026-08-12"
+    assert dates[("000001", 2026, 1)] == "2026-05-10"
+
+
+def test_daily_sent_count_uses_kst_day_across_utc_boundary(monkeypatch):
+    bounds = {}
+
+    class Query:
+        def table(self, name):
+            assert name == "notifications"
+            return self
+
+        def select(self, column, *, count):
+            assert column == "id" and count == "exact"
+            return self
+
+        def eq(self, *_args):
+            return self
+
+        def gte(self, key, value):
+            bounds["start"] = value
+            return self
+
+        def lt(self, key, value):
+            bounds["end"] = value
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            return type("Response", (), {"count": 1})()
+
+    monkeypatch.setattr(technical_alert, "get_client", Query)
+    now = datetime(2026, 9, 16, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    assert technical_alert.sent_count_today(now) == 1
+    assert bounds["start"].startswith("2026-09-15T15:00:00")
+    assert bounds["end"].startswith("2026-09-16T15:00:00")
+
+
+def test_daily_digest_discloses_zero_signal_and_scan_failure():
+    base = {"date": "2026-09-16", "counts": {}, "rows": []}
+    complete = daily_digest({**base, "technical_scan": {
+        "status": "complete", "price": 61, "macd": 3, "rsi": 0, "sent": 0,
+    }})
+    assert "가격 61 → MACD 3 → RSI 0 · 발송 0건" in complete
+    failed = daily_digest({**base, "technical_scan": {"status": "scan_failed"}})
+    assert "기술 신호 점검/발송 오류" in failed
+
+
+def test_scan_summary_is_persisted_for_same_job_digest(tmp_path):
+    target = tmp_path / "technical-scan.json"
+    technical_alert._write_summary(str(target), {"date": "2026-09-16", "status": "complete", "sent": 0})
+    assert json.loads(target.read_text(encoding="utf-8"))["sent"] == 0

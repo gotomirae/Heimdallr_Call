@@ -12,11 +12,12 @@ from dataclasses import dataclass
 
 from src.config.constants import (
     TECHNICAL_COMPANY_GROWTH_QUARTERS,
-    TECHNICAL_CORRECTION_DRAWDOWN_MAX_PCT,
     TECHNICAL_FALLING_RET_20D_RANGE_PCT,
     TECHNICAL_MACD_GAP_MAX_ABS_PCT,
     TECHNICAL_MACD_RISING_DAYS,
+    TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT,
     TECHNICAL_RSI_MAX,
+    TECHNICAL_RSI_MIN,
     TECHNICAL_RSI_RISING_DAYS,
     TECHNICAL_SECTOR_GROWTH_QUARTERS,
     TECHNICAL_SECTOR_MIN_MEMBERS,
@@ -53,6 +54,12 @@ class TechnicalSetup:
     drawdown_50d_pct: float
     range_10d_pct: float
     price_regime: str | None
+    announcement_date: str | None
+    announcement_close: float | None
+    announcement_return_pct: float | None
+    post_announcement_drawdown_pct: float | None
+    macd_approaching: bool
+    rsi_rising: bool
 
 
 def _number(row: dict, key: str) -> float | None:
@@ -97,7 +104,7 @@ def sector_growth_continuity(
     quarters: int = TECHNICAL_SECTOR_GROWTH_QUARTERS,
     min_members: int = TECHNICAL_SECTOR_MIN_MEMBERS,
 ) -> SectorGrowth | None:
-    """같은 섹터의 매출·영업익 YoY 중앙값이 여러 분기 연속 양수인지 판정한다."""
+    """같은 섹터의 매출·영업익 YoY 중앙값이 양수이며 매 분기 상승하는지 판정한다."""
     revenue_medians: list[float] = []
     op_medians: list[float] = []
     member_counts: list[int] = []
@@ -117,6 +124,10 @@ def sector_growth_continuity(
         revenue_medians.append(revenue_median)
         op_medians.append(op_median)
         member_counts.append(len(measured))
+    if not all(a < b for a, b in zip(revenue_medians, revenue_medians[1:])):
+        return None
+    if not all(a < b for a, b in zip(op_medians, op_medians[1:])):
+        return None
     return SectorGrowth(tuple(revenue_medians), tuple(op_medians), tuple(member_counts))
 
 
@@ -161,7 +172,9 @@ def _return(values: list[float], sessions: int) -> float:
     return (values[-1] / values[-sessions - 1] - 1.0) * 100.0
 
 
-def technical_setup(closes: dict[str, float]) -> TechnicalSetup | None:
+def technical_setup(
+    closes: dict[str, float], *, announcement_date: str | None = None
+) -> TechnicalSetup | None:
     """MACD가 Signal 아래에서 위로 붙는 조정/횡보 종목인지 판정한다.
 
     손계산 기준: histogram은 `MACD − Signal`. 아직 음수지만 3거래일 연속
@@ -217,6 +230,23 @@ def technical_setup(closes: dict[str, float]) -> TechnicalSetup | None:
         return None
 
     close = values[-1]
+    announcement_close: float | None = None
+    announcement_return_pct: float | None = None
+    post_announcement_drawdown_pct: float | None = None
+    post_announcement_corrected = False
+    if announcement_date:
+        announcement_key = announcement_date.replace("-", "")[:8]
+        post_values = [clean[day] for day in days if day > announcement_key]
+        if post_values and announcement_key >= days[0]:
+            announcement_close = post_values[0]
+            announcement_return_pct = (close / announcement_close - 1.0) * 100.0
+            post_announcement_drawdown_pct = (
+                close / max(post_values) - 1.0
+            ) * 100.0
+            post_announcement_corrected = (
+                post_announcement_drawdown_pct
+                <= TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT
+            )
     histogram_pct = recent_hist[-1] / close * 100.0
     ret_20d, ret_10d = _return(values, 20), _return(values, 10)
     high_50d = max(values[-50:])
@@ -224,10 +254,12 @@ def technical_setup(closes: dict[str, float]) -> TechnicalSetup | None:
     last_10 = values[-10:]
     range_10d = (max(last_10) / min(last_10) - 1.0) * 100.0
     falling_floor, falling_ceiling = TECHNICAL_FALLING_RET_20D_RANGE_PCT
-    corrected = drawdown_50d <= TECHNICAL_CORRECTION_DRAWDOWN_MAX_PCT
-    falling = corrected and falling_floor <= ret_20d < falling_ceiling
+    below_announcement = (
+        announcement_return_pct is not None and announcement_return_pct < 0
+    )
+    falling = (below_announcement or post_announcement_corrected) and falling_floor <= ret_20d < falling_ceiling
     sideways = (
-        corrected
+        (below_announcement or post_announcement_corrected)
         and abs(ret_10d) <= TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT
         and range_10d <= TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT
     )
@@ -244,18 +276,24 @@ def technical_setup(closes: dict[str, float]) -> TechnicalSetup | None:
         float(value) for value in rsi_values[-TECHNICAL_RSI_RISING_DAYS:]
         if value is not None
     ]
-    not_overheated = (
-        latest_rsi <= TECHNICAL_RSI_MAX
+    rsi_rising = (
+        TECHNICAL_RSI_MIN <= latest_rsi <= TECHNICAL_RSI_MAX
         and len(recent_rsi) == TECHNICAL_RSI_RISING_DAYS
         and all(left < right for left, right in zip(recent_rsi, recent_rsi[1:]))
     )
     regime = "하락 중 반등 접근" if falling else "조정 후 횡보" if sideways else None
     return TechnicalSetup(
-        qualifies=bool(regime and approaching and not_overheated),
+        qualifies=bool(regime and approaching and rsi_rising),
         as_of=days[-1], close=close,
         macd=float(latest_macd), signal=float(latest_signal),
         histogram=recent_hist[-1], histogram_pct=histogram_pct,
         rsi=latest_rsi, ret_20d_pct=ret_20d, ret_10d_pct=ret_10d,
         drawdown_50d_pct=drawdown_50d, range_10d_pct=range_10d,
         price_regime=regime,
+        announcement_date=announcement_date,
+        announcement_close=announcement_close,
+        announcement_return_pct=announcement_return_pct,
+        post_announcement_drawdown_pct=post_announcement_drawdown_pct,
+        macd_approaching=approaching,
+        rsi_rising=rsi_rising,
     )

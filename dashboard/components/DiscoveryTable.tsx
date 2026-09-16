@@ -562,6 +562,8 @@ export default function DiscoveryTable({
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <strong className="text-sky-200">미국·글로벌 매크로 추천 정렬 · 실적 갱신 자동 계산</strong>
             <span className="text-xs text-slate-300">시장·실적 기준 {dataAsOf ?? "기준일 미측정"}</span>
+            <span className="text-xs text-slate-300">미국 장 {macroContext.marketDate} · 매크로 갱신 {macroContext.checkedAt}</span>
+            {macroContext.refreshOverdue && <span className="text-xs font-semibold text-amber-300">08:00 매크로 갱신 지연 — 표시된 시장 날짜를 확인하세요</span>}
           </div>
           <div className="mt-1 space-y-0.5 leading-5">
             <p>{macroContext.summary.current}</p>
@@ -584,7 +586,7 @@ export default function DiscoveryTable({
           <div className="mt-1.5 text-xs text-slate-400">
             {macroContext.items.length > 0 ? (
               <>
-                공식 매크로 확인({macroContext.source}): {macroContext.items.map((item, index) => (
+                매크로·시장 출처({macroContext.source}): {macroContext.items.map((item, index) => (
                   <span key={`${item.url}-${index}`}>
                     {index > 0 && " · "}
                     <a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline">

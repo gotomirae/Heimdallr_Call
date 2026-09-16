@@ -1,0 +1,59 @@
+{
+  "source": "미국 전 거래일 종가: Yahoo Finance · 통화정책: Federal Reserve",
+  "checkedAt": "2026-09-16 21:28 KST",
+  "marketDate": "2026-09-15",
+  "items": [
+    {
+      "title": "미국 2026-09-15 주요 지수 (Yahoo Finance)",
+      "url": "https://finance.yahoo.com/markets/",
+      "publishedAt": "2026-09-15"
+    },
+    {
+      "title": "미 연준 FOMC 성명 (2026-07-29)",
+      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm",
+      "publishedAt": "2026-07-29"
+    },
+    {
+      "title": "미국 최신 소비자물가 발표 (BLS)",
+      "url": "https://www.bls.gov/news.release/cpi.htm",
+      "publishedAt": null
+    },
+    {
+      "title": "미국 최신 고용 발표 (BLS)",
+      "url": "https://www.bls.gov/news.release/empsit.htm",
+      "publishedAt": null
+    },
+    {
+      "title": "미국 최신 GDP 발표 (BEA)",
+      "url": "https://www.bea.gov/data/gdp/gross-domestic-product",
+      "publishedAt": null
+    },
+    {
+      "title": "세계경제전망 (IMF)",
+      "url": "https://www.imf.org/en/Publications/WEO",
+      "publishedAt": null
+    }
+  ],
+  "flags": {
+    "rates": true,
+    "industry": true,
+    "geopolitics": false
+  },
+  "sortMode": "earnings_growth",
+  "preferredSectors": [
+    "반도체 장비",
+    "반도체 소재",
+    "반도체 부품",
+    "반도체 DSP",
+    "반도체 OSAT",
+    "반도체 IDM",
+    "전력인프라",
+    "통신·네트워크",
+    "방산·우주"
+  ],
+  "summary": {
+    "current": "미국 2026-09-15 장 마감: S&P 500 -0.45%, 나스닥 -0.78%, 필라델피아 반도체 +0.40%, VIX 17.20. 미국 반도체 상대강세 국면으로 해석합니다.",
+    "forward": "최근 통화정책(2026-07-29): 연준 정책금리 목표범위 3.5~3.75%; 물가는 2% 목표보다 높다고 평가했습니다. 미국 물가·고용·GDP와 세계 성장 전망은 아래 BLS·BEA·IMF 원문을 함께 참고합니다. 지수 하루 움직임만으로 산업 성장을 단정하지 않고 분기 실적을 확인합니다.",
+    "recommendedSort": "추천 정렬: 미국 반도체 상대강세 적합 섹터 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
+  }
+}

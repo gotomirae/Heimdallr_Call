@@ -25,6 +25,7 @@ jobs:
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
       # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
+      TECHNICAL_SCAN_SUMMARY_PATH: technical-scan.json
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +35,8 @@ jobs:
           cache: pip
       - run: pip install -e .
       # 펀더멘털 지속 조건을 먼저 통과한 종목만 네이버 일봉으로 기술 신호를 본다.
-      # 실패해도 기존 일일 요약은 계속 보낸다.
+      # 알림 실패는 워크플로 실패로 드러낸다. 기존 일일 요약은 계속 보낸다.
       - name: 성장 지속 · MACD 상향 접근 알림
-        continue-on-error: true
-        run: python -m src.notify.technical_alert --send
-      - run: python -m src.notify.batch --digest --send
+        run: python -m src.notify.technical_alert --send --summary-path technical-scan.json
+      - if: always()
+        run: python -m src.notify.batch --digest --send

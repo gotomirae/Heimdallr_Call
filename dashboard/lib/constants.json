@@ -964,7 +964,7 @@
     "technical_company_growth_quarters": 2,
     "technical_sector_growth_quarters": 2,
     "technical_sector_min_members": 5,
-    "technical_correction_drawdown_max_pct": -20.0,
+    "technical_post_announcement_correction_pct": -10.0,
     "technical_falling_ret_20d_range_pct": [
       -100.0,
       0.0
@@ -974,7 +974,10 @@
     "technical_macd_gap_max_abs_pct": 0.3,
     "technical_macd_rising_days": 3,
     "technical_rsi_max": 50.0,
-    "technical_rsi_rising_days": 3
+    "technical_rsi_min": 40.0,
+    "technical_rsi_rising_days": 3,
+    "technical_price_max_age_calendar_days": 5,
+    "technical_min_daily_fetch_rate": 0.8
   },
   "consensus": {
     "min_estimates": 2

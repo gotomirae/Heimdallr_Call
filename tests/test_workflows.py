@@ -319,7 +319,8 @@ def test_daily_digest_sends_technical_setup_before_summary():
     technical = body.index("python -m src.notify.technical_alert --send")
     digest = body.index("python -m src.notify.batch --digest --send")
     assert technical < digest
-    assert "continue-on-error: true" in body[:digest]
+    assert "continue-on-error: true" not in body[:digest]
+    assert "if: always()" in body[technical:digest]
 
 
 def test_scheduled_quarterly_backfill_is_incremental():

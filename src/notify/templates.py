@@ -546,6 +546,15 @@ def daily_digest(ctx: dict) -> str:
         f"공시 {counts.get('disclosures', 0)} · 게이트 {counts.get('gate_passed', 0)} · "
         + " ".join(f"{g}{counts.get(g, 0)}" for g in ("★", "○", "△") if counts.get(g)),
     ]
+    technical = ctx.get("technical_scan")
+    if technical:
+        if technical.get("status") == "complete":
+            lines.append(
+                f"📈 기술 관찰: 가격 {technical.get('price', 0)} → MACD {technical.get('macd', 0)} "
+                f"→ RSI {technical.get('rsi', 0)} · 발송 {technical.get('sent', 0)}건"
+            )
+        else:
+            lines.append("⚠️ 기술 신호 점검/발송 오류 — 종목 알림 실행 기록 확인 필요")
 
     if not rows:
         lines += ["", "오늘 발송 대상(★/○)은 없다."]
@@ -603,11 +612,16 @@ def technical_setup_message(ctx: dict) -> str:
         f"📊 기업 {len(revenue)}Q YoY     매출 {join_arrow(revenue)} · 영업익 {join_arrow(op)}",
         f"📉 가격 {esc(technical.get('price_regime'))} · 50일 고점 대비 "
         f"{_pct(technical.get('drawdown_50d_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
+        f"🗓 최근 분기 실적 발표 {esc(technical.get('announcement_date'))} · 발표 다음 거래일 종가 대비 "
+        f"{_pct(technical.get('announcement_return_pct'))} · 발표 후 고점 대비 "
+        f"{_pct(technical.get('post_announcement_drawdown_pct'))}",
         f"〰️ MACD {signed(technical.get('macd'), 0, 2, '')} / Signal "
         f"{signed(technical.get('signal'), 0, 2, '')} · Gap "
         f"{signed(technical.get('histogram_pct'), 0, 3, '%')}",
-        f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · 50 이하 상승추세",
+        f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · 40~50 상승추세",
         "",
+        "💡 투자 아이디어: 산업 성장률과 기업 실적은 함께 개선됐지만 주가는 최근 실적 발표 뒤 조정됐습니다. "
+        "MACD의 상향 접점과 RSI 회복이 겹치는 구간을 관찰합니다.",
         "⚠️ 아직 골든크로스 전이다. 다음 거래일 MACD 상향 돌파와 저점 유지 확인 시 분할 접근하고, "
         "조정 저점 이탈 또는 히스토그램 재하락 시 관찰을 취소한다.",
     ]

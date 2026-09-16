@@ -23,7 +23,10 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+import json
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from src.config.constants import DASHBOARD_URL_DEFAULT, FLASH_DAILY_MAX, NOTIFY_GRADES
 from src.db.supabase_client import select_all
@@ -184,6 +187,7 @@ def run_suppress(save: bool, reason: str) -> int:
 
 
 def run_digest(send: bool) -> int:
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     rows = latest_screens()
     targets = notify_targets()
@@ -192,7 +196,7 @@ def run_digest(send: bool) -> int:
         "gate_passed": sum(1 for r in rows if r.get("gate_passed") is True),
         "disclosures": len(
             [d for d in select_all("earnings_disclosures", "rcept_no,disclosed_at")
-             if d.get("disclosed_at") == date.today().isoformat()]
+             if str(d.get("disclosed_at") or "")[:10] == today.isoformat()]
         ),
     }
     for grade in ("★", "○", "△"):
@@ -200,7 +204,7 @@ def run_digest(send: bool) -> int:
 
     yoy = revenue_yoy_map(targets[:FLASH_DAILY_MAX])
     ctx = {
-        "date": date.today().isoformat(),
+        "date": today.isoformat(),
         "counts": counts,
         "rows": [
             {
@@ -214,6 +218,13 @@ def run_digest(send: bool) -> int:
         ],
         "url": optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT),
     }
+    summary_path = optional_env("TECHNICAL_SCAN_SUMMARY_PATH")
+    if summary_path:
+        try:
+            summary = json.loads(Path(summary_path).read_text(encoding="utf-8"))
+            ctx["technical_scan"] = summary if summary.get("date") == today.isoformat() else {"status": "scan_failed"}
+        except (OSError, ValueError):
+            ctx["technical_scan"] = {"status": "scan_failed"}
     text = daily_digest(ctx)
     print(text)
 

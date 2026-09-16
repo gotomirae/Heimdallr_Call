@@ -246,8 +246,9 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "원본" not in DISCOVERY
     assert 'const state = !active ? "기본"' in DISCOVERY
     macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
-    assert "→ 높은 투자 매력도" in macro
-    assert "→ 등급 → 최신 분기" in macro
+    snapshot = (ROOT / "dashboard/lib/macro-daily.json").read_text(encoding="utf-8")
+    assert "→ 높은 투자 매력도" in snapshot
+    assert "등급 → 최신 분기" in snapshot
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
     for offset in ('left-0', 'left-[112px]', 'left-[156px]'):
@@ -261,12 +262,14 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
 
 def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     macro = (ROOT / "dashboard/lib/macroContext.ts").read_text(encoding="utf-8")
+    snapshot = (ROOT / "dashboard/lib/macro-daily.json").read_text(encoding="utf-8")
+    collector = (ROOT / "src/collectors/us_macro_daily.py").read_text(encoding="utf-8")
     filters = (ROOT / "dashboard/lib/discoveryFilters.ts").read_text(encoding="utf-8")
     page = (ROOT / "dashboard/app/page.tsx").read_text(encoding="utf-8")
     for source in ("federalreserve.gov", "bls.gov", "bea.gov", "imf.org"):
-        assert source in macro
-    assert "미국 중심" in macro and "preferredSectors" in macro
-    assert "페이지 요청 중 네트워크 I/O도 하지 않는다" in macro
+        assert source in snapshot or source in collector
+    assert "preferredSectors" in macro
+    assert "대시보드 렌더는 네트워크 요청을 하지 않는다" in macro
     assert "fetch(" not in macro
     assert "getMacroContext()" in page
     assert "미국·글로벌 매크로 추천 정렬" in DISCOVERY
