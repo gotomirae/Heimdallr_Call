@@ -321,6 +321,7 @@ def test_daily_digest_sends_technical_setup_before_summary():
     assert technical < digest
     assert "continue-on-error: true" not in body[:digest]
     assert "if: always()" in body[technical:digest]
+    assert "python -m src.notify.technical_alert --summary-path technical-scan.json" in body
 
 
 def test_scheduled_quarterly_backfill_is_incremental():

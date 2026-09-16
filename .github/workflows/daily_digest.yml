@@ -9,6 +9,11 @@ on:
   schedule:
     - cron: "30 8 * * 1-5" # 17:30 KST
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "기술 신호만 점검 (텔레그램·DB 쓰기 없음)"
+        type: boolean
+        default: false
 
 concurrency:
   group: daily-digest
@@ -37,6 +42,14 @@ jobs:
       # 펀더멘털 지속 조건을 먼저 통과한 종목만 네이버 일봉으로 기술 신호를 본다.
       # 알림 실패는 워크플로 실패로 드러낸다. 기존 일일 요약은 계속 보낸다.
       - name: 성장 지속 · MACD 상향 접근 알림
-        run: python -m src.notify.technical_alert --send --summary-path technical-scan.json
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python -m src.notify.technical_alert --summary-path technical-scan.json
+          else
+            python -m src.notify.technical_alert --send --summary-path technical-scan.json
+          fi
       - if: always()
-        run: python -m src.notify.batch --digest --send
+        run: |
+          if [ "${{ inputs.dry_run }}" != "true" ]; then
+            python -m src.notify.batch --digest --send
+          fi
