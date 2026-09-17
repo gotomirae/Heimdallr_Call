@@ -1,4 +1,4 @@
-# PRD Ref: §9, §10 — 미국 장 마감 후 08:00 KST 매크로 스냅샷
+# PRD Ref: §9, §10 — 미국 장 마감 후 07:00 KST 매크로 스냅샷
 """대시보드 렌더와 분리된 매크로 수집기. 네트워크 실패 시 이전 스냅샷을 보존한다."""
 
 from __future__ import annotations
@@ -150,11 +150,11 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime) -> 
             "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, VIX {vix['close']:.2f}. {regime} 국면으로 해석합니다.",
             "forward": f"최근 통화정책({fed['publishedAt']}): {policy_summary}; {inflation_summary} 미국 물가·고용·GDP와 세계 성장 전망은 아래 BLS·BEA·IMF 원문을 함께 참고합니다. 지수 하루 움직임만으로 산업 성장을 단정하지 않고 분기 실적을 확인합니다.",
             "recommendedSort": "추천 정렬: " + (
-                f"{regime} 적합 섹터 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
                 if mode == "earnings_growth" else
-                f"{regime} 적합 섹터 → 높은 투자 매력도 → 낮은 PRI → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 낮은 PRI → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
                 if mode == "quality_price" else
-                f"{regime} 적합 섹터 → 높은 투자 매력도 → 낮은 PRI → 높은 영업이익 YoY → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 낮은 PRI → 높은 영업이익 YoY → 등급 → 최신 분기"
             ),
         },
     }
@@ -181,6 +181,21 @@ def collect(now: datetime | None = None) -> dict:
     return build_context(markets, fed, now)
 
 
+def should_write_snapshot(previous: dict, context: dict, *, force: bool = False) -> bool:
+    """같은 거래일 사전 예열본도 07시 이후 첫 확인 시점에는 다시 기록한다."""
+    previous_at = previous.get("checkedAt", "")
+    current_at = context["checkedAt"]
+    prewarm_needs_seven_oclock = (
+        previous_at[:10] == current_at[:10]
+        and previous_at[11:16] < "07:00" <= current_at[11:16]
+    )
+    return bool(
+        force or prewarm_needs_seven_oclock
+        or (previous_at[:10], previous.get("marketDate"))
+        != (current_at[:10], context["marketDate"])
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="미국 장 마감/연준 매크로 스냅샷")
     parser.add_argument("--write", action="store_true", help="검증 성공 시 대시보드 JSON 갱신")
@@ -191,7 +206,7 @@ def main() -> int:
     print(context["summary"]["current"])
     if args.write:
         previous = json.loads(OUTPUT.read_text(encoding="utf-8")) if OUTPUT.exists() else {}
-        if args.force or (previous.get("checkedAt", "")[:10], previous.get("marketDate")) != (context["checkedAt"][:10], context["marketDate"]):
+        if should_write_snapshot(previous, context, force=args.force):
             OUTPUT.write_text(json.dumps(context, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"갱신: {OUTPUT}")
         else:

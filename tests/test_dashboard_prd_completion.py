@@ -224,7 +224,7 @@ def test_discovery_table_has_chained_sorting_and_grouped_headers():
     assert "기본" in DISCOVERY and "내림" in DISCOVERY and "오름" in DISCOVERY
     for category in ("성장 가속", "매출 YoY 둔화 + 영익 YoY 가속", "턴어라운드", "기타", "전 종목"):
         assert category in DISCOVERY
-    assert 'gate: "growth"' in filters
+    assert 'gate: "opportunity"' in filters
     assert 'r.category !== gate' in DISCOVERY
     assert "turnaround: s.turnaround" in page
     for field in ("revenueQoq", "opQoq", "per4q", "forwardPer", "roe", "forwardRoe"):

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.collectors.us_macro_daily import build_context, parse_fed_rss, parse_fed_statement, parse_yahoo_chart
+from src.collectors.us_macro_daily import build_context, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
 
 
 def test_premarket_vix_cannot_mix_with_previous_completed_us_session():
@@ -50,3 +50,11 @@ def test_market_regime_changes_default_sort_without_mixing_score_and_pri():
     defensive = build_context(markets, fed, now)
     assert defensive["sortMode"] == "quality_price"
     assert defensive["preferredSectors"][0] == "전력인프라"
+
+
+def test_seven_oclock_snapshot_replaces_early_prewarm_but_not_repeated_run():
+    prior = {"checkedAt": "2026-09-18 06:45 KST", "marketDate": "2026-09-17"}
+    at_seven = {"checkedAt": "2026-09-18 07:00 KST", "marketDate": "2026-09-17"}
+    assert should_write_snapshot(prior, at_seven)
+    assert not should_write_snapshot(at_seven, {**at_seven, "checkedAt": "2026-09-18 07:30 KST"})
+    assert should_write_snapshot(at_seven, {**at_seven, "marketDate": "2026-09-18"})

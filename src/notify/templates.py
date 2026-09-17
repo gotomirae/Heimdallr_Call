@@ -550,8 +550,9 @@ def daily_digest(ctx: dict) -> str:
     if technical:
         if technical.get("status") == "complete":
             lines.append(
-                f"📈 기술 관찰: 가격 {technical.get('price', 0)} → MACD {technical.get('macd', 0)} "
-                f"→ RSI {technical.get('rsi', 0)} · 발송 {technical.get('sent', 0)}건"
+                f"📈 기술 관찰: 가격 {technical.get('price', 0)} → 5·20일선 {technical.get('sma', 0)} "
+                f"→ MACD {technical.get('macd', 0)} · RSI 보강 {technical.get('rsi', 0)} "
+                f"· 발송 {technical.get('sent', 0)}건"
             )
         else:
             lines.append("⚠️ 기술 신호 점검/발송 오류 — 종목 알림 실행 기록 확인 필요")
@@ -595,7 +596,7 @@ def upgrade_message(ctx: dict) -> str:
 
 
 def technical_setup_message(ctx: dict) -> str:
-    """📈 펀더멘털 선행 필터를 통과한 MACD 상향 접근 알림."""
+    """📈 필수 교차 신호와 선택 RSI 보강을 구분해 알린다."""
     company = ctx.get("company_growth") or {}
     sector = ctx.get("sector_growth") or {}
     technical = ctx.get("technical") or {}
@@ -603,27 +604,36 @@ def technical_setup_message(ctx: dict) -> str:
     op = company.get("op_yoy") or []
     sector_revenue = sector.get("revenue_yoy") or []
     sector_op = sector.get("op_yoy") or []
+    strong = technical.get("strong_recommendation") is True
+    early = ctx.get("early_priority") is True
+    sma_state = "당일 상향 교차" if technical.get("sma_crossed") else "상향 교차 접근"
+    macd_state = "당일 상향 교차" if technical.get("macd_crossed") else "상향 교차 접근"
     lines = [
-        f"{PREFIX}<b>📈 네이버 일봉 MACD 상향 접근 · 매수 관찰</b>",
+        f"{PREFIX}<b>{'🔥 기술 신호 강력 추천 후보' if strong else '📈 매수 관찰 후보'} · 5·20일선/MACD</b>",
         "",
         f"<b>{esc(ctx.get('name'))}</b> <code>{esc(ctx.get('code'))}</code>"
         f" · {esc(ctx.get('sector'))} · {esc(ctx.get('grade'))}",
+        "🔎 초기 흑전·낮은 주가반영도 우선 후보 · 실제 수주 증가는 공시 확인 필요"
+        if early else "🔎 지속 가속 후보 · 실제 수주 증가는 공시 확인 필요",
         f"🏭 산업 {len(sector_revenue)}Q 중앙값  매출 {join_arrow(sector_revenue)} · 영업익 {join_arrow(sector_op)}",
-        f"📊 기업 {len(revenue)}Q YoY     매출 {join_arrow(revenue)} · 영업익 {join_arrow(op)}",
+        f"📊 기업 {len(revenue)}Q YoY     매출 {join_arrow(revenue)} · 영업익 "
+        f"{'흑전(성장률 계산 금지)' if company.get('op_status_label') == '흑전' else join_arrow(op)}",
         f"📉 가격 {esc(technical.get('price_regime'))} · 50일 고점 대비 "
         f"{_pct(technical.get('drawdown_50d_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
         f"🗓 최근 분기 실적 발표 {esc(technical.get('announcement_date'))} · 발표 다음 거래일 종가 대비 "
         f"{_pct(technical.get('announcement_return_pct'))} · 발표 후 고점 대비 "
         f"{_pct(technical.get('post_announcement_drawdown_pct'))}",
+        f"📐 5일선 {_num(technical.get('sma5'), 1)} / 20일선 {_num(technical.get('sma20'), 1)} "
+        f"· 간격 {signed(technical.get('sma_gap_pct'), 0, 2, '%')} · {sma_state}",
         f"〰️ MACD {signed(technical.get('macd'), 0, 2, '')} / Signal "
         f"{signed(technical.get('signal'), 0, 2, '')} · Gap "
-        f"{signed(technical.get('histogram_pct'), 0, 3, '%')}",
-        f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · 40~50 상승추세",
+        f"{signed(technical.get('histogram_pct'), 0, 3, '%')} · {macd_state}",
+        f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · {'45 미만 상승 보강' if strong else '보강 조건 미충족(필수 아님)'}",
         "",
         "💡 투자 아이디어: 산업 성장률과 기업 실적은 함께 개선됐지만 주가는 최근 실적 발표 뒤 조정됐습니다. "
-        "MACD의 상향 접점과 RSI 회복이 겹치는 구간을 관찰합니다.",
-        "⚠️ 아직 골든크로스 전이다. 다음 거래일 MACD 상향 돌파와 저점 유지 확인 시 분할 접근하고, "
-        "조정 저점 이탈 또는 히스토그램 재하락 시 관찰을 취소한다.",
+        "5·20일선과 MACD 상향 교차가 겹치는지 관찰합니다.",
+        "⚠️ 매수 확정 신호가 아닙니다. 두 교차의 유지와 저점·실적 근거를 재확인하고, "
+        "조정 저점 이탈 또는 교차 실패 시 관찰을 취소합니다.",
     ]
     if ctx.get("url") or ctx.get("naver_url"):
         parts = []

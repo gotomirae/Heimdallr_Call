@@ -59,6 +59,14 @@ const SORT_LABEL: Partial<Record<SortKey, string>> = {
 };
 
 const GRADE_RANK = new Map<Grade, number>(["★", "○", "△", "·", "✕"].map((g, i) => [g as Grade, i]));
+const PRI_LOW = Number(constants.matrix.pri_low);
+
+/** 흑전·게이트 통과·미반영이 확인된 초기 전환 후보. 수주 증거는 별도 확인 사항이다. */
+function isEarlyInflectionCandidate(row: DiscoveryRow): boolean {
+  return row.turnaround === true && row.gatePassed === true &&
+    (row.grade === "★" || row.grade === "○") &&
+    row.pri != null && row.pri < PRI_LOW;
+}
 
 /** 기본 정렬 — 가격과 기업 점수를 합산하지 않고 순서대로 비교한다(ADR 5). */
 function byDefault(
@@ -68,6 +76,8 @@ function byDefault(
   sortMode: MacroContext["sortMode"]
 ): number {
   let macroOrder = (sectorRank.get(a.sector) ?? 99) - (sectorRank.get(b.sector) ?? 99);
+  // 초기 흑전은 같은 매크로 적합 섹터 안에서 먼저 본다. 수주가 늘었다고 추정하지 않는다.
+  macroOrder ||= Number(isEarlyInflectionCandidate(b)) - Number(isEarlyInflectionCandidate(a));
   if (sortMode === "quality_price") {
     macroOrder ||= (
       ((b.score ?? -Infinity) - (a.score ?? -Infinity)) ||
@@ -180,6 +190,7 @@ function SortableTh({
 }
 
 const GATE_LABEL: Record<GateFilter, string> = {
+  opportunity: "성장 기회(초기 전환 우선)",
   growth: "성장 가속",
   revenue_slow_op_accel: "매출 YoY 둔화 + 영익 YoY 가속",
   turnaround: "턴어라운드",
@@ -218,7 +229,6 @@ const RANKING_CONFIG = constants.discovery_ranking as {
   sector_min_candidates: number;
   sector_top_n: number;
 };
-const PRI_LOW = Number(constants.matrix.pri_low);
 
 function median(values: (number | null)[]): number | null {
   const measured = values.filter((value): value is number => value != null).sort((a, b) => a - b);
@@ -450,7 +460,9 @@ export default function DiscoveryTable({
         if (favoriteOnly && !favoriteSet.has(r.code)) return false;
         if (needle && !r.name.toLowerCase().includes(needle) && !r.code.includes(needle))
           return false;
-        if (gate !== "all" && r.category !== gate) return false;
+        if (gate === "opportunity") {
+          if (r.category !== "growth" && !(r.category === "turnaround" && r.gatePassed === true)) return false;
+        } else if (gate !== "all" && r.category !== gate) return false;
         // 빈 선택 = 전체다. 아무것도 안 고른 상태를 "아무것도 안 보임"으로 읽으면 안 된다.
         if (gradeSet.size > 0 && (r.grade == null || !gradeSet.has(r.grade))) return false;
         if (sectorSet.size > 0 && !sectorSet.has(r.sector)) return false;
@@ -488,7 +500,7 @@ export default function DiscoveryTable({
   const shown = filtered.slice(0, visibleLimit);
   const select =
     "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-slate-100";
-  const showTracking = gate === "growth" || gate === "turnaround" || gate === "all";
+  const showTracking = gate === "opportunity" || gate === "growth" || gate === "turnaround" || gate === "all";
   const active =
     query.trim() !== "" || gate !== (favoriteOnly ? "all" : DEFAULT_FILTERS.gate) || grades.length > 0 ||
     sectors.length > 0 || cap !== "all" || consensus !== "all" || quarter !== "all";
@@ -563,12 +575,13 @@ export default function DiscoveryTable({
             <strong className="text-sky-200">미국·글로벌 매크로 추천 정렬 · 실적 갱신 자동 계산</strong>
             <span className="text-xs text-slate-300">시장·실적 기준 {dataAsOf ?? "기준일 미측정"}</span>
             <span className="text-xs text-slate-300">미국 장 {macroContext.marketDate} · 매크로 갱신 {macroContext.checkedAt}</span>
-            {macroContext.refreshOverdue && <span className="text-xs font-semibold text-amber-300">08:00 매크로 갱신 지연 — 표시된 시장 날짜를 확인하세요</span>}
+            {macroContext.refreshOverdue && <span className="text-xs font-semibold text-amber-300">07:00 기준 미국 장·매크로 갱신 지연 또는 미국 휴장 — 표시된 거래일을 확인하세요</span>}
           </div>
           <div className="mt-1 space-y-0.5 leading-5">
             <p>{macroContext.summary.current}</p>
             <p>{macroContext.summary.forward}</p>
             <p className="text-sky-100">{macroContext.summary.recommendedSort}. 점수와 가격은 합산하지 않는다.</p>
+            <p className="text-xs text-slate-300">같은 매크로 적합 섹터에서는 흑전·낮은 주가반영도 후보를 우선 본다. 실제 수주 증가와 글로벌 고객 수요는 종목 상세 공시로 확인해야 한다.</p>
           </div>
           {sectorPriorities.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">

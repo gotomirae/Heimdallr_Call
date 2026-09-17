@@ -1,8 +1,8 @@
 # PRD Ref: §8.6 — 산업·기업 성장 지속 + 일봉 MACD 상향 접근
 """기술적 매수 관찰 신호 — 순수 함수. 외부 I/O 금지.
 
-선별 순서는 펀더멘털 → 가격 조정 → MACD/RSI다. MACD만으로 종목을 고르면
-횡보하는 모든 종목에서 신호가 반복되므로 산업과 기업 성장 지속을 먼저 요구한다.
+펀더멘털·주가 미반영을 먼저 확인하고 5·20일선과 MACD 상향 교차 접근을 본다.
+RSI 회복은 필수가 아니라 강력 추천 표시를 위한 보강 근거다.
 """
 
 from __future__ import annotations
@@ -14,22 +14,23 @@ from src.config.constants import (
     TECHNICAL_COMPANY_GROWTH_QUARTERS,
     TECHNICAL_FALLING_RET_20D_RANGE_PCT,
     TECHNICAL_MACD_GAP_MAX_ABS_PCT,
-    TECHNICAL_MACD_RISING_DAYS,
     TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT,
-    TECHNICAL_RSI_MAX,
-    TECHNICAL_RSI_MIN,
-    TECHNICAL_RSI_RISING_DAYS,
+    TECHNICAL_RSI_STRONG_MAX,
+    TECHNICAL_RSI_TREND_DAYS,
     TECHNICAL_SECTOR_GROWTH_QUARTERS,
     TECHNICAL_SECTOR_MIN_MEMBERS,
     TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT,
     TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT,
+    TECHNICAL_SMA_GAP_MAX_ABS_PCT,
 )
 
 
 @dataclass(frozen=True)
 class CompanyGrowth:
     revenue_yoy: tuple[float, ...]
-    op_yoy: tuple[float, ...]
+    op_yoy: tuple[float | None, ...]
+    stage: str = "지속 가속"
+    op_status_label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,8 +59,15 @@ class TechnicalSetup:
     announcement_close: float | None
     announcement_return_pct: float | None
     post_announcement_drawdown_pct: float | None
+    sma5: float
+    sma20: float
+    sma_gap_pct: float
+    sma_approaching: bool
+    sma_crossed: bool
     macd_approaching: bool
+    macd_crossed: bool
     rsi_rising: bool
+    strong_recommendation: bool
 
 
 def _number(row: dict, key: str) -> float | None:
@@ -96,6 +104,30 @@ def company_growth_streak(
     if (_number(current, "op") or 0) <= 0:
         return None
     return CompanyGrowth(revenue_values, op_values)
+
+
+def company_initial_inflection(
+    series: dict[int, dict], current_index: int
+) -> CompanyGrowth | None:
+    """전년 적자→당기 흑자와 매출 가속이 동시에 확인된 첫 분기를 찾는다.
+
+    부호 전환 구간의 영업이익 성장률은 %로 만들지 않는다(T12). 수주 증가는
+    여기서 추정하지 않으며 별도 공시 확인 사항으로 남긴다.
+    """
+    previous, current = series.get(current_index - 1), series.get(current_index)
+    if not previous or not current or current.get("op_status_label") != "흑전":
+        return None
+    prior_revenue, revenue = _number(previous, "revenue_yoy"), _number(current, "revenue_yoy")
+    prior_op, op = _number(previous, "op"), _number(current, "op")
+    if (
+        prior_revenue is None or revenue is None or prior_op is None or op is None
+        or revenue <= 0 or revenue <= prior_revenue or prior_op > 0 or op <= 0
+    ):
+        return None
+    return CompanyGrowth(
+        revenue_yoy=(prior_revenue, revenue),
+        op_yoy=(), stage="초기 흑전", op_status_label="흑전",
+    )
 
 
 def sector_growth_continuity(
@@ -175,10 +207,11 @@ def _return(values: list[float], sessions: int) -> float:
 def technical_setup(
     closes: dict[str, float], *, announcement_date: str | None = None
 ) -> TechnicalSetup | None:
-    """MACD가 Signal 아래에서 위로 붙는 조정/횡보 종목인지 판정한다.
+    """5·20일선과 MACD의 상향 교차 직전 또는 당일을 판정한다.
 
-    손계산 기준: histogram은 `MACD − Signal`. 아직 음수지만 3거래일 연속
-    커지고 0에 가까우면 상향 크로스 '직전'이며, 0 이상은 이미 크로스한 뒤다.
+    손계산 기준: gap은 5일선−20일선, histogram은 MACD−Signal이다.
+    두 값 모두 음수권에서 좁혀지거나 직전 음수→당일 양수 교차해야 한다.
+    3거래일 연속 상승은 요구하지 않는다.
     """
     clean: dict[str, float] = {}
     for day, value in closes.items():
@@ -217,9 +250,9 @@ def technical_setup(
         for index in range(len(values))
     ]
     measured_indices = [index for index, value in enumerate(histogram) if value is not None]
-    if len(measured_indices) < TECHNICAL_MACD_RISING_DAYS:
+    if len(measured_indices) < 2:
         return None
-    recent_indices = measured_indices[-TECHNICAL_MACD_RISING_DAYS:]
+    recent_indices = measured_indices[-2:]
     recent_hist = [float(histogram[index]) for index in recent_indices if histogram[index] is not None]
     latest = recent_indices[-1]
     previous = recent_indices[-2]
@@ -248,6 +281,21 @@ def technical_setup(
                 <= TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT
             )
     histogram_pct = recent_hist[-1] / close * 100.0
+    sma5 = sum(values[-5:]) / 5
+    sma20 = sum(values[-20:]) / 20
+    previous_sma5 = sum(values[-6:-1]) / 5
+    previous_sma20 = sum(values[-21:-1]) / 20
+    sma_gap_pct = (sma5 / sma20 - 1.0) * 100.0
+    previous_sma_gap_pct = (previous_sma5 / previous_sma20 - 1.0) * 100.0
+    sma_crossed = previous_sma_gap_pct < 0 <= sma_gap_pct
+    sma_approaching = (
+        sma5 > previous_sma5
+        and (
+            (-TECHNICAL_SMA_GAP_MAX_ABS_PCT <= sma_gap_pct < 0
+             and sma_gap_pct > previous_sma_gap_pct)
+            or sma_crossed
+        )
+    )
     ret_20d, ret_10d = _return(values, 20), _return(values, 10)
     high_50d = max(values[-50:])
     drawdown_50d = (close / high_50d - 1.0) * 100.0
@@ -264,26 +312,36 @@ def technical_setup(
         and range_10d <= TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT
     )
     previous_macd = macd[previous]
+    macd_crossed = recent_hist[-2] < 0 <= recent_hist[-1]
     approaching = (
-        recent_hist[-1] < 0
-        and histogram_pct >= -TECHNICAL_MACD_GAP_MAX_ABS_PCT
-        and all(left < right for left, right in zip(recent_hist, recent_hist[1:]))
-        and previous_macd is not None
+        previous_macd is not None
         and float(latest_macd) > float(previous_macd)
+        and (
+            (-TECHNICAL_MACD_GAP_MAX_ABS_PCT <= histogram_pct < 0
+             and recent_hist[-1] > recent_hist[-2])
+            or macd_crossed
+        )
     )
-    # RSI 50 이하의 회복 초입만 관찰한다. 50 초과는 이미 반등이 진행됐을 수 있다.
-    recent_rsi = [
-        float(value) for value in rsi_values[-TECHNICAL_RSI_RISING_DAYS:]
-        if value is not None
-    ]
+    # RSI 45 미만에서 단기·5거래일 방향이 함께 위면 강력 보강. 연속 상승은 요구하지 않는다.
+    prior_rsi = rsi_values[-TECHNICAL_RSI_TREND_DAYS - 1]
+    yesterday_rsi = rsi_values[-2]
     rsi_rising = (
-        TECHNICAL_RSI_MIN <= latest_rsi <= TECHNICAL_RSI_MAX
-        and len(recent_rsi) == TECHNICAL_RSI_RISING_DAYS
-        and all(left < right for left, right in zip(recent_rsi, recent_rsi[1:]))
+        latest_rsi < TECHNICAL_RSI_STRONG_MAX
+        and prior_rsi is not None and yesterday_rsi is not None
+        and latest_rsi > float(prior_rsi)
+        and latest_rsi > float(yesterday_rsi)
     )
-    regime = "하락 중 반등 접근" if falling else "조정 후 횡보" if sideways else None
+    # 5·20일선 상향 접근에는 이미 며칠간 반등한 경우가 많다. 가격이 여전히
+    # 실적 발표 직후보다 낮거나 발표 후 고점에서 조정 중이면 회복 구간도 허용한다.
+    price_underreflected = below_announcement or post_announcement_corrected
+    regime = (
+        "하락 중 반등 접근" if falling else
+        "조정 후 횡보" if sideways else
+        "조정 후 회복" if price_underreflected else None
+    )
+    qualifies = bool(regime and sma_approaching and approaching)
     return TechnicalSetup(
-        qualifies=bool(regime and approaching and rsi_rising),
+        qualifies=qualifies,
         as_of=days[-1], close=close,
         macd=float(latest_macd), signal=float(latest_signal),
         histogram=recent_hist[-1], histogram_pct=histogram_pct,
@@ -294,6 +352,10 @@ def technical_setup(
         announcement_close=announcement_close,
         announcement_return_pct=announcement_return_pct,
         post_announcement_drawdown_pct=post_announcement_drawdown_pct,
+        sma5=sma5, sma20=sma20, sma_gap_pct=sma_gap_pct,
+        sma_approaching=sma_approaching, sma_crossed=sma_crossed,
         macd_approaching=approaching,
+        macd_crossed=macd_crossed,
         rsi_rising=rsi_rising,
+        strong_recommendation=qualifies and rsi_rising,
     )

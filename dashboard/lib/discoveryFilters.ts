@@ -12,7 +12,7 @@
 
 import type { Grade } from "./types";
 
-export type GateFilter = "growth" | "revenue_slow_op_accel" | "turnaround" | "other" | "all";
+export type GateFilter = "opportunity" | "growth" | "revenue_slow_op_accel" | "turnaround" | "other" | "all";
 export type CapFilter = "all" | "large" | "mid" | "small";
 export type ConsensusFilter = "all" | "yes" | "no";
 
@@ -91,7 +91,7 @@ export interface DiscoveryFilters {
 
 export const DEFAULT_FILTERS: DiscoveryFilters = {
   query: "",
-  gate: "growth",
+  gate: "opportunity",
   grades: [],
   sectors: [],
   cap: "all",
@@ -116,7 +116,7 @@ function isActiveSortKey(value: string | null): value is Exclude<SortKey, "defau
 /** sessionStorage 키. **session**인 것이 중요하다 — 탭을 닫으면 초기화되는 게 맞다. */
 export const STORAGE_KEY = "heimdallr.discovery.filters.v2";
 
-const GATES: GateFilter[] = ["growth", "revenue_slow_op_accel", "turnaround", "other", "all"];
+const GATES: GateFilter[] = ["opportunity", "growth", "revenue_slow_op_accel", "turnaround", "other", "all"];
 const CAPS: CapFilter[] = ["all", "large", "mid", "small"];
 const CONSENSUS: ConsensusFilter[] = ["all", "yes", "no"];
 const GRADES: Grade[] = ["★", "○", "△", "·", "✕"];

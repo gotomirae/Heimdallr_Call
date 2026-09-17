@@ -1,5 +1,5 @@
 # PRD Ref: §8.6, §10 — 장 마감 후 기술적 매수 관찰 자동 알림
-"""성장 지속 기업의 MACD 상향 접근을 네이버 일봉으로 판정해 텔레그램에 알린다.
+"""펀더멘털 후보의 5·20일선/MACD 상향 교차 접근을 일봉으로 판정한다.
 
     python -m src.notify.technical_alert          # 읽기 전용 dry-run
     python -m src.notify.technical_alert --send   # 실제 발송 + 중복 기록
@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from src.collectors.quarter_prices import fetch_daily_closes_naver
 from src.config.constants import (
     DASHBOARD_URL_DEFAULT,
+    PRI_LOW,
     TECHNICAL_ALERT_DAILY_MAX,
     TECHNICAL_MIN_DAILY_FETCH_RATE,
     TECHNICAL_PRICE_MAX_AGE_CALENDAR_DAYS,
@@ -34,6 +35,7 @@ from src.screener.technical_setup import (
     CompanyGrowth,
     SectorGrowth,
     company_growth_streak,
+    company_initial_inflection,
     sector_growth_continuity,
     technical_setup,
 )
@@ -44,7 +46,7 @@ from src.utils.env import optional_env
 KIND_TECHNICAL = "technical_setup"
 KST = ZoneInfo("Asia/Seoul")
 SCREEN_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,score_final"
+    "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,grade,pri,score_flash,score_final"
 )
 
 
@@ -77,7 +79,7 @@ def _fundamental_series(rows: list[dict]) -> dict[str, dict[int, dict]]:
 def growth_candidates(
     screens: list[dict], universe_rows: list[dict], fundamental_rows: list[dict]
 ) -> list[dict]:
-    """외부 호출 전에 산업·기업 성장 지속 조건으로 일봉 조회 대상을 줄인다."""
+    """외부 호출 전에 초기 흑전·지속 가속 후보로 일봉 조회 대상을 줄인다."""
     universe = {str(row["code"]): row for row in universe_rows}
     series = _fundamental_series(fundamental_rows)
     sectors: dict[str, list[dict[int, dict]]] = collections.defaultdict(list)
@@ -97,7 +99,8 @@ def growth_candidates(
         if screen.get("gate_passed") is not True or code not in universe or code not in series:
             continue
         index = _qi(int(screen["fiscal_year"]), int(screen["fiscal_quarter"]))
-        company = company_growth_streak(series[code], index)
+        initial = company_initial_inflection(series[code], index) if screen.get("turnaround") is True else None
+        company = initial or company_growth_streak(series[code], index)
         sector = sector_of.get(code, UNKNOWN_SECTOR)
         cache_key = (sector, index)
         if cache_key not in sector_cache:
@@ -113,8 +116,15 @@ def growth_candidates(
             "sector": sector,
             "company_growth": company,
             "sector_growth": sector_growth,
+            "early_priority": bool(
+                initial and screen.get("pri") is not None
+                and float(screen["pri"]) < PRI_LOW
+                and screen.get("grade") in {"★", "○"}
+            ),
         })
-    candidates.sort(key=lambda row: (-(active_score(row) or 0), row["code"]))
+    candidates.sort(key=lambda row: (
+        not row["early_priority"], -(active_score(row) or 0), row["code"],
+    ))
     return candidates
 
 
@@ -188,7 +198,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     )
     fundamentals = select_all(
         "quarterly_fundamentals",
-        "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy",
+        "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label",
     )
     announcements = first_announcement_dates(select_all(
         "earnings_disclosures", "code,fiscal_year,fiscal_quarter,disclosed_at",
@@ -204,8 +214,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     print(f"펀더멘털 후보 {len(candidates)}종목 · 네이버 일봉 {begin}~{end}")
 
     matches: list[dict] = []
-    fetched = failed = empty = missing_anchor = stale = price_pass = macd_pass = rsi_pass = 0
-    near_misses: list[str] = []
+    fetched = failed = empty = missing_anchor = stale = price_pass = sma_pass = macd_pass = rsi_pass = 0
     for candidate in candidates:
         key = (candidate["code"], int(candidate["fiscal_year"]), int(candidate["fiscal_quarter"]))
         announcement_date = announcements.get(key)
@@ -230,26 +239,26 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
             stale += 1
             continue
         price_pass += bool(setup.price_regime)
-        macd_pass += bool(setup.price_regime and setup.macd_approaching)
-        rsi_pass += bool(setup.price_regime and setup.macd_approaching and setup.rsi_rising)
-        if setup.price_regime and setup.macd_approaching and not setup.rsi_rising:
-            near_misses.append(f"{candidate['name']}({candidate['code']}) RSI {setup.rsi:.1f}")
+        sma_pass += bool(setup.price_regime and setup.sma_approaching)
+        macd_pass += bool(setup.price_regime and setup.sma_approaching and setup.macd_approaching)
+        rsi_pass += bool(setup.strong_recommendation)
         if setup.qualifies:
             matches.append({**candidate, "technical": setup})
 
     matches.sort(key=lambda row: (
+        not row["early_priority"],
+        not row["technical"].strong_recommendation,
         abs(row["technical"].histogram_pct),
+        abs(row["technical"].sma_gap_pct),
         -(active_score(row) or 0),
         row["code"],
     ))
     attempted = len(candidates) - missing_anchor
     print(f"일봉 성공 {fetched}/{attempted} · 빈 일봉 {empty} · 기술 신호 {len(matches)} · 실패 {failed}")
-    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 가격+MACD {macd_pass} · 가격+MACD+RSI {rsi_pass}")
-    if near_misses:
-        print("RSI 미충족 근접 후보: " + ", ".join(near_misses[:5]))
+    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 가격+5/20일선 {sma_pass} · 가격+5/20일선+MACD {macd_pass} · RSI 보강 {rsi_pass}")
     summary = {
         "date": today.isoformat(), "status": "complete", "candidates": len(candidates),
-        "evaluated": fetched, "price": price_pass, "macd": macd_pass,
+        "evaluated": fetched, "price": price_pass, "sma": sma_pass, "macd": macd_pass,
         "rsi": rsi_pass, "matches": len(matches), "sent": 0,
     }
     if attempted and fetched / attempted < TECHNICAL_MIN_DAILY_FETCH_RATE:
@@ -272,6 +281,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
             "grade": row.get("grade") or "—",
             "company_growth": _growth_dict(row["company_growth"]),
             "sector_growth": _growth_dict(row["sector_growth"]),
+            "early_priority": row["early_priority"],
             "technical": asdict(setup),
             "url": f"{base_url}/stock/{row['code']}",
             "naver_url": naver_stock_url(row["code"], mobile=True),
@@ -291,6 +301,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
                     "as_of": setup.as_of,
                     "grade": row.get("grade"),
                     "sector": row["sector"],
+                    "early_priority": row["early_priority"],
                     "technical": asdict(setup),
                 },
             )
@@ -307,7 +318,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
 
 def main() -> int:
     enable_utf8_stdout()
-    parser = argparse.ArgumentParser(description="성장 지속 + MACD 상향 접근 알림")
+    parser = argparse.ArgumentParser(description="초기 전환 우선 + 5·20일선/MACD 상향 접근 알림")
     parser.add_argument("--send", action="store_true", help="실제 텔레그램 발송")
     parser.add_argument("--limit", type=int, default=TECHNICAL_ALERT_DAILY_MAX)
     parser.add_argument("--summary-path", help="일일 요약에 붙일 기술 신호 점검 결과 JSON")

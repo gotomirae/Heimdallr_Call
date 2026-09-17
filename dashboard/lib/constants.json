@@ -972,10 +972,9 @@
     "technical_sideways_ret_10d_abs_max_pct": 3.0,
     "technical_sideways_range_10d_max_pct": 8.0,
     "technical_macd_gap_max_abs_pct": 0.3,
-    "technical_macd_rising_days": 3,
-    "technical_rsi_max": 50.0,
-    "technical_rsi_min": 40.0,
-    "technical_rsi_rising_days": 3,
+    "technical_sma_gap_max_abs_pct": 2.0,
+    "technical_rsi_strong_max": 45.0,
+    "technical_rsi_trend_days": 5,
     "technical_price_max_age_calendar_days": 5,
     "technical_min_daily_fetch_rate": 0.8
   },

@@ -1,6 +1,20 @@
-// PRD Ref: §9, §10 — 매일 08:00 KST 갱신하는 미국·글로벌 매크로 스냅샷.
+// PRD Ref: §9, §10 — 매일 07:00 KST 갱신하는 미국·글로벌 매크로 스냅샷.
 // 외부 API는 별도 배치가 조회한다. 대시보드 렌더는 네트워크 요청을 하지 않는다(T159).
 import snapshot from "./macro-daily.json";
+
+function expectedUsSession(now: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: string) => Number(parts.find((value) => value.type === type)?.value ?? 0);
+  const day = new Date(Date.UTC(part("year"), part("month") - 1, part("day")));
+  if (part("hour") < 16 || (part("hour") === 16 && part("minute") < 10)) {
+    day.setUTCDate(day.getUTCDate() - 1);
+  }
+  while (day.getUTCDay() === 0 || day.getUTCDay() === 6) day.setUTCDate(day.getUTCDate() - 1);
+  return day.toISOString().slice(0, 10);
+}
 
 export interface MacroItem {
   title: string;
@@ -31,12 +45,16 @@ export interface MacroContext {
 
 export async function getMacroContext(): Promise<MacroContext> {
   const context = snapshot as MacroContext;
+  const now = new Date();
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date());
+  }).formatToParts(now);
   const part = (type: string) => parts.find((value) => value.type === type)?.value ?? "";
   const today = `${part("year")}-${part("month")}-${part("day")}`;
-  const refreshOverdue = Number(part("hour")) >= 8 && context.checkedAt.slice(0, 10) < today;
+  // 휴장일에는 전 거래일이 맞을 수 있다. 경고만 표시하고 날짜를 임의로 채우지 않는다.
+  const refreshOverdue = Number(part("hour")) >= 7 && (
+    context.checkedAt.slice(0, 10) < today || context.marketDate < expectedUsSession(now)
+  );
   return { ...context, refreshOverdue, items: [...context.items], preferredSectors: [...context.preferredSectors] };
 }

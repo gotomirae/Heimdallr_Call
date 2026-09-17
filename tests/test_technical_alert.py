@@ -19,6 +19,7 @@ from src.notify.technical_alert import (
 from src.notify.templates import daily_digest, technical_setup_message
 from src.screener.technical_setup import (
     company_growth_streak,
+    company_initial_inflection,
     sector_growth_continuity,
     technical_setup,
 )
@@ -39,6 +40,18 @@ def test_company_requires_both_growth_rates_to_improve_for_two_quarters():
     assert result.revenue_yoy == (5.0, 15.0)
     assert company_growth_streak(_series(op=(0.0, 20.0, 10.0)), 102) is None
     assert company_growth_streak(_series(revenue=(-5.0, None, 15.0)), 102) is None
+
+
+def test_first_profitable_quarter_uses_status_not_fake_profit_growth_percent():
+    series = {
+        101: {"revenue_yoy": 5.0, "op": -3.0, "op_yoy": None},
+        102: {"revenue_yoy": 15.0, "op": 2.0, "op_yoy": None, "op_status_label": "흑전"},
+    }
+    result = company_initial_inflection(series, 102)
+    assert result is not None and result.stage == "초기 흑전"
+    assert result.op_yoy == () and result.op_status_label == "흑전"
+    series[102]["op_status_label"] = None
+    assert company_initial_inflection(series, 102) is None
 
 
 def test_sector_requires_positive_two_quarter_medians_and_five_members():
@@ -68,37 +81,68 @@ def _approaching_prices() -> dict[str, float]:
     return {f"2026{index + 1:04d}": value for index, value in enumerate(values)}
 
 
-def test_technical_setup_is_below_signal_rising_and_not_overheated():
+def _crossing_prices() -> dict[str, float]:
+    # 30일 100원 후 완만한 조정·반등. 마지막 날 5/20일선과 MACD가 모두
+    # 아래→위로 교차하지만 MACD gap의 앞선 3일은 연속 상승하지 않는다.
+    values = [100.0] * 30 + [
+        99.8507, 98.7701, 98.8725, 97.9163, 96.8874, 96.5907, 95.5031,
+        96.1217, 96.2748, 95.3492, 94.7706, 95.5647, 95.0685, 95.3699,
+        94.6325, 95.3795, 94.932, 95.6709, 96.4963, 97.4906, 97.2138,
+        96.8619, 97.4811, 97.3508, 98.2122, 98.3702, 97.3881, 97.6718,
+        98.5177, 99.0496, 99.9544, 99.7467, 99.8707, 99.0365, 98.3937,
+        99.5179, 99.1747, 98.5886, 97.8450, 98.4107, 98.2399, 98.8993,
+        98.9716, 98.6629, 99.7569,
+    ]
+    return {f"2026{index + 1:04d}": value for index, value in enumerate(values)}
+
+
+def test_far_below_sma_does_not_qualify_even_when_macd_approaches():
     result = technical_setup(_approaching_prices(), announcement_date="20260001")
     assert result is not None
     assert result.histogram < 0
     assert result.macd < result.signal
-    assert result.rsi <= 50
     assert result.drawdown_50d_pct <= -20
-    assert result.price_regime in {"하락 중 반등 접근", "조정 후 횡보"}
+    assert result.price_regime in {"하락 중 반등 접근", "조정 후 횡보", "조정 후 회복"}
     assert result.announcement_return_pct is not None and result.announcement_return_pct < 0
     assert result.macd_approaching is True
-    assert result.rsi_rising is False  # RSI 16은 사용자 지정 40~50 회복 구간이 아니다.
+    assert result.sma_approaching is False
     assert result.qualifies is False
 
 
-def test_announcement_anchor_and_rsi_band_are_required(monkeypatch):
+def test_sma_and_macd_crosses_are_mandatory_but_rsi_is_optional(monkeypatch):
     from src.screener import technical_setup as screening
 
-    prices = _approaching_prices()
+    prices = _crossing_prices()
     assert screening.technical_setup(prices).qualifies is False
+    result = screening.technical_setup(prices, announcement_date="20260001")
+    assert result is not None and result.qualifies is True
+    assert result.sma_crossed is True and result.macd_crossed is True
+    assert result.sma_approaching is True and result.macd_approaching is True
+    assert result.strong_recommendation is False  # RSI 59여도 필수 두 교차는 통과.
+
     original = screening._rsi_series
 
     def recovering(values):
         measured = original(values)
-        measured[-3:] = [41.0, 44.0, 47.0]
+        # 5일 순상승·당일 상승이지만 중간에 하락: 3거래일 연속 상승은 아니다.
+        measured[-6:] = [36.0, 40.0, 38.0, 39.0, 37.0, 42.0]
         return measured
 
     monkeypatch.setattr(screening, "_rsi_series", recovering)
     result = screening.technical_setup(prices, announcement_date="20260001")
     assert result is not None and result.qualifies is True
+    assert result.rsi_rising is True and result.strong_recommendation is True
     assert result.announcement_close == 100
-    assert result.announcement_return_pct == pytest.approx(-22)
+    assert result.announcement_return_pct == pytest.approx(-0.2431)
+
+    # 최신 요청의 RSI 보강은 45 미만이며, 임의의 30 하한을 두지 않는다.
+    def recovering_from_oversold(values):
+        measured = original(values)
+        measured[-6:] = [20.0, 23.0, 21.0, 24.0, 22.0, 27.0]
+        return measured
+
+    monkeypatch.setattr(screening, "_rsi_series", recovering_from_oversold)
+    assert screening.technical_setup(prices, announcement_date="20260001").strong_recommendation is True
 
 
 def test_no_alert_after_macd_has_already_crossed():
@@ -127,6 +171,30 @@ def test_growth_candidates_require_gate_company_and_sector_together():
     assert len(growth_candidates(screens, universe, fundamentals)) == 5
 
 
+def test_growth_candidates_prioritize_low_pri_initial_inflection():
+    screens = [{"code": f"00000{i}", "fiscal_year": 2025, "fiscal_quarter": 3,
+                "gate_passed": True, "grade": "★", "pri": 25 if i == 1 else 50,
+                "turnaround": i == 1, "score_final": 60 if i == 1 else 90}
+               for i in range(1, 7)]
+    universe = [{"code": f"00000{i}", "name": f"기업{i}", "industry": "반도체 제조업",
+                 "products": "반도체", "is_excluded": False} for i in range(1, 7)]
+    fundamentals = []
+    for row in universe:
+        for quarter, revenue, op_yoy in ((2, 5, 10), (3, 15, 25)):
+            initial = row["code"] == "000001"
+            fundamentals.append({
+                "code": row["code"], "fiscal_year": 2025, "fiscal_quarter": quarter,
+                "revenue_yoy": revenue, "op_yoy": None if initial else op_yoy,
+                "op": (-3 if quarter == 2 else 2) if initial else 10,
+                "op_status_label": "흑전" if initial and quarter == 3 else None,
+            })
+    candidates = growth_candidates(screens, universe, fundamentals)
+    assert len(candidates) == 6
+    assert candidates[0]["code"] == "000001"
+    assert candidates[0]["early_priority"] is True
+    assert candidates[0]["company_growth"].op_yoy == ()
+
+
 def test_technical_message_discloses_that_cross_is_not_confirmed():
     text = technical_setup_message({
         "name": "테스트", "code": "000001", "sector": "반도체 장비", "grade": "○",
@@ -134,9 +202,12 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
         "sector_growth": {"revenue_yoy": (8, 10), "op_yoy": (12, 15)},
         "technical": {"price_regime": "조정 후 횡보", "drawdown_50d_pct": -12,
                       "ret_20d_pct": -4, "macd": -2, "signal": -1,
-                      "histogram_pct": -0.1, "rsi": 55},
+                      "histogram_pct": -0.1, "rsi": 55,
+                      "sma5": 100, "sma20": 101, "sma_gap_pct": -0.99,
+                      "strong_recommendation": False},
     })
-    assert "아직 골든크로스 전" in text
+    assert "매수 관찰 후보" in text and "상향 교차 접근" in text
+    assert "보강 조건 미충족(필수 아님)" in text
     assert "산업 2Q" in text and "기업 2Q" in text
     assert "MACD -2.00 / Signal -1.00" in text
     assert KIND_TECHNICAL == "technical_setup"
@@ -213,9 +284,9 @@ def test_daily_sent_count_uses_kst_day_across_utc_boundary(monkeypatch):
 def test_daily_digest_discloses_zero_signal_and_scan_failure():
     base = {"date": "2026-09-16", "counts": {}, "rows": []}
     complete = daily_digest({**base, "technical_scan": {
-        "status": "complete", "price": 61, "macd": 3, "rsi": 0, "sent": 0,
+        "status": "complete", "price": 61, "sma": 5, "macd": 3, "rsi": 0, "sent": 0,
     }})
-    assert "가격 61 → MACD 3 → RSI 0 · 발송 0건" in complete
+    assert "가격 61 → 5·20일선 5 → MACD 3 · RSI 보강 0 · 발송 0건" in complete
     failed = daily_digest({**base, "technical_scan": {"status": "scan_failed"}})
     assert "기술 신호 점검/발송 오류" in failed
 
