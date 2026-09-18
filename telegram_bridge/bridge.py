@@ -49,6 +49,39 @@ def connect() -> sqlite3.Connection:
     return db
 
 
+def checkpoint_path(job_id: int) -> Path:
+    return STATE.parent / "checkpoints" / f"{job_id}.md"
+
+
+def ensure_checkpoint(db: sqlite3.Connection, job_id: int) -> Path:
+    """작업 ID별 재개 장부를 만든다. 기존 원고·진행 기록은 절대 덮어쓰지 않는다."""
+    row = db.execute(
+        "SELECT code,company,raw_text,status FROM jobs WHERE id=?", (job_id,)
+    ).fetchone()
+    if not row or row["status"] != "working":
+        raise RuntimeError("NOT_WORKING")
+    path = checkpoint_path(job_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as record:
+            record.write(
+                f"# Kairos 작업 {job_id}\n\n"
+                f"- 기업: {row['company']} ({row['code']})\n"
+                f"- 원문: {row['raw_text']}\n"
+                "- 단계: 기업 식별 완료\n"
+                "- 출처·수치 검증: 미작성\n"
+                "- 원고 경로: 미작성\n"
+                "- Notion 페이지 ID·URL: 미작성\n"
+                "- Notion 부모·본문 재조회: 미완료\n"
+                "- Telegram 발송: 미완료\n"
+                "- 사용량 재설정 시각: 해당 없음\n"
+                "- 다음 행동: 자료 조사 시작\n"
+            )
+    except FileExistsError:
+        pass
+    return path
+
+
 def setting(db: sqlite3.Connection, key: str) -> str | None:
     row = db.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return row[0] if row else None
@@ -167,10 +200,13 @@ def poll(db: sqlite3.Connection) -> dict:
         "SELECT id,code,company,raw_text,status,notion_url,wake_sent,wake_sent_at,wake_error "
         "FROM jobs WHERE status NOT IN ('sent','rejected') ORDER BY id LIMIT 20"
     ).fetchall()
+    jobs = [dict(row) for row in rows]
+    for job in jobs:
+        job["checkpoint"] = str(checkpoint_path(job["id"])) if job["status"] == "working" else None
     return {"trigger_configured": bool(setting(db, "trigger_thread")),
             "collector": {"last_success": setting(db, "last_success"),
                           "last_error": setting(db, "last_error")},
-            "jobs": [dict(row) for row in rows]}
+            "jobs": jobs}
 
 
 def change_remote(job_id: int, old: str, new: str, **fields: object) -> bool:
@@ -195,7 +231,8 @@ def claim(db: sqlite3.Connection, job_id: int) -> dict:
         return {"status": "not_claimed", "id": job_id}
     with db:
         db.execute("UPDATE jobs SET status='working' WHERE id=?", (job_id,))
-    return {"status": "claimed", "id": job_id}
+    return {"status": "claimed", "id": job_id,
+            "checkpoint": str(ensure_checkpoint(db, job_id))}
 
 
 def reject(db: sqlite3.Connection, job_id: int) -> dict:
@@ -265,6 +302,7 @@ def main() -> int:
     sub.add_parser("poll")
     sub.add_parser("ingest")
     sub.add_parser("status")
+    sub.add_parser("checkpoint").add_argument("id", type=int)
     trigger = sub.add_parser("configure-trigger")
     trigger.add_argument("--thread", required=True)
     for command in ("claim", "reject"):
@@ -292,6 +330,9 @@ def main() -> int:
             result = poll(db)
         elif args.command == "status":
             result = {"queue": poll(db), "bot_id": bot_id_of(TelegramClient().token)}
+        elif args.command == "checkpoint":
+            result = {"status": "working", "id": args.id,
+                      "checkpoint": str(ensure_checkpoint(db, args.id))}
         elif args.command == "claim":
             result = claim(db, args.id)
         elif args.command == "reject":

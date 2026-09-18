@@ -141,6 +141,7 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **Kairos 사용량 복구 자동 재개 (2026-09-18)** — `working` 요청별 재개 장부를 만들고, 같은 Codex 작업의 30분 heartbeat가 사용량 회복 시 장부·Notion 상태에서 계속하도록 설정했다. 현재 요청 0건, 회귀 10 passed; 실제 한도 중단→재개는 신규 요청 때 확인한다. T168.
 - **Kairos Telegram→Notion 연결 (2026-09-18)** — Heimdallr 기존 수신기·Supabase 요청 큐·로컬 1분 수집기를 운영 연결하고 PR #1을 `main`에 병합했다. service 접근·anon 차단, 운영 수신 처리 0건·수집기 반복 성공·대기 0건을 확인했다. 기존 Kairos 봇·큐는 분리 유지. ADR 19·T167.
   스킬 형식 2/2·기존 브리지 16/16·Drive 3곳/Notion 2곳 읽기·집중 35 passed·오프라인 808 passed/1 skipped. 운영 DB `kairos_requests`는 아직 없음(PGRST205) — SQL 적용·배포·수집기 설치·실제 1건 검증 필요.
 - **07시 미국 매크로·기술 알림 재정의 (2026-09-18)** — 06:45 예열·07:00/07:15/07:30/08:00 KST 매크로 배치와 완료 미국 거래일 지연 경고, 초기 흑전·낮은 PRI 우선 정렬, 5·20일선+MACD 필수/RSI<45 선택 보강을 반영했다.

@@ -14,13 +14,14 @@ Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 
 
 ## Codex 작업 처리
 
-`codex queue`로 전달된 ID를 `python -m telegram_bridge.bridge poll`에서 확인한다. 실제 원문과 update ID가 있고 공식 자료로 기업이 식별되면 `claim ID` 후 `$kairos` 스킬을 실행한다. 일반 질문·인사는 `reject ID`로 제외한다. 원고·출처·Notion 페이지 ID·검증 단계를 작업 장부에 보존하고, 지정 양식의 부모와 전체 본문을 재조회한다. 저장 검증 후에만 `deliver ID --notion URL --industry 산업명`으로 개인 채팅에 버튼과 링크를 보낸다.
+`codex queue`로 전달된 ID를 `python -m telegram_bridge.bridge poll`에서 확인한다. 실제 원문과 update ID가 있고 공식 자료로 기업이 식별되면 `claim ID` 후 `$kairos` 스킬을 실행한다. 일반 질문·인사는 `reject ID`로 제외한다. `claim`은 `telegram_bridge/state/checkpoints/ID.md` 재개 장부를 한 번 생성하며 기존 장부를 덮어쓰지 않는다. 조사·원고·Notion 저장 단계마다 이 파일에 출처, 주요 수치, 원고 경로, 페이지 ID/URL, 이미 검증한 항목과 다음 행동을 기록한다. 지정 양식의 부모와 전체 본문을 재조회한 후에만 `deliver ID --notion URL --industry 산업명`으로 개인 채팅에 버튼과 링크를 보낸다.
 
-`working` 작업은 동일 장부에서 재개한다. `sending` 또는 `uncertain`은 발송 성공 여부를 확인하기 전 자동 재전송하지 않는다. `sent`는 재처리하지 않는다. 로컬 컴퓨터와 Codex 앱이 실행 중이어야 심층 분석이 시작된다.
+사용량 제한으로 중단되면 `working`을 유지하고 장부에 중단 지점, 미완료 작업, 사용량 창의 재설정 시각을 남긴다. 이 Codex 작업에 연결된 반복 확인은 로컬 `poll`에서 `working`이 있을 때만 사용량을 확인한다. 사용 가능량이 돌아오면 **같은 ID와 장부**에서 이어서 수행한다. 장부가 없으면 `checkpoint ID`로 먼저 복구하고 이전 대화·Notion을 대조한다. 이미 만든 Notion 페이지가 있으면 재조회·수정하며 새 페이지를 중복 생성하지 않는다. `sending` 또는 `uncertain`은 발송 성공 여부를 확인하기 전 자동 재전송하지 않는다. `sent`는 재처리하지 않는다. 대기 작업이 없을 때 반복 확인은 조용히 종료한다. 로컬 컴퓨터와 Codex 앱이 실행 중이어야 심층 분석이 시작된다.
 
 ## 운영 확인
 
 - `status`는 봇 ID와 로컬 큐 상태를 출력하며 토큰을 노출하지 않는다.
 - `poll`은 로컬 큐만 읽고 Telegram·Supabase 네트워크를 쓰지 않는다.
+- `checkpoint ID`는 `working` 작업의 장부만 만들며 기존 내용을 보존한다. `telegram_bridge/state/`는 Git에서 제외된다.
 - Supabase `kairos_requests`는 service key만 접근한다. anon에 대한 SELECT 정책은 없다.
 - Notion 완료 링크는 검증된 실제 페이지 URL이어야 한다.

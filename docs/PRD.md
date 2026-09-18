@@ -960,6 +960,8 @@ LLM 없이 결정론적으로 다음 조건을 모두 만족한 종목만 **매�
 
 Kairos는 Google Drive 자료, 공시·IR, 증권사 기업/산업 리포트, 웹·지정 Telegram 채널을 조사하고 지정 Notion 양식에 작성한다. 저장 위치·양식·출처·완료 상태를 재조회한 후에만 원래 개인 채팅으로 Notion 링크와 바로 열기 버튼을 보낸다. PDF를 만들지 않는다. 작업은 `pending → working → sending → sent`로 추적하며 중복 update ID는 재처리하지 않는다. 전송 결과가 불확실하면 `uncertain`으로 두고 자동 재전송하지 않는다. 로컬 컴퓨터와 Codex 앱이 꺼져 있으면 요청은 DB의 `pending`으로 보존된다.
 
+사용량 제한 중단 시 `working`과 요청 ID별 로컬 장부를 보존한다. 같은 Codex 작업의 반복 확인은 미완료 `working` 요청에 한해 사용량을 조회하며, 사용 가능량이 돌아오면 저장한 원고·출처·Notion 페이지 상태에서 재개한다. 페이지 생성과 Telegram 발송은 저장/전달 상태를 대조해 중복하지 않는다. 요청이 없으면 분석·Notion 작성·알림을 하지 않는다.
+
 ---
 
 ## 9. 대시보드 (Next.js 14 App Router + Supabase anon + Tailwind + Recharts)
