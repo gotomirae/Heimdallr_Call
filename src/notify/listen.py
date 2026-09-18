@@ -25,6 +25,7 @@ import time
 
 from src.db.supabase_client import select_all
 from src.notify.resolve import Match, resolve
+from src.notify.kairos_requests import direct_company_request, enqueue
 from src.notify.telegram import (
     SharedBotPollingBlocked,
     TelegramClient,
@@ -170,6 +171,8 @@ def handle_message(
     *,
     analyze: bool,
     chats: set[str],
+    update_id: int | None = None,
+    direct: bool = True,
 ) -> dict:
     chat_id = str((message.get("chat") or {}).get("id", ""))
     text = (message.get("text") or "").strip()
@@ -192,7 +195,9 @@ def handle_message(
             "· 기업매력도(산업·실적·PER·ROE·FCF 종합)\n"
             "· 실적 원점수(A 성장가속 · B 수익성 · C 서프라이즈 · D 회계품질)\n"
             "· 주가반영도(PRI) — 낮을수록 아직 안 오른 종목, 등급은 두 축 교차\n"
-            "· 후행 PER과 최근 4분기 순이익 기준 PER 병기"
+            "· 후행 PER과 최근 4분기 순이익 기준 PER 병기\n\n"
+            "종목명·코드만 단독 입력하면 Kairos 심층 분석을 접수하고, "
+            "완료 후 Notion 링크를 보낸다."
         )
         outcome["result"] = "도움말"
         return outcome
@@ -211,8 +216,18 @@ def handle_message(
 
     match = matches[0]
     outcome["matched"] = f"{match.name}({match.code}) via {match.how}"
+    kairos_note = ""
+    if update_id is not None and direct and direct_company_request(message, match, chats):
+        try:
+            is_new = enqueue(update_id, message, match)
+            outcome["kairos"] = "접수" if is_new else "기존 요청"
+            if is_new:
+                kairos_note = "\n\n📑 Kairos 심층 분석 접수. 완료 후 Notion 링크를 보낸다."
+        except Exception as exc:
+            outcome["kairos"] = f"접수 실패({type(exc).__name__})"
+            kairos_note = "\n\n⚠️ Kairos 심층 분석 접수 실패. 잠시 뒤 다시 요청해 달라."
     text_out, diag = build_report(match.code, analyze=analyze)
-    client.send_message(text_out)
+    client.send_message(text_out + kairos_note)
     outcome["result"] = "리포트 발송"
     outcome.update(diag)
     return outcome
@@ -230,12 +245,16 @@ def poll_once(client: TelegramClient, *, analyze: bool, timeout: int = 0) -> lis
 
     results: list[dict] = []
     for upd in updates:
+        direct = bool(upd.get("message"))
         msg = upd.get("message") or upd.get("edited_message")
         if not msg:
             continue
         try:
             results.append(
-                handle_message(client, msg, universe, analyze=analyze, chats=chats)
+                handle_message(
+                    client, msg, universe, analyze=analyze, chats=chats,
+                    update_id=upd["update_id"], direct=direct,
+                )
             )
         except TelegramError as exc:
             # 회신 실패로 같은 메시지에 갇히면 안 된다 — 기록하고 확정은 그대로 진행한다.

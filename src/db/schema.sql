@@ -246,6 +246,28 @@ CREATE TABLE IF NOT EXISTS notifications (
   UNIQUE (code, fiscal_year, fiscal_quarter, kind)   -- ★ 중복 발송 차단 (SC4)
 );
 
+-- Telegram update_id가 재수신돼도 Kairos 분석을 중복 시작하지 않는다.
+-- 개인 채팅 원문을 보관하므로 anon SELECT 정책을 만들지 않는다.
+CREATE TABLE IF NOT EXISTS kairos_requests (
+  update_id BIGINT PRIMARY KEY,
+  chat_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  code TEXT NOT NULL REFERENCES krx_universe(code),
+  company_name TEXT NOT NULL,
+  raw_text TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'working', 'rejected', 'sending', 'sent', 'uncertain')),
+  notion_url TEXT,
+  industry TEXT,
+  telegram_message_id BIGINT,
+  error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  claimed_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS kairos_requests_status_created_idx
+  ON kairos_requests (status, created_at);
+
 CREATE TABLE IF NOT EXISTS cost_log (
   id BIGSERIAL PRIMARY KEY, model TEXT,
   input_tokens INT, cache_write_tokens INT, cached_tokens INT, output_tokens INT,
@@ -264,6 +286,7 @@ CREATE INDEX IF NOT EXISTS cost_log_env_created_idx ON cost_log (env, created_at
 --   동일한 저권한이므로 아래 `TO anon` 정책이 그대로 적용된다 (T16).
 -- ═══════════════════════════════════════════════════════════════════
 ALTER TABLE krx_universe            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kairos_requests          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quarterly_fundamentals  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE consensus_snapshots     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE earnings_disclosures    ENABLE ROW LEVEL SECURITY;
