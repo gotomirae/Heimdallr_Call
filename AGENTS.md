@@ -141,7 +141,7 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
-- **Kairos Telegram→Notion 연결 (2026-09-18)** — Heimdallr 기존 수신기에 기업명 요청 큐를 연결하고 Supabase 새 테이블을 적용했다. service 접근·anon 차단 검증, 로컬 1분 수집기 첫 실행 0, 대기 요청 0건. 기존 Kairos 봇·큐는 분리 유지. ADR 19·T167.
+- **Kairos Telegram→Notion 연결 (2026-09-18)** — Heimdallr 기존 수신기·Supabase 요청 큐·로컬 1분 수집기를 운영 연결하고 PR #1을 `main`에 병합했다. service 접근·anon 차단, 운영 수신 처리 0건·수집기 반복 성공·대기 0건을 확인했다. 기존 Kairos 봇·큐는 분리 유지. ADR 19·T167.
   스킬 형식 2/2·기존 브리지 16/16·Drive 3곳/Notion 2곳 읽기·집중 35 passed·오프라인 808 passed/1 skipped. 운영 DB `kairos_requests`는 아직 없음(PGRST205) — SQL 적용·배포·수집기 설치·실제 1건 검증 필요.
 - **07시 미국 매크로·기술 알림 재정의 (2026-09-18)** — 06:45 예열·07:00/07:15/07:30/08:00 KST 매크로 배치와 완료 미국 거래일 지연 경고, 초기 흑전·낮은 PRI 우선 정렬, 5·20일선+MACD 필수/RSI<45 선택 보강을 반영했다.
   운영 dry-run **135→128 일봉→가격 68→5·20일선 8→MACD 4→RSI 보강 0·출력 2·발송 0**, **871 passed·1 skipped·3 network deselected·build 10/10·CI/Vercel 성공·운영 HTTP 200**. T165~166.
