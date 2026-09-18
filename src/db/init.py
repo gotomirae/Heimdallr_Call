@@ -36,11 +36,13 @@ EXPECTED_TABLES = (
     "analyses",
     "outcome_tracking",
     "notifications",
+    "kairos_requests",
     "cost_log",
 )
 
-# anon SELECT가 허용되어야 하는 테이블 (cost_log만 제외)
-ANON_READABLE = tuple(t for t in EXPECTED_TABLES if t != "cost_log")
+# 개인 Telegram 요청과 비용은 anon에게 노출하지 않는다.
+ANON_PRIVATE = ("cost_log", "kairos_requests")
+ANON_READABLE = tuple(t for t in EXPECTED_TABLES if t not in ANON_PRIVATE)
 
 
 #: PostgREST 오류코드 → 사람이 읽을 원인. 원인을 뭉뚱그리면 엉뚱한 곳을 고치게 된다.
@@ -104,16 +106,17 @@ def main() -> int:
         if not ok and table not in missing:
             failures.append(f"anon SELECT 실패: {table} ({msg})")
 
-    print("\n[4] cost_log가 anon에게 닫혀 있는지")
-    ok, _code, msg = _probe(anon, "cost_log")
-    if ok:
-        # RLS는 켜져 있고 정책이 없으면 에러가 아니라 0행이 온다.
-        leaked = msg != "rows=0"
-        print(f"    {'✗ 노출됨' if leaked else '✓ 0행 (정상)'} cost_log  {msg}")
-        if leaked:
-            failures.append("cost_log가 anon에게 노출됐다 — anon SELECT 정책을 제거하라")
-    else:
-        print(f"    ✓ 차단됨 cost_log  {msg}")
+    print("\n[4] 개인 요청·비용 테이블이 anon에게 닫혀 있는지")
+    for table in ANON_PRIVATE:
+        ok, _code, msg = _probe(anon, table)
+        if ok:
+            # RLS는 켜져 있고 정책이 없으면 에러가 아니라 0행이 온다.
+            leaked = msg != "rows=0"
+            print(f"    {'✗ 노출됨' if leaked else '✓ 0행 (정상)'} {table}  {msg}")
+            if leaked:
+                failures.append(f"{table}이 anon에게 노출됐다 — anon SELECT 정책을 제거하라")
+        else:
+            print(f"    ✓ 차단됨 {table}  {msg}")
 
     print("\n" + "═" * 62)
     if failures:

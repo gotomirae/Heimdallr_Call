@@ -862,19 +862,19 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 
 ---
 
-## 8. 텔레그램 (@Invest_EarningCallBot — HermesCall과 공유)
+## 8. 텔레그램 (@Heinmdallr_bot — Heimdallr 전용)
 
 ### 8.1 절대 규칙
 
-**`setWebhook`을 호출하지 마라.** 텔레그램은 봇당 웹훅 1개만 허용하고, 새로 등록하면 이전 것이 **에러 없이 덮어써진다.** HermesCall 대시보드가 웹훅을 점유 중이므로 등록 시 HermesCall의 `/add /remove /list /cost /status /analyze`가 조용히 죽는다.
+**`setWebhook`을 호출하지 마라.** 텔레그램은 봇당 웹훅 1개만 허용하고, 새로 등록하면 이전 것이 에러 없이 덮어써진다.
 
-**Heimdallr는 `sendMessage` 발송 전용이다.** 발송에는 제약이 없다.
+Heimdallr 전용 봇 ID는 `8933940541`이다. HermesCall 공유 봇 ID `8605695587`으로는 `getUpdates`를 금지한다. 수신은 기존 GitHub Actions `telegram_listen` 한 곳만 담당한다. 로컬 Kairos 수집기는 Supabase 큐만 읽어 같은 봇의 메시지를 소비하지 않는다. 종목명 입력 시 기존 실적 리포트는 계속 회신한다.
 
 단, `/api/telegram/lookup` 엔드포인트는 미리 만들어 둔다 — 나중에 HermesCall 웹훅에서 폴백 체이닝(watchlist에서 못 찾으면 Heimdallr로 넘김)을 붙일 때 HermesCall 쪽 5줄만 고치면 되고, 안 쓰더라도 대시보드 자체 검색에 재사용된다.
 
-### 8.2 발송 rate limit (봇 토큰 공유)
+### 8.2 발송 rate limit
 
-같은 채팅방 기준 대략 초당 1건이 한도이며, 두 시스템이 이를 나눠 쓴다. 반드시 구현할 것:
+같은 채팅방 기준 대략 초당 1건이 한도다. 반드시 구현할 것:
 - 연속 발송 사이 **1초 간격**
 - 429 응답의 `retry_after`를 존중하는 백오프 (3회 재시도)
 - 발송 실패해도 파이프라인은 계속 진행 (DB에 이미 저장되어 대시보드로 확인 가능)
@@ -953,6 +953,12 @@ LLM 없이 결정론적으로 다음 조건을 모두 만족한 종목만 **매�
 교차 직전과 당일을 구분하고 매수 확정 신호가 아님을 명시한다.
 같은 종목·평가 분기·`technical_setup`은 한 번만 보내 반복 알림을 막는다.
 하루 발송 상한은 재실행을 포함한 KST 하루 합계 2건이며, 조건별 탈락·조회 실패를 기록한다. 일일 요약 텔레그램에도 가격→5·20일선→MACD 통과, RSI 보강 및 발송 건수(실패 시 오류)를 표시해 0건과 연결 장애를 구분한다. 초기 흑전·낮은 PRI 후보, RSI 보강, MACD·이동평균선 간격, 투자 매력도 순으로 정렬한다.
+
+### 8.7 📑 Kairos 기업·산업 심층 분석
+
+인증된 개인 채팅에서 기업명 또는 6자리 종목코드를 단독 입력하고 유니버스에서 한 기업으로 식별되면 Telegram update ID를 키로 `kairos_requests`에 기록한다. 전달·수정·그룹·봇 경유 메시지, 문장형 질문과 애매한 종목명은 심층 분석을 시작하지 않는다. 기존 짧은 리포트 회신과 별도이며, 로컬 Windows 수집기가 DB 요청을 확인한 뒤 기존 Codex 작업에 `$kairos`를 한 번 전달한다.
+
+Kairos는 Google Drive 자료, 공시·IR, 증권사 기업/산업 리포트, 웹·지정 Telegram 채널을 조사하고 지정 Notion 양식에 작성한다. 저장 위치·양식·출처·완료 상태를 재조회한 후에만 원래 개인 채팅으로 Notion 링크와 바로 열기 버튼을 보낸다. PDF를 만들지 않는다. 작업은 `pending → working → sending → sent`로 추적하며 중복 update ID는 재처리하지 않는다. 전송 결과가 불확실하면 `uncertain`으로 두고 자동 재전송하지 않는다. 로컬 컴퓨터와 Codex 앱이 꺼져 있으면 요청은 DB의 `pending`으로 보존된다.
 
 ---
 
