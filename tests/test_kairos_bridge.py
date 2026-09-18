@@ -42,6 +42,13 @@ def test_sync_requires_right_bot_and_owner(db, monkeypatch):
     assert [r[0] for r in db.execute("SELECT id FROM jobs")] == [42]
 
 
+def test_bridge_refuses_a_different_bot(monkeypatch):
+    monkeypatch.setattr(bridge, "TelegramClient",
+                        lambda: SimpleNamespace(token="8605695587:secret"))
+    with pytest.raises(RuntimeError, match="HEIMDALLR_BOT_ID_MISMATCH"):
+        bridge.verify_bot()
+
+
 def test_wake_once_and_claim(db, monkeypatch):
     insert_job(db)
     bridge.configure_trigger(db, "01a0b3d1-390f-7301-bd23-be3bdcda4329")

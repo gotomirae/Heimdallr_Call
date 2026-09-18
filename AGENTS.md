@@ -142,7 +142,7 @@ python -m pytest tests/
 
 ## 세션 진행 상황
 - **Kairos Telegram→Notion 연결 준비 (2026-09-18)** — Heimdallr 기존 수신기는 짧은 리포트와 인증된 기업명 요청을 함께 기록하고, 로컬 브리지는 Supabase 큐만 읽어 `$kairos`를 깨우도록 구현했다. 기존 Kairos 봇·큐는 분리 유지. ADR 19·T167.
-  스킬 형식 2/2·기존 브리지 16/16·Drive 3곳/Notion 2곳 읽기·집중 34 passed·오프라인 807 passed/1 skipped. 운영 DB `kairos_requests`는 아직 없음(PGRST205) — SQL 적용·배포·수집기 설치·실제 1건 검증 필요.
+  스킬 형식 2/2·기존 브리지 16/16·Drive 3곳/Notion 2곳 읽기·집중 35 passed·오프라인 808 passed/1 skipped. 운영 DB `kairos_requests`는 아직 없음(PGRST205) — SQL 적용·배포·수집기 설치·실제 1건 검증 필요.
 - **07시 미국 매크로·기술 알림 재정의 (2026-09-18)** — 06:45 예열·07:00/07:15/07:30/08:00 KST 매크로 배치와 완료 미국 거래일 지연 경고, 초기 흑전·낮은 PRI 우선 정렬, 5·20일선+MACD 필수/RSI<45 선택 보강을 반영했다.
   운영 dry-run **135→128 일봉→가격 68→5·20일선 8→MACD 4→RSI 보강 0·출력 2·발송 0**, **871 passed·1 skipped·3 network deselected·build 10/10·CI/Vercel 성공·운영 HTTP 200**. T165~166.
 - **미국 매크로 08시·기술 알림 재설계 (2026-09-16)** — 전일 미국 장·연준 공식 성명 스냅샷을 07:40 예열/08:00·08:30·09:00 재시도로 갱신하고, 최근 실적 발표 후 가격·MACD·RSI 40~50 조건과 KST 하루 2건 상한을 연결했다.
