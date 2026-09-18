@@ -66,8 +66,22 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert len(called) == 1 and "$kairos" in called[0][-1]
     assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
     monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
-    assert bridge.claim(db, 42)["status"] == "claimed"
+    claimed = bridge.claim(db, 42)
+    assert claimed["status"] == "claimed"
+    checkpoint = bridge.checkpoint_path(42)
+    assert checkpoint.exists()
+    assert "005930" in checkpoint.read_text(encoding="utf-8")
+    checkpoint.write_text("진행 중 원고와 출처", encoding="utf-8")
+    assert bridge.ensure_checkpoint(db, 42) == checkpoint
+    assert checkpoint.read_text(encoding="utf-8") == "진행 중 원고와 출처"
+    assert bridge.poll(db)["jobs"][0]["checkpoint"] == str(checkpoint)
     assert bridge.claim(db, 42)["status"] == "not_claimed"
+
+
+def test_checkpoint_requires_working_job(db):
+    insert_job(db)
+    with pytest.raises(RuntimeError, match="NOT_WORKING"):
+        bridge.ensure_checkpoint(db, 42)
 
 
 def test_failed_delivery_is_uncertain_and_never_retried(db, monkeypatch):
