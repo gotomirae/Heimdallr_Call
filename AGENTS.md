@@ -141,7 +141,7 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
-- **Kairos 출처·산업분석 우선 규칙 (2026-09-19)** — 인증된 Telegram 기업명 요청에만 실행한다. 산업 구조를 먼저 깊게 조사하고 Drive 최근 3개월 자료 우선, DOC_POOL·sunstudy1234 각각 접속·검색, 추가 공개 리포트와 공시 교차 검증을 스킬·PRD에 반영했다. 현재 큐 0건, 시험 분석·Notion 쓰기 0건.
+- **Kairos 출처·산업분석 우선 규칙 (2026-09-19)** — 인증된 Telegram 기업명 요청에만 실행한다. 산업 구조부터 조사하고 지정 Drive 최근 3개월 자료를 우선한다. DOC_POOL·sunstudy1234 접근이 막히면 재시도 없이 다른 공개 원문으로 끝내며 출처 한계를 명시한다. 현재 큐 0건, 시험 분석·Notion 쓰기 0건.
 - **Kairos 사용량 복구 자동 재개 (2026-09-18)** — `working` 요청별 재개 장부와 같은 작업의 30분 heartbeat를 설정했다. `claim`에서 켜고 완료 시 끄며 현재 요청 0건이라 일시 중지. 회귀 10 passed; 실제 한도 중단→재개는 신규 요청 때 확인한다. T168.
 - **Kairos Telegram→Notion 연결 (2026-09-18)** — Heimdallr 기존 수신기·Supabase 요청 큐·로컬 1분 수집기를 운영 연결하고 PR #1을 `main`에 병합했다. service 접근·anon 차단, 운영 수신 처리 0건·수집기 반복 성공·대기 0건을 확인했다. 기존 Kairos 봇·큐는 분리 유지. ADR 19·T167.
   스킬 형식 2/2·기존 브리지 16/16·Drive 3곳/Notion 2곳 읽기·집중 35 passed·오프라인 808 passed/1 skipped. 운영 DB·수집기 적용 완료; 실제 기업명 1건의 종단 간 검증만 남음.
