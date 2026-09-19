@@ -168,6 +168,7 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         f"Heimdallr Telegram 기업분석 요청 {row[0]}가 등록되었습니다. "
         "이 프로젝트의 `python -m telegram_bridge.bridge poll`로 실제 요청을 확인하고, "
         "기업·티커를 공식 출처로 식별한 뒤 `claim ID`가 성공하면 $kairos 스킬로 "
+        "분석을 시작하면서 기존 Codex heartbeat `kairos`를 ACTIVE로 설정하세요. "
         "Google Drive·공시·웹·증권사 리포트를 조사해 지정 Notion 양식에 작성하세요. "
         "저장 결과를 재조회한 다음 `deliver ID --notion URL --industry 산업명`으로 링크를 보내세요. "
         "요청이 기업명이 아니면 `reject ID`로 제외하세요."
