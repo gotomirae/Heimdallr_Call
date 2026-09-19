@@ -64,6 +64,7 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert bridge.wake_pending(db)["status"] == "already_queued"
     assert db.execute("SELECT wake_sent_at FROM jobs WHERE id=42").fetchone()[0]
     assert len(called) == 1 and "$kairos" in called[0][-1]
+    assert "heartbeat `kairos`를 ACTIVE" in called[0][-1]
     assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
     monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
     claimed = bridge.claim(db, 42)

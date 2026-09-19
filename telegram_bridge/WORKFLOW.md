@@ -16,6 +16,10 @@ Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 
 
 `codex queue`로 전달된 ID를 `python -m telegram_bridge.bridge poll`에서 확인한다. 실제 원문과 update ID가 있고 공식 자료로 기업이 식별되면 `claim ID` 후 `$kairos` 스킬을 실행한다. 일반 질문·인사는 `reject ID`로 제외한다. `claim`은 `telegram_bridge/state/checkpoints/ID.md` 재개 장부를 한 번 생성하며 기존 장부를 덮어쓰지 않는다. 조사·원고·Notion 저장 단계마다 이 파일에 출처, 주요 수치, 원고 경로, 페이지 ID/URL, 이미 검증한 항목과 다음 행동을 기록한다. 지정 양식의 부모와 전체 본문을 재조회한 후에만 `deliver ID --notion URL --industry 산업명`으로 개인 채팅에 버튼과 링크를 보낸다.
 
+분석은 해당 기업의 **산업 구조·규모·성장률·기술·수급·경쟁·밸류체인**을 먼저 조사하고, 기업의 매출·마진·현금흐름·가치평가와 연결한다. [산업분석 Drive 폴더](https://drive.google.com/drive/folders/1JchyHt19WRQacnLIDO1daQd3HLvfb15s)에서 해당 산업을, [기업분석 Drive 폴더](https://drive.google.com/drive/folders/1vnIBkOaoPcL3pC1n-V-LNUNJJhIm6hyd)에서 해당 기업을 찾아 분석일 기준 **최근 3개월 안의 가장 최신 자료**를 우선 확인한다. 매 요청마다 [DOC_POOL](https://t.me/DOC_POOL)과 [sunstudy1234](https://t.me/sunstudy1234)에 각각 실제 접근·기업명/티커/산업명 검색을 시도하고, 다른 공개 증권사 리서치센터·보고서 배포처도 적극 조사한다. 채널 제목만 보거나 게시물 원문을 못 열었으면 열람 성공으로 기록하지 않는다. 공시·회사 IR로 핵심 수치를 교차 검증하며, 접근 실패와 대체 근거를 장부에 적는다. 채널 본문 접근이 막히면 다른 자료로 초안 작업은 계속하되 두 채널 참조를 완료로 표시하거나 Notion 최종본을 게시하지 않는다. 로그인된 Telegram 접근을 요청하고 작업을 `working`으로 보존한다.
+
+`claim` 성공 직후 현재 Codex 작업에 연결된 기존 heartbeat `kairos`를 `ACTIVE`로 전환한다. 이 확인 작업은 `working` 동안만 반복된다. `sent` 이후 다른 `working`이 없으면 다음 확인 실행에서 스스로 `PAUSED`로 전환한다. 새 요청이 없을 때는 모델 사용량을 쓰지 않는다. 새 heartbeat를 요청마다 만들지 않는다.
+
 사용량 제한으로 중단되면 `working`을 유지하고 장부에 중단 지점, 미완료 작업, 사용량 창의 재설정 시각을 남긴다. 이 Codex 작업에 연결된 반복 확인은 로컬 `poll`에서 `working`이 있을 때만 사용량을 확인한다. 사용 가능량이 돌아오면 **같은 ID와 장부**에서 이어서 수행한다. 장부가 없으면 `checkpoint ID`로 먼저 복구하고 이전 대화·Notion을 대조한다. 이미 만든 Notion 페이지가 있으면 재조회·수정하며 새 페이지를 중복 생성하지 않는다. `sending` 또는 `uncertain`은 발송 성공 여부를 확인하기 전 자동 재전송하지 않는다. `sent`는 재처리하지 않는다. 대기 작업이 없을 때 반복 확인은 조용히 종료한다. 로컬 컴퓨터와 Codex 앱이 실행 중이어야 심층 분석이 시작된다.
 
 ## 운영 확인
