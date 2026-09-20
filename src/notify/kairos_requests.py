@@ -56,3 +56,18 @@ def enqueue(update_id: int, message: dict, match: Match) -> bool:
             return False
         raise
     return True
+
+
+def record_receipt(update_id: int, message_id: int) -> None:
+    """접수 메시지 ID를 보존해 분석 단계마다 같은 메시지를 갱신한다."""
+    get_client().table("kairos_requests").update(
+        {"telegram_message_id": message_id}
+    ).eq("update_id", update_id).execute()
+
+
+def receipt_message_id(update_id: int) -> int | None:
+    rows = (
+        get_client().table("kairos_requests").select("telegram_message_id")
+        .eq("update_id", update_id).limit(1).execute().data or []
+    )
+    return rows[0].get("telegram_message_id") if rows else None

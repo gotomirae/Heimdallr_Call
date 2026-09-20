@@ -67,6 +67,11 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert "heartbeat `kairos`를 ACTIVE" in called[0][-1]
     assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
     monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
+    query = Mock()
+    query.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+    remote = Mock()
+    remote.table.return_value = query
+    monkeypatch.setattr(bridge, "get_client", lambda: remote)
     claimed = bridge.claim(db, 42)
     assert claimed["status"] == "claimed"
     checkpoint = bridge.checkpoint_path(42)
@@ -77,6 +82,36 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert checkpoint.read_text(encoding="utf-8") == "진행 중 원고와 출처"
     assert bridge.poll(db)["jobs"][0]["checkpoint"] == str(checkpoint)
     assert bridge.claim(db, 42)["status"] == "not_claimed"
+
+
+def test_unclaimed_wake_retries_after_five_minutes(db, monkeypatch):
+    insert_job(db)
+    bridge.configure_trigger(db, "01a0b3d1-390f-7301-bd23-be3bdcda4329")
+    monkeypatch.setattr(bridge, "find_codex", lambda: "codex.exe")
+    calls = []
+    monkeypatch.setattr(bridge.subprocess, "run",
+                        lambda *a, **k: calls.append(a) or SimpleNamespace(returncode=0))
+    assert bridge.wake_pending(db)["status"] == "queued"
+    assert bridge.wake_pending(db)["status"] == "already_queued"
+    with db:
+        db.execute("UPDATE jobs SET wake_sent_at=? WHERE id=42",
+                   ("2020-01-01T00:00:00+00:00",))
+    assert bridge.wake_pending(db)["status"] == "requeued"
+    assert len(calls) == 2
+
+
+def test_progress_edits_existing_receipt_once(db, monkeypatch):
+    insert_job(db, "working")
+    with db:
+        db.execute("UPDATE jobs SET telegram_message_id=55 WHERE id=42")
+    monkeypatch.setattr(bridge, "verify_bot", lambda: None)
+    client = Mock()
+    monkeypatch.setattr(bridge, "TelegramClient", lambda **k: client)
+    assert bridge.set_progress(db, 42, "company")["stage"] == "company"
+    assert bridge.set_progress(db, 42, "company")["stage"] == "company"
+    assert client.call.call_count == 1
+    assert client.call.call_args.args[0] == "editMessageText"
+    assert client.call.call_args.args[1]["message_id"] == 55
 
 
 def test_checkpoint_requires_working_job(db):

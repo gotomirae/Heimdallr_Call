@@ -9,6 +9,7 @@ import pytest
 
 from src.notify.kairos_requests import direct_company_request, enqueue
 from src.notify import listen
+from src.notify.telegram import TelegramError
 from src.notify.resolve import Match
 
 
@@ -22,6 +23,8 @@ def message(text="삼성전자") -> dict:
 
 def test_only_direct_private_company_name_is_accepted():
     assert direct_company_request(message(), MATCH, {"111"})
+    assert direct_company_request(message("비엠티"),
+                                  Match("086670", "비엠티", "exact"), {"111"})
     assert direct_company_request(message("005930"),
                                   Match("005930", "삼성전자", "code"), {"111"})
     for bad in (
@@ -60,21 +63,51 @@ def test_queue_error_is_not_silenced(monkeypatch):
         enqueue(123, message(), MATCH)
 
 
-def test_telegram_update_keeps_short_report_and_queues_deep_analysis(monkeypatch):
+def test_telegram_update_sends_progress_receipt_without_short_report(monkeypatch):
     client = Mock()
     client.call.return_value = {"result": [
         {"update_id": 123, "message": message()}
     ]}
+    client.send_message.return_value = {"result": {"message_id": 77}}
     monkeypatch.setattr(listen, "load_universe", lambda: {"005930": "삼성전자"})
     monkeypatch.setattr(listen, "allowed_chats", lambda: {"111"})
     monkeypatch.setattr(listen, "build_report",
-                        lambda code, analyze: ("짧은 실적 리포트", {"code": code}))
+                        lambda *a, **k: pytest.fail("short report must not run"))
     queued = []
     monkeypatch.setattr(listen, "enqueue",
                         lambda update_id, msg, match: queued.append(update_id) or True)
+    receipts = []
+    monkeypatch.setattr(listen, "record_receipt",
+                        lambda update_id, msg_id: receipts.append((update_id, msg_id)))
     monkeypatch.setattr(listen, "confirm", lambda client, update_id: None)
     result = listen.poll_once(client, analyze=False)
     assert queued == [123]
+    assert receipts == [(123, 77)]
     assert result[0]["kairos"] == "접수"
-    assert "짧은 실적 리포트" in client.send_message.call_args.args[0]
-    assert "Notion 링크" in client.send_message.call_args.args[0]
+    assert "분석 접수" in client.send_message.call_args.args[0]
+    assert "30~90분" in client.send_message.call_args.args[0]
+
+
+def test_receipt_send_failure_keeps_update_for_retry(monkeypatch):
+    client = Mock()
+    client.call.return_value = {"result": [
+        {"update_id": 123, "message": message()}
+    ]}
+    client.send_message.side_effect = [TelegramError("temporary"),
+                                       {"result": {"message_id": 78}}]
+    monkeypatch.setattr(listen, "load_universe", lambda: {"005930": "삼성전자"})
+    monkeypatch.setattr(listen, "allowed_chats", lambda: {"111"})
+    arrivals = []
+    monkeypatch.setattr(listen, "enqueue",
+                        lambda *a: arrivals.append(1) or len(arrivals) == 1)
+    monkeypatch.setattr(listen, "receipt_message_id", lambda *a: None)
+    receipts = []
+    monkeypatch.setattr(listen, "record_receipt",
+                        lambda *a: receipts.append(a))
+    confirms = []
+    monkeypatch.setattr(listen, "confirm", lambda *a: confirms.append(a))
+    assert "발송 실패" in listen.poll_once(client, analyze=False)[0]["result"]
+    assert confirms == []
+    assert listen.poll_once(client, analyze=False)[0]["result"] == "분석 접수"
+    assert receipts == [(123, 78)]
+    assert len(confirms) == 1

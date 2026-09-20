@@ -364,7 +364,8 @@ def test_dependency_and_all_paid_workflows_declare_openai_settings():
         "OPENAI_CACHE_WRITE_PER_MTOK",
         "OPENAI_CACHE_READ_PER_MTOK",
     )
-    for name in ("llm_batch.yml", "disclosure_poll.yml", "telegram_listen.yml"):
+    # telegram_listen.yml은 로컬 단일 폴러로 이전한 뒤 실행 불가인 보존용 stub이다.
+    for name in ("llm_batch.yml", "disclosure_poll.yml"):
         body = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
         missing = [setting for setting in required if setting not in body]
         assert not missing, f"{name}: OpenAI 전환 설정 누락 {missing}"

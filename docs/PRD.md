@@ -868,7 +868,7 @@ filler가 사라졌지만 참조값 3개 변조·unsupported 5건으로 63.57점
 
 **`setWebhook`을 호출하지 마라.** 텔레그램은 봇당 웹훅 1개만 허용하고, 새로 등록하면 이전 것이 에러 없이 덮어써진다.
 
-Heimdallr 전용 봇 ID는 `8933940541`이다. HermesCall 공유 봇 ID `8605695587`으로는 `getUpdates`를 금지한다. 수신은 기존 GitHub Actions `telegram_listen` 한 곳만 담당한다. 로컬 Kairos 수집기는 Supabase 큐만 읽어 같은 봇의 메시지를 소비하지 않는다. 종목명 입력 시 기존 실적 리포트는 계속 회신한다.
+Heimdallr 전용 봇 ID는 `8933940541`이다. HermesCall 공유 봇 ID `8605695587`으로는 `getUpdates`를 금지한다. 수신은 Windows의 `HeimdallrTelegramListener` 1분 작업 한 곳만 담당한다. GitHub Actions `telegram_listen` 잡은 실행하지 않는다. 로컬 Kairos 수집기는 Supabase 큐만 읽는다. 인증된 개인 채팅의 기업명·코드 단독 입력에는 짧은 실적 리포트 대신 접수 상태·예상 시간만 회신한다. `/status`는 분석을 시작하지 않고 최근 작업 상태를 조회한다.
 
 단, `/api/telegram/lookup` 엔드포인트는 미리 만들어 둔다 — 나중에 HermesCall 웹훅에서 폴백 체이닝(watchlist에서 못 찾으면 Heimdallr로 넘김)을 붙일 때 HermesCall 쪽 5줄만 고치면 되고, 안 쓰더라도 대시보드 자체 검색에 재사용된다.
 
@@ -958,7 +958,7 @@ LLM 없이 결정론적으로 다음 조건을 모두 만족한 종목만 **매�
 
 인증된 개인 채팅에서 기업명 또는 6자리 종목코드를 단독 입력하고 유니버스에서 한 기업으로 식별되면 Telegram update ID를 키로 `kairos_requests`에 기록한다. 전달·수정·그룹·봇 경유 메시지, 문장형 질문과 애매한 종목명은 심층 분석을 시작하지 않는다. 기존 짧은 리포트 회신과 별도이며, 로컬 Windows 수집기가 DB 요청을 확인한 뒤 기존 Codex 작업에 `$kairos`를 한 번 전달한다.
 
-Kairos는 Google Drive 자료, 공시·IR, 증권사 기업/산업 리포트, 웹·지정 Telegram 채널을 조사하고 지정 Notion 양식에 작성한다. 저장 위치·양식·출처·완료 상태를 재조회한 후에만 원래 개인 채팅으로 Notion 링크와 바로 열기 버튼을 보낸다. PDF를 만들지 않는다. 작업은 `pending → working → sending → sent`로 추적하며 중복 update ID는 재처리하지 않는다. 전송 결과가 불확실하면 `uncertain`으로 두고 자동 재전송하지 않는다. 로컬 컴퓨터와 Codex 앱이 꺼져 있으면 요청은 DB의 `pending`으로 보존된다.
+Kairos는 Google Drive 자료, 공시·IR, 증권사 기업/산업 리포트, 웹·지정 Telegram 채널을 조사하고 지정 Notion 양식에 작성한다. 첫 화면 핵심 수치 표, 분기 실적 표와 그래프, 네이버 증권·StockEasy 종목 차트 직접 링크, 공개 근거로 답한 주담 필수 질문 5개 이상을 포함한다. 실제 통화 기록이 없으면 공개자료 Q&A로 명시한다. 작업 중에는 Telegram 접수 메시지를 산업 조사·기업 검증·Notion 작성·저장 검증 단계로 갱신한다. 저장 위치·양식·출처·완료 상태를 재조회한 후에만 원래 개인 채팅으로 Notion 링크와 바로 열기 버튼을 보낸다. PDF를 만들지 않는다. 작업은 `pending → working → sending → sent`로 추적하며 중복 update ID는 재처리하지 않는다. 전송 결과가 불확실하면 `uncertain`으로 두고 자동 재전송하지 않는다. `pending` 깨우기는 claim이 없으면 5분 후 다시 시도한다. 로컬 컴퓨터와 Codex 앱이 꺼져 있으면 요청은 DB의 `pending`으로 보존된다.
 
 조사는 산업부터 시작하여 시장 정의·규모·성장률·기술·수급·경쟁 구조와 기업의 위치를 자세히 설명한 후 기업 실적·가격 판단으로 이어진다. 산업은 [지정 산업분석 폴더](https://drive.google.com/drive/folders/1JchyHt19WRQacnLIDO1daQd3HLvfb15s)에서 해당 산업을, 기업은 [지정 기업분석 폴더](https://drive.google.com/drive/folders/1vnIBkOaoPcL3pC1n-V-LNUNJJhIm6hyd)에서 해당 기업을 찾아 분석일 기준 최근 3개월 내 가장 최신 자료를 1차로 확인한다. 두 지정 Telegram 채널(DOC_POOL, sunstudy1234)은 매 요청에서 각각 접근·검색을 시도한다. 채널 접근이 막히면 재시도하거나 다른 로그인 경로를 찾지 않고 실패 범위를 기록한 뒤 증권사 공식 리서치센터 및 접근 가능한 공개 리포트 사이트, 공시·IR·산업 통계 등 다른 자료로 분석을 끝낸다. 채널 게시물·리포트 원문 열람 여부를 구분하고 중요 수치는 공식 원문으로 검증한다. 채널 접근 실패만으로 `working` 유지·Notion 게시 보류·Telegram 링크 발송 보류를 하지 않는다.
 

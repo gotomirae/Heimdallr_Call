@@ -33,7 +33,7 @@ API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
 #: ★ 이 목록 밖의 메서드는 호출하지 않는다. `setWebhook`이 여기 없는 것이 요점이다.
 #:   `getUpdates`는 들어 있지만, 아래 봇 분리 검사를 통과해야 실제로 호출된다.
-ALLOWED_METHODS = frozenset({"sendMessage", "getMe", "getUpdates"})
+ALLOWED_METHODS = frozenset({"sendMessage", "editMessageText", "getMe", "getUpdates"})
 
 #: 수신(폴링)에만 해당하는 메서드. 공유 봇에서는 이것들을 막는다.
 RECEIVING_METHODS = frozenset({"getUpdates"})

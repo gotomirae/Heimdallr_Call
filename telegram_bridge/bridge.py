@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -28,6 +28,14 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "state" / "queue.sqlite3"
 HEIMDALLR_BOT_ID = "8933940541"
 TABLE = "kairos_requests"
+WAKE_RETRY = timedelta(minutes=5)
+STAGES = {
+    "industry": "산업 자료·시장 구조 조사 중",
+    "company": "기업 공시·실적·리포트 검증 중",
+    "notion": "Notion 보고서와 분기실적 그래프 작성 중",
+    "verify": "Notion 저장 내용·출처 확인 중",
+    "usage": "사용량 제한으로 일시 중지 · 자동 재개 대기 중",
+}
 
 
 def connect() -> sqlite3.Connection:
@@ -40,12 +48,16 @@ def connect() -> sqlite3.Connection:
             id INTEGER PRIMARY KEY, code TEXT NOT NULL, company TEXT NOT NULL,
             raw_text TEXT NOT NULL, chat_id INTEGER NOT NULL, status TEXT NOT NULL,
             notion_url TEXT, telegram_message_id INTEGER,
-            wake_sent INTEGER NOT NULL DEFAULT 0, wake_sent_at TEXT, wake_error TEXT
+            wake_sent INTEGER NOT NULL DEFAULT 0, wake_sent_at TEXT, wake_error TEXT,
+            progress_stage TEXT, progress_updated_at TEXT
         );
     """)
     columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
     if "wake_sent_at" not in columns:
         db.execute("ALTER TABLE jobs ADD COLUMN wake_sent_at TEXT")
+    for name in ("progress_stage", "progress_updated_at"):
+        if name not in columns:
+            db.execute(f"ALTER TABLE jobs ADD COLUMN {name} TEXT")
     return db
 
 
@@ -109,11 +121,11 @@ def verify_bot() -> None:
 
 
 def sync_pending(db: sqlite3.Connection) -> int:
-    """GitHub 수신기가 기록한 pending만 로컬에 복사한다. Telegram API는 호출하지 않는다."""
+    """전용 로컬 수신기가 기록한 pending만 로컬에 복사한다."""
     verify_bot()
     chats = allowed_chats()
     rows = select_all(
-        TABLE, "update_id,chat_id,user_id,code,company_name,raw_text,status",
+        TABLE, "update_id,chat_id,user_id,code,company_name,raw_text,status,telegram_message_id",
         filters={"status": "pending"}, order="update_id",
     )
     added = 0
@@ -123,13 +135,54 @@ def sync_pending(db: sqlite3.Connection) -> int:
             if str(row["chat_id"]) not in chats or row["user_id"] != row["chat_id"]:
                 continue
             cursor = db.execute(
-                "INSERT OR IGNORE INTO jobs(id,code,company,raw_text,chat_id,status) "
-                "VALUES(?,?,?,?,?,'pending')",
+                "INSERT OR IGNORE INTO jobs(id,code,company,raw_text,chat_id,status,telegram_message_id) "
+                "VALUES(?,?,?,?,?,'pending',?)",
                 (row["update_id"], row["code"], row["company_name"],
-                 row["raw_text"], row["chat_id"]),
+                 row["raw_text"], row["chat_id"], row.get("telegram_message_id")),
             )
             added += cursor.rowcount
+            if row.get("telegram_message_id"):
+                db.execute(
+                    "UPDATE jobs SET telegram_message_id=? WHERE id=? "
+                    "AND status='pending' AND telegram_message_id IS NULL",
+                    (row["telegram_message_id"], row["update_id"]),
+                )
     return added
+
+
+def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
+    if stage not in STAGES:
+        raise ValueError("INVALID_PROGRESS_STAGE")
+    row = db.execute(
+        "SELECT company,code,chat_id,telegram_message_id,status,progress_stage,progress_updated_at "
+        "FROM jobs WHERE id=?",
+        (job_id,),
+    ).fetchone()
+    if not row or row["status"] != "working":
+        raise RuntimeError("NOT_WORKING")
+    if row["progress_stage"] == stage:
+        return {"status": "progress", "id": job_id, "stage": stage,
+                "updated_at": row["progress_updated_at"]}
+    if row["telegram_message_id"]:
+        verify_bot()
+        TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
+            "chat_id": row["chat_id"],
+            "message_id": row["telegram_message_id"],
+            "text": (
+                f"⏳ {row['company']} ({row['code']}) 기업 분석 진행 중\n"
+                f"상태: {STAGES[stage]}\n"
+                "완료 예상: 자료량에 따라 대략 30~90분 이상\n"
+                "오래 걸리면 /status로 최근 상태를 확인해 주세요."
+            ),
+            "disable_web_page_preview": True,
+        })
+    now = datetime.now(timezone.utc).isoformat()
+    with db:
+        db.execute(
+            "UPDATE jobs SET progress_stage=?,progress_updated_at=? WHERE id=?",
+            (stage, now, job_id),
+        )
+    return {"status": "progress", "id": job_id, "stage": stage, "updated_at": now}
 
 
 def find_codex() -> str | None:
@@ -151,16 +204,30 @@ def wake_pending(db: sqlite3.Connection) -> dict:
     ).fetchone()
     if busy:
         return {"status": "busy", "id": busy[0]}
-    queued = db.execute(
-        "SELECT id FROM jobs WHERE status='pending' AND wake_sent=1 ORDER BY id LIMIT 1"
-    ).fetchone()
-    if queued:
-        return {"status": "already_queued", "id": queued[0]}
     row = db.execute(
-        "SELECT id FROM jobs WHERE status='pending' AND wake_sent=0 ORDER BY id LIMIT 1"
+        "SELECT id,wake_sent,wake_sent_at,company,code,chat_id,telegram_message_id,progress_stage "
+        "FROM jobs WHERE status='pending' ORDER BY id LIMIT 1"
     ).fetchone()
     if not row:
         return {"status": "idle"}
+    if row["wake_sent_at"]:
+        last_wake = datetime.fromisoformat(row["wake_sent_at"])
+        if datetime.now(timezone.utc) - last_wake < WAKE_RETRY:
+            return {"status": "already_queued", "id": row["id"]}
+    if row["wake_sent"] and row["telegram_message_id"] and row["progress_stage"] != "delayed":
+        try:
+            verify_bot()
+            TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
+                "chat_id": row["chat_id"],
+                "message_id": row["telegram_message_id"],
+                "text": (f"⏳ {row['company']} ({row['code']}) 분석 시작 지연\n"
+                         "Codex 연결을 다시 시도하고 있습니다. /status로 확인해 주세요."),
+            })
+            with db:
+                db.execute("UPDATE jobs SET progress_stage='delayed',progress_updated_at=? WHERE id=?",
+                           (datetime.now(timezone.utc).isoformat(), row["id"]))
+        except Exception:
+            pass
     codex = find_codex()
     if not codex:
         return {"status": "error", "id": row[0], "error": "CODEX_NOT_FOUND"}
@@ -192,19 +259,24 @@ def wake_pending(db: sqlite3.Connection) -> dict:
             "UPDATE jobs SET wake_sent=1,wake_sent_at=?,wake_error=NULL WHERE id=?",
             (datetime.now(timezone.utc).isoformat(), row[0]),
         )
-    return {"status": "queued", "id": row[0]}
+    return {"status": "requeued" if row["wake_sent"] else "queued", "id": row[0]}
 
 
 def poll(db: sqlite3.Connection) -> dict:
     """Codex 쪽 조회는 로컬 큐만 읽는다."""
     rows = db.execute(
-        "SELECT id,code,company,raw_text,status,notion_url,wake_sent,wake_sent_at,wake_error "
+        "SELECT id,code,company,raw_text,status,notion_url,wake_sent,wake_sent_at,wake_error,progress_stage,progress_updated_at "
         "FROM jobs WHERE status NOT IN ('sent','rejected') ORDER BY id LIMIT 20"
     ).fetchall()
     jobs = [dict(row) for row in rows]
     for job in jobs:
         job["checkpoint"] = str(checkpoint_path(job["id"])) if job["status"] == "working" else None
+    try:
+        listener = json.loads((STATE.parent / "listener_last.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        listener = {"last_success": None, "last_error": "LISTENER_NOT_RUN"}
     return {"trigger_configured": bool(setting(db, "trigger_thread")),
+            "listener": listener,
             "collector": {"last_success": setting(db, "last_success"),
                           "last_error": setting(db, "last_error")},
             "jobs": jobs}
@@ -232,6 +304,28 @@ def claim(db: sqlite3.Connection, job_id: int) -> dict:
         return {"status": "not_claimed", "id": job_id}
     with db:
         db.execute("UPDATE jobs SET status='working' WHERE id=?", (job_id,))
+    receipt = db.execute(
+        "SELECT telegram_message_id FROM jobs WHERE id=?", (job_id,)
+    ).fetchone()[0]
+    if receipt is None:
+        try:
+            remote = (
+                get_client().table(TABLE).select("telegram_message_id")
+                .eq("update_id", job_id).limit(1).execute().data or []
+            )
+            if remote and remote[0].get("telegram_message_id"):
+                with db:
+                    db.execute(
+                        "UPDATE jobs SET telegram_message_id=? WHERE id=?",
+                        (remote[0]["telegram_message_id"], job_id),
+                    )
+        except Exception:
+            pass
+    try:
+        set_progress(db, job_id, "industry")
+    except Exception:
+        # 상태 표시 장애는 이미 claim된 작업을 되돌리지 않는다.
+        pass
     return {"status": "claimed", "id": job_id,
             "checkpoint": str(ensure_checkpoint(db, job_id))}
 
@@ -250,7 +344,7 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str) -> 
     if not 1 <= len(industry.strip()) <= 100 or "\n" in industry or "\r" in industry:
         raise ValueError("INVALID_INDUSTRY")
     row = db.execute(
-        "SELECT company,chat_id,status FROM jobs WHERE id=?", (job_id,)
+        "SELECT company,chat_id,status,telegram_message_id FROM jobs WHERE id=?", (job_id,)
     ).fetchone()
     if not row or row["status"] != "working":
         raise RuntimeError("NOT_WORKING_OR_ALREADY_SENT")
@@ -294,6 +388,15 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str) -> 
             "UPDATE jobs SET status='sent',telegram_message_id=? WHERE id=?",
             (message_id, job_id),
         )
+    if row["telegram_message_id"]:
+        try:
+            client.call("editMessageText", {
+                "chat_id": row["chat_id"],
+                "message_id": row["telegram_message_id"],
+                "text": f"✅ {row['company']} 기업 분석 완료\nNotion 링크를 새 메시지로 보냈습니다.",
+            })
+        except Exception:
+            pass
     return {"status": "sent", "id": job_id, "telegram_message_id": message_id}
 
 
@@ -308,6 +411,9 @@ def main() -> int:
     trigger.add_argument("--thread", required=True)
     for command in ("claim", "reject"):
         sub.add_parser(command).add_argument("id", type=int)
+    progress = sub.add_parser("progress")
+    progress.add_argument("id", type=int)
+    progress.add_argument("--stage", choices=tuple(STAGES), required=True)
     delivery = sub.add_parser("deliver")
     delivery.add_argument("id", type=int)
     delivery.add_argument("--notion", required=True)
@@ -338,6 +444,8 @@ def main() -> int:
             result = claim(db, args.id)
         elif args.command == "reject":
             result = reject(db, args.id)
+        elif args.command == "progress":
+            result = set_progress(db, args.id, args.stage)
         else:
             result = deliver(db, args.id, args.notion, args.industry)
         print(json.dumps(result, ensure_ascii=False))

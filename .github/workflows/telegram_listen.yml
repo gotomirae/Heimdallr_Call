@@ -1,94 +1,19 @@
-# PRD Ref: §10 · traps.md T44
-#
-# 텔레그램 수신 — 종목명을 보내면 리포트 회신과 Kairos 요청 기록을 한다.
-# 로컬 Kairos 수집기는 Supabase 요청만 읽고 getUpdates를 호출하지 않는다.
-#
-# ★ 잡 안에서 sleep 루프를 쓰지 않는다(PRD §10.1) — **sleep도 과금된다.**
-#   짧은 잡을 여러 번 띄우는 편이 싸다. `--watch`가 아니라 `--once`를 주기 실행한다.
-#
-# ★ getUpdates는 **소비**다(T44). 같은 봇을 두 곳에서 폴링하면 서로 메시지를 빼앗는다.
-#   이 워크플로가 도는 동안 로컬에서 `--watch`를 켜두면 응답이 한쪽으로만 간다.
-#   `concurrency`로 이 워크플로끼리의 중복 실행은 막지만, 로컬 실행까지는 못 막는다.
-
+# PRD Ref: §8.1 · traps.md T44
+# Telegram getUpdates는 로컬 HeimdallrTelegramListener가 단독으로 소비한다.
+# 이 워크플로는 과거 작업 ID와 운영 기록을 보존하되 실행하지 않는다.
 name: telegram_listen
 
-# ★★ 이건 **즉답용이 아니라 '놓치지 않기'용이다.**
-#    GitHub Actions cron은 부하가 걸리면 5~20분씩 밀린다 — 챗봇 응답으로는 느리다.
-#    즉답이 필요하면 `python -m src.notify.listen --watch`를 상시 띄워라(롱폴링, 즉시).
-#    이 워크플로는 그게 안 떠 있을 때 질문이 영영 묻히지 않게 하는 안전망이다.
-#
-# ★ 5분 주기는 월 8,640분이다(실측 추정). 텔레그램은 미확정 업데이트를 24시간
-#   보관하므로 자주 돌 이유가 없다 — 깨어 있는 시간에 15분마다면 충분하고
-#   월 2,040분으로 줄어든다.
 on:
-  schedule:
-    - cron: "*/15 22-23,0-14 * * *" # 07:00~23:59 KST, 15분마다
   workflow_dispatch:
-    inputs:
-      analyze:
-        description: "분석이 없으면 LLM 호출 (건당 약 $0.03). 끄려면 false"
-        type: boolean
-        default: true
 
-# 두 잡이 겹치면 서로의 업데이트를 빼앗는다 — 반드시 하나만 돈다.
 concurrency:
   group: telegram-listen
   cancel-in-progress: false
 
 jobs:
   listen:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    # ★ `--analyze`를 켠 뒤로는 5분이 부족하다. `confirm()`이 **배치를 다 처리한 뒤에야**
-    #   offset을 확정하므로(listen.py), 중간에 timeout으로 죽으면 확정이 안 되고
-    #   같은 BATCH(20건)가 다음 실행에 그대로 재배달된다 → 또 죽는다.
-    #   질문은 영영 답을 못 받는데 로그에는 빨간 X만 쌓이는 형태로 굳는다.
-    #   신규 분석 1건 ≈ 30초 × 20건 + 설치를 덮는 값으로 잡는다.
-    #   (timeout은 상한일 뿐 실제로 안 쓰면 과금되지 않는다.)
-    timeout-minutes: 12
+    timeout-minutes: 1
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: 설치
-        run: pip install -e .
-
-      - name: 수신 처리
-        env:
-          # ★ 전용 봇 토큰. 공유 봇이면 코드가 수신을 막는다(T44).
-          HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
-          HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
-          # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
-          DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
-          OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
-          OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
-          OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
-          OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
-          OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
-          # ★★ T82 — 넘기지 않으면 저장소 변수가 **에러 없이 무시**된다.
-          MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
-          DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
-          # ★ schedule에는 inputs가 없어 **빈 문자열**이 된다 → 아래에서 기본 ON이 된다.
-          #   GitHub 삼항 `${{ inputs.x && 'A' || 'B' }}`를 쓰지 않는 이유:
-          #   x가 **false일 때도 B**를 준다(false가 falsy라 fall-through).
-          #   즉 그 형태로는 "수동으로 끄기"가 에러 없이 무시된다.
-          ANALYZE_INPUT: ${{ inputs.analyze }}
-        run: |
-          # 분석이 없는 종목만 호출한다. 재질의는 재사용이라 비용 0이고,
-          # analyze()가 호출 전에 check_budget()으로 월 실링·일 상한을 건다.
-          # ★ 숫자를 여기 적지 않는다 — 실제 값은 `src/config/constants.py`에 있고,
-          #   손으로 옮겨 적으면 바뀔 때마다 조용히 어긋난다(T65·T82 실측).
-          if [ "$ANALYZE_INPUT" = "false" ]; then
-            echo "LLM 분석 OFF — 수동 실행에서 명시적으로 껐다"
-            python -m src.notify.listen --once
-          else
-            python -m src.notify.listen --once --analyze
-          fi
+      - run: echo "Telegram listener runs on the local scheduled task."

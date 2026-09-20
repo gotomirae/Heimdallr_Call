@@ -1,9 +1,9 @@
 # PRD Ref: §8 · traps.md T13 · ADR 3(선별에 LLM을 쓰지 않는다), ADR 6
-"""텔레그램 수신 — 종목명을 보내면 그 종목 리포트를 회신한다.
+"""텔레그램 수신 — 인증된 기업명은 Kairos 분석으로 접수하고 상태를 회신한다.
 
     python -m src.notify.listen --once          # 대기 중인 메시지 1회 처리
     python -m src.notify.listen --watch         # 롱폴링 루프
-    python -m src.notify.listen --once --analyze  # 분석 없으면 LLM 호출까지
+    python -m src.notify.listen --once --analyze  # 이전 호출 호환, 요약 LLM은 사용하지 않음
 
 ★★ **웹훅을 쓰지 않는다.** getUpdates 롱폴링이다. 공개 URL이 필요 없고,
    setWebhook은 클라이언트에서 영구 차단돼 있다(남의 봇을 죽이는 사고를 원천 봉쇄).
@@ -15,17 +15,20 @@
 ★★ **허용된 chat만 응답한다.** 봇 주소를 아는 누구나 말을 걸 수 있고,
    분석은 건당 실제 비용이 든다. 모르는 chat은 조용히 무시한다.
 
-★ LLM은 **기존 분석이 없을 때만** 호출한다. 같은 종목을 여러 번 물어도 비용이 늘지 않는다.
+★ 종목 요약 LLM은 이 수신 경로에서 호출하지 않는다. 분석은 인증된 회사명 요청을 claim한 Codex가 수행한다.
 """
 
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 import time
 
 from src.db.supabase_client import select_all
+from src.notify.kairos_requests import (
+    direct_company_request, enqueue, receipt_message_id, record_receipt,
+)
 from src.notify.resolve import Match, resolve
-from src.notify.kairos_requests import direct_company_request, enqueue
 from src.notify.telegram import (
     SharedBotPollingBlocked,
     TelegramClient,
@@ -61,6 +64,50 @@ def load_universe() -> dict[str, str]:
         for u in select_all("krx_universe", "code,name")
         if u.get("name")
     }
+
+
+def latest_analysis_status(chat_id: str) -> str:
+    """상태 조회 명령은 분석을 시작하지 않고 기존 요청만 확인한다."""
+    from src.db.supabase_client import get_client
+    from telegram_bridge import bridge
+
+    rows = (
+        get_client().table("kairos_requests")
+        .select("update_id,company_name,code,status,created_at")
+        .eq("chat_id", int(chat_id)).order("created_at", desc=True).limit(1)
+        .execute().data or []
+    )
+    if not rows:
+        return "분석 요청이 없습니다. 기업명이나 6자리 코드를 입력해 주세요."
+    item = rows[0]
+    labels = {"pending": "시작 대기", "working": "분석 진행 중",
+              "sending": "완료 링크 전송 중", "sent": "완료", "uncertain": "전달 확인 필요",
+              "rejected": "요청 제외"}
+    stage = ""
+    if bridge.STATE.exists():
+        db = bridge.connect()
+        try:
+            local = db.execute(
+                "SELECT progress_stage,progress_updated_at,wake_sent_at FROM jobs WHERE id=?",
+                (item["update_id"],),
+            ).fetchone()
+            if local and local["progress_stage"] == "delayed":
+                stage = f"\n⚠️ 분석 시작 지연 · 자동 재시도 중\n최근 시도: {local['progress_updated_at']} (UTC)"
+            elif local and local["progress_stage"] in bridge.STAGES:
+                stage = f"\n단계: {bridge.STAGES[local['progress_stage']]}\n최근 갱신: {local['progress_updated_at']} (UTC)"
+                if local["progress_updated_at"] and item["status"] == "working":
+                    last = datetime.fromisoformat(local["progress_updated_at"])
+                    if datetime.now(timezone.utc) - last > timedelta(minutes=15):
+                        stage += "\n⚠️ 15분 이상 단계 갱신 없음 · 사용량/연결 확인 필요"
+            elif local and local["wake_sent_at"]:
+                stage = f"\nCodex 시작 요청: {local['wake_sent_at']} (UTC)"
+        finally:
+            db.close()
+    return (
+        f"📊 {item['company_name']} ({item['code']})\n"
+        f"상태: {labels.get(item['status'], item['status'])}{stage}\n"
+        "접수·분석은 컴퓨터와 Codex가 켜져 있을 때 진행됩니다."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -187,17 +234,18 @@ def handle_message(
         outcome["result"] = "무시(텍스트 없음)"
         return outcome
 
+    if text.lower() == "/status":
+        client.send_message(latest_analysis_status(chat_id), parse_mode=None)
+        outcome["result"] = "상태 조회"
+        return outcome
+
     if text.split()[0].lower() in {"/start", "/help"}:
         client.send_message(
             "🛡️ Heimdallr Call\n\n"
-            "종목명이나 6자리 종목코드를 보내면 그 종목의 실적 가속 판정을 보내준다.\n\n"
-            "예: 삼성전자 / 005930\n\n"
-            "· 기업매력도(산업·실적·PER·ROE·FCF 종합)\n"
-            "· 실적 원점수(A 성장가속 · B 수익성 · C 서프라이즈 · D 회계품질)\n"
-            "· 주가반영도(PRI) — 낮을수록 아직 안 오른 종목, 등급은 두 축 교차\n"
-            "· 후행 PER과 최근 4분기 순이익 기준 PER 병기\n\n"
-            "종목명·코드만 단독 입력하면 Kairos 심층 분석을 접수하고, "
-            "완료 후 Notion 링크를 보낸다."
+            "기업명·종목명이나 6자리 종목코드만 보내면 심층 분석을 접수합니다.\n"
+            "접수·조사·작성·검증 상태를 같은 메시지에 표시하고, 완료 후 Notion 링크를 보냅니다.\n\n"
+            "예: 삼성전자 / 005930\n"
+            "진행 확인: /status"
         )
         outcome["result"] = "도움말"
         return outcome
@@ -216,26 +264,43 @@ def handle_message(
 
     match = matches[0]
     outcome["matched"] = f"{match.name}({match.code}) via {match.how}"
-    kairos_note = ""
     if update_id is not None and direct and direct_company_request(message, match, chats):
         try:
             is_new = enqueue(update_id, message, match)
-            outcome["kairos"] = "접수" if is_new else "기존 요청"
-            if is_new:
-                kairos_note = "\n\n📑 Kairos 심층 분석 접수. 완료 후 Notion 링크를 보낸다."
         except Exception as exc:
             outcome["kairos"] = f"접수 실패({type(exc).__name__})"
-            kairos_note = "\n\n⚠️ Kairos 심층 분석 접수 실패. 잠시 뒤 다시 요청해 달라."
-    text_out, diag = build_report(match.code, analyze=analyze)
-    client.send_message(text_out + kairos_note)
-    outcome["result"] = "리포트 발송"
-    outcome.update(diag)
+            client.send_message("⚠️ 분석 접수에 실패했습니다. 잠시 뒤 기업명을 다시 보내 주세요.")
+            outcome["result"] = "접수 실패"
+            return outcome
+        outcome["kairos"] = "접수" if is_new else "기존 요청"
+        if is_new or receipt_message_id(update_id) is None:
+            receipt = client.send_message(
+                f"⏳ {match.name} ({match.code}) 기업 분석 접수\n"
+                "상태: 분석 시작 대기\n"
+                "시작 예상: 컴퓨터와 Codex가 켜져 있으면 보통 1~3분\n"
+                "완료 예상: 자료량에 따라 대략 30~90분 이상\n"
+                "진행 상태는 이 메시지에서 갱신됩니다. /status로도 확인할 수 있습니다.",
+                parse_mode=None,
+            )
+            try:
+                record_receipt(update_id, receipt["result"]["message_id"])
+            except Exception as exc:
+                outcome["receipt_tracking_error"] = type(exc).__name__
+        outcome["result"] = "분석 접수"
+        return outcome
+    client.send_message("기업명 또는 6자리 종목코드만 단독으로 입력해 주세요.")
+    outcome["result"] = "기업명 단독 입력 아님"
     return outcome
 
 
-def poll_once(client: TelegramClient, *, analyze: bool, timeout: int = 0) -> list[dict]:
-    universe = load_universe()
-    chats = allowed_chats()
+def poll_once(
+    client: TelegramClient, *, analyze: bool, timeout: int = 0,
+    universe: dict[str, str] | None = None, chats: set[str] | None = None,
+) -> list[dict]:
+    if universe is None:
+        universe = load_universe()
+    if chats is None:
+        chats = allowed_chats()
 
     updates = client.call(
         "getUpdates", {"timeout": timeout, "limit": BATCH}
@@ -244,6 +309,7 @@ def poll_once(client: TelegramClient, *, analyze: bool, timeout: int = 0) -> lis
         return []
 
     results: list[dict] = []
+    failed = False
     for upd in updates:
         direct = bool(upd.get("message"))
         msg = upd.get("message") or upd.get("edited_message")
@@ -257,10 +323,13 @@ def poll_once(client: TelegramClient, *, analyze: bool, timeout: int = 0) -> lis
                 )
             )
         except TelegramError as exc:
-            # 회신 실패로 같은 메시지에 갇히면 안 된다 — 기록하고 확정은 그대로 진행한다.
+            # 확인하지 않아 다음 주기에 접수 메시지를 다시 시도한다. DB update_id가 중복 분석을 막는다.
             results.append({"result": f"발송 실패: {exc}"})
+            failed = True
+            break
 
-    confirm(client, updates[-1]["update_id"])
+    if not failed:
+        confirm(client, updates[-1]["update_id"])
     return results
 
 
@@ -270,7 +339,7 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="대기 중인 것만 1회 처리")
     parser.add_argument("--watch", action="store_true", help="롱폴링 루프")
     parser.add_argument("--analyze", action="store_true",
-                        help="분석이 없으면 LLM 호출 (기본은 DB 수치만)")
+                        help="이전 호출과의 호환 옵션. 종목 요약 LLM은 호출하지 않음")
     args = parser.parse_args()
 
     line = "═" * 72
@@ -282,7 +351,7 @@ def main() -> int:
     if not client.is_dedicated_bot:
         print("✗ 공유 봇이다. 수신은 막혀 있다 — HEIMDALLR_TELEGRAM_BOT_TOKEN을 넣어라.")
         return 1
-    print(f"허용 chat: {sorted(allowed_chats())} · LLM 분석 {'ON' if args.analyze else 'OFF'}")
+    print(f"허용 chat: {sorted(allowed_chats())} · Kairos 요청 큐")
     print(line)
 
     if args.watch:
