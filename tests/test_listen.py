@@ -76,6 +76,12 @@ def test_dedicated_bot_may_poll():
     dedicated._ensure_allowed("getUpdates")  # 예외가 없어야 한다
 
 
+def test_dashboard_menu_is_allowed_without_opening_a_webhook_path():
+    dedicated = TelegramClient(token="9999999999:dummy", chat_id="1")
+    dedicated._ensure_allowed("setChatMenuButton")
+    assert "setWebhook" not in ALLOWED_METHODS
+
+
 def test_dedicated_bot_still_cannot_setwebhook():
     dedicated = TelegramClient(token="9999999999:dummy", chat_id="1")
     with pytest.raises(TelegramMethodNotAllowed):

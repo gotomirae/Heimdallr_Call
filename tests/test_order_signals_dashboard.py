@@ -129,3 +129,17 @@ def test_nondisclosure_and_truncation_are_exposed_not_inferred():
     assert limited is not None and limited["status"] == "limited"
     assert limited["truncated"] is False
     assert clipped is not None and clipped["truncated"] is True
+
+
+def test_every_fetched_report_has_an_explicit_order_status():
+    private, unmentioned = _run([
+        {"summary": True, "row": {"rcept_no": "1", "code": "000001",
+          "fiscal_year": 2026, "fiscal_quarter": 2,
+          "sections": {"매출 및 수주상황": "수주잔고는 영업상 비공개입니다."}}},
+        {"summary": True, "row": {"rcept_no": "2", "code": "000002",
+          "fiscal_year": 2026, "fiscal_quarter": 2,
+          "sections": {"매출 및 수주상황": "제품별 매출 실적을 기재한다."}}},
+    ])
+    assert private["status"] == "private" and private["statusLabel"] == "비공개·기재 생략"
+    assert unmentioned["status"] == "unmentioned"
+    assert unmentioned["backlogEok"] is None and unmentioned["newOrdersEok"] is None

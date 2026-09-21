@@ -9,9 +9,10 @@ import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
 import { type TimelineItem } from "@/components/TriggerTimeline";
 import AnalysisSection from "@/components/AnalysisSection";
+import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { deriveOrderDisclosureSignal, extractOrderDisclosureMetric } from "@/lib/orderSignals";
+import { deriveOrderDisclosureSignal, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -150,7 +151,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     year && quarter
       ? withDetailFallback("분기 컨센서스", getConsensus(code, year, quarter), null, detailWarnings)
       : Promise.resolve(null),
-    isGrowthAcceleration && year && quarter
+    year && quarter
       ? withDetailFallback("LLM 분석", getAnalysis(code, year, quarter), null, detailWarnings)
       : Promise.resolve(null),
     year
@@ -206,7 +207,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   //     분석 이후 실제 실적이 나왔기 때문이다.
   //   ★ 어느 분기 분석인지를 화면에 반드시 밝힌다 — 안 밝히면 옛 해석을
   //     이번 분기 해석으로 읽게 된다.
-  const fallback = isGrowthAcceleration && !analysisPayload
+  const fallback = !analysisPayload
     ? await withDetailFallback("최근 LLM 분석", getLatestAnalysis(code), null, detailWarnings)
     : null;
   const analysis = readAnalysis(analysisPayload ?? fallback?.payload ?? null);
@@ -222,7 +223,9 @@ export default async function StockPage({ params }: { params: { code: string } }
     ? funds.find((f) => f.fiscal_year === analysisYear && f.fiscal_quarter === analysisQuarter)
     : null;
   const analysisStage =
-    analysisMeta?.analysis_stage === "report_final"
+    analysisMeta?.analysis_stage === "dashboard_on_demand"
+      ? "사용자 요청 · 기업 투자판단 LLM 분석 완료"
+      : analysisMeta?.analysis_stage === "report_final"
       ? "(3단계) 정기보고서 후 5거래일·최근 10일 리포트 반영 완료"
       : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
         ? "(2단계) 분기/반기/사업보고서 공시 분석"
@@ -234,7 +237,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             ? "(2단계) 정기보고서 공시 분석 · 단계 메타 보강 대기"
             : "(1단계) 성장 가속 분석 대기";
   const analysisStageClass =
-    analysisMeta?.analysis_stage === "report_final"
+    analysisMeta?.analysis_stage === "dashboard_on_demand"
+      ? "border-violet-600 bg-violet-950/30 text-violet-100"
+      : analysisMeta?.analysis_stage === "report_final"
       ? "border-emerald-700 bg-emerald-950/30 text-emerald-200"
       : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
         ? "border-sky-700 bg-sky-950/30 text-sky-200"
@@ -247,6 +252,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     analysisMeta?.analysis_stage ??
       (storedAnalysis ? (analyzedFund?.is_estimate ? "preliminary" : "filing") : "")
   );
+  const isOnDemandAnalysis = analysisStageCode === "dashboard_on_demand";
   const analysisStageRank = analysisStageCode === "report_final"
     ? 3
     : analysisStageCode === "filing" || analysisStageCode === "final"
@@ -454,6 +460,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   const referencePeg = liveQuote ? naverLive.peg : null;
 
   const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
+  const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
   const actualChartPoints = toChartPoints(funds, CHART_QUARTERS).map((point, index) => {
     const source = funds.slice(-CHART_QUARTERS)[index];
@@ -648,7 +655,8 @@ export default async function StockPage({ params }: { params: { code: string } }
           disclosures={disclosures}
           fromDate={dailyFromDate}
           high52w={currentHigh52w}
-          priceAnalysis={analysis.pricePosition.priceHistory ?? analysis.pricePosition.reason}
+          priceAnalysis={analysis.pricePosition.priceHistory}
+          priceOutlook={analysis.pricePosition.reason}
         />
         <Note>네이버 일봉을 주간으로 접지 않고 그대로 표시하며, MACD(12·26·9)와 RSI(14)도 거래일 기준으로 계산한다. 세로선은 해당 분기의 첫 실적 공시일이다.</Note>
 
@@ -764,7 +772,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* ★★ 5. LLM 분석 — **분기 히스토리 바로 아래**다(사용자 지정 2026-08-22).
           숫자를 본 직후에 해석을 읽어야 대조가 된다. 밸류에이션·컨센서스를 지나
           맨 아래에 있으면 스크롤을 내리는 동안 방금 본 숫자를 잊는다. */}
-      {isGrowthAcceleration ? <Card
+      <Card
         id="llm-analysis"
         title="LLM 분석"
         note={
@@ -773,23 +781,38 @@ export default async function StockPage({ params }: { params: { code: string } }
             : undefined
         }
       >
+        {year && quarter && <AnalysisRequestButton
+          code={code}
+          year={year}
+          quarter={quarter}
+          hasAnalysis={!analysis.isEmpty}
+        />}
         <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
           {analysisStage}
         </p>
-        <div className="mb-3 grid gap-2 md:grid-cols-3">
-          {analysisSteps.map((step) => (
-            <div key={step.key} className={`rounded border p-3 ${step.tone}`}>
-              <div className="text-xs font-bold text-slate-100">{step.title}</div>
-              <div className="mt-1 text-[11px] leading-relaxed text-slate-300">시점: {step.trigger}</div>
-              <div className="mt-2 text-xs font-semibold text-slate-100">{step.status}</div>
+        {isOnDemandAnalysis ? (
+          <p className="mb-3 rounded border border-violet-700/70 bg-violet-950/20 px-3 py-2 text-xs leading-relaxed text-violet-100">
+            이 분석은 대시보드 요청으로 생성됐다. 기업 개요·실적 변화 원인·핵심 투자 아이디어·
+            위험·향후 확인 항목을 현재 저장된 재무·공시와 최신 공개 자료를 기준으로 해석한다.
+          </p>
+        ) : (
+          <>
+            <div className="mb-3 grid gap-2 md:grid-cols-3">
+              {analysisSteps.map((step) => (
+                <div key={step.key} className={`rounded border p-3 ${step.tone}`}>
+                  <div className="text-xs font-bold text-slate-100">{step.title}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-slate-300">시점: {step.trigger}</div>
+                  <div className="mt-2 text-xs font-semibold text-slate-100">{step.status}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <p className="mb-3 text-xs leading-relaxed text-slate-300">
-          각 단계는 같은 분기의 최신 해석으로 갱신된다. 1단계는 잠정 숫자, 2단계는 확정 재무와
-          정기보고서 발췌, 3단계는 정기보고서 뒤 5거래일 동안 나온 최근 10일 증권사 리포트를
-          반영한다. 시세 변화만으로는 재호출하지 않으며, 동일 단계·동일 근거의 실패도 반복 결제하지 않는다.
-        </p>
+            <p className="mb-3 text-xs leading-relaxed text-slate-300">
+              각 단계는 같은 분기의 최신 해석으로 갱신된다. 1단계는 잠정 숫자, 2단계는 확정 재무와
+              정기보고서 발췌, 3단계는 정기보고서 뒤 5거래일 동안 나온 최근 10일 증권사 리포트를
+              반영한다. 시세 변화만으로는 재호출하지 않으며, 동일 단계·동일 근거의 실패도 반복 결제하지 않는다.
+            </p>
+          </>
+        )}
         {removedFactualNumbers > 0 && (
           <p className="mb-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">
             입력에서 확인되지 않은 LLM 생성 숫자 {removedFactualNumbers}개를 자동 제거했다.
@@ -806,6 +829,13 @@ export default async function StockPage({ params }: { params: { code: string } }
             </strong>
           </p>
         )}
+        <div className="mb-4 rounded-lg border border-slate-700 bg-slate-950/40 p-4">
+          <div className="text-xs font-bold uppercase tracking-wide text-sky-200">기업 기본 개요</div>
+          <div className="mt-2 grid gap-3 text-sm md:grid-cols-2">
+            <div><span className="text-slate-400">산업·사업</span><p className="mt-1 leading-relaxed text-slate-100">{stock.industry ?? DASH}<br />{stock.products ?? "주요 제품 공개 정보 미수집"}</p></div>
+            <div><span className="text-slate-400">최근 실적 위치</span><p className="mt-1 leading-relaxed text-slate-100">매출 {eok(evaluated?.revenue)} · 영업이익 {eok(evaluated?.op)} · OPM {pct(evaluated?.opm)}<br />매출 YoY {pct(evaluated?.revenue_yoy)} · 영업이익 YoY {growthOrLabel(evaluated?.op_yoy, evaluated?.op_status_label)}</p></div>
+          </div>
+        </div>
         <AnalysisSection
           analysis={analysis}
           narrative={narrative}
@@ -819,16 +849,30 @@ export default async function StockPage({ params }: { params: { code: string } }
             roeNext: nextRoe,
           }}
         />
-      </Card> : <Card title="LLM 분석 제외">
-        <p className="text-sm text-slate-300">
-          이 종목은 현재 <strong className="text-slate-100">성장 가속</strong> 분류가 아니므로
-          데이터 수집·스크리닝·차트·공시 갱신은 계속 수행하고 LLM 분석만 실행하지 않는다.
-        </p>
-      </Card>}
+        {!isGrowthAcceleration && analysis.isEmpty && <p className="text-sm text-slate-300">
+          자동 분석 대상은 아니지만 위 버튼을 누르면 현재 분기 자료를 기준으로 기업 투자판단 분석을 요청할 수 있다.
+        </p>}
+      </Card>
 
-      {/* 공시에서 실제 수주 언어가 잡힌 종목에만 보인다. 목록 QoQ 컬럼이 아니다. */}
-      {orderSignal && (
-        <Card title="수주 확인 포인트" note={orderSignal.sourceLabel}>
+      {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
+      <Card title="수주잔고·신규수주" note="DART 정기보고서·주요계약 원문 기준">
+        {orderSummaries.length > 0 ? <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="text-left text-xs text-slate-300"><tr className="border-b border-slate-700">
+              <th className="py-2">분기</th><th>수주잔고</th><th>신규수주</th><th>공시 범위·상태</th><th>출처</th>
+            </tr></thead>
+            <tbody>{orderSummaries.map((row) => <tr key={row.rceptNo} className="border-b border-slate-800/70 align-top">
+              <td className="py-2 text-slate-100">{quarterLabel(row.year, row.quarter)}</td>
+              <td className="py-2 tabular-nums">{row.backlogEok == null ? DASH : `${num(row.backlogEok, 1)}억원`}</td>
+              <td className="py-2 tabular-nums">{row.newOrdersEok == null ? DASH : `${num(row.newOrdersEok, 1)}억원`}</td>
+              <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-slate-300">{row.scope}</span>}</td>
+              <td className="py-2"><a href={dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">DART 원문</a></td>
+            </tr>)}</tbody>
+          </table>
+        </div> : <div className="rounded border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-100">
+          최신 정기보고서 수주 원문 수집 대기 중이다. 전 종목 점진 수집 작업이 완료되면 수치·비공개·해당 없음 상태가 표시된다.
+        </div>}
+        {orderSignal && (
           <div className="rounded-lg border border-sky-800/70 bg-sky-950/25 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded border border-sky-600/70 bg-sky-900/30 px-2 py-0.5 text-xs font-semibold text-sky-100">
@@ -855,8 +899,9 @@ export default async function StockPage({ params }: { params: { code: string } }
               이어지는지 원문으로 대조한다.
             </Note>
           </div>
-        </Card>
-      )}
+        )}
+        <Note>수주총액을 신규수주로 바꾸지 않는다. 여러 사업부의 표를 임의 합산하지 않으며, 주요계약 합계는 전체 회사 수주잔고와 구분한다.</Note>
+      </Card>
 
       {/* 6. 컨센서스 대비 */}
       <Card title="컨센서스 대비">

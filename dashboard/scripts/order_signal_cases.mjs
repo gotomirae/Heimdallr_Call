@@ -7,7 +7,7 @@ import jitiPkg from "jiti";
 const here = dirname(fileURLToPath(import.meta.url));
 const createJiti = jitiPkg.createJiti ?? jitiPkg;
 const jiti = createJiti(fileURLToPath(import.meta.url), { interopDefault: true });
-const { deriveOrderDisclosureSignal, extractOrderDisclosureMetric } = jiti(resolve(here, "..", "lib", "orderSignals.ts"));
+const { deriveOrderDisclosureSignal, extractOrderDisclosureMetric, summarizeOrderDisclosure } = jiti(resolve(here, "..", "lib", "orderSignals.ts"));
 
 const input = await new Promise((done) => {
   let buf = "";
@@ -17,6 +17,7 @@ const input = await new Promise((done) => {
 });
 
 const cases = JSON.parse(input);
-process.stdout.write(JSON.stringify(cases.map((c) => c.metric
-  ? extractOrderDisclosureMetric(c.row)
+process.stdout.write(JSON.stringify(cases.map((c) => c.summary
+  ? summarizeOrderDisclosure(c.row)
+  : c.metric ? extractOrderDisclosureMetric(c.row)
   : deriveOrderDisclosureSignal(c.row, c.year, c.quarter))));

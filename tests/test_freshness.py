@@ -185,6 +185,21 @@ def test_legacy_excerpt_without_order_check_is_backfilled_once(monkeypatch):
     assert excerpt_run.targets(10, ["000001"]) == [filing]
 
 
+def test_all_universe_excerpt_scope_includes_gate_failures(monkeypatch):
+    """수주 전용 예약 수집은 게이트 탈락 종목도 최신 정기보고서를 받아야 한다."""
+    filing = {"code": "000099", "fiscal_year": 2026, "fiscal_quarter": 2,
+              "rcept_no": "20260814099", "report_nm": "반기보고서", "disclosed_at": "2026-08-14"}
+    tables = {
+        "earnings_disclosures": [filing],
+        "disclosure_excerpts": [],
+        "screen_results": [{"code": "000001", "gate_passed": True}],
+    }
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    assert excerpt_run.targets(10, None) == []
+    assert excerpt_run.targets(10, None, all_universe=True) == [filing]
+
+
 def test_analysis_refreshes_changed_facts_once(monkeypatch):
     q = {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2, "revenue": 100, "is_estimate": False}
     a = {**q, "payload": {"_heimdallr": {"analysis_stage": "final", "facts_hash": facts_hash([q], None)}}}

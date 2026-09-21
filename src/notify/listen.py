@@ -352,6 +352,15 @@ def main() -> int:
         print("✗ 공유 봇이다. 수신은 막혀 있다 — HEIMDALLR_TELEGRAM_BOT_TOKEN을 넣어라.")
         return 1
     print(f"허용 chat: {sorted(allowed_chats())} · Kairos 요청 큐")
+    try:
+        from src.config.constants import DASHBOARD_URL_DEFAULT
+        from src.utils.env import optional_env
+
+        client.set_dashboard_menu(optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT))
+        print("텔레그램 고정 메뉴: 📊 Heimdallr 대시보드 ✓")
+    except Exception as exc:
+        # 메뉴 설정 장애가 기업명 수신을 멈추면 안 된다. 다음 폴링에서 다시 시도한다.
+        print(f"텔레그램 고정 메뉴 설정 보류: {type(exc).__name__}")
     print(line)
 
     if args.watch:

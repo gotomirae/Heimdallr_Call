@@ -38,6 +38,15 @@ AXIS_MISSING_REASON = {
 
 #: PRI 항목 — `src/screener/pri.py`의 PRI_NEW_WEIGHTS와 같아야 한다.
 PRI_ITEMS = (
+    ("earnings_reaction", "실적반응", 20),
+    ("expectation_gap", "이익전망", 20),
+    ("earnings_vs_multiple", "이익/멀티플", 20),
+    ("valuation_burden", "밸류부담", 20),
+    ("momentum_overheat", "모멘텀", 20),
+)
+
+# PRI 3.0 저장 행을 읽는 호환 표시. 새 계산은 위 다섯 항목만 쓴다.
+PRI_V3_ITEMS = (
     ("event", "실적초과반응", 15),
     ("revision", "전망·주가괴리", 10),
     ("driver", "멀티플주도", 15),
@@ -414,7 +423,9 @@ def pri_block(ctx: dict) -> list[str]:
     )
 
     reflected, pending, unmeasured = [], [], []
-    items = PRI_ITEMS if any(key in parts for key, _, _ in PRI_ITEMS) else (
+    items = PRI_ITEMS if any(key in parts for key, _, _ in PRI_ITEMS) else PRI_V3_ITEMS if any(
+        key in parts for key, _, _ in PRI_V3_ITEMS
+    ) else (
         ("p1", "52주고점", 25),
         ("p2", "발표일대비", 25),
         ("p3", "9Q PER", 20),

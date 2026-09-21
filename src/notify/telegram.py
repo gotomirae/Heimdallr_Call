@@ -33,7 +33,7 @@ API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
 #: ★ 이 목록 밖의 메서드는 호출하지 않는다. `setWebhook`이 여기 없는 것이 요점이다.
 #:   `getUpdates`는 들어 있지만, 아래 봇 분리 검사를 통과해야 실제로 호출된다.
-ALLOWED_METHODS = frozenset({"sendMessage", "editMessageText", "getMe", "getUpdates"})
+ALLOWED_METHODS = frozenset({"sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton"})
 
 #: 수신(폴링)에만 해당하는 메서드. 공유 봇에서는 이것들을 막는다.
 RECEIVING_METHODS = frozenset({"getUpdates"})
@@ -196,6 +196,20 @@ class TelegramClient:
         body = self.call("sendMessage", payload)
         self.stats.sent += 1
         return body
+
+    def set_dashboard_menu(self, url: str) -> dict:
+        """개인 채팅 하단 메뉴에 대시보드를 고정한다.
+
+        웹훅·업데이트 소비와 무관한 Bot API 메뉴 설정이며 같은 값으로 반복 호출해도 멱등이다.
+        """
+        return self.call("setChatMenuButton", {
+            "chat_id": self.chat_id,
+            "menu_button": {
+                "type": "web_app",
+                "text": "📊 Heimdallr 대시보드",
+                "web_app": {"url": url.rstrip("/")},
+            },
+        })
 
 
 def esc(value) -> str:

@@ -1,0 +1,39 @@
+# PRD Ref: §7 · §9.1 — 종목 상세 클릭형 LLM 분석
+name: dashboard_analysis
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: dashboard-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
+      OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
+      OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
+      OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
+      OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
+      OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
+      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
+      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - run: python -m src.analysis.dashboard_requests --limit 3 --max-seconds 240

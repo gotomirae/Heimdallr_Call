@@ -53,22 +53,20 @@ D1_CFO_TO_OP_MIN = 0.5  # TTM CFO / TTM 영업이익 ≥ 0.5
 MIN_ESTIMATES = 2  # 추정기관 1개는 컨센서스가 아니다
 
 # ═══ PRI (주가반영도, 0~100 · 낮을수록 아직 안 올랐음) ═══
-# PRI 3.0은 이미 움직인 가격뿐 아니라 그 가격을 정당화할 이익 성장까지 함께 잰다.
-# 데이터 신뢰도는 점수에 합산하지 않고 confidence로 별도 표시한다.
+# PRI 4.0은 주가에 영향을 주는 원자료 8개를 투자자가 읽는 핵심 5개 요인으로 묶는다.
+# 원자료를 버리지 않고 각 요인 안에서 측정된 값만 정규화한다. 데이터 신뢰도는
+# 점수에 합산하지 않고 confidence로 별도 표시한다.
 PRI_NEW_WEIGHTS = {
-    "event": 15,
-    "revision": 10,
-    "driver": 15,
-    "implied_growth": 20,
-    "valuation_history": 10,
-    "valuation_peer": 10,
-    "relative": 10,
-    "overheat": 10,
+    "earnings_reaction": 20,
+    "expectation_gap": 20,
+    "earnings_vs_multiple": 20,
+    "valuation_burden": 20,
+    "momentum_overheat": 20,
 }
-# 숫자 계산 하한과 신뢰도 경고는 다른 계약이다. PRI 3.0의 45점은 적어도
-# 세 개 독립 축이 있어 단일 신호 오판을 막는다. 80점 미만은 숫자를
+# 숫자 계산 하한과 신뢰도 경고는 다른 계약이다. PRI 4.0의 60점은 적어도
+# 세 개 핵심 요인이 있어 단일 신호 오판을 막는다. 80점 미만은 숫자를
 # 숨기지 않고 참고용 경고를 붙인다(T146).
-PRI_CORE_MIN_DENOMINATOR = 45
+PRI_CORE_MIN_DENOMINATOR = 60
 PRI_MIN_CONFIDENCE = 80
 PRI_EVENT_ANCHORS_PCT = (-20.0, 30.0)
 PRI_REVISION_GAP_ANCHORS_PCT = (-30.0, 30.0)

@@ -262,30 +262,47 @@ def overheat_score_pct(
     return sum(measured) / len(measured), len(measured)
 
 
-def _compute_new(data: PriInput) -> PriResult:
-    """PRI 3.0.
+def _factor(values: list[float | None], maxima: list[float], full: float) -> float | None:
+    """한 핵심 요인 안에서 측정된 원자료만 정규화한다.
 
-    여덟 개의 가격·성장·밸류·과열 축을 점수화하고 데이터 신뢰도는
+    원자료 하나가 없다고 0점을 주면 정보 부재를 미반영으로 오인한다. 측정된 원점수와
+    그 원점수의 최대 배점만 합쳐 ``full``로 환산한다.
+    """
+    measured = [(value, maximum) for value, maximum in zip(values, maxima) if value is not None]
+    if not measured:
+        return None
+    return sum(value for value, _ in measured) / sum(maximum for _, maximum in measured) * full
+
+
+def _compute_new(data: PriInput) -> PriResult:
+    """PRI 4.0.
+
+    여덟 원자료를 주가에 영향을 주는 다섯 핵심 요인으로 묶고 데이터 신뢰도는
     ``confidence``로 별도 표시한다. 신뢰도를 PRI에 더하면 데이터가 부족한
     종목이 실제보다 저반영처럼 보이는 T31 유형의 오류가 재발한다.
     """
+    primitives = {
+        "event": _linear(data.announcement_excess_return_pct, PRI_EVENT_ANCHORS_PCT, 15),
+        "revision": _linear(data.earnings_revision_price_gap_pct, PRI_REVISION_GAP_ANCHORS_PCT, 10),
+        "driver": _linear(data.multiple_expansion_share_pct, PRI_DRIVER_SHARE_ANCHORS_PCT, 15),
+        "implied_growth": _linear(data.implied_growth_gap_pct, PRI_IMPLIED_GROWTH_GAP_ANCHORS_PCT, 20),
+        "valuation_history": _linear(data.valuation_reflection_pct, PRI_VALUATION_ANCHORS_PCT, 10),
+        "valuation_peer": _linear(data.peer_peg_premium_pct, PRI_PEER_PEG_PREMIUM_ANCHORS_PCT, 10),
+        "relative": _linear(data.relative_return_pct, PRI_RELATIVE_RETURN_ANCHORS_PCT, 10),
+        "overheat": _linear(data.overheat_score_pct, PRI_OVERHEAT_ANCHORS_PCT, 10),
+    }
     parts = {
-        "event": _linear(data.announcement_excess_return_pct, PRI_EVENT_ANCHORS_PCT,
-                          PRI_NEW_WEIGHTS["event"]),
-        "revision": _linear(data.earnings_revision_price_gap_pct, PRI_REVISION_GAP_ANCHORS_PCT,
-                             PRI_NEW_WEIGHTS["revision"]),
-        "driver": _linear(data.multiple_expansion_share_pct, PRI_DRIVER_SHARE_ANCHORS_PCT,
-                           PRI_NEW_WEIGHTS["driver"]),
-        "implied_growth": _linear(data.implied_growth_gap_pct, PRI_IMPLIED_GROWTH_GAP_ANCHORS_PCT,
-                                   PRI_NEW_WEIGHTS["implied_growth"]),
-        "valuation_history": _linear(data.valuation_reflection_pct, PRI_VALUATION_ANCHORS_PCT,
-                                      PRI_NEW_WEIGHTS["valuation_history"]),
-        "valuation_peer": _linear(data.peer_peg_premium_pct, PRI_PEER_PEG_PREMIUM_ANCHORS_PCT,
-                                   PRI_NEW_WEIGHTS["valuation_peer"]),
-        "relative": _linear(data.relative_return_pct, PRI_RELATIVE_RETURN_ANCHORS_PCT,
-                             PRI_NEW_WEIGHTS["relative"]),
-        "overheat": _linear(data.overheat_score_pct, PRI_OVERHEAT_ANCHORS_PCT,
-                             PRI_NEW_WEIGHTS["overheat"]),
+        "earnings_reaction": _factor([primitives["event"]], [15], 20),
+        "expectation_gap": _factor(
+            [primitives["revision"], primitives["implied_growth"]], [10, 20], 20
+        ),
+        "earnings_vs_multiple": _factor([primitives["driver"]], [15], 20),
+        "valuation_burden": _factor(
+            [primitives["valuation_history"], primitives["valuation_peer"]], [10, 10], 20
+        ),
+        "momentum_overheat": _factor(
+            [primitives["relative"], primitives["overheat"]], [10, 10], 20
+        ),
     }
     inputs = {
         "announcement_excess_return_pct": data.announcement_excess_return_pct,
@@ -324,7 +341,7 @@ def _compute_new(data: PriInput) -> PriResult:
         excluded=tuple(excluded),
         inputs=inputs,
         confidence=confidence,
-        mode="v3",
+        mode="v4",
     )
 
 

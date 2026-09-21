@@ -29,6 +29,18 @@ export interface OrderDisclosureMetric {
   scope: string;
 }
 
+export interface OrderDisclosureSummary {
+  year: number;
+  quarter: number;
+  rceptNo: string;
+  backlogEok: number | null;
+  newOrdersEok: number | null;
+  scope: string | null;
+  status: "measured" | "private" | "not_applicable" | "mentioned" | "truncated" | "unmentioned";
+  statusLabel: string;
+  evidence: string | null;
+}
+
 /**
  * DART 정기보고서의 수주 표에서 단위와 명시적인 단일 값이 모두 확인될 때만 쓴다.
  * 수주총액(누적)을 임의로 신규수주로 바꾸거나 단위를 추측하지 않는다.
@@ -115,4 +127,42 @@ export function deriveOrderDisclosureSignal(
     };
   }
   return null;
+}
+
+/** 모든 종목·분기의 수주 표시 계약. 값이 없어도 왜 없는지 숨기지 않는다. */
+export function summarizeOrderDisclosure(row: DisclosureExcerptRow): OrderDisclosureSummary | null {
+  if (row.fiscal_year == null || row.fiscal_quarter == null || !row.rcept_no) return null;
+  const metric = extractOrderDisclosureMetric(row);
+  const signal = deriveOrderDisclosureSignal(row, row.fiscal_year, row.fiscal_quarter);
+  if (metric) return {
+    year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok: metric.backlogEok, newOrdersEok: metric.newOrdersEok, scope: metric.scope,
+    status: "measured", statusLabel: "공시 수치 확인", evidence: signal?.evidence ?? null,
+  };
+  const evidence = signal?.evidence ?? null;
+  if (signal?.status === "limited" && evidence && /해당사항\s*없음|수주산업.{0,12}아니/.test(evidence)) {
+    return { year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+      backlogEok: null, newOrdersEok: null, scope: null, status: "not_applicable",
+      statusLabel: "해당 없음", evidence };
+  }
+  if (signal?.status === "limited") return {
+    year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok: null, newOrdersEok: null, scope: null, status: "private",
+    statusLabel: "비공개·기재 생략", evidence,
+  };
+  if (signal?.truncated) return {
+    year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok: null, newOrdersEok: null, scope: null, status: "truncated",
+    statusLabel: "발췌 범위 밖·원문 확인 필요", evidence,
+  };
+  if (signal) return {
+    year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok: null, newOrdersEok: null, scope: null, status: "mentioned",
+    statusLabel: "수주 언급·단일 수치 미확인", evidence,
+  };
+  return {
+    year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok: null, newOrdersEok: null, scope: null, status: "unmentioned",
+    statusLabel: "정기보고서에서 수주 수치 미확인", evidence: null,
+  };
 }

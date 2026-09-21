@@ -606,8 +606,8 @@ def test_pri_measured_when_two_25_point_parts_are_combined():
     assert r.pri is not None
 
 
-def test_pri_v3_scores_eight_axes_and_separate_confidence():
-    """PRI 3.0 손계산: 8축 만점이면 100, 신뢰도는 점수에 더하지 않는다."""
+def test_pri_v4_scores_five_factors_and_separate_confidence():
+    """PRI 4.0 손계산: 5개 핵심 요인 만점이면 100, 신뢰도는 점수에 더하지 않는다."""
     r = compute_pri(
         PriInput(
             announcement_excess_return_pct=30.0,
@@ -620,18 +620,20 @@ def test_pri_v3_scores_eight_axes_and_separate_confidence():
             overheat_score_pct=80.0,
         )
     )
-    assert r.mode == "v3"
+    assert r.mode == "v4"
     assert r.parts == pytest.approx({
-        "event": 15, "revision": 10, "driver": 15, "implied_growth": 20,
-        "valuation_history": 10, "valuation_peer": 10, "relative": 10,
-        "overheat": 10,
+        "earnings_reaction": 20,
+        "expectation_gap": 20,
+        "earnings_vs_multiple": 20,
+        "valuation_burden": 20,
+        "momentum_overheat": 20,
     })
     assert r.denominator == 100
     assert r.confidence == 100
     assert r.pri == pytest.approx(100)
 
 
-def test_pri_v3_computes_with_three_independent_core_axes():
+def test_pri_v4_computes_with_three_independent_core_factors():
     r = compute_pri(
         PriInput(
             announcement_excess_return_pct=0.0,
@@ -639,12 +641,12 @@ def test_pri_v3_computes_with_three_independent_core_axes():
             implied_growth_gap_pct=0.0,
         )
     )
-    assert r.mode == "v3"
-    assert r.confidence == 50
+    assert r.mode == "v4"
+    assert r.confidence == 60
     assert r.pri is not None
 
 
-def test_pri_v3_does_not_decide_from_four_ten_point_supporting_axes():
+def test_pri_v4_groups_supporting_inputs_without_counting_them_twice():
     r = compute_pri(
         PriInput(
             valuation_reflection_pct=0.0,

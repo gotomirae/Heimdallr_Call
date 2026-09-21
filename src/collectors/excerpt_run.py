@@ -11,8 +11,9 @@
 ★ **이미 받은 건은 건너뛴다.** 정기보고서는 한 번 나오면 바뀌지 않는다
    (정정공시는 접수번호가 다르므로 별도 행이 된다).
 
-★ 대상은 **게이트를 통과한 종목의 정기보고서**다. 전 종목을 받으면 1,300건 × 30초 =
-   11시간이고, 분석하지 않는 종목의 발췌는 쓰이지 않는다.
+★ 기본 대상은 게이트 통과 종목이다. `--all-universe`는 대시보드 수주잔고·신규수주를
+   전 종목에 최대한 채우는 별도 예약 작업에서만 사용한다. 시간 예산으로 끊고 완료한
+   접수번호는 건너뛰므로 여러 날에 걸쳐 누적된다.
 """
 
 from __future__ import annotations
@@ -37,7 +38,13 @@ def is_periodic(report_nm: str | None) -> bool:
     return bool(report_nm) and any(k in report_nm for k in PERIODIC_KEYWORDS)
 
 
-def targets(limit: int, codes: list[str] | None, *, refresh_orders: bool = False) -> list[dict]:
+def targets(
+    limit: int,
+    codes: list[str] | None,
+    *,
+    refresh_orders: bool = False,
+    all_universe: bool = False,
+) -> list[dict]:
     """받을 공시 목록. 게이트 통과 종목 · 최신 정기보고서 우선."""
     disclosures = [
         d for d in select_all(
@@ -60,7 +67,7 @@ def targets(limit: int, codes: list[str] | None, *, refresh_orders: bool = False
     if codes:
         wanted = set(codes)
         disclosures = [d for d in disclosures if d["code"] in wanted]
-    else:
+    elif not all_universe:
         # 게이트 통과 종목만. 분석하지 않는 종목의 발췌는 쓰이지 않는다.
         passed = {
             s["code"] for s in select_all("screen_results", "code,gate_passed")
@@ -110,6 +117,11 @@ def main() -> int:
     parser.add_argument("--codes", help="쉼표로 구분한 종목코드(지정하면 그것만)")
     parser.add_argument("--save", action="store_true", help="DB에 저장")
     parser.add_argument("--refresh-orders", action="store_true", help="--codes의 최신 공시 원문을 다시 읽어 수주 표를 갱신")
+    parser.add_argument(
+        "--all-universe",
+        action="store_true",
+        help="전 유니버스 최신 정기보고서를 점진 수집(수주 대시보드 전용 예약 작업)",
+    )
     # ★ 건수가 아니라 **시간**으로 끊는다. 원문 크기가 종목마다 3~6MB로 달라
     #   건수만으로는 워크플로가 얼마나 걸릴지 예측할 수 없다.
     parser.add_argument("--max-seconds", type=float, default=0,
@@ -119,7 +131,12 @@ def main() -> int:
     codes = [c.strip() for c in args.codes.split(",")] if args.codes else None
     if args.refresh_orders and not codes:
         parser.error("--refresh-orders에는 --codes로 갱신할 종목을 지정해야 한다")
-    rows = targets(args.limit, codes, refresh_orders=args.refresh_orders)
+    rows = targets(
+        args.limit,
+        codes,
+        refresh_orders=args.refresh_orders,
+        all_universe=args.all_universe,
+    )
     print(f"발췌 대상 {len(rows)}건 (이미 받은 건은 제외했다)")
     if not rows:
         return 0

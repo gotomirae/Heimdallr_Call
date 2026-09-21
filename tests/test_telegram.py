@@ -41,7 +41,7 @@ def test_webhook_methods_are_blocked(method):
 
 
 def test_allowlist_contains_no_webhook_method():
-    assert ALLOWED_METHODS == {"sendMessage", "editMessageText", "getMe", "getUpdates"}
+    assert ALLOWED_METHODS == {"sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton"}
     assert "setWebhook" not in ALLOWED_METHODS
     for method in ALLOWED_METHODS:
         assert "webhook" not in method.lower()

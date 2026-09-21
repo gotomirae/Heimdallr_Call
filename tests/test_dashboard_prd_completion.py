@@ -199,14 +199,15 @@ def test_pri_five_inputs_and_requested_history_are_visible():
         assert removed not in STOCK
 
 
-def test_pri_v3_answers_growth_driver_peer_value_and_overheat_questions():
+def test_pri_v4_exposes_five_price_reflection_factors_and_underlying_evidence():
     for label in (
-        "내재 성장률 갭", "주가 상승 이유", "성장 1단위당 가격", "과열 여부",
-        "멀티플 팽창 주도", "이익 성장 주도", "미래 매수자를 예측하지 않고",
+        "실적 발표 반응", "이익 전망 반영", "이익 성장 대 멀티플",
+        "밸류에이션 부담", "가격 모멘텀·과열",
     ):
         assert label in PRI_BREAKDOWN
     for key in (
-        "driver", "implied_growth", "valuation_history", "valuation_peer", "overheat",
+        "earnings_reaction", "expectation_gap", "earnings_vs_multiple",
+        "valuation_burden", "momentum_overheat",
     ):
         assert f'key: "{key}"' in TYPES
 
@@ -314,8 +315,9 @@ def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_vis
     assert "지난 4개 분기 경영진 내러티브 검증" in ANALYSIS_SECTION
 
 
-def test_only_growth_acceleration_renders_llm_and_links_are_exact():
-    assert 'isGrowthAcceleration ? <Card' in STOCK
+def test_every_stock_can_request_llm_analysis_and_links_are_exact():
+    assert "<AnalysisRequestButton" in STOCK
+    assert "자동 분석 대상은 아니지만 위 버튼을 누르면" in STOCK
     assert "(1단계) 잠정실적 발표 초기 분석" in STOCK
     assert "(2단계) 분기/반기/사업보고서 공시 분석" in STOCK
     assert "(3단계) 정기보고서 후 5거래일·최근 10일 리포트 반영 완료" in STOCK

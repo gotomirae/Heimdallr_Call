@@ -37,11 +37,12 @@ EXPECTED_TABLES = (
     "outcome_tracking",
     "notifications",
     "kairos_requests",
+    "dashboard_analysis_requests",
     "cost_log",
 )
 
 # 개인 Telegram 요청과 비용은 anon에게 노출하지 않는다.
-ANON_PRIVATE = ("cost_log", "kairos_requests")
+ANON_PRIVATE = ("cost_log", "kairos_requests", "dashboard_analysis_requests")
 ANON_READABLE = tuple(t for t in EXPECTED_TABLES if t not in ANON_PRIVATE)
 
 

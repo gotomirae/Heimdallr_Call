@@ -21,14 +21,28 @@ import type { NaverDailyPrice } from "@/lib/naver";
 
 const tooltipStyle = { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 6 };
 
-function Explanation({ item, evidence }: { item: MetricMeaning; evidence?: string | null }) {
+function causalSegments(text: string): string[] {
+  return text
+    .split(/\n+|(?<=\.)\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function Explanation({ item, evidence, outlook }: { item: MetricMeaning; evidence?: string | null; outlook?: string | null }) {
   return <div className="mt-2 rounded border border-slate-800 bg-slate-900/60 p-3">
     <div className="text-[11px] font-bold text-sky-200">현재 위치 · {item.label}</div>
     <div className="mt-0.5 text-sm font-semibold text-slate-100">{item.value}</div>
     <p className="mt-1 text-xs leading-relaxed text-slate-300">{item.meaning}</p>
-    {evidence && <p className="mt-2 border-l-2 border-violet-500/70 pl-2 text-xs leading-relaxed text-slate-200">
-      <strong className="text-violet-200">하락·상승 원인 분석 · </strong>{evidence}
-    </p>}
+    {evidence && <div className="mt-3 rounded border border-violet-800/70 bg-violet-950/20 p-3">
+      <strong className="text-xs text-violet-200">주요 시기별 주가 상승·하락 원인</strong>
+      <ol className="mt-2 space-y-2 text-xs leading-relaxed text-slate-100">
+        {causalSegments(evidence).map((segment, index) => <li key={`${index}-${segment.slice(0, 24)}`} className="flex gap-2">
+          <span className="font-bold text-violet-300">{index + 1}</span><span>{segment}</span>
+        </li>)}
+      </ol>
+    </div>}
+    {outlook && <p className="mt-2 border-l-2 border-amber-400 pl-2 text-xs leading-relaxed text-amber-100"><strong>현재 반영 수준·향후 전망 · </strong>{outlook}</p>}
     {item.action && <p className="mt-2 text-xs leading-relaxed text-emerald-200"><strong>투자전략 · </strong>{item.action}</p>}
     <p className="mt-1 text-[11px] leading-relaxed text-amber-200">다음 확인: {item.watch}</p>
   </div>;
@@ -54,12 +68,14 @@ export default function DailyPriceChart({
   fromDate,
   high52w,
   priceAnalysis,
+  priceOutlook,
 }: {
   points: NaverDailyPrice[];
   disclosures: DisclosureRow[];
   fromDate?: string;
   high52w?: number | null;
   priceAnalysis?: string | null;
+  priceOutlook?: string | null;
 }) {
   // MACD 워밍업을 먼저 계산하고 화면 기간을 자른다. 먼저 자르면 첫 34거래일 지표가 비게 된다.
   const all = technicalIndicators(normalizeDailyRows(points));
@@ -85,7 +101,7 @@ export default function DailyPriceChart({
         {marks.map((mark) => <ReferenceLine key={`${mark.date}-${mark.title}`} x={mark.date} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: mark.title.split(" · ")[0], position: "insideTopLeft", fill: "#fbbf24", fontSize: 9 }} />)}
         <Line dataKey="close" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
       </LineChart></ResponsiveContainer></div>
-      <Explanation item={price} evidence={priceAnalysis} />
+      <Explanation item={price} evidence={priceAnalysis} outlook={priceOutlook} />
     </div>
     <div>
       <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-200">

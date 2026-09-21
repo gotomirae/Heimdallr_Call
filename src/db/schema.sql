@@ -268,6 +268,24 @@ CREATE TABLE IF NOT EXISTS kairos_requests (
 CREATE INDEX IF NOT EXISTS kairos_requests_status_created_idx
   ON kairos_requests (status, created_at);
 
+-- 종목 상세의 사용자가 누른 LLM 분석 요청. 공개 브라우저는 서버 API를 거치며,
+-- 실제 유료 호출은 GitHub Actions worker가 비용 가드 뒤에서 처리한다.
+CREATE TABLE IF NOT EXISTS dashboard_analysis_requests (
+  id BIGSERIAL PRIMARY KEY,
+  request_key TEXT NOT NULL UNIQUE,
+  code TEXT NOT NULL REFERENCES krx_universe(code),
+  fiscal_year INT NOT NULL,
+  fiscal_quarter INT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'working', 'deferred', 'completed', 'failed')),
+  error TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  claimed_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS dashboard_analysis_requests_status_created_idx
+  ON dashboard_analysis_requests (status, requested_at);
+
 CREATE TABLE IF NOT EXISTS cost_log (
   id BIGSERIAL PRIMARY KEY, model TEXT,
   input_tokens INT, cache_write_tokens INT, cached_tokens INT, output_tokens INT,
@@ -287,6 +305,7 @@ CREATE INDEX IF NOT EXISTS cost_log_env_created_idx ON cost_log (env, created_at
 -- ═══════════════════════════════════════════════════════════════════
 ALTER TABLE krx_universe            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kairos_requests          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard_analysis_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quarterly_fundamentals  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE consensus_snapshots     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE earnings_disclosures    ENABLE ROW LEVEL SECURITY;

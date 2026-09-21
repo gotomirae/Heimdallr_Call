@@ -208,14 +208,26 @@ export function PriBreakdown({
   const parts = detail?.parts ?? {};
   const inputs = detail?.inputs ?? {};
   const denominator = detail?.denominator ?? 0;
-  const isV3 = detail?.mode === "v3" || Object.prototype.hasOwnProperty.call(parts, "driver");
+  const isV4 = detail?.mode === "v4" || Object.prototype.hasOwnProperty.call(parts, "earnings_reaction");
+  const isV3 = !isV4 && (detail?.mode === "v3" || Object.prototype.hasOwnProperty.call(parts, "driver"));
   const isV2 = !isV3 && (detail?.mode === "v2" || Object.prototype.hasOwnProperty.call(parts, "event"));
-  const isModern = isV3 || isV2;
+  const isModern = isV4 || isV3 || isV2;
   const confidence = detail?.confidence ?? (isModern ? denominator : null);
   const minConfidence = Number(constants.pri.min_confidence ?? 80);
-  const displayParts = isV3
+  const displayParts = isV4
     ? PRI_PARTS
-    : isV2
+    : isV3
+      ? [
+          { key: "event", label: "실적 발표 초과반응", max: 15 },
+          { key: "revision", label: "전망·주가 괴리", max: 10 },
+          { key: "driver", label: "상승 원인", max: 15 },
+          { key: "implied_growth", label: "내재 성장률 갭", max: 20 },
+          { key: "valuation_history", label: "자기 역사 밸류", max: 10 },
+          { key: "valuation_peer", label: "피어 성장단가", max: 10 },
+          { key: "relative", label: "중기 상대 주가", max: 10 },
+          { key: "overheat", label: "단기 과열", max: 10 },
+        ]
+      : isV2
       ? [
           { key: "event", label: "실적 발표 초과반응", max: 30 },
           { key: "revision", label: "전망·주가 괴리", max: 30 },
@@ -229,8 +241,8 @@ export function PriBreakdown({
           { key: "p4", label: "외국인 5일", max: 10 },
           { key: "p5", label: "RSI", max: 20 },
         ];
-  const priceReturn = inputs.price_return_12m_pct;
-  const multipleShare = inputs.multiple_expansion_share_pct;
+  const priceReturn = inputs.price_return_12m_pct as number | null | undefined;
+  const multipleShare = inputs.multiple_expansion_share_pct as number | null | undefined;
   const driverLabel = priceReturn == null
     ? "상승 원인 미측정"
     : priceReturn <= 0
@@ -303,7 +315,36 @@ export function PriBreakdown({
         })}
       </div>
       <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
-        {isV3 ? (
+        {isV4 ? (
+          <>
+            <div className="rounded border border-sky-800/70 bg-sky-950/20 p-2">
+              <strong>① 실적 발표 반응</strong>
+              <div>발표 후 시장 대비 {num(inputs.announcement_excess_return_pct as number | null, 1)}%p → {num(parts.earnings_reaction, 1)}/20</div>
+              <div className="text-slate-300">실적 공개 직후 시장보다 얼마나 먼저 움직였는지 본다.</div>
+            </div>
+            <div className="mt-2 rounded border border-emerald-800/70 bg-emerald-950/20 p-2">
+              <strong>② 이익 전망 반영</strong>
+              <div>주가·이익전망 괴리 {num(inputs.earnings_revision_price_gap_pct as number | null, 1)}%p · 내재 성장률 갭 {num(inputs.implied_growth_gap_pct as number | null, 1)}%p → {num(parts.expectation_gap, 1)}/20</div>
+              <div className="text-slate-300">가격 상승이 실제 이익 전망 개선보다 앞섰는지 함께 확인한다.</div>
+            </div>
+            <div className="mt-2 rounded border border-violet-800/70 bg-violet-950/20 p-2">
+              <strong>③ 이익 성장 대 멀티플</strong>
+              <div>12개월 주가 {num(priceReturn as number | null, 1)}% · TTM 이익 {num(inputs.earnings_growth_12m_pct as number | null, 1)}% · 멀티플 몫 {num(multipleShare as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
+              <div className="text-slate-300">주가 상승이 이익 증가로 설명되는지, 기대 배수 확장에 의존하는지 구분한다.</div>
+            </div>
+            <div className="mt-2 rounded border border-amber-800/70 bg-amber-950/20 p-2">
+              <strong>④ 밸류에이션 부담</strong>
+              <div>자기 역사 대비 {num(inputs.valuation_reflection_pct as number | null, 1)}% · 피어 성장단가 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
+              <div className="text-slate-300">같은 회사의 과거와 같은 산업 피어보다 성장에 비싼 값을 지불하는지 본다.</div>
+            </div>
+            <div className="mt-2 rounded border border-rose-800/70 bg-rose-950/20 p-2">
+              <strong>⑤ 가격 모멘텀·과열</strong>
+              <div>중기 지수 대비 {num(inputs.relative_return_pct as number | null, 1)}%p · 과열 합성 {num(inputs.overheat_score_pct as number | null, 1)}/100 · RSI {num(inputs.rsi_14 as number | null, 1)} → {num(parts.momentum_overheat, 1)}/20</div>
+              <div className="text-slate-300">중기 선행 상승과 최근 단기 쏠림을 한 항목에서 확인한다.</div>
+            </div>
+            <div className="mt-2 text-slate-100">PRI = 측정 요인 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 세 요인 미만이면 판정하지 않는다.</div>
+          </>
+        ) : isV3 ? (
           <>
             <div><strong>실적 발표 초과반응</strong> {num(inputs.announcement_excess_return_pct, 1)}%p → {num(parts.event, 1)}/15</div>
             <div><strong>전망·주가 괴리</strong> {num(inputs.earnings_revision_price_gap_pct, 1)}%p → {num(parts.revision, 1)}/10</div>
