@@ -14,6 +14,7 @@ from src.notify.technical_alert import (
     KIND_TECHNICAL,
     _daily_limit,
     growth_candidates,
+    latest_annual_consensus,
     unsent_matches,
 )
 from src.notify.templates import daily_digest, technical_setup_message
@@ -200,6 +201,10 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
         "name": "테스트", "code": "000001", "sector": "반도체 장비", "grade": "○",
         "company_growth": {"revenue_yoy": (5, 15), "op_yoy": (10, 25)},
         "sector_growth": {"revenue_yoy": (8, 10), "op_yoy": (12, 15)},
+        "products": "반도체 검사장비 제조, 산업용 로봇 제품",
+        "fundamental": {"opm": 14.2, "opm_yoy_delta": 3.1, "ttm_opm_delta": 1.4},
+        "investment_score": 82.3, "pri": 28.0,
+        "consensus": {"fwd_per": 10.2, "roe_next_est": 17.5, "roe_next_year": 2027},
         "technical": {"price_regime": "조정 후 횡보", "drawdown_50d_pct": -12,
                       "ret_20d_pct": -4, "macd": -2, "signal": -1,
                       "histogram_pct": -0.1, "rsi": 55,
@@ -210,7 +215,41 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
     assert "보강 조건 미충족(필수 아님)" in text
     assert "산업 2Q" in text and "기업 2Q" in text
     assert "MACD -2.00 / Signal -1.00" in text
+    assert "펀더멘털 투자 아이디어" in text
+    assert "본업: <b>반도체 검사장비 · 산업용 로봇</b>" in text
+    assert "매출 YoY +5.0% → +15.0%, 영업이익 YoY +10.0% → +25.0%로 동반 가속" in text
+    assert "OPM +14.2% · 전년 동기 대비 +3.1%p" in text
+    assert "투자 매력도 82.3 · PRI 28.0(낮은 반영 구간)" in text
+    assert "내년 F.PER 10.2배 · 2027년 F.ROE +17.5%" in text
+    assert "5·20일선과 MACD 상향 교차가 겹치는지 관찰" not in text
     assert KIND_TECHNICAL == "technical_setup"
+
+
+def test_initial_inflection_idea_does_not_invent_profit_growth_percent():
+    text = technical_setup_message({
+        "name": "흑전기업", "code": "000002", "sector": "전력인프라", "grade": "★",
+        "company_growth": {"revenue_yoy": (3, 18), "op_yoy": (), "stage": "초기 흑전", "op_status_label": "흑전"},
+        "sector_growth": {"revenue_yoy": (5, 9), "op_yoy": (7, 12)},
+        "fundamental": {"opm": 3.0, "opm_yoy_delta": 5.0},
+        "investment_score": 75, "pri": 52,
+        "technical": {"price_regime": "조정 후 회복", "drawdown_50d_pct": -8,
+                      "ret_20d_pct": 2, "macd": 1, "signal": 0.9,
+                      "histogram_pct": 0.05, "rsi": 51, "sma5": 100,
+                      "sma20": 99, "sma_gap_pct": 1, "strong_recommendation": False},
+    })
+    assert "매출 YoY +3.0% → +18.0%로 가속하면서 영업이익이 흑자전환" in text
+    assert "영업이익 YoY —" not in text
+
+
+def test_latest_annual_consensus_uses_latest_naver_year_and_snapshot():
+    rows = [
+        {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 0, "source": "naver", "snapshot_at": "2026-09-01", "fwd_per": 12},
+        {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2, "source": "naver", "snapshot_at": "2026-09-20", "fwd_per": 99},
+        {"code": "000001", "fiscal_year": 2027, "fiscal_quarter": 0, "source": "fnguide", "snapshot_at": "2026-09-20", "fwd_per": 8},
+        {"code": "000001", "fiscal_year": 2027, "fiscal_quarter": 0, "source": "naver", "snapshot_at": "2026-09-19", "fwd_per": 9},
+        {"code": "000001", "fiscal_year": 2027, "fiscal_quarter": 0, "source": "naver", "snapshot_at": "2026-09-20", "fwd_per": 8.5},
+    ]
+    assert latest_annual_consensus(rows)["000001"]["fwd_per"] == 8.5
 
 
 def test_sent_top_row_does_not_block_next_unsent_row(monkeypatch):

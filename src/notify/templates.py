@@ -631,9 +631,7 @@ def technical_setup_message(ctx: dict) -> str:
         f"{signed(technical.get('signal'), 0, 2, '')} · Gap "
         f"{signed(technical.get('histogram_pct'), 0, 3, '%')} · {macd_state}",
         f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · {'45 미만 상승 보강' if strong else '보강 조건 미충족(필수 아님)'}",
-        "",
-        "💡 투자 아이디어: 산업 성장률과 기업 실적은 함께 개선됐지만 주가는 최근 실적 발표 뒤 조정됐습니다. "
-        "5·20일선과 MACD 상향 교차가 겹치는지 관찰합니다.",
+        *fundamental_investment_idea(ctx),
         "⚠️ 매수 확정 신호가 아닙니다. 두 교차의 유지와 저점·실적 근거를 재확인하고, "
         "조정 저점 이탈 또는 교차 실패 시 관찰을 취소합니다.",
     ]
@@ -645,6 +643,71 @@ def technical_setup_message(ctx: dict) -> str:
             parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
         lines += ["", "🔗 " + " · ".join(parts)]
     return "\n".join(lines)
+
+
+def fundamental_investment_idea(ctx: dict) -> list[str]:
+    """기술 신호와 분리한 기업 펀더멘털 투자 가설.
+
+    공개된 구조화 수치와 주요 제품만 사용한다. 제품 수요 원인·수주·고객사는 이
+    배치가 확인하지 않으므로 만들지 않고, 다음 분기 검증 항목으로 남긴다.
+    """
+    company = ctx.get("company_growth") or {}
+    fundamental = ctx.get("fundamental") or {}
+    consensus = ctx.get("consensus") or {}
+    revenue = company.get("revenue_yoy") or []
+    op = company.get("op_yoy") or []
+    products = tidy_products(ctx.get("products"))
+    core = " · ".join(products) if products else tidy_industry(ctx.get("industry"))
+    stage = str(company.get("stage") or "지속 가속")
+
+    lines = ["", "💡 <b>펀더멘털 투자 아이디어</b>"]
+    lines.append(
+        f"🏢 본업: <b>{esc(core)}</b>"
+        if core else f"🏢 본업: <b>{esc(ctx.get('sector'))}</b> 사업군"
+    )
+    if stage == "초기 흑전" or company.get("op_status_label") == "흑전":
+        lines.append(
+            f"📈 실적 근거: 매출 YoY {join_arrow(revenue)}로 가속하면서 영업이익이 흑자전환했습니다."
+        )
+    else:
+        lines.append(
+            f"📈 실적 근거: 매출 YoY {join_arrow(revenue)}, 영업이익 YoY {join_arrow(op)}로 동반 가속했습니다."
+        )
+
+    profitability = []
+    if fundamental.get("opm") is not None:
+        profitability.append(f"OPM {_pct(fundamental.get('opm'))}")
+    if fundamental.get("opm_yoy_delta") is not None:
+        profitability.append(f"전년 동기 대비 {signed(fundamental.get('opm_yoy_delta'), 0, 1, '%p')}")
+    if fundamental.get("ttm_opm_delta") is not None:
+        profitability.append(f"TTM 변화 {signed(fundamental.get('ttm_opm_delta'), 0, 1, '%p')}")
+    lines.append(
+        "💰 수익성: " + (" · ".join(profitability) if profitability else "공개 분기 이익률 변화 추가 확인 필요")
+    )
+
+    pri = ctx.get("pri")
+    pri_tone = (
+        "낮은 반영 구간" if pri is not None and float(pri) < 35 else
+        "부분 반영 구간" if pri is not None and float(pri) < 65 else
+        "선반영 점검 구간" if pri is not None else "반영도 미측정"
+    )
+    valuation = [f"투자 매력도 {_num(ctx.get('investment_score'), 1)}", f"PRI {_num(pri, 1)}({pri_tone})"]
+    if consensus.get("fwd_per") is not None:
+        valuation.append(f"내년 F.PER {_num(consensus.get('fwd_per'), 1)}배")
+    if consensus.get("roe_next_est") is not None:
+        year = consensus.get("roe_next_year") or "내년"
+        valuation.append(f"{year}년 F.ROE {_pct(consensus.get('roe_next_est'))}")
+    lines.append("⚖️ 가치·반영: " + " · ".join(valuation))
+
+    if pri is not None and float(pri) < 35:
+        thesis = "실적과 수익성 개선이 이어지는 동안 주가 반영도가 낮아, 다음 분기에도 가속이 확인되면 재평가 여지가 있습니다."
+    elif pri is not None and float(pri) < 65:
+        thesis = "실적 개선은 일부 주가에 반영됐으며, 추가 재평가에는 다음 분기 성장 지속과 이익률 방어가 필요합니다."
+    else:
+        thesis = "실적 가속의 지속 여부가 핵심이며, 현재 가격에서는 다음 분기 이익률과 밸류에이션 부담을 함께 확인해야 합니다."
+    lines.append(f"🧠 핵심 가설: {thesis}")
+    lines.append("🔍 다음 확인: 다음 분기 매출·영업이익 YoY와 OPM, 공시로 확인되는 수주 또는 판매처·주요 고객 변화를 점검합니다.")
+    return lines
 
 
 def join_arrow(values: list | tuple) -> str:

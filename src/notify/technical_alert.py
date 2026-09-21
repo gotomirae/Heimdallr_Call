@@ -48,6 +48,9 @@ KST = ZoneInfo("Asia/Seoul")
 SCREEN_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,grade,pri,score_flash,score_final"
 )
+CONSENSUS_COLUMNS = (
+    "code,fiscal_year,fiscal_quarter,fwd_per,roe_next_est,roe_next_year,source,snapshot_at"
+)
 
 
 def _qi(year: int, quarter: int) -> int:
@@ -113,9 +116,12 @@ def growth_candidates(
         candidates.append({
             **screen,
             "name": universe[code].get("name") or code,
+            "industry": universe[code].get("industry"),
+            "products": universe[code].get("products"),
             "sector": sector,
             "company_growth": company,
             "sector_growth": sector_growth,
+            "current_fundamental": series[code][index],
             "early_priority": bool(
                 initial and screen.get("pri") is not None
                 and float(screen["pri"]) < PRI_LOW
@@ -126,6 +132,28 @@ def growth_candidates(
         not row["early_priority"], -(active_score(row) or 0), row["code"],
     ))
     return candidates
+
+
+def latest_annual_consensus(rows: list[dict]) -> dict[str, dict]:
+    """종목별 최신 네이버 연간 전망 1행.
+
+    분기 컨센서스와 연간 F.PER/ROE를 섞으면 기준 기간이 달라진다. 연간 행만
+    고르고, 같은 종목에서는 추정연도와 스냅샷 시각이 가장 최신인 행을 쓴다.
+    """
+    latest: dict[str, dict] = {}
+    for row in rows:
+        quarter = row.get("fiscal_quarter")
+        if quarter is None or int(quarter) != 0 or row.get("source") != "naver":
+            continue
+        code = str(row.get("code") or "")
+        key = (int(row.get("fiscal_year") or 0), str(row.get("snapshot_at") or ""))
+        previous = latest.get(code)
+        previous_key = (
+            int(previous.get("fiscal_year") or 0), str(previous.get("snapshot_at") or "")
+        ) if previous else (-1, "")
+        if key > previous_key:
+            latest[code] = row
+    return latest
 
 
 def _growth_dict(value: CompanyGrowth | SectorGrowth) -> dict:
@@ -198,8 +226,12 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     )
     fundamentals = select_all(
         "quarterly_fundamentals",
-        "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label",
+        "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label,"
+        "opm,opm_yoy_delta,ttm_opm_delta,fcf,cfo",
     )
+    consensus_by_code = latest_annual_consensus(select_all(
+        "consensus_snapshots", CONSENSUS_COLUMNS,
+    ))
     announcements = first_announcement_dates(select_all(
         "earnings_disclosures", "code,fiscal_year,fiscal_quarter,disclosed_at",
     ))
@@ -281,6 +313,12 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
             "grade": row.get("grade") or "—",
             "company_growth": _growth_dict(row["company_growth"]),
             "sector_growth": _growth_dict(row["sector_growth"]),
+            "products": row.get("products"),
+            "industry": row.get("industry"),
+            "fundamental": row.get("current_fundamental") or {},
+            "investment_score": active_score(row),
+            "pri": row.get("pri"),
+            "consensus": consensus_by_code.get(row["code"]) or {},
             "early_priority": row["early_priority"],
             "technical": asdict(setup),
             "url": f"{base_url}/stock/{row['code']}",
