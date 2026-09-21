@@ -19,6 +19,8 @@ export interface ChartPoint {
   /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
   orderBacklog: number | null;
   newOrders: number | null;
+  /** 공시 합계의 범위. 주요계약은 전체 회사 수주잔고가 아니다. */
+  orderScope?: string;
   /** 부호 전환 구간 라벨('흑전'·'적전'…). %가 없을 때 대신 보여준다. */
   opStatusLabel: string | null;
   ttmRevenue: number | null;
@@ -171,7 +173,8 @@ function fmtYoy(v: number | null): string {
  *   흑자전환이 '급감'으로 그려진다 — 측정된 점만 쓴다.
  */
 export function chartVerdict(points: ChartPoint[]): ChartVerdict {
-  const measured = points.filter((p) => p.opYoy != null);
+  // 다음 분기 컨센서스는 이번 분기 성장률 가속 판정의 입력이 아니다.
+  const measured = points.filter((p) => !p.isCurrentQuarter && p.opYoy != null);
   const last = measured[measured.length - 1];
   const prev = measured[measured.length - 2];
 
@@ -312,5 +315,26 @@ export function chartVerdict(points: ChartPoint[]): ChartVerdict {
       "아래 분기 히스토리에서 **영업이익 절대금액**이 늘고 있는지 확인하라. " +
       "금액이 늘고 있다면 성장률만 낮아진 것이다.",
     tone: "slow",
+  };
+}
+
+/** 발표된 이번 분기와 다음 분기 컨센서스를 다른 근거로 설명한다. */
+export function nextQuarterOutlook(points: ChartPoint[]): { headline: string; evidence: string; watch: string } {
+  const estimate = points.find((point) => point.isCurrentQuarter && point.isEstimate);
+  if (!estimate) return {
+    headline: "다음 분기 컨센서스가 없어 성장률 전망은 아직 산정할 수 없다.",
+    evidence: "예상치를 확정 실적처럼 이어 그리지 않는다.",
+    watch: "네이버 증권의 분기 컨센서스가 갱신되면 추정기관 수와 기준일을 함께 확인한다.",
+  };
+  const actual = [...points].reverse().find((point) => !point.isCurrentQuarter);
+  const current = actual?.opYoy == null ? (actual?.opStatusLabel ?? "측정 불가") : fmtYoy(actual.opYoy);
+  const next = estimate.opYoy == null ? (estimate.opStatusLabel ?? "측정 불가") : fmtYoy(estimate.opYoy);
+  const comparison = actual?.opYoy != null && estimate.opYoy != null
+    ? `예상 성장률은 직전 발표 분기보다 ${(estimate.opYoy - actual.opYoy).toFixed(1)}%p ${estimate.opYoy >= actual.opYoy ? "높다" : "낮다"}.`
+    : "부호 전환·결측 구간은 성장률 차이를 계산하지 않는다.";
+  return {
+    headline: `다음 분기 영업이익 성장률은 ${next} 전망이다.`,
+    evidence: `이번 발표 분기 ${actual?.label ?? "—"} ${current} → 다음 분기 ${estimate.label} ${next}. ${comparison}`,
+    watch: "컨센서스는 확정치가 아니다. 실제 공시의 매출·영업이익과 추정기관 수·기준일 변화를 대조한다.",
   };
 }

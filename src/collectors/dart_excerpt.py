@@ -159,6 +159,33 @@ def split_sections(xml: str) -> dict[str, str]:
     return out
 
 
+def major_contract_backlog(section: str) -> str | None:
+    """공시의 주요계약 표 합계만 추출한다. 전체 회사 수주잔고로 해석하지 않는다."""
+    lines = section.splitlines()
+    found: list[str] = []
+    for index, line in enumerate(lines):
+        headers = [cell.strip() for cell in line.split("|")]
+        if not ("수주총액" in headers and "수주잔고" in headers and
+                headers.index("수주잔고") == headers.index("수주총액") + 2):
+            continue
+        context = " ".join(lines[max(0, index - 2):index])
+        unit_match = re.search(r"단위\s*[:：]\s*(백만원|억원|천원|원)(?:\s*[,，)]|\s*$)", context)
+        if not unit_match:
+            continue
+        for subsequent in lines[index + 1:]:
+            cells = [cell.strip() for cell in subsequent.split("|")]
+            if re.fullmatch(r"합\s*계", cells[0]) and len(cells) >= 4:
+                # 표의 앞부분이 품목·발주처·날짜이고, 합계행은 금액부터 시작한다.
+                # 수주총액·기납품액·수주잔고 세 열이 연속임을 머리글로 확인했다.
+                amounts = cells[1:4]
+                if all(re.fullmatch(r"[\d,]+(?:\.\d+)?", value) for value in amounts):
+                    found.append(f"범위 | 주요계약(전체 회사 아님)\n단위 | {unit_match.group(1)}\n수주잔고 | {amounts[2]}")
+                break
+            if "수주잔고" in subsequent and "수주총액" in subsequent:
+                break
+    return found[0] if len(found) == 1 else None
+
+
 def build_excerpt(
     rcept_no: str,
     xml: str,
@@ -184,6 +211,10 @@ def build_excerpt(
             clipped += f" …(이하 {len(body) - take:,}자 생략)"
         picked[name] = clipped
         remaining -= take
+    order_section = sections.get("매출 및 수주상황")
+    order_metric = major_contract_backlog(order_section) if order_section else None
+    if order_metric:
+        picked["공시 수주지표"] = order_metric
     return ReportExcerpt(rcept_no=rcept_no, sections=picked, full_chars=len(xml))
 
 

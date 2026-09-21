@@ -24,6 +24,7 @@ from src.config.constants import (
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "dashboard" / "lib" / "macro-daily.json"
+BRIEFINGS = ROOT / "dashboard" / "lib" / "macro-briefings.json"
 FED_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SYMBOLS = {"sp500": "%5EGSPC", "nasdaq": "%5EIXIC", "semiconductor": "%5ESOX", "vix": "%5EVIX"}
@@ -74,10 +75,10 @@ def parse_fed_rss(xml_text: str) -> dict:
 
 
 def parse_fed_statement(html: str) -> dict:
-    """원문에서 직접 확인된 정책금리·물가 방향만 반환한다. 추정 수치는 만들지 않는다."""
+    """원문에서 확인된 정책금리·결정 방향·물가 평가만 반환한다."""
     text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     match = re.search(
-        r"target range for the federal funds rate at ([0-9./-]+) to ([0-9./-]+) percent",
+        r"target range for the federal funds rate (?:at|by .{1,50}? to)\s+([0-9./-]+) to ([0-9./-]+) percent",
         text, re.IGNORECASE,
     )
 
@@ -91,10 +92,18 @@ def parse_fed_statement(html: str) -> dict:
     result: dict = {}
     if match:
         result["policyRangePct"] = [rate(match.group(1)), rate(match.group(2))]
+    if re.search(r"decided to raise the target range", text, re.IGNORECASE):
+        result["policyAction"] = "인상"
+    elif re.search(r"decided to lower the target range", text, re.IGNORECASE):
+        result["policyAction"] = "인하"
+    elif re.search(r"decided to maintain the target range", text, re.IGNORECASE):
+        result["policyAction"] = "동결"
     result["inflationAboveTarget"] = bool(re.search(
-        r"inflation (?:remains|is) elevated relative to the Committee's 2 percent goal",
+        r"inflation (?:remains|is) elevated",
         text, re.IGNORECASE,
     ))
+    if re.search(r"economic activity is expanding at a solid pace", text, re.IGNORECASE):
+        result["activity"] = "경제활동이 견조한 속도로 확장"
     return result
 
 
@@ -123,13 +132,15 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime) -> 
     date_label = datetime.fromisoformat(market_date).strftime("%Y-%m-%d")
     policy_range = fed.get("policyRangePct")
     policy_summary = (
-        f"연준 정책금리 목표범위 {policy_range[0]:g}~{policy_range[1]:g}%"
+        f"연준이 금리를 {fed.get('policyAction', '결정')}해 정책금리 목표범위를 {policy_range[0]:g}~{policy_range[1]:g}%로 설정했습니다."
         if policy_range else "연준 정책금리 범위는 원문 확인 필요"
     )
     inflation_summary = (
-        "물가는 2% 목표보다 높다고 평가했습니다."
-        if fed.get("inflationAboveTarget") else "물가 평가는 연준 원문을 확인하세요."
+        "연준은 물가가 여전히 높다고 평가했습니다."
+        if fed.get("inflationAboveTarget") else "연준의 물가 방향은 본문에서 확인되지 않았습니다."
     )
+    activity_summary = f"{fed['activity']}한다고 평가했습니다. " if fed.get("activity") else ""
+    briefings = json.loads(BRIEFINGS.read_text(encoding="utf-8"))
     market_url = "https://finance.yahoo.com/markets/"
     return {
         "source": "미국 전 거래일 종가: Yahoo Finance · 통화정책: Federal Reserve",
@@ -138,17 +149,15 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime) -> 
         "items": [
             {"title": f"미국 {date_label} 주요 지수 (Yahoo Finance)", "url": market_url, "publishedAt": market_date},
             {key: fed[key] for key in ("title", "url", "publishedAt")},
-            {"title": "미국 최신 소비자물가 발표 (BLS)", "url": "https://www.bls.gov/news.release/cpi.htm", "publishedAt": None},
-            {"title": "미국 최신 고용 발표 (BLS)", "url": "https://www.bls.gov/news.release/empsit.htm", "publishedAt": None},
-            {"title": "미국 최신 GDP 발표 (BEA)", "url": "https://www.bea.gov/data/gdp/gross-domestic-product", "publishedAt": None},
-            {"title": "세계경제전망 (IMF)", "url": "https://www.imf.org/en/Publications/WEO", "publishedAt": None},
+            *[{key: briefing[key] for key in ("title", "url", "publishedAt")} for briefing in briefings],
         ],
+        "briefings": briefings,
         "flags": {"rates": True, "industry": True, "geopolitics": risk_off},
         "sortMode": mode,
         "preferredSectors": sectors,
         "summary": {
             "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, VIX {vix['close']:.2f}. {regime} 국면으로 해석합니다.",
-            "forward": f"최근 통화정책({fed['publishedAt']}): {policy_summary}; {inflation_summary} 미국 물가·고용·GDP와 세계 성장 전망은 아래 BLS·BEA·IMF 원문을 함께 참고합니다. 지수 하루 움직임만으로 산업 성장을 단정하지 않고 분기 실적을 확인합니다.",
+            "forward": f"연준 성명({fed['publishedAt']}): {policy_summary} {activity_summary}{inflation_summary} 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
             "recommendedSort": "추천 정렬: " + (
                 f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
                 if mode == "earnings_growth" else

@@ -190,7 +190,7 @@ function SortableTh({
 }
 
 const GATE_LABEL: Record<GateFilter, string> = {
-  opportunity: "성장 기회(초기 전환 우선)",
+  opportunity: "초기 성장",
   growth: "성장 가속",
   revenue_slow_op_accel: "매출 YoY 둔화 + 영익 YoY 가속",
   turnaround: "턴어라운드",
@@ -578,8 +578,13 @@ export default function DiscoveryTable({
             {macroContext.refreshOverdue && <span className="text-xs font-semibold text-amber-300">07:00 기준 미국 장·매크로 갱신 지연 또는 미국 휴장 — 표시된 거래일을 확인하세요</span>}
           </div>
           <div className="mt-1 space-y-0.5 leading-5">
+            <p className="text-xs text-emerald-200"><strong>초기 성장</strong>: 실적 가속 종목과 가속 게이트를 통과한 흑자전환 종목을 모은다. 같은 매크로 적합 섹터에서는 흑자전환·★/○ 등급·낮은 주가반영도(PRI)가 함께 확인된 후보를 먼저 보여 준다. 수주 증가 여부는 공시를 따로 확인한다.</p>
             <p>{macroContext.summary.current}</p>
             <p>{macroContext.summary.forward}</p>
+            {macroContext.briefingOverdue && <p className="text-xs font-semibold text-amber-300">물가·고용 등 공식 발표 요약의 기준일이 오래됐다. 최신 발표 갱신 전에는 아래 날짜를 기준으로 읽으세요.</p>}
+            {macroContext.briefings?.map((briefing) => <p key={briefing.url} className="text-xs leading-relaxed text-slate-200">
+              <a href={briefing.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-300 underline">{briefing.title} ({briefing.publishedAt})</a>{" · "}{briefing.summary}
+            </p>)}
             <p className="text-sky-100">{macroContext.summary.recommendedSort}. 점수와 가격은 합산하지 않는다.</p>
             <p className="text-xs text-slate-300">같은 매크로 적합 섹터에서는 흑전·낮은 주가반영도 후보를 우선 본다. 실제 수주 증가와 글로벌 고객 수요는 종목 상세 공시로 확인해야 한다.</p>
           </div>

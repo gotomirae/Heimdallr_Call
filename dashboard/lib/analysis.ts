@@ -134,12 +134,22 @@ export interface NarrativeVerification {
   evidence: string | null;
 }
 
+export interface ValueChainView {
+  upstream: string | null;
+  companyRole: string | null;
+  customers: string | null;
+  globalChain: string | null;
+  searchLimit: string | null;
+  recentGlobalEvents: { date: string; company: string; event: string; status: string; url: string }[];
+}
+
 export interface AnalysisView {
   thesis: string | null;
   whyNow: string | null;
   /** 실적 변화의 원인·결과·전망. 구 스키마 행은 전부 null이다. */
   earningsChange: EarningsChange;
   growthEngine: GrowthEngine;
+  valueChain: ValueChainView;
   /** 가속이 진짜인가에 대한 판단. */
   isGenuine: boolean | null;
   baseEffectAssessment: string | null;
@@ -292,6 +302,26 @@ export function readAnalysis(payload: unknown): AnalysisView {
     whyNow: root ? asString(root.why_now) : null,
     earningsChange: readEarningsChange(root ? root.earnings_change : null),
     growthEngine: readGrowthEngine(root ? root.growth_engine : null),
+    valueChain: (() => {
+      const chain = root ? asRecord(root.value_chain) : null;
+      return {
+        upstream: chain ? asString(chain.upstream) : null,
+        companyRole: chain ? asString(chain.company_role) : null,
+        customers: chain ? asString(chain.customers) : null,
+        globalChain: chain ? asString(chain.global_chain) : null,
+        searchLimit: chain ? asString(chain.search_limit) : null,
+        recentGlobalEvents: chain ? asArray(chain.recent_global_events).flatMap((raw) => {
+          const event = asRecord(raw);
+          const date = event ? asString(event.date) : null;
+          const company = event ? asString(event.company) : null;
+          const description = event ? asString(event.event) : null;
+          const status = event ? asString(event.status) : null;
+          const url = event ? asString(event.url) : null;
+          return date && company && description && status && url
+            ? [{ date, company, event: description, status, url }] : [];
+        }) : [],
+      };
+    })(),
     isGenuine:
       quality && typeof quality.is_genuine === "boolean" ? quality.is_genuine : null,
     baseEffectAssessment: quality ? asString(quality.base_effect_assessment) : null,

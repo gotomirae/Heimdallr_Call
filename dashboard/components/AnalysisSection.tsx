@@ -331,6 +331,27 @@ export default function AnalysisSection({
         </div>
       )}
 
+      <div className="rounded-lg border border-cyan-800/70 bg-cyan-950/15 p-4">
+        <div className="text-xs font-bold text-cyan-200">주요 고객·글로벌 밸류체인</div>
+        {analysis.valueChain.companyRole || analysis.valueChain.customers || analysis.valueChain.globalChain ? (
+          <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
+            {([ ["상류 공급·조달", analysis.valueChain.upstream], ["기업의 공정·제품", analysis.valueChain.companyRole],
+                ["공개된 고객·최종 수요처", analysis.valueChain.customers], ["글로벌 밸류체인·실적 전파", analysis.valueChain.globalChain] ] as const)
+              .map(([label, value]) => <div key={label} className="rounded border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-xs font-semibold text-cyan-200">{label}</div>
+                <p className="mt-1 whitespace-pre-line leading-relaxed text-slate-100">{value ?? "공개 자료에서 확인되지 않음"}</p>
+              </div>)}
+          </div>
+        ) : <p className="mt-2 text-xs text-slate-300">기존 분석에는 고객 관계가 구조화되어 있지 않다. 다음 분석 갱신에서 공시·원문으로 확인한다.</p>}
+        <div className="mt-3 text-xs font-semibold text-cyan-200">최근 3개월 글로벌 기업향 수주·협업</div>
+        {analysis.valueChain.recentGlobalEvents.length ? <ul className="mt-1 space-y-1 text-xs text-slate-100">
+          {analysis.valueChain.recentGlobalEvents.map((item) => <li key={`${item.date}-${item.url}`} className="rounded border border-slate-800 p-2">
+            {item.date} · {item.company} · {item.status} — {item.event} <a href={item.url} target="_blank" rel="noreferrer" className="ml-1 text-cyan-200 underline">원문</a>
+          </li>)}
+        </ul> : <p className="mt-1 text-xs text-slate-300">확인된 원문 수주·협업 없음. 미공개 고객 관계를 실제 계약으로 간주하지 않는다.</p>}
+        {analysis.valueChain.searchLimit && <p className="mt-2 text-xs text-slate-400">확인 범위: {analysis.valueChain.searchLimit}</p>}
+      </div>
+
       {analysis.baseEffectAssessment && (
         <div>
           <div className="text-xs font-semibold uppercase text-slate-300">

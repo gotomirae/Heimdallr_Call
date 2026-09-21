@@ -10,6 +10,7 @@ from __future__ import annotations
 from src.collectors.dart_excerpt import (
     DEFAULT_BUDGET_CHARS,
     build_excerpt,
+    major_contract_backlog,
     split_sections,
     to_text,
 )
@@ -107,3 +108,17 @@ def test_default_budget_is_within_token_budget():
     assert DEFAULT_BUDGET_CHARS < LLM_INPUT_TOKEN_BUDGET, (
         "발췌만으로 입력 상한을 넘긴다"
     )
+
+
+def test_major_contract_backlog_uses_disclosed_scope_and_unit():
+    # 두산 2026 반기 원문 표의 열 구성 축약. 손계산 10,561,864백만원 = 105,618.64억원.
+    body = """(2) 주요프로젝트별 수주상황 | (단위 : 백만원, %)
+품목 | 발주처 | 계약일 | 공사기한 | 수주총액 | 기납품액 | 수주잔고 | 진행률
+원전 | 발전사 | 2023-03-29 | 2033-10-31 | 2,387,981 | 895,752 | 1,492,229 | 37.51
+합 계 | 39,245,858 | 28,683,994 | 10,561,864 | -
+"""
+    assert major_contract_backlog(body) == (
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 10,561,864"
+    )
+    assert major_contract_backlog(body.replace("(단위 : 백만원, %)", "(단위 불명)")) is None
+    assert major_contract_backlog(body.replace("합 계", "소 계")) is None

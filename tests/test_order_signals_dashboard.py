@@ -86,6 +86,20 @@ def test_order_signal_requires_same_quarter_and_actual_order_language():
     assert procurement_contract is None
 
 
+def test_structured_disclosure_backlog_preserves_major_contract_scope():
+    body = "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 10,561,864"
+    base = {"rcept_no": "20260814004047", "fiscal_year": 2026, "fiscal_quarter": 2,
+            "sections": {"공시 수주지표": body}}
+    actual, ambiguous = _run([
+        {"metric": True, "row": base},
+        {"metric": True, "row": {**base, "sections": {"공시 수주지표": body.replace("백만원", "단위 불명")}}},
+    ])
+    assert actual == {"year": 2026, "quarter": 2, "rceptNo": "20260814004047",
+                      "backlogEok": 105618.64, "newOrdersEok": None,
+                      "scope": "공시 주요계약 수주잔고(전체 아님)"}
+    assert ambiguous is None
+
+
 def test_nondisclosure_and_truncation_are_exposed_not_inferred():
     limited, clipped = _run(
         [

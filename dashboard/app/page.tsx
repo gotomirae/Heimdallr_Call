@@ -175,7 +175,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-white">
-          {watchlistOnly ? "관심 종목" : "초기 전환·성장 가속 종목"}
+          {watchlistOnly ? "관심 종목" : "발굴 목록"}
         </h1>
         <p className="mt-1 text-sm text-slate-100">
           {watchlistOnly ? (

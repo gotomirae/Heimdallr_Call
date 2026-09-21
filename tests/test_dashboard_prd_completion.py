@@ -142,23 +142,24 @@ def test_stock_detail_uses_live_naver_quote_and_exact_valuation_source():
 
 
 def test_growth_dashboard_title_and_quarter_chart_display_contract():
-    assert "성장 가속 종목" in HOME
+    assert "발굴 목록" in HOME
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 · 신규수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 7
+    assert QUARTER_CHART.count("<LabelList") == 12
     assert "영업이익 · OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")
         < QUARTER_CHART.index("<EarningsPanel")
         < QUARTER_CHART.index('<GrowthLinePanel points={points}')
     )
-    assert '"revenueYoy"' in QUARTER_CHART
-    assert '"opYoy"' in QUARTER_CHART
+    assert 'dataKey="revenueYoyActual"' in QUARTER_CHART
+    assert 'dataKey="opYoyForecast"' in QUARTER_CHART
     assert '<GrowthLinePanel points={points}' in QUARTER_CHART
-    assert 'name="매출액 YoY"' in QUARTER_CHART
-    assert 'name="영업이익 YoY"' in QUARTER_CHART
-    assert QUARTER_CHART.count("<YAxis") == 4, "YoY 두 선은 YAxis 하나를 공유해야 한다"
+    assert 'name="매출액 YoY 확정·잠정"' in QUARTER_CHART
+    assert 'name="영업이익 YoY 전망"' in QUARTER_CHART
+    assert 'strokeDasharray="5 4"' in QUARTER_CHART
+    assert QUARTER_CHART.count("<YAxis") == 5, "YoY 두 선은 YAxis 하나를 공유해야 한다"
     assert "원값" in QUARTER_CHART and "connectNulls={false}" in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART

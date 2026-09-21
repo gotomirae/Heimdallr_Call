@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
-import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, chartVerdict, measuredCount, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -11,7 +11,7 @@ import { type TimelineItem } from "@/components/TriggerTimeline";
 import AnalysisSection from "@/components/AnalysisSection";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { deriveOrderDisclosureSignal } from "@/lib/orderSignals";
+import { deriveOrderDisclosureSignal, extractOrderDisclosureMetric } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -26,6 +26,7 @@ import {
   getConsensus,
   getDisclosures,
   getDisclosureExcerpt,
+  getOrderDisclosureExcerpts,
   getFundamentals,
   getFundamentalsForQuarters,
   getLatestAnalysis,
@@ -142,6 +143,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     annualConsensus,
     nextConsensus,
     disclosureExcerpt,
+    orderExcerpts,
     quarterScreenResult,
     quarterFundamentals,
   ] = await Promise.all([
@@ -170,6 +172,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           detailWarnings
         )
       : Promise.resolve(null),
+    withDetailFallback("수주 공시 수치", getOrderDisclosureExcerpts(code), [], detailWarnings),
     year && quarter
       ? withDetailFallback(
           "섹터 스크리닝 비교",
@@ -450,7 +453,13 @@ export default async function StockPage({ params }: { params: { code: string } }
   // PEG는 네이버 integration이 공개한 값만 사용한다. 공개하지 않는 종목은 결측이다.
   const referencePeg = liveQuote ? naverLive.peg : null;
 
-  const actualChartPoints = toChartPoints(funds, CHART_QUARTERS);
+  const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
+  const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
+  const actualChartPoints = toChartPoints(funds, CHART_QUARTERS).map((point, index) => {
+    const source = funds.slice(-CHART_QUARTERS)[index];
+    const metric = source && orderByQuarter.get(`${source.fiscal_year}-${source.fiscal_quarter}`);
+    return metric ? { ...point, orderBacklog: metric.backlogEok, newOrders: metric.newOrdersEok, orderScope: metric.scope } : point;
+  });
   const chartPoints = appendNextQuarterConsensus(actualChartPoints, nextConsensus, funds, CHART_QUARTERS);
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
   const dailyFromDate = chartStartFund
@@ -465,6 +474,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   // ★ 차트 한 줄 해설 — **영업이익 YoY 가속이 핵심**이다(사용자 지정).
   //   규칙 기반이라 차트에 실제로 그려진 숫자에서만 나온다.
   const verdict = chartVerdict(chartPoints);
+  const outlook = nextQuarterOutlook(chartPoints);
 
   // ★ LLM이 쓴 스토리가 그 뒤 실적으로 확인되는가. 분석 이후 발표된 분기와만 대조한다.
   // ★★ 기준은 **분석이 실제로 본 분기**다(`analysisYear/Quarter`). 스크리너의 평가
@@ -472,8 +482,8 @@ export default async function StockPage({ params }: { params: { code: string } }
   //   검증이 가능한 종목에서 정확히 검증이 꺼지는 셈이다.
   const narrative = checkNarrative(analysis, funds, analysisYear, analysisQuarter);
 
-  const opYoyMeasured = measuredCount(chartPoints, "opYoy");
-  const revYoyMeasured = measuredCount(chartPoints, "revenueYoy");
+  const opYoyMeasured = measuredCount(actualChartPoints, "opYoy");
+  const revYoyMeasured = measuredCount(actualChartPoints, "revenueYoy");
 
   // ★ DART 원문은 **접수번호로만** 열린다. 회사명 검색 URL은 200을 주고도
   //   검색을 실행하지 않아 빈 화면이 뜬다(T58) — 없으면 링크를 만들지 않는다.
@@ -620,11 +630,17 @@ export default async function StockPage({ params }: { params: { code: string } }
         note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교"
       >
         <QuarterlyChart points={chartPoints} />
+        <p className="mt-2 text-xs text-slate-300">수주 수치는 DART 정기보고서 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공시가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
+        {orderMetrics.length > 0 && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-sky-300">
+          {orderMetrics.map((metric) => <a key={metric.rceptNo} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
+            {metric.year}년 {metric.quarter}분기 {metric.scope} · 원문
+          </a>)}
+        </div>}
         {nextConsensus && (nextConsensus.revenue_est != null || nextConsensus.op_est != null) && (
           <Note>
             <strong className="text-amber-200">(E)는 다음 분기 네이버 증권 컨센서스</strong>다 ·
             {nextConsensus.snapshot_at?.slice(0, 10) ?? "기준일 미상"} 스냅샷 · 추정기관 {nextConsensus.n_estimates ?? 0}곳.
-            실제치와 섞지 않고 예상 점으로 구분했다.
+            매출·영업이익 예상 막대와 성장률 예상 구간을 점선으로 표시했다.
           </Note>
         )}
         <DailyPriceChart
@@ -649,6 +665,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             }[verdict.tone]
           }`}
         >
+          <div className="mb-2 text-xs font-bold text-amber-300">이번 발표 분기 · 확인된 성장률</div>
           <p className="text-base font-bold leading-relaxed text-slate-100">
             <Emphasized text={verdict.headline} tone={verdict.tone} />
           </p>
@@ -671,6 +688,13 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
         </div>
 
+        <div className="mt-3 rounded-lg border-l-4 border-dashed border-sky-400 bg-sky-950/20 p-4">
+          <div className="mb-2 text-xs font-bold text-sky-300">다음 분기 · 컨센서스 전망</div>
+          <p className="text-sm font-semibold text-slate-100">{outlook.headline}</p>
+          <p className="mt-1 text-xs text-slate-200">{outlook.evidence}</p>
+          <p className="mt-2 text-xs text-amber-200">다음 확인: {outlook.watch}</p>
+        </div>
+
         <Note>
           <span className="text-slate-100">
             항목 순서: <strong>매출액 → 영업이익·OPM → 매출액·영업이익 YoY → 수주잔고·신규수주 → 실제 일간 종가·MACD·RSI</strong>.
@@ -678,9 +702,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             단위를 확인한 구조화 값만 표시한다.
           </span>
           <span className="mt-1 block">
-            측정 {opYoyMeasured}/{chartPoints.length}(영업익) · {revYoyMeasured}/
-            {chartPoints.length}(매출) · OPM {chartPoints.filter((p) => p.opm != null).length}/{chartPoints.length}
-            {opYoyMeasured < chartPoints.length && " · 빈 칸은 흑↔적 전환(0%가 아니다)"}
+            발표 분기 측정 {opYoyMeasured}/{actualChartPoints.length}(영업익) · {revYoyMeasured}/
+            {actualChartPoints.length}(매출) · OPM {actualChartPoints.filter((p) => p.opm != null).length}/{actualChartPoints.length}
+            {opYoyMeasured < actualChartPoints.length && " · 빈 칸은 흑↔적 전환(0%가 아니다)"}
           </span>
         </Note>
       </Card>

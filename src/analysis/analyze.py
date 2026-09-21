@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from src.config.constants import (
@@ -292,10 +293,26 @@ def _fmt_disclosures(rows: list[dict]) -> str:
     out = []
     for r in ordered[:DISCLOSURE_MAX_ROWS]:
         day = (r.get("disclosed_at") or "—")[:10]
-        out.append(f"- {day}  {r.get('report_nm', '—')}")
+        rcept_no = str(r.get("rcept_no") or "")
+        url = f" https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}" if rcept_no.isdigit() else ""
+        out.append(f"- {day}  {r.get('report_nm', '—')}{url}")
     if len(ordered) > DISCLOSURE_MAX_ROWS:
         out.append(f"- … 외 {len(ordered) - DISCLOSURE_MAX_ROWS}건 (오래된 것은 생략)")
     return "\n".join(out)
+
+
+def _recent_event_date(value: str, cutoff: date, as_of: date) -> bool:
+    try:
+        day = date.fromisoformat(value)
+    except ValueError:
+        return False
+    return cutoff <= day <= as_of
+
+
+def _three_months_before(day: date) -> date:
+    year, zero_month = divmod(day.year * 12 + day.month - 1 - 3, 12)
+    month = zero_month + 1
+    return date(year, month, min(day.day, monthrange(year, month)[1]))
 
 
 def _fmt_trigger_month_limits(as_of: str | None) -> str:
@@ -395,6 +412,10 @@ def build_user_message(data: AnalysisInput) -> str:
             "당시의 구체적 주장이 이번 분기 구조화 실적으로 실현됐는지 narrative_verification에 대조하라. "
             "날짜·직접 URL·실제 주장을 확인한 항목만 남기고, 숫자로 확인할 수 없으면 판정불가로 써라. "
             "텔레그램 요약을 경영진 발언으로 바꾸거나 출처를 추정하지 마라.",
+            "⑤ 같은 검색에서 이 종목의 실제 주요 고객과 글로벌 기업의 상·하류 연결을 확인하고, "
+            "기준일 직전 3개월의 글로벌 기업향 수주·협업이 있으면 날짜·상대방·직접 URL을 "
+            "value_chain.recent_global_events에 적어라. 확인되지 않으면 빈 배열과 검색 한계를 적어라. "
+            "직접 고객과 최종 수요처·업계 추정을 구별하라.",
             json.dumps(data.report_context, ensure_ascii=False),
         ]
         if data.narrative_history:
@@ -595,6 +616,11 @@ def analysis_result_from_response(
         for item in data.narrative_history
         if isinstance(item, dict) and item.get("url")
     )
+    source_urls.update(
+        f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={item['rcept_no']}"
+        for item in data.disclosures
+        if isinstance(item, dict) and str(item.get("rcept_no") or "").isdigit()
+    )
     raw_reports = payload.get("broker_reports")
     if isinstance(raw_reports, list):
         payload["broker_reports"] = [
@@ -611,6 +637,20 @@ def analysis_result_from_response(
             and isinstance(item.get("url"), str)
             and item["url"].rstrip("/") in source_urls
         ]
+    chain = payload.get("value_chain")
+    if isinstance(chain, dict):
+        raw_events = chain.get("recent_global_events")
+        if isinstance(raw_events, list):
+            as_of = datetime.fromisoformat(data.as_of[:10]).date() if data.as_of else datetime.now(timezone.utc).date()
+            cutoff = _three_months_before(as_of)
+            chain["recent_global_events"] = [
+                item for item in raw_events
+                if isinstance(item, dict)
+                and isinstance(item.get("url"), str)
+                and item["url"].rstrip("/") in source_urls
+                and isinstance(item.get("date"), str)
+                and _recent_event_date(item["date"], cutoff, as_of)
+            ]
 
     # ★ schema가 정상이어도 모델이 공시 숫자를 다른 단위로 환산하면 재무 숫자를
     # 생성한 것이다(T114). 실제 요청에 같은 단위로 없는 사실 숫자는 저장하지 않는다.

@@ -396,6 +396,28 @@ export async function getDisclosureExcerpt(
   }
 }
 
+/** 최근 정기보고서 발췌의 공시 수주 표. 페이지당 한 종목만 읽으며 각 분기 최신본을 고른다. */
+export async function getOrderDisclosureExcerpts(code: string): Promise<DisclosureExcerptRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from("disclosure_excerpts")
+      .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
+      .eq("code", code)
+      .order("fetched_at", { ascending: false })
+      .limit(32);
+    if (error) return [];
+    const seen = new Set<string>();
+    return ((data as unknown as DisclosureExcerptRow[]) ?? []).filter((row) => {
+      const key = `${row.fiscal_year}-${row.fiscal_quarter}`;
+      if (row.fiscal_year == null || row.fiscal_quarter == null || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
 /**
  * 연간 컨센서스(`fiscal_quarter = 0`) — 선행 PER의 재료다.
  * 분기 컨센은 한 분기뿐이라 '향후 4분기'를 만들 수 없다.

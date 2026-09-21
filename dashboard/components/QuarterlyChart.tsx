@@ -57,43 +57,72 @@ function Explanation({ items }: { items: MetricMeaning[] }) {
   </div>;
 }
 
+/** 마지막 확정점부터 다음 분기 예상점까지의 구간만 점선으로 그린다. */
+function chartSeries(points: ChartPoint[]) {
+  const forecastIndex = points.findIndex((point) => point.isCurrentQuarter && point.isEstimate);
+  const priorIndex = forecastIndex > 0 ? forecastIndex - 1 : -1;
+  return points.map((point, index) => {
+    const forecast = index === forecastIndex;
+    const connector = forecast || index === priorIndex;
+    return {
+      ...point,
+      revenueActual: forecast ? null : point.revenue,
+      revenueForecast: forecast ? point.revenue : null,
+      opActual: forecast ? null : point.op,
+      opForecast: forecast ? point.op : null,
+      opmActual: forecast ? null : point.opm,
+      opmForecast: connector ? point.opm : null,
+      revenueYoyActual: forecast ? null : point.revenueYoy,
+      revenueYoyForecast: connector ? point.revenueYoy : null,
+      opYoyActual: forecast ? null : point.opYoy,
+      opYoyForecast: connector ? point.opYoy : null,
+    };
+  });
+}
+
 function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
+  const data = chartSeries(points);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액</strong><span className="text-slate-400">억원</span></div>
-    <div className="h-40"><ResponsiveContainer width="100%" height="100%"><BarChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
+    <div className="h-40"><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis />
       <Tooltip formatter={(v) => [fmt(v, "억"), "매출액"]} contentStyle={tooltipStyle} />
-      <Bar dataKey="revenue" name="매출액" fill="#2563eb" isAnimationActive={false}><LabelList dataKey="revenue" position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar dataKey="revenueActual" name="매출액 확정·잠정" fill="#2563eb" isAnimationActive={false}><LabelList dataKey="revenueActual" position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar dataKey="revenueForecast" name="다음 분기 매출 전망" fill="transparent" stroke="#93c5fd" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="revenueForecast" position="top" fill="#bfdbfe" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </BarChart></ResponsiveContainer></div>
     <Explanation items={[meaning]} />
   </div>;
 }
 
 function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
+  const data = chartSeries(points);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">영업이익 · OPM</strong><span className="text-slate-400">억원 · %</span></div>
-    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
+    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke={SERIES_COLOR.OPM_COLOR} fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <Tooltip formatter={(v, name) => [fmt(v, name === "OPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
-      <Bar yAxisId="amount" dataKey="op" name="영업이익" fill="#0891b2" isAnimationActive={false}><LabelList dataKey="op" position="top" fill="#bae6fd" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Line yAxisId="percent" dataKey="opm" name="OPM" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opm" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
+      <Bar yAxisId="amount" dataKey="opActual" name="영업이익 확정·잠정" fill="#0891b2" isAnimationActive={false}><LabelList dataKey="opActual" position="top" fill="#bae6fd" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="opForecast" name="다음 분기 영업이익 전망" fill="transparent" stroke="#67e8f9" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="opForecast" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Line yAxisId="percent" dataKey="opmActual" name="영업이익률" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmActual" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
+      <Line yAxisId="percent" dataKey="opmForecast" name="영업이익률 전망" stroke={SERIES_COLOR.OPM_COLOR} strokeDasharray="5 4" strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmForecast" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
     <Explanation items={meanings} />
   </div>;
 }
 
 function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
-  const revenueMeasured = points.filter((point) => point.revenueYoy != null).length;
-  const opMeasured = points.filter((point) => point.opYoy != null).length;
+  const data = chartSeries(points);
+  const revenueMeasured = points.filter((point) => !point.isCurrentQuarter && point.revenueYoy != null).length;
+  const opMeasured = points.filter((point) => !point.isCurrentQuarter && point.opYoy != null).length;
   const measured = revenueMeasured + opMeasured;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
       <strong className="text-slate-100">매출액 YoY · 영업이익 YoY</strong>
-      <span className="text-slate-400">같은 좌표(%) · 매출 {revenueMeasured}/{points.length} · 영업이익 {opMeasured}/{points.length}</span>
+      <span className="text-slate-400">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{points.filter((point) => !point.isCurrentQuarter).length} · 영업이익 {opMeasured}/{points.filter((point) => !point.isCurrentQuarter).length}</span>
     </div>
-    {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
+    {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis width={50} domain={[
         (min: number) => Math.min(0, min - Math.max(Math.abs(min) * 0.12, 5)),
@@ -102,8 +131,10 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
       <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1.2} />
       <Tooltip formatter={(v, name) => [fmt(v, "%"), name]} contentStyle={tooltipStyle} />
       <Legend wrapperStyle={{ fontSize: 11 }} />
-      <Line type="linear" dataKey="revenueYoy" name="매출액 YoY" stroke={SERIES_COLOR.REVENUE_COLOR} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoy" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -11)({ ...p })} /></Line>
-      <Line type="linear" dataKey="opYoy" name="영업이익 YoY" stroke={SERIES_COLOR.OP_COLOR} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoy" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", 17)({ ...p })} /></Line>
+      <Line type="linear" dataKey="revenueYoyActual" name="매출액 YoY 확정·잠정" stroke={SERIES_COLOR.REVENUE_COLOR} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoyActual" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -11)({ ...p })} /></Line>
+      <Line type="linear" dataKey="revenueYoyForecast" name="매출액 YoY 전망" stroke={SERIES_COLOR.REVENUE_COLOR} strokeDasharray="5 4" strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoyForecast" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -11)({ ...p })} /></Line>
+      <Line type="linear" dataKey="opYoyActual" name="영업이익 YoY 확정·잠정" stroke={SERIES_COLOR.OP_COLOR} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoyActual" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", 17)({ ...p })} /></Line>
+      <Line type="linear" dataKey="opYoyForecast" name="영업이익 YoY 전망" stroke={SERIES_COLOR.OP_COLOR} strokeDasharray="5 4" strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoyForecast" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", 17)({ ...p })} /></Line>
     </LineChart></ResponsiveContainer></div>}
     <div className="mt-2 overflow-x-auto">
       <table className="w-full min-w-[760px] text-center text-[10px] text-slate-300">
@@ -114,7 +145,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
         </tbody>
       </table>
     </div>
-    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">두 성장률을 실제 % 값 그대로 한 좌표에 놓았다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
+    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">실선은 발표된 분기, 점선은 다음 분기 컨센서스다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
     <Explanation items={meanings} />
   </div>;
 }
@@ -124,7 +155,7 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">수주잔고 · 신규수주</strong><span className="text-slate-400">억원</span></div>
     {!measured ? <div className="flex h-40 items-center justify-center text-xs text-slate-400">공개 자료의 구조화 수치 미수집</div> : <div className="h-40"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
-      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><YAxis width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar dataKey="newOrders" name="신규수주" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </ComposedChart></ResponsiveContainer></div>}
@@ -134,7 +165,8 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
 
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (!points.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
-  const meanings = fundamentalMetricMeanings(points);
+  // 현재 위치 해설은 발표된 분기만 본다. 점선 컨센서스를 현재 실적으로 오인하지 않는다.
+  const meanings = fundamentalMetricMeanings(points.filter((point) => !point.isCurrentQuarter));
   return <div className="grid gap-3 md:grid-cols-2">
     <RevenuePanel points={points} meaning={meanings[0]} />
     <EarningsPanel points={points} meanings={meanings.slice(1, 3)} />

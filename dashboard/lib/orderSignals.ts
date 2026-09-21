@@ -20,6 +20,46 @@ export interface OrderDisclosureSignal {
   truncated: boolean;
 }
 
+export interface OrderDisclosureMetric {
+  year: number;
+  quarter: number;
+  rceptNo: string;
+  backlogEok: number | null;
+  newOrdersEok: number | null;
+  scope: string;
+}
+
+/**
+ * DART 정기보고서의 수주 표에서 단위와 명시적인 단일 값이 모두 확인될 때만 쓴다.
+ * 수주총액(누적)을 임의로 신규수주로 바꾸거나 단위를 추측하지 않는다.
+ */
+export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>): OrderDisclosureMetric | null {
+  if (!row.rcept_no || !row.fiscal_year || !row.fiscal_quarter ||
+      !row.sections || typeof row.sections !== "object" || Array.isArray(row.sections)) return null;
+  const explicitMetric = row.sections["공시 수주지표"];
+  const section = typeof explicitMetric === "string" ? explicitMetric : row.sections["매출 및 수주상황"];
+  if (typeof section !== "string") return null;
+  const unit = section.match(/(?:단위\s*[:：|]\s*|\(단위\s*[:：]\s*)(백만원|천원|원|억원)/)?.[1];
+  const factor = unit === "억원" ? 1 : unit === "백만원" ? 0.01 : unit === "천원" ? 0.00001 : unit === "원" ? 1e-8 : null;
+  if (factor == null) return null;
+  const exactValue = (label: RegExp): number | null => {
+    const values = section.split("\n").flatMap((line) => {
+      const cells = line.split("|").map((cell) => cell.trim());
+      if (cells.length !== 2 || !label.test(cells[0]) || !/^-?[\d,]+(?:\.\d+)?$/.test(cells[1])) return [];
+      return [Number(cells[1].replaceAll(",", ""))];
+    });
+    // 둘 이상의 행·사업부가 있으면 어떤 합계인지 알 수 없다.
+    return values.length === 1 && Number.isFinite(values[0]) && values[0] >= 0
+      ? Math.round(values[0] * factor * 100) / 100 : null;
+  };
+  const backlogEok = exactValue(/^수주\s*잔고$/);
+  const newOrdersEok = exactValue(/^신규\s*수주$/);
+  if (backlogEok == null && newOrdersEok == null) return null;
+  return { year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+    backlogEok, newOrdersEok,
+    scope: typeof explicitMetric === "string" ? "공시 주요계약 수주잔고(전체 아님)" : "공시 명시 수치" };
+}
+
 const ORDER_TERMS = [
   "수주잔고",
   "수주 총액",

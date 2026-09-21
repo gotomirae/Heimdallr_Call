@@ -81,6 +81,35 @@ ANALYSIS_SCHEMA: dict = {
             "required": ["drivers", "structural_or_temporary", "evidence"],
             "additionalProperties": False,
         },
+        "value_chain": {
+            "type": "object",
+            "description": "공시로 확인한 고객과 글로벌 밸류체인. 고객 이름이 공개되지 않으면 미공개라고 명시하고 추정 관계를 직접 거래로 바꾸지 않는다.",
+            "properties": {
+                "upstream": {"type": "string", "description": "원재료·장비·핵심 공급자와 조달 위험. 입력에 없는 이름은 단정 금지"},
+                "company_role": {"type": "string", "description": "기업 제품·공정·시장 위치와 경쟁 대안"},
+                "customers": {"type": "string", "description": "공개된 주요 고객·최종 수요처와 매출 연결. 직접 고객과 최종 고객 및 업계 추정 구분"},
+                "global_chain": {"type": "string", "description": "글로벌 기업을 포함한 상·하류 관계, 대체 공급자, 고객 투자·발주가 실적에 전달되는 경로"},
+                "recent_global_events": {
+                    "type": "array",
+                    "description": "기준일 직전 3개월 안의 글로벌 기업향 수주·협업. 확인된 원문 링크가 없으면 빈 배열",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "date": {"type": "string", "description": "YYYY-MM-DD"},
+                            "company": {"type": "string", "description": "공개된 글로벌 기업명"},
+                            "event": {"type": "string", "description": "수주·공급·개발·협업의 확인된 내용"},
+                            "status": {"type": "string", "enum": ["확정", "계획", "추정"]},
+                            "url": {"type": "string", "description": "실제 확인한 직접 출처 URL"},
+                        },
+                        "required": ["date", "company", "event", "status", "url"],
+                        "additionalProperties": False,
+                    },
+                },
+                "search_limit": {"type": "string", "description": "검색·공개자료 범위와 확인되지 않은 관계. 확인된 사건이 없으면 그 사실을 적는다"},
+            },
+            "required": ["upstream", "company_role", "customers", "global_chain", "search_limit"],
+            "additionalProperties": False,
+        },
         "acceleration_quality": {
             "type": "object",
             "properties": {
@@ -344,6 +373,13 @@ SYSTEM_PROMPT = """\
 **성장의 질을 구분하라.** 매출이 늘어난 이유가 가격인지 물량인지, 신규 고객인지
 기존 고객의 재구매인지에 따라 지속성이 다르다. 구조적 변화(CAPA 증설, 신규 고객
 확보, 제품 믹스 개선)와 일시적 요인(일회성 수주, 재고 조정, 환율)을 나눠라.
+
+**고객 기반 밸류체인을 구체적으로 쓴다.** 원재료·제품/공정·직접 고객·최종 수요처·
+글로벌 기업의 설비투자/발주에서 매출로 이어지는 경로와 대체 공급자를 구분한다.
+고객명이 공시되지 않았거나 실제 거래가 확인되지 않으면 미공개/추정이라고 적는다.
+기준일 직전 3개월의 글로벌 기업향 수주·협업을 확인한 경우만 날짜·회사·원문 URL을
+`value_chain.recent_global_events`에 넣는다. 확인하지 못했다면 빈 배열과 검색 한계를
+남긴다. 공개 출처 없이 고객이나 협업을 만들어내지 마라.
 
 **기저효과를 의심하라.** 전년동기가 비정상적으로 낮았으면 올해 성장률은 자동으로
 높게 나온다. 이건 가속이 아니다. `base_effect_warning`이 붙어 있으면 특히

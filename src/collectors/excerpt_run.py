@@ -37,7 +37,7 @@ def is_periodic(report_nm: str | None) -> bool:
     return bool(report_nm) and any(k in report_nm for k in PERIODIC_KEYWORDS)
 
 
-def targets(limit: int, codes: list[str] | None) -> list[dict]:
+def targets(limit: int, codes: list[str] | None, *, refresh_orders: bool = False) -> list[dict]:
     """받을 공시 목록. 게이트 통과 종목 · 최신 정기보고서 우선."""
     disclosures = [
         d for d in select_all(
@@ -79,7 +79,7 @@ def targets(limit: int, codes: list[str] | None) -> list[dict]:
     #   수집이 중간에 끊겨도(시간 예산) **중요한 종목이 먼저** 채워져야 한다.
     rank = attractiveness_rank()
     ordered = sorted(
-        [d for d in newest.values() if d["rcept_no"] not in have],
+        [d for d in newest.values() if refresh_orders or d["rcept_no"] not in have],
         # 매력도가 없는 종목(스크린 행 없음)은 뒤로. 그 안에서는 최신 공시 순.
         key=lambda d: (-(rank.get(d["code"], float("-inf"))), d.get("disclosed_at") or ""),
     )
@@ -107,6 +107,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=20, help="최대 건수")
     parser.add_argument("--codes", help="쉼표로 구분한 종목코드(지정하면 그것만)")
     parser.add_argument("--save", action="store_true", help="DB에 저장")
+    parser.add_argument("--refresh-orders", action="store_true", help="--codes의 최신 공시 원문을 다시 읽어 수주 표를 갱신")
     # ★ 건수가 아니라 **시간**으로 끊는다. 원문 크기가 종목마다 3~6MB로 달라
     #   건수만으로는 워크플로가 얼마나 걸릴지 예측할 수 없다.
     parser.add_argument("--max-seconds", type=float, default=0,
@@ -114,7 +115,9 @@ def main() -> int:
     args = parser.parse_args()
 
     codes = [c.strip() for c in args.codes.split(",")] if args.codes else None
-    rows = targets(args.limit, codes)
+    if args.refresh_orders and not codes:
+        parser.error("--refresh-orders에는 --codes로 갱신할 종목을 지정해야 한다")
+    rows = targets(args.limit, codes, refresh_orders=args.refresh_orders)
     print(f"발췌 대상 {len(rows)}건 (이미 받은 건은 제외했다)")
     if not rows:
         return 0

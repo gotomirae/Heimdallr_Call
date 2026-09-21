@@ -102,8 +102,10 @@ function orderMeaning(points: ChartPoint[]): MetricMeaning {
   };
   return {
     label: "수주잔고 · 신규수주",
-    value: `${latest.label} 잔고 ${finite(latest.orderBacklog) ? `${latest.orderBacklog.toFixed(0)}억` : "—"} · 신규 ${finite(latest.newOrders) ? `${latest.newOrders.toFixed(0)}억` : "—"}`,
-    meaning: "신규수주는 새로 들어오는 속도, 수주잔고는 앞으로 매출로 전환될 일감의 총량이다. 둘이 함께 늘어야 성장 지속성이 강하다.",
+    value: `${latest.label} ${latest.orderScope?.includes("주요계약") ? "주요계약 잔고" : "잔고"} ${finite(latest.orderBacklog) ? `${latest.orderBacklog.toFixed(0)}억` : "—"} · 신규 ${finite(latest.newOrders) ? `${latest.newOrders.toFixed(0)}억` : "—"}`,
+    meaning: latest.orderScope?.includes("주요계약")
+      ? "공시에서 일정 규모 이상 주요계약의 잔고만 합산한 값이다. 전체 회사 수주잔고나 분기 신규수주로 해석하지 않는다."
+      : "신규수주는 새로 들어오는 속도, 수주잔고는 앞으로 매출로 전환될 일감이다. 같은 범위의 다음 공시와 비교한다.",
     watch: "같은 단위·범위로 다음 분기와 비교 가능한지",
   };
 }

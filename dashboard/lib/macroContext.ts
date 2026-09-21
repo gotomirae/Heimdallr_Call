@@ -21,6 +21,7 @@ export interface MacroItem {
   url: string;
   publishedAt: string | null;
 }
+export interface MacroBriefing extends MacroItem { summary: string }
 
 export interface MacroContext {
   source: string;
@@ -28,6 +29,8 @@ export interface MacroContext {
   marketDate: string;
   refreshOverdue?: boolean;
   items: MacroItem[];
+  briefings?: MacroBriefing[];
+  briefingOverdue?: boolean;
   flags: {
     rates: boolean;
     industry: boolean;
@@ -56,5 +59,8 @@ export async function getMacroContext(): Promise<MacroContext> {
   const refreshOverdue = Number(part("hour")) >= 7 && (
     context.checkedAt.slice(0, 10) < today || context.marketDate < expectedUsSession(now)
   );
-  return { ...context, refreshOverdue, items: [...context.items], preferredSectors: [...context.preferredSectors] };
+  const briefings = context.briefings ?? [];
+  const cpiDate = briefings.find((item) => item.title.includes("소비자물가"))?.publishedAt;
+  const briefingOverdue = !cpiDate || now.getTime() - new Date(`${cpiDate}T00:00:00Z`).getTime() > 45 * 86_400_000;
+  return { ...context, refreshOverdue, briefingOverdue, briefings: [...briefings], items: [...context.items], preferredSectors: [...context.preferredSectors] };
 }
