@@ -549,10 +549,12 @@ def daily_digest(ctx: dict) -> str:
     technical = ctx.get("technical_scan")
     if technical:
         if technical.get("status") == "complete":
+            sent = int(technical.get("sent", 0) or 0)
             lines.append(
-                f"📈 기술 관찰: 가격 {technical.get('price', 0)} → 5·20일선 {technical.get('sma', 0)} "
-                f"→ MACD {technical.get('macd', 0)} · RSI 보강 {technical.get('rsi', 0)} "
-                f"· 발송 {technical.get('sent', 0)}건"
+                f"📈 오늘의 종목 추천: 가격 {technical.get('price', 0)} → "
+                f"5·20일선 {technical.get('sma', 0)} → MACD {technical.get('macd', 0)} "
+                f"· RSI 보강 {technical.get('rsi', 0)} · "
+                f"{'추천 발송 ' + str(sent) + '건' if sent else '조건 충족 추천 0건'}"
             )
         else:
             lines.append("⚠️ 기술 신호 점검/발송 오류 — 종목 알림 실행 기록 확인 필요")
@@ -609,7 +611,7 @@ def technical_setup_message(ctx: dict) -> str:
     sma_state = "당일 상향 교차" if technical.get("sma_crossed") else "상향 교차 접근"
     macd_state = "당일 상향 교차" if technical.get("macd_crossed") else "상향 교차 접근"
     lines = [
-        f"{PREFIX}<b>{'🔥 기술 신호 강력 추천 후보' if strong else '📈 매수 관찰 후보'} · 5·20일선/MACD</b>",
+        f"{PREFIX}<b>{'🔥 오늘의 강력 추천 종목' if strong else '📈 오늘의 추천 종목'} · 5·20일선/MACD</b>",
         "",
         f"<b>{esc(ctx.get('name'))}</b> <code>{esc(ctx.get('code'))}</code>"
         f" · {esc(ctx.get('sector'))} · {esc(ctx.get('grade'))}",

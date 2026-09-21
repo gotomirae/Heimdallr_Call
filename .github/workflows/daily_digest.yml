@@ -7,7 +7,11 @@ name: daily_digest
 
 on:
   schedule:
-    - cron: "30 8 * * 1-5" # 17:30 KST
+    # GitHub 예약 실행은 수 시간 지연될 수 있다(T164). 서로 다른 분에 세 번
+    # 기회를 두고, notifications의 KST 일일 상한·종목/분기 중복키로 재발송을 막는다.
+    - cron: "37 8 * * 1-5" # 17:37 KST — 장 마감 후 1차
+    - cron: "17 9 * * 1-5" # 18:17 KST — 지연/누락 재시도
+    - cron: "7 10 * * 1-5" # 19:07 KST — 최종 재시도
   workflow_dispatch:
     inputs:
       dry_run:
@@ -41,7 +45,7 @@ jobs:
       - run: pip install -e .
       # 펀더멘털 지속 조건을 먼저 통과한 종목만 네이버 일봉으로 기술 신호를 본다.
       # 알림 실패는 워크플로 실패로 드러낸다. 기존 일일 요약은 계속 보낸다.
-      - name: 성장 지속 · MACD 상향 접근 알림
+      - name: 오늘의 종목 추천 · 최대 2개
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m src.notify.technical_alert --summary-path technical-scan.json

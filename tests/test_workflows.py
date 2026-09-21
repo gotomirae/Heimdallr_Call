@@ -154,6 +154,17 @@ def test_telegram_cloud_listener_is_disabled_to_keep_single_consumer():
     assert spec["jobs"]["listen"]["if"] == "${{ false }}"
 
 
+def test_daily_recommendation_has_three_staggered_retries():
+    """GitHub cron 지연 한 번이 그날 추천 전체를 없애지 않게 세 번 기회를 둔다."""
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load(_text(WORKFLOWS / "daily_digest.yml"))
+    schedules = _trigger_map(spec)["schedule"]
+    crons = [row["cron"] for row in schedules]
+    assert crons == ["37 8 * * 1-5", "17 9 * * 1-5", "7 10 * * 1-5"]
+    body = _text(WORKFLOWS / "daily_digest.yml")
+    assert "오늘의 종목 추천 · 최대 2개" in body
+
+
 # ═══════════════════════════════════════════════════════════════════
 # T79 — `schedule` 워크플로의 `if:`는 inputs를 보면 안 된다
 # ═══════════════════════════════════════════════════════════════════

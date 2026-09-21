@@ -442,7 +442,7 @@ P10: 자동화 배선. PRD §10을 읽어라.
 워크플로우 6개:
   universe_daily.yml     0 21 * * *      (06:00 KST) 유니버스+시세+PRI
   disclosure_poll.yml    시즌 */15 0-10 * * 1-5 / 비시즌 0 1,4,7,10 * * 1-5
-  daily_digest.yml       30 8 * * 1-5    (17:30 KST)
+  daily_digest.yml       17:37·18:17·19:07 KST 평일 (추천 지연 재시도, 하루 최대 2건)
   quarterly_backfill.yml 0 20 1,15 * *   + workflow_dispatch
   outcome_update.yml     0 22 * * 1-5
   promotion_check.yml    0 22 * * 1      (월요일 승격 확인)

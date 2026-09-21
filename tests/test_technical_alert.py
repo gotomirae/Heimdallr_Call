@@ -206,7 +206,7 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
                       "sma5": 100, "sma20": 101, "sma_gap_pct": -0.99,
                       "strong_recommendation": False},
     })
-    assert "매수 관찰 후보" in text and "상향 교차 접근" in text
+    assert "오늘의 추천 종목" in text and "상향 교차 접근" in text
     assert "보강 조건 미충족(필수 아님)" in text
     assert "산업 2Q" in text and "기업 2Q" in text
     assert "MACD -2.00 / Signal -1.00" in text
@@ -286,7 +286,12 @@ def test_daily_digest_discloses_zero_signal_and_scan_failure():
     complete = daily_digest({**base, "technical_scan": {
         "status": "complete", "price": 61, "sma": 5, "macd": 3, "rsi": 0, "sent": 0,
     }})
-    assert "가격 61 → 5·20일선 5 → MACD 3 · RSI 보강 0 · 발송 0건" in complete
+    assert "오늘의 종목 추천" in complete
+    assert "가격 61 → 5·20일선 5 → MACD 3 · RSI 보강 0 · 조건 충족 추천 0건" in complete
+    sent = daily_digest({**base, "technical_scan": {
+        "status": "complete", "price": 61, "sma": 5, "macd": 3, "rsi": 1, "sent": 2,
+    }})
+    assert "추천 발송 2건" in sent
     failed = daily_digest({**base, "technical_scan": {"status": "scan_failed"}})
     assert "기술 신호 점검/발송 오류" in failed
 
