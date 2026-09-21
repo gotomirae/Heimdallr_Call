@@ -171,8 +171,18 @@ def test_collector_fetches_correction_once_then_stops(monkeypatch):
     monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
     monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
     assert excerpt_run.targets(10, ["000001"]) == [new]
-    tables["disclosure_excerpts"].append(new)
+    tables["disclosure_excerpts"].append({**new, "sections": {"공시 수주지표 확인": "정기보고서 원문 검사 완료"}})
     assert excerpt_run.targets(10, ["000001"]) == []
+
+
+def test_legacy_excerpt_without_order_check_is_backfilled_once(monkeypatch):
+    filing = {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2,
+              "rcept_no": "20260814001", "report_nm": "반기보고서"}
+    tables = {"earnings_disclosures": [filing],
+              "disclosure_excerpts": [{**filing, "sections": {"매출 및 수주상황": "구 발췌"}}]}
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    assert excerpt_run.targets(10, ["000001"]) == [filing]
 
 
 def test_analysis_refreshes_changed_facts_once(monkeypatch):

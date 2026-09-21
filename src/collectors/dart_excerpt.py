@@ -200,7 +200,10 @@ def build_excerpt(
     """
     sections = split_sections(xml)
     picked: dict[str, str] = {}
-    remaining = budget_chars
+    checked_marker = "정기보고서 원문 검사 완료"
+    # 구 발췌를 한 번만 재수집하기 위한 완료 표식이다. DB 컬럼을 추가하지 않고도
+    # 새 파서 적용 여부를 구분하며, 이 표식이 있으면 다음 예약 실행은 건너뛴다.
+    remaining = max(0, budget_chars - len(checked_marker))
     for name, _ in SECTION_PATTERNS:
         body = sections.get(name)
         if not body or remaining <= 0:
@@ -215,6 +218,7 @@ def build_excerpt(
     order_metric = major_contract_backlog(order_section) if order_section else None
     if order_metric:
         picked["공시 수주지표"] = order_metric
+    picked["공시 수주지표 확인"] = checked_marker
     return ReportExcerpt(rcept_no=rcept_no, sections=picked, full_chars=len(xml))
 
 

@@ -51,8 +51,10 @@ def targets(limit: int, codes: list[str] | None, *, refresh_orders: bool = False
     have = {
         r["rcept_no"]
         for r in select_all(
-            "disclosure_excerpts", "rcept_no"
+            "disclosure_excerpts", "rcept_no,sections"
         )
+        if isinstance(r.get("sections"), dict)
+        and "공시 수주지표 확인" in r["sections"]
     }
 
     if codes:
