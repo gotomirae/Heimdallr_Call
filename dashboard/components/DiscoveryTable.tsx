@@ -570,54 +570,134 @@ export default function DiscoveryTable({
       </div>
 
       {!favoriteOnly && (
-        <div className="rounded-lg border border-sky-800/70 bg-sky-950/30 px-3 py-2.5 text-sm text-slate-100">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <strong className="text-sky-200">미국·글로벌 매크로 추천 정렬 · 실적 갱신 자동 계산</strong>
-            <span className="text-xs text-slate-300">시장·실적 기준 {dataAsOf ?? "기준일 미측정"}</span>
-            <span className="text-xs text-slate-300">미국 장 {macroContext.marketDate} · 매크로 갱신 {macroContext.checkedAt}</span>
-            {macroContext.refreshOverdue && <span className="text-xs font-semibold text-amber-300">07:00 기준 미국 장·매크로 갱신 지연 또는 미국 휴장 — 표시된 거래일을 확인하세요</span>}
-          </div>
-          <div className="mt-1 space-y-0.5 leading-5">
-            <p className="text-xs text-emerald-200"><strong>초기 성장</strong>: 실적 가속 종목과 가속 게이트를 통과한 흑자전환 종목을 모은다. 같은 매크로 적합 섹터에서는 흑자전환·★/○ 등급·낮은 주가반영도(PRI)가 함께 확인된 후보를 먼저 보여 준다. 수주 증가 여부는 공시를 따로 확인한다.</p>
-            <p>{macroContext.summary.current}</p>
-            <p>{macroContext.summary.forward}</p>
-            {macroContext.briefingOverdue && <p className="text-xs font-semibold text-amber-300">물가·고용 등 공식 발표 요약의 기준일이 오래됐다. 최신 발표 갱신 전에는 아래 날짜를 기준으로 읽으세요.</p>}
-            {macroContext.briefings?.map((briefing) => <p key={briefing.url} className="text-xs leading-relaxed text-slate-200">
-              <a href={briefing.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-300 underline">{briefing.title} ({briefing.publishedAt})</a>{" · "}{briefing.summary}
-            </p>)}
-            <p className="text-sky-100">{macroContext.summary.recommendedSort}. 점수와 가격은 합산하지 않는다.</p>
-            <p className="text-xs text-slate-300">같은 매크로 적합 섹터에서는 흑전·낮은 주가반영도 후보를 우선 본다. 실제 수주 증가와 글로벌 고객 수요는 종목 상세 공시로 확인해야 한다.</p>
-          </div>
-          {sectorPriorities.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
-              {sectorPriorities.slice(0, RANKING_CONFIG.sector_top_n).map((sector, index) => (
-                <span key={sector.sector} className="rounded border border-slate-700 bg-slate-950/70 px-2 py-1">
-                  <strong className="text-sky-200">{index + 1}. {sector.sector}</strong>
-                  {" · ★/○ "}{sector.attractive}/{sector.candidates}
-                  {" · 점수 "}{fmtNum(sector.medianScore)}
-                  {" · PRI "}{fmtNum(sector.medianPri)}
-                  {" · 5일 "}{fmtPct(sector.medianRet5d)}
-                </span>
-              ))}
+        <section className="overflow-hidden rounded-2xl border border-sky-700/60 bg-gradient-to-br from-slate-950 via-sky-950/35 to-indigo-950/40 shadow-[0_18px_55px_-30px_rgba(56,189,248,0.55)]">
+          <header className="border-b border-sky-800/60 bg-sky-950/45 px-4 py-4 md:px-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sky-500/40 bg-sky-400/10 text-2xl shadow-inner" aria-hidden="true">🌐</span>
+                <div>
+                  <h2 className="text-lg font-black tracking-tight text-white md:text-xl">미국·글로벌 매크로</h2>
+                  <p className="mt-0.5 text-xs font-semibold tracking-wide text-sky-200">실적 갱신 자동 계산 · 공식 발표 기반</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-full border border-emerald-500/40 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">● 자동 계산 정상</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">📊 실적 {dataAsOf ?? "기준일 미측정"}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 장 {macroContext.marketDate}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🕘 {macroContext.checkedAt}</span>
+              </div>
             </div>
-          )}
-          <div className="mt-1.5 text-xs text-slate-400">
-            {macroContext.items.length > 0 ? (
-              <>
-                매크로·시장 출처({macroContext.source}): {macroContext.items.map((item, index) => (
-                  <span key={`${item.url}-${index}`}>
-                    {index > 0 && " · "}
-                    <a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline">
-                      {item.title}
-                    </a>
-                  </span>
-                ))}
-              </>
-            ) : (
-              "공식 매크로 원문을 불러오지 못했다. 이 경우 뉴스는 추정하지 않고 최신 실적·가격 정렬만 적용한다."
+            {macroContext.refreshOverdue && (
+              <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">⚠️ 07:00 기준 미국 장·매크로 갱신 지연 또는 미국 휴장입니다. 표시된 거래일을 확인하세요.</p>
             )}
+          </header>
+
+          <div className="space-y-4 p-4 md:p-5">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <article className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xl" aria-hidden="true">🌡️</span>
+                  <h3 className="font-extrabold text-emerald-200">오늘의 시장 온도</h3>
+                </div>
+                <p className="text-sm leading-6 text-slate-100">{macroContext.summary.current}</p>
+              </article>
+              <article className="rounded-xl border border-violet-500/30 bg-violet-950/20 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xl" aria-hidden="true">🔭</span>
+                  <h3 className="font-extrabold text-violet-200">앞으로 볼 변수</h3>
+                </div>
+                <p className="text-sm leading-6 text-slate-100">{macroContext.summary.forward}</p>
+              </article>
+            </div>
+
+            <article className="rounded-xl border border-slate-700/80 bg-slate-950/65 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-extrabold text-white">⚙️ 실적 갱신 자동 계산 흐름</h3>
+                <span className="text-[11px] text-slate-400">점수와 가격은 한 숫자로 합산하지 않음</span>
+              </div>
+              <div className="grid items-stretch gap-2 text-center text-xs font-bold sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
+                <div className="rounded-lg border border-sky-600/50 bg-sky-950/60 px-3 py-3 text-sky-100"><span className="block text-lg">① 📡</span>미국 장·공식 지표 수집</div>
+                <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
+                <div className="rounded-lg border border-cyan-600/50 bg-cyan-950/50 px-3 py-3 text-cyan-100"><span className="block text-lg">② 🧭</span>매크로 국면 판정</div>
+                <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
+                <div className="rounded-lg border border-indigo-600/50 bg-indigo-950/50 px-3 py-3 text-indigo-100"><span className="block text-lg">③ 🏭</span>적합 섹터 우선 배치</div>
+                <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
+                <div className="rounded-lg border border-emerald-600/50 bg-emerald-950/50 px-3 py-3 text-emerald-100"><span className="block text-lg">④ 📈</span>실적·PRI·등급 재정렬</div>
+              </div>
+            </article>
+
+            <article className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/55">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 px-4 py-3">
+                <h3 className="font-extrabold text-white">📰 공식 발표 핵심 요약</h3>
+                {macroContext.briefingOverdue && <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">⚠ 최신 발표일 확인 필요</span>}
+              </div>
+              {macroContext.briefings && macroContext.briefings.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-xs">
+                    <thead className="bg-slate-900/90 text-slate-300">
+                      <tr>
+                        <th className="w-[230px] px-4 py-2.5 font-bold">지표·발표일</th>
+                        <th className="px-4 py-2.5 font-bold">핵심 내용과 시장 의미</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {macroContext.briefings.map((briefing) => (
+                        <tr key={briefing.url} className="align-top hover:bg-slate-900/55">
+                          <td className="px-4 py-3">
+                            <a href={briefing.url} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 underline decoration-sky-500/60 underline-offset-2">{briefing.title}</a>
+                            <span className="mt-1 block text-[11px] text-slate-400">📅 {briefing.publishedAt}</span>
+                          </td>
+                          <td className="px-4 py-3 leading-5 text-slate-200">{briefing.summary}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="px-4 py-4 text-xs text-slate-300">공식 발표 요약을 불러오지 못했습니다. 최신 실적과 가격 기준만 적용합니다.</p>
+              )}
+            </article>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+              <article className="rounded-xl border border-sky-700/50 bg-sky-950/25 p-4">
+                <h3 className="mb-3 font-extrabold text-sky-100">🏅 매크로 적합 섹터 TOP</h3>
+                {sectorPriorities.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {sectorPriorities.slice(0, RANKING_CONFIG.sector_top_n).map((sector, index) => (
+                      <div key={sector.sector} className="rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-xs">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <strong className="text-sm text-sky-200"><span className="mr-1 text-amber-300">#{index + 1}</span>{sector.sector}</strong>
+                          <span className="rounded bg-sky-400/10 px-1.5 py-0.5 text-sky-200">★/○ {sector.attractive}/{sector.candidates}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 text-center text-slate-300">
+                          <span>점수<strong className="mt-0.5 block text-white">{fmtNum(sector.medianScore)}</strong></span>
+                          <span>PRI<strong className="mt-0.5 block text-white">{fmtNum(sector.medianPri)}</strong></span>
+                          <span>5일<strong className="mt-0.5 block text-white">{fmtPct(sector.medianRet5d)}</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-xs text-slate-300">현재 비교 가능한 적합 섹터가 없습니다.</p>}
+              </article>
+              <article className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-4">
+                <h3 className="font-extrabold text-emerald-200">🌱 초기 성장 기준</h3>
+                <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-200">
+                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>실적 가속 또는 가속 게이트를 통과한 흑자전환</span></li>
+                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>매크로 적합 섹터 안에서 흑전·★/○·낮은 PRI 우선</span></li>
+                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>수주 증가와 글로벌 고객 수요는 종목 상세 공시에서 별도 확인</span></li>
+                </ul>
+              </article>
+            </div>
+
+            <footer className="border-t border-slate-800 pt-3 text-[11px] leading-5 text-slate-400">
+              {macroContext.items.length > 0 ? (
+                <><strong className="text-slate-300">🔗 출처 · {macroContext.source}</strong><span className="mx-2 text-slate-700">|</span>{macroContext.items.map((item, index) => (
+                  <span key={`${item.url}-${index}`}>{index > 0 && " · "}<a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline underline-offset-2">{item.title}</a></span>
+                ))}</>
+              ) : "공식 매크로 원문을 불러오지 못했습니다. 뉴스는 추정하지 않습니다."}
+            </footer>
           </div>
-        </div>
+        </section>
       )}
 
       <p className="text-sm text-slate-100">
@@ -631,7 +711,7 @@ export default function DiscoveryTable({
             스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
         <span className="ml-2 text-xs text-slate-300">
           {sorts.length === 0 ? (
-            macroContext.summary.recommendedSort.replace("추천 정렬: ", "기본 순서: ")
+            "기본 순서 적용 중"
           ) : (
             <>
               다중 정렬: {sorts.map((rule, index) => (
@@ -660,6 +740,26 @@ export default function DiscoveryTable({
           )}
         </span>
       </p>
+
+      {!favoriteOnly && (
+        <section className="relative overflow-hidden rounded-xl border border-amber-400/70 bg-gradient-to-r from-amber-950/75 via-yellow-900/45 to-slate-950 px-4 py-3 shadow-[0_0_30px_-12px_rgba(250,204,21,0.9)] md:px-5 md:py-4">
+          <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-amber-300/10 blur-2xl" />
+          <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex shrink-0 items-center gap-3 lg:min-w-[210px]">
+              <span className="text-3xl drop-shadow-[0_0_12px_rgba(250,204,21,0.7)]" aria-hidden="true">🏆</span>
+              <div>
+                <p className="text-[10px] font-black tracking-[0.24em] text-amber-200/75">TODAY&apos;S RANKING</p>
+                <h2 className="text-2xl font-black tracking-tight text-[#f7c948] drop-shadow-[0_2px_10px_rgba(250,204,21,0.35)] md:text-3xl">추천 정렬</h2>
+              </div>
+            </div>
+            <div className="hidden h-11 w-px bg-gradient-to-b from-transparent via-amber-300/70 to-transparent lg:block" />
+            <p className="text-sm font-extrabold leading-6 text-amber-100 md:text-base">
+              {macroContext.summary.recommendedSort.replace(/^.*?:\s*/, "")}
+            </p>
+            {sorts.length > 0 && <span className="shrink-0 rounded-full border border-amber-300/40 bg-black/20 px-3 py-1 text-[11px] font-bold text-amber-200">현재 표는 사용자 정렬 적용 중</span>}
+          </div>
+        </section>
+      )}
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
