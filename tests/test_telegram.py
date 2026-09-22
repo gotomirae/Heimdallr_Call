@@ -41,7 +41,10 @@ def test_webhook_methods_are_blocked(method):
 
 
 def test_allowlist_contains_no_webhook_method():
-    assert ALLOWED_METHODS == {"sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton"}
+    assert ALLOWED_METHODS == {
+        "sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton",
+        "getChat", "pinChatMessage",
+    }
     assert "setWebhook" not in ALLOWED_METHODS
     for method in ALLOWED_METHODS:
         assert "webhook" not in method.lower()
@@ -49,6 +52,41 @@ def test_allowlist_contains_no_webhook_method():
 
 def test_send_message_is_allowed():
     TelegramClient(token=DEDICATED, chat_id="1")._ensure_allowed("sendMessage")
+
+
+def test_dashboard_uses_full_browser_pin_instead_of_mini_web_app(monkeypatch):
+    client = TelegramClient(token=DEDICATED, chat_id="1")
+    calls: list[tuple[str, dict]] = []
+
+    def fake_call(method: str, payload: dict) -> dict:
+        calls.append((method, payload))
+        if method == "getChat":
+            return {"ok": True, "result": {}}
+        if method == "sendMessage":
+            return {"ok": True, "result": {"message_id": 77}}
+        return {"ok": True, "result": True}
+
+    monkeypatch.setattr(client, "call", fake_call)
+    client.set_dashboard_menu("https://heimdallr-call.vercel.app/")
+    client.ensure_dashboard_pin("https://heimdallr-call.vercel.app/")
+    assert calls[0] == ("setChatMenuButton", {"chat_id": "1", "menu_button": {"type": "default"}})
+    assert calls[2][0] == "sendMessage"
+    assert calls[2][1]["reply_markup"]["inline_keyboard"][0][0]["url"] == "https://heimdallr-call.vercel.app"
+    assert calls[3] == ("pinChatMessage", {"chat_id": "1", "message_id": 77, "disable_notification": True})
+
+
+def test_dashboard_pin_is_idempotent_when_same_url_is_already_pinned(monkeypatch):
+    client = TelegramClient(token=DEDICATED, chat_id="1")
+    calls: list[tuple[str, dict]] = []
+
+    def fake_call(method: str, payload: dict) -> dict:
+        calls.append((method, payload))
+        return {"ok": True, "result": {"pinned_message": {"message_id": 77, "text": "https://heimdallr-call.vercel.app"}}}
+
+    monkeypatch.setattr(client, "call", fake_call)
+    result = client.ensure_dashboard_pin("https://heimdallr-call.vercel.app/")
+    assert result["unchanged"] is True
+    assert [method for method, _ in calls] == ["getChat"]
 
 
 # ═══ 4,096자 상한 ═══

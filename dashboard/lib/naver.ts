@@ -28,6 +28,9 @@ export interface NaverLiveSnapshot {
   roe: number | null;
   roeNextYear: number | null;
   roeNext: number | null;
+  fcfYear: number | null;
+  /** 네이버 연간 기업실적분석의 FCF. 화면 표시 단위(억원)를 유지한다. */
+  fcf: number | null;
 }
 
 export interface NaverDailyPrice {
@@ -132,8 +135,8 @@ function parseAnnual(body: UnknownRecord) {
     };
   };
   return {
-    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value },
-    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value },
+    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value, fcf: metricAt("FCF", 0).value },
+    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value, fcf: metricAt("FCF", 1).value },
   };
 }
 
@@ -240,11 +243,13 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
       year: mobileAnnual?.current.year ?? wise?.current.year ?? null,
       per: mobileAnnual?.current.per ?? wise?.current.per ?? null,
       roe: mobileAnnual?.current.roe ?? wise?.current.roe ?? null,
+      fcf: mobileAnnual?.current.fcf ?? null,
     },
     next: {
       year: mobileAnnual?.next.year ?? wise?.next.year ?? null,
       per: mobileAnnual?.next.per ?? wise?.next.per ?? null,
       roe: mobileAnnual?.next.roe ?? wise?.next.roe ?? null,
+      fcf: mobileAnnual?.next.fcf ?? null,
     },
   } : null;
   if (!quote && !annual) return null;
@@ -268,5 +273,7 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     roe: annual?.current.roe ?? null,
     roeNextYear: annual?.next.year ?? null,
     roeNext: annual?.next.roe ?? null,
+    fcfYear: annual?.current.year ?? null,
+    fcf: annual?.current.fcf ?? null,
   };
 }

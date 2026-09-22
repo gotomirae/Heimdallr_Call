@@ -219,7 +219,7 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
     assert "본업: <b>반도체 검사장비 · 산업용 로봇</b>" in text
     assert "매출 YoY +5.0% → +15.0%, 영업이익 YoY +10.0% → +25.0%로 동반 가속" in text
     assert "OPM +14.2% · 전년 동기 대비 +3.1%p" in text
-    assert "투자 매력도 82.3 · PRI 28.0(낮은 반영 구간)" in text
+    assert "투자 매력도 82.3 · 주가반영도 28.0(낮은 반영 구간)" in text
     assert "내년 F.PER 10.2배 · 2027년 F.ROE +17.5%" in text
     assert "5·20일선과 MACD 상향 교차가 겹치는지 관찰" not in text
     assert KIND_TECHNICAL == "technical_setup"

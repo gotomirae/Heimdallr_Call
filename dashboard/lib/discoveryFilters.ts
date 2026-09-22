@@ -14,7 +14,7 @@ import type { Grade } from "./types";
 
 export type GateFilter = "opportunity" | "growth" | "revenue_slow_op_accel" | "turnaround" | "other" | "all";
 export type CapFilter = "all" | "large" | "mid" | "small";
-export type ConsensusFilter = "all" | "yes" | "no";
+export type ConsensusFilter = "all" | "beat" | "miss" | "none";
 
 /**
  * 사용자가 머리글을 눌러 정렬할 수 있는 열.
@@ -118,7 +118,7 @@ export const STORAGE_KEY = "heimdallr.discovery.filters.v2";
 
 const GATES: GateFilter[] = ["opportunity", "growth", "revenue_slow_op_accel", "turnaround", "other", "all"];
 const CAPS: CapFilter[] = ["all", "large", "mid", "small"];
-const CONSENSUS: ConsensusFilter[] = ["all", "yes", "no"];
+const CONSENSUS: ConsensusFilter[] = ["all", "beat", "miss", "none"];
 const GRADES: Grade[] = ["★", "○", "△", "·", "✕"];
 
 function oneOf<T extends string>(value: string | null, allowed: T[]): T | null {

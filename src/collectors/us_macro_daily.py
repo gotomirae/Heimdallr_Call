@@ -141,13 +141,13 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime) -> 
     )
     activity_summary = f"{fed['activity']}한다고 평가했습니다. " if fed.get("activity") else ""
     briefings = json.loads(BRIEFINGS.read_text(encoding="utf-8"))
-    market_url = "https://finance.yahoo.com/markets/"
+    market_url = "https://www.tradingview.com/markets/stocks-usa/market-movers-all-stocks/"
     return {
-        "source": "미국 전 거래일 종가: Yahoo Finance · 통화정책: Federal Reserve",
+        "source": "미국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve",
         "checkedAt": checked_at.astimezone(SEOUL).strftime("%Y-%m-%d %H:%M KST"),
         "marketDate": market_date,
         "items": [
-            {"title": f"미국 {date_label} 주요 지수 (Yahoo Finance)", "url": market_url, "publishedAt": market_date},
+            {"title": f"미국 {date_label} 전 거래일 종가 · TradingView", "url": market_url, "publishedAt": market_date},
             {key: fed[key] for key in ("title", "url", "publishedAt")},
             *[{key: briefing[key] for key in ("title", "url", "publishedAt")} for briefing in briefings],
         ],
@@ -159,11 +159,11 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime) -> 
             "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, VIX {vix['close']:.2f}. {regime} 국면으로 해석합니다.",
             "forward": f"연준 성명({fed['publishedAt']}): {policy_summary} {activity_summary}{inflation_summary} 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
             "recommendedSort": "추천 정렬: " + (
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
                 if mode == "earnings_growth" else
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 낮은 PRI → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
                 if mode == "quality_price" else
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 낮은 PRI → 높은 영업이익 YoY → 등급 → 최신 분기"
+                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 높은 영업이익 YoY → 등급 → 최신 분기"
             ),
         },
     }

@@ -43,7 +43,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
     for label in (
         "분기 내 백분위",
         "FCF",
-        "과거 9분기 평균 PER 대비",
+        "과거 3개년 평균 PER 대비",
         "PEG (네이버)",
         "섹터 비교",
         "종목별 결과 추적",
@@ -146,7 +146,7 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 · 신규수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 12
+    assert QUARTER_CHART.count("<LabelList") == 13
     assert "영업이익 · OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")
@@ -159,7 +159,7 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert 'name="매출액 YoY 확정·잠정"' in QUARTER_CHART
     assert 'name="영업이익 YoY 전망"' in QUARTER_CHART
     assert 'strokeDasharray="5 4"' in QUARTER_CHART
-    assert QUARTER_CHART.count("<YAxis") == 5, "YoY 두 선은 YAxis 하나를 공유해야 한다"
+    assert QUARTER_CHART.count("<YAxis") == 7, "매출·GPM과 영업이익·OPM은 금액/마진 축을 분리하고 YoY 두 선은 한 축을 공유해야 한다"
     assert "원값" in QUARTER_CHART and "connectNulls={false}" in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART
@@ -181,7 +181,7 @@ def test_ten_quarters_and_every_chart_metric_has_deterministic_meaning():
 
 def test_llm_stage_timeline_is_event_driven_and_visible():
     for text in (
-        "1단계 · 잠정실적", "2단계 · 정기보고서", "3단계 · 리포트 최종",
+        "1단계 · 잠정실적", "2단계 · 정기보고서", "3단계 · LLM 추가 분석",
         "동일 단계·동일 근거의 실패도 반복 결제하지 않는다",
     ):
         assert text in STOCK
@@ -201,8 +201,8 @@ def test_pri_five_inputs_and_requested_history_are_visible():
 
 def test_pri_v4_exposes_five_price_reflection_factors_and_underlying_evidence():
     for label in (
-        "실적 발표 반응", "이익 전망 반영", "이익 성장 대 멀티플",
-        "밸류에이션 부담", "가격 모멘텀·과열",
+        "실적 발표~현재 주가 반응", "이익 전망 반영", "PEG(주가 수익 성장 비율)",
+        "밸류에이션", "가격 모멘텀·과열",
     ):
         assert label in PRI_BREAKDOWN
     for key in (
@@ -320,6 +320,6 @@ def test_every_stock_can_request_llm_analysis_and_links_are_exact():
     assert "자동 분석 대상은 아니지만 위 버튼을 누르면" in STOCK
     assert "(1단계) 잠정실적 발표 초기 분석" in STOCK
     assert "(2단계) 분기/반기/사업보고서 공시 분석" in STOCK
-    assert "(3단계) 정기보고서 후 5거래일·최근 10일 리포트 반영 완료" in STOCK
+    assert "(3단계) LLM 추가 분석 · 최근 공개자료 반영 완료" in STOCK
     assert "stockeasyStockUrl(code)" in STOCK
     assert "naverDisclosureUrl" not in STOCK

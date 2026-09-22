@@ -23,6 +23,8 @@ export interface DiscoveryRow {
   score: number | null;
   pri: number | null;
   hasConsensus: boolean | null;
+  /** 평가 분기 영업이익 실제치와 같은 분기 컨센서스의 차이(원). 부호만 필터에 쓴다. */
+  opConsensusGap: number | null;
   baseEffect: boolean | null;
   failReasons: string[];
   revenueYoy: number | null;
@@ -47,7 +49,7 @@ export type DiscoveryRowWire = [
   number | null, number | null, number | null, number | null, string | null,
   number | null, number | null, number | null, number | null, number | null,
   number | null, number | null, number | null, number | null, number | null,
-  number | null,
+  number | null, number | null,
 ];
 
 export function packDiscoveryRow(row: DiscoveryRow): DiscoveryRowWire {
@@ -59,7 +61,7 @@ export function packDiscoveryRow(row: DiscoveryRow): DiscoveryRowWire {
     row.opYoy, row.opQoq, row.opStatusLabel, row.opmYoyDelta, row.per4q,
     row.forwardPer, row.roe, row.forwardRoe, row.ret5d,
     row.excess[-5] ?? null, row.excess[0] ?? null, row.excess[5] ?? null,
-    row.excess[20] ?? null, row.excess[60] ?? null,
+    row.excess[20] ?? null, row.excess[60] ?? null, row.opConsensusGap,
   ];
 }
 
@@ -74,5 +76,6 @@ export function unpackDiscoveryRow(row: DiscoveryRowWire): DiscoveryRow {
     opStatusLabel: row[24], opmYoyDelta: row[25], per4q: row[26],
     forwardPer: row[27], roe: row[28], forwardRoe: row[29], ret5d: row[30],
     excess: { [-5]: row[31], [0]: row[32], [5]: row[33], [20]: row[34], [60]: row[35] },
+    opConsensusGap: row[36] ?? null,
   };
 }

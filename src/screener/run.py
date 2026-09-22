@@ -139,6 +139,7 @@ def build_pri_input(
         high_52w_drawdown_pct=_f(price, "high_52w_drawdown_pct"),
     )
     new = PriInput(
+        announcement_return_pct=_f(price, "announcement_return_pct"),
         announcement_excess_return_pct=_f(price, "announcement_excess_return_pct"),
         earnings_revision_price_gap_pct=_f(price, "earnings_revision_price_gap_pct"),
         valuation_reflection_pct=_f(price, "valuation_reflection_pct"),

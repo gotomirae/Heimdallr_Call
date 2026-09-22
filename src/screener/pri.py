@@ -281,8 +281,13 @@ def _compute_new(data: PriInput) -> PriResult:
     ``confidence``로 별도 표시한다. 신뢰도를 PRI에 더하면 데이터가 부족한
     종목이 실제보다 저반영처럼 보이는 T31 유형의 오류가 재발한다.
     """
+    event_return = (
+        data.announcement_return_pct
+        if data.announcement_return_pct is not None
+        else data.announcement_excess_return_pct
+    )
     primitives = {
-        "event": _linear(data.announcement_excess_return_pct, PRI_EVENT_ANCHORS_PCT, 15),
+        "event": _linear(event_return, (0.0, P2_ANNOUNCEMENT_RETURN_MAX_PCT), 20),
         "revision": _linear(data.earnings_revision_price_gap_pct, PRI_REVISION_GAP_ANCHORS_PCT, 10),
         "driver": _linear(data.multiple_expansion_share_pct, PRI_DRIVER_SHARE_ANCHORS_PCT, 15),
         "implied_growth": _linear(data.implied_growth_gap_pct, PRI_IMPLIED_GROWTH_GAP_ANCHORS_PCT, 20),
@@ -292,19 +297,22 @@ def _compute_new(data: PriInput) -> PriResult:
         "overheat": _linear(data.overheat_score_pct, PRI_OVERHEAT_ANCHORS_PCT, 10),
     }
     parts = {
-        "earnings_reaction": _factor([primitives["event"]], [15], 20),
+        "earnings_reaction": _factor([primitives["event"]], [20], 20),
         "expectation_gap": _factor(
             [primitives["revision"], primitives["implied_growth"]], [10, 20], 20
         ),
-        "earnings_vs_multiple": _factor([primitives["driver"]], [15], 20),
-        "valuation_burden": _factor(
-            [primitives["valuation_history"], primitives["valuation_peer"]], [10, 10], 20
+        "earnings_vs_multiple": _factor(
+            [primitives["valuation_peer"] if primitives["valuation_peer"] is not None else primitives["driver"]],
+            [10 if primitives["valuation_peer"] is not None else 15],
+            20,
         ),
+        "valuation_burden": _factor([primitives["valuation_history"]], [10], 20),
         "momentum_overheat": _factor(
             [primitives["relative"], primitives["overheat"]], [10, 10], 20
         ),
     }
     inputs = {
+        "announcement_return_pct": data.announcement_return_pct,
         "announcement_excess_return_pct": data.announcement_excess_return_pct,
         "earnings_revision_price_gap_pct": data.earnings_revision_price_gap_pct,
         "valuation_reflection_pct": data.valuation_reflection_pct,

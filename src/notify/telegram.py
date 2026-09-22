@@ -33,7 +33,10 @@ API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
 #: ★ 이 목록 밖의 메서드는 호출하지 않는다. `setWebhook`이 여기 없는 것이 요점이다.
 #:   `getUpdates`는 들어 있지만, 아래 봇 분리 검사를 통과해야 실제로 호출된다.
-ALLOWED_METHODS = frozenset({"sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton"})
+ALLOWED_METHODS = frozenset({
+    "sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton",
+    "getChat", "pinChatMessage",
+})
 
 #: 수신(폴링)에만 해당하는 메서드. 공유 봇에서는 이것들을 막는다.
 RECEIVING_METHODS = frozenset({"getUpdates"})
@@ -198,18 +201,41 @@ class TelegramClient:
         return body
 
     def set_dashboard_menu(self, url: str) -> dict:
-        """개인 채팅 하단 메뉴에 대시보드를 고정한다.
+        """미니 웹앱 메뉴를 해제한다. 대시보드는 고정 URL 메시지로 연다.
 
-        웹훅·업데이트 소비와 무관한 Bot API 메뉴 설정이며 같은 값으로 반복 호출해도 멱등이다.
+        `web_app` 메뉴는 Telegram 내부의 작은 창을 강제한다. 기본 메뉴로 되돌리고
+        일반 HTTPS 버튼을 고정하면 휴대폰의 전체 브라우저 화면으로 열 수 있다.
         """
         return self.call("setChatMenuButton", {
             "chat_id": self.chat_id,
-            "menu_button": {
-                "type": "web_app",
-                "text": "📊 Heimdallr 대시보드",
-                "web_app": {"url": url.rstrip("/")},
+            "menu_button": {"type": "default"},
+        })
+
+    def ensure_dashboard_pin(self, url: str) -> dict:
+        """전체 브라우저로 여는 대시보드 URL 메시지를 개인 채팅 상단에 고정한다."""
+        clean_url = url.rstrip("/")
+        chat = self.call("getChat", {"chat_id": self.chat_id}).get("result") or {}
+        pinned = chat.get("pinned_message") or {}
+        if clean_url in str(pinned.get("text") or ""):
+            return {"ok": True, "result": pinned, "unchanged": True}
+        sent = self.call("sendMessage", {
+            "chat_id": self.chat_id,
+            "text": f"📊 <b>Heimdallr 대시보드 바로가기</b>\n전체 화면으로 열기\n{clean_url}",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": {
+                "inline_keyboard": [[{"text": "🌐 대시보드 전체 화면 열기", "url": clean_url}]],
             },
         })
+        message_id = (sent.get("result") or {}).get("message_id")
+        if message_id is None:
+            raise TelegramError("대시보드 고정 메시지 ID 없음")
+        self.call("pinChatMessage", {
+            "chat_id": self.chat_id,
+            "message_id": message_id,
+            "disable_notification": True,
+        })
+        return sent
 
 
 def esc(value) -> str:

@@ -38,10 +38,10 @@ AXIS_MISSING_REASON = {
 
 #: PRI 항목 — `src/screener/pri.py`의 PRI_NEW_WEIGHTS와 같아야 한다.
 PRI_ITEMS = (
-    ("earnings_reaction", "실적반응", 20),
+    ("earnings_reaction", "발표~현재", 20),
+    ("valuation_burden", "3년PER대비", 20),
+    ("earnings_vs_multiple", "PEG", 20),
     ("expectation_gap", "이익전망", 20),
-    ("earnings_vs_multiple", "이익/멀티플", 20),
-    ("valuation_burden", "밸류부담", 20),
     ("momentum_overheat", "모멘텀", 20),
 )
 
@@ -702,7 +702,7 @@ def fundamental_investment_idea(ctx: dict) -> list[str]:
         "부분 반영 구간" if pri is not None and float(pri) < 65 else
         "선반영 점검 구간" if pri is not None else "반영도 미측정"
     )
-    valuation = [f"투자 매력도 {_num(ctx.get('investment_score'), 1)}", f"PRI {_num(pri, 1)}({pri_tone})"]
+    valuation = [f"투자 매력도 {_num(ctx.get('investment_score'), 1)}", f"주가반영도 {_num(pri, 1)}({pri_tone})"]
     if consensus.get("fwd_per") is not None:
         valuation.append(f"내년 F.PER {_num(consensus.get('fwd_per'), 1)}배")
     if consensus.get("roe_next_est") is not None:

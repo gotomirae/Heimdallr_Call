@@ -178,9 +178,9 @@ def per_history_stats(
     end_year: int,
     end_quarter: int,
     *,
-    lookback: int = 9,
+    lookback: int = 12,
 ) -> tuple[float | None, float | None, int, float | None]:
-    """현재 TTM PER과 과거 최대 9개 분기말 TTM PER 평균/할증률.
+    """현재 TTM PER과 과거 최대 12개 분기말(3개년) TTM PER 평균/할증률.
 
     DART 분기 EPS는 실제 적재 10,940행에서 0건이었다(T135). 따라서 화면의
     밸류에이션과 같은 `시가총액 / TTM 순이익`을 쓴다. 네이버 일봉은 수정주가라
@@ -508,10 +508,16 @@ def save(limit: int | None) -> int:
             ret_5d_pct=ret_5d,
             high_52w_drawdown_pct=drawdown,
         )
+        forward_per = (annual_metrics_by_code.get(row["code"], {}) or {}).get("fwd_per")
+        forward_premium = (
+            (float(forward_per) / average_per - 1.0) * 100.0
+            if forward_per is not None and average_per is not None and average_per > 0 else None
+        )
         pri = compute_pri(PriInput(
+            announcement_return_pct=announcement_return,
             announcement_excess_return_pct=announcement_excess,
             earnings_revision_price_gap_pct=revision_gap,
-            valuation_reflection_pct=premium,
+            valuation_reflection_pct=forward_premium,
             relative_return_pct=relative_return,
             overheat_score_pct=overheat,
             overheat_signal_count=float(overheat_count),
@@ -545,7 +551,7 @@ def save(limit: int | None) -> int:
             "per_vs_9q_avg_pct": premium,
             "earnings_revision_pct": revision_pct,
             "earnings_revision_price_gap_pct": revision_gap,
-            "valuation_reflection_pct": premium,
+            "valuation_reflection_pct": forward_premium,
             "relative_return_pct": relative_return,
             "foreign_net_qty_5d": foreign_flow.net_qty if foreign_flow else None,
             "foreign_volume_5d": foreign_flow.volume if foreign_flow else None,

@@ -477,6 +477,24 @@ export async function getAllLatestDiscoveryConsensus(): Promise<Map<string, Cons
   return latest;
 }
 
+/** 발굴 목록의 평가 분기별 영업이익 컨센서스. 같은 분기는 가장 최근 스냅샷만 남긴다. */
+export async function getAllQuarterlyDiscoveryConsensus(): Promise<Map<string, ConsensusRow>> {
+  const rows = await selectAll<ConsensusRow>(
+    "consensus_snapshots",
+    CONSENSUS_COLUMNS.join(","),
+    (q) => q.neq("fiscal_quarter", 0).eq("source", "naver")
+  );
+  const latest = new Map<string, ConsensusRow>();
+  for (const row of rows) {
+    const key = `${row.code}|${row.fiscal_year}|${row.fiscal_quarter}`;
+    const previous = latest.get(key);
+    if (!previous || String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? "")) {
+      latest.set(key, row);
+    }
+  }
+  return latest;
+}
+
 /** 결과 탭용 특정 분기 네이버 컨센서스. 이력은 종목별 최신 스냅샷 한 건만 남긴다. */
 export async function getAllConsensusForQuarter(
   year: number,

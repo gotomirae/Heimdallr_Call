@@ -201,17 +201,22 @@ export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
   if (!u) return { sector: UNKNOWN_SECTOR, etfTheme: UNKNOWN_SECTOR, basis: "미분류", process: null };
   if (u.sector) {
     const productSector = firstHit(haystack(u.products), false);
+    // 저장된 예전 분류가 전자부품이어도 최신 주요제품이 반도체를 명시하면 제품 기준이 이긴다.
+    // 전자부품은 반도체와 무관한 제품을 만드는 경우에만 유지한다.
+    const resolvedSector = u.sector === "전자부품" && productSector?.startsWith("반도체")
+      ? productSector
+      : u.sector;
     const industrySector = firstHit(haystack(u.industry), true);
-    const basis: SectorBasis = productSector === u.sector
+    const basis: SectorBasis = productSector === resolvedSector
       ? "주요제품"
-      : industrySector === u.sector
+      : industrySector === resolvedSector
         ? "ETF 유사 테마"
         : "주요제품";
     return {
-      sector: u.sector,
-      etfTheme: ETF_THEMES[u.sector] ?? u.sector,
+      sector: resolvedSector,
+      etfTheme: ETF_THEMES[resolvedSector] ?? resolvedSector,
       basis,
-      process: classifySemiconductorProcess(u.industry, u.products, u.sector),
+      process: classifySemiconductorProcess(u.industry, u.products, resolvedSector),
     };
   }
   const productSector = firstHit(haystack(u.products), false);

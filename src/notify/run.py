@@ -407,7 +407,7 @@ def main() -> int:
     #   보내면 반영도를 모르는 종목을 추천한 셈이 된다.
     grade = ctx.get("grade")
     if grade not in NOTIFY_GRADES:
-        reason = "PRI 판정 불가 — 시세 미수집" if grade is None else f"발송 대상 등급이 아니다"
+        reason = "주가반영도 판정 불가 — 시세 미수집" if grade is None else f"발송 대상 등급이 아니다"
         print(f"\n[4] 발송 안 함 — 등급 {grade!r} ({reason})")
         print(f"    발송 대상은 {NOTIFY_GRADES} 뿐이다. △·는 대시보드에만 남는다.")
         print(line)

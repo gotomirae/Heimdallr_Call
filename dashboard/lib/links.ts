@@ -36,3 +36,14 @@ export function naverDisclosureUrl(code: string): string {
 export function stockeasyStockUrl(code: string): string {
   return `https://stockeasy.intellio.kr/stock-analysis/stock-info/${encodeURIComponent(code)}`;
 }
+
+/** 영문 원문은 Google 번역의 한국어 보기로 연다. 국내 원문은 그대로 둔다. */
+export function koreanTranslatedUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith(".kr") || host.includes("naver.com") || host.includes("dart.fss.or.kr")) return url;
+    return `https://translate.google.com/translate?sl=auto&tl=ko&u=${encodeURIComponent(url)}`;
+  } catch {
+    return url;
+  }
+}

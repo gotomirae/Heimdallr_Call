@@ -8,6 +8,7 @@ import DiscoveryTable from "@/components/DiscoveryTable";
 import { HORIZONS, excessField, type OutcomeRow, getDiscoveryOutcomes } from "@/lib/outcome";
 import {
   getAllLatestDiscoveryConsensus,
+  getAllQuarterlyDiscoveryConsensus,
   getAllLatestDiscoveryPrices,
   getFundamentalsForQuarters,
   getLatestDiscoveryScreens,
@@ -65,7 +66,7 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
 
 export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
-  const [screenResult, universe, priceLoad, outcomeLoad, macroContext, consensusLoad] =
+  const [screenResult, universe, priceLoad, outcomeLoad, macroContext, consensusLoad, quarterlyConsensusLoad] =
     await Promise.all([
       getLatestDiscoveryScreens(),
       getUniverse(),
@@ -73,12 +74,14 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       withReadFallback("발표 후 수익률", getDiscoveryOutcomes(), { rows: [], dropped: [] }),
       getMacroContext(),
       withReadFallback("컨센서스", getAllLatestDiscoveryConsensus(), new Map()),
+      withReadFallback("분기 컨센서스", getAllQuarterlyDiscoveryConsensus(), new Map()),
     ]);
   const { rows: screens, dropped } = screenResult;
   const priceResult = priceLoad.value;
   const outcomeResult = outcomeLoad.value;
   const annualConsensus = consensusLoad.value;
-  const connectionWarnings = [priceLoad.warning, outcomeLoad.warning, consensusLoad.warning]
+  const quarterlyConsensus = quarterlyConsensusLoad.value;
+  const connectionWarnings = [priceLoad.warning, outcomeLoad.warning, consensusLoad.warning, quarterlyConsensusLoad.warning]
     .filter((warning): warning is string => warning != null);
 
   // ── 성장률 열의 재료 ────────────────────────────────────────────
@@ -115,6 +118,10 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
     const sectorInfo = sectorInfoOf(u);
     const o = outcomes.get(s.code);
     const f = fundByKey.get(`${s.code}|${s.fiscal_year}|${s.fiscal_quarter}`);
+    const quarterConsensus = quarterlyConsensus.get(`${s.code}|${s.fiscal_year}|${s.fiscal_quarter}`);
+    const opConsensusGap = f?.op != null && quarterConsensus?.op_est != null
+      ? f.op - quarterConsensus.op_est
+      : null;
     const excess: DiscoveryRow["excess"] = {};
     for (const d of HORIZONS) {
       excess[d] = o ? ((o[excessField(d)] as number | null) ?? null) : null;
@@ -139,6 +146,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       score: s.score_final ?? s.score_flash,
       pri: s.pri,
       hasConsensus: s.has_consensus,
+      opConsensusGap,
       baseEffect: s.base_effect_warning,
       failReasons: failReasons((s.gate_detail as Record<string, unknown> | null) ?? null),
       // ★ 재무 행을 못 찾으면 null이다. 0으로 채우지 않는다 — 미수집과 '0% 성장'은 다르다.
@@ -288,7 +296,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
           <tbody>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">투자 매력도</td>
-              <td className="text-slate-100">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 PRI와 등급에서 별도 반영</td>
+              <td className="text-slate-100">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 주가반영도와 등급에서 별도 반영</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 YoY</td>
@@ -320,9 +328,9 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
               <td className="text-slate-100">기업 점수 높음 + 주가 반영도 낮음 = 가장 찾던 구간</td>
             </tr>
             <tr>
-              <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표</td>
+              <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표 전후 주가 변화</td>
               <td className="text-slate-100">
-                발표일 기준 지수 대비 초과수익 (영업일) ·{" "}
+                발표 당일 종가를 기준점으로 계산한 지수 대비 초과수익 (영업일) ·{" "}
                 <Link href="/outcome" className="text-sky-300 underline">시기별 전략</Link>
               </td>
             </tr>

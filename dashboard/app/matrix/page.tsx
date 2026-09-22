@@ -43,7 +43,7 @@ export default async function MatrixPage() {
           { color: "#10b981", title: "○ 관심", note: "고점수·부분반영 또는 중점수·미반영" },
           { color: "#6366f1", title: "△ 기업 고점수 · 선반영", note: "조정 관찰" },
           { color: "#ef4444", title: "✕ 기업 저점수 · 선반영", note: "제외" },
-          { color: "#94a3b8", title: "판정 불가", note: "성장 가속 미해당 또는 PRI 없음" },
+          { color: "#94a3b8", title: "판정 불가", note: "성장 가속 미해당 또는 주가반영도 없음" },
         ].map((q) => (
           <span
             key={q.title}

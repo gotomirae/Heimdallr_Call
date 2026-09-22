@@ -63,11 +63,11 @@ function InvestmentBreakdown({
       </div>
       <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
         <div>산업 성장 {num(inputs.industry_growth, 1)}/100 · 산업 내 위치 {num(inputs.industry_position, 1)}/100</div>
-        <div>기존 실적 원점수 {num(inputs.fundamental_score, 1)} · 현재 가격은 PRI와 2축 등급에서 별도 반영</div>
+        <div>기존 실적 원점수 {num(inputs.fundamental_score, 1)} · 현재 가격은 주가반영도와 2축 등급에서 별도 반영</div>
         <div>성장 스토리 {num(inputs.growth_story, 1)}/100 · 예상 이익 성장 {num(inputs.forecast_earnings_growth_pct, 1)}%</div>
         <div>PER {num(inputs.per_current_ttm, 1)}배 · F.PER {num(inputs.fwd_per, 1)}배 · ROE {num(inputs.roe, 1)}% · F.ROE {num(inputs.forward_roe, 1)}%</div>
         <div>최근 분기 FCF {fcf == null ? DASH : `${(fcf / 1e8).toFixed(0)}억원`} · 시총 대비 {num(inputs.fcf_yield_pct, 1)}% · 영업이익 대비 현금전환 {num(inputs.fcf_conversion, 2)}배</div>
-        <div className="mt-1 text-slate-300">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. PRI는 이 점수에 합산하지 않는다.</div>
+        <div className="mt-1 text-slate-300">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. 주가반영도는 이 점수에 합산하지 않는다.</div>
       </div>
     </div>
   );
@@ -274,7 +274,7 @@ export function PriBreakdown({
       {isModern && (
         <div className="rounded border border-sky-800/60 bg-sky-950/30 px-2 py-2 text-xs text-sky-200">
           <div className="flex items-center justify-between">
-            <span className="font-medium">PRI 신뢰도</span>
+            <span className="font-medium">주가반영도 신뢰도</span>
             <span>{confidence == null ? `${DASH}` : `${confidence.toFixed(0)}/100`}</span>
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded bg-slate-800">
@@ -318,31 +318,31 @@ export function PriBreakdown({
         {isV4 ? (
           <>
             <div className="rounded border border-sky-800/70 bg-sky-950/20 p-2">
-              <strong>① 실적 발표 반응</strong>
-              <div>발표 후 시장 대비 {num(inputs.announcement_excess_return_pct as number | null, 1)}%p → {num(parts.earnings_reaction, 1)}/20</div>
-              <div className="text-slate-300">실적 공개 직후 시장보다 얼마나 먼저 움직였는지 본다.</div>
-            </div>
-            <div className="mt-2 rounded border border-emerald-800/70 bg-emerald-950/20 p-2">
-              <strong>② 이익 전망 반영</strong>
-              <div>주가·이익전망 괴리 {num(inputs.earnings_revision_price_gap_pct as number | null, 1)}%p · 내재 성장률 갭 {num(inputs.implied_growth_gap_pct as number | null, 1)}%p → {num(parts.expectation_gap, 1)}/20</div>
-              <div className="text-slate-300">가격 상승이 실제 이익 전망 개선보다 앞섰는지 함께 확인한다.</div>
-            </div>
-            <div className="mt-2 rounded border border-violet-800/70 bg-violet-950/20 p-2">
-              <strong>③ 이익 성장 대 멀티플</strong>
-              <div>12개월 주가 {num(priceReturn as number | null, 1)}% · TTM 이익 {num(inputs.earnings_growth_12m_pct as number | null, 1)}% · 멀티플 몫 {num(multipleShare as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
-              <div className="text-slate-300">주가 상승이 이익 증가로 설명되는지, 기대 배수 확장에 의존하는지 구분한다.</div>
+              <strong>① 실적 발표~현재 주가 반응</strong>
+              <div>발표 당일 종가 대비 현재 {num(inputs.announcement_return_pct as number | null, 1)}% → {num(parts.earnings_reaction, 1)}/20</div>
+              <div className="text-slate-300">양수면 실적 기대가 가격에 반영됐고, 음수면 발표 뒤 주가가 낮아졌다는 뜻이다.</div>
             </div>
             <div className="mt-2 rounded border border-amber-800/70 bg-amber-950/20 p-2">
-              <strong>④ 밸류에이션 부담</strong>
-              <div>자기 역사 대비 {num(inputs.valuation_reflection_pct as number | null, 1)}% · 피어 성장단가 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
-              <div className="text-slate-300">같은 회사의 과거와 같은 산업 피어보다 성장에 비싼 값을 지불하는지 본다.</div>
+              <strong>② 밸류에이션</strong>
+              <div>과거 3개년 평균 PER 대비 내년 F.PER {num(inputs.valuation_reflection_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
+              <div className="text-slate-300">양수일수록 과거 평균보다 높은 선행 배수를 받고 있어 기대가 더 반영된 상태다.</div>
+            </div>
+            <div className="mt-2 rounded border border-violet-800/70 bg-violet-950/20 p-2">
+              <strong>③ PEG(주가 수익 성장 비율)</strong>
+              <div>PEG형 성장단가 {num(inputs.growth_adjusted_pe as number | null, 2)} · 피어 중앙 {num(inputs.peer_median_growth_adjusted_pe as number | null, 2)} · 피어 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
+              <div className="text-slate-300">선행 이익 성장 1%당 지불하는 PER을 같은 섹터 피어와 비교한다.</div>
+            </div>
+            <div className="mt-2 rounded border border-emerald-800/70 bg-emerald-950/20 p-2">
+              <strong>④ 이익 전망 반영</strong>
+              <div>주가·이익전망 괴리 {num(inputs.earnings_revision_price_gap_pct as number | null, 1)}%p · 내재 성장률 갭 {num(inputs.implied_growth_gap_pct as number | null, 1)}%p → {num(parts.expectation_gap, 1)}/20</div>
+              <div className="text-slate-300">영업이익 전망 개선보다 주가가 앞섰는지, 현재 배수가 요구하는 성장과 전망이 맞는지 본다.</div>
             </div>
             <div className="mt-2 rounded border border-rose-800/70 bg-rose-950/20 p-2">
               <strong>⑤ 가격 모멘텀·과열</strong>
               <div>중기 지수 대비 {num(inputs.relative_return_pct as number | null, 1)}%p · 과열 합성 {num(inputs.overheat_score_pct as number | null, 1)}/100 · RSI {num(inputs.rsi_14 as number | null, 1)} → {num(parts.momentum_overheat, 1)}/20</div>
-              <div className="text-slate-300">중기 선행 상승과 최근 단기 쏠림을 한 항목에서 확인한다.</div>
+              <div className="text-slate-300">중기 선행 상승과 RSI 45 기준 방향을 본다. 실제 MACD·Signal 교차는 바로 아래 일간 차트의 최신값으로 확인한다.</div>
             </div>
-            <div className="mt-2 text-slate-100">PRI = 측정 요인 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 세 요인 미만이면 판정하지 않는다.</div>
+            <div className="mt-2 text-slate-100">주가반영도 = 측정 요인 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 세 요인 미만이면 판정하지 않는다.</div>
           </>
         ) : isV3 ? (
           <>
@@ -370,7 +370,7 @@ export function PriBreakdown({
               <div className="text-slate-300">미래 매수자를 예측하지 않고 현재 가격의 단기 쏠림만 측정한다.</div>
             </div>
             <div className="mt-2"><strong>중기 상대 주가</strong> {num(inputs.relative_return_pct, 1)}%p → {num(parts.relative, 1)}/10</div>
-            <div className="mt-1 text-slate-100">PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
+            <div className="mt-1 text-slate-100">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
           </>
         ) : isV2 ? (
           <>
@@ -378,7 +378,7 @@ export function PriBreakdown({
             <div><strong>전망·주가 괴리</strong> {num(inputs.earnings_revision_price_gap_pct, 1)}%p → {num(parts.revision, 1)}/30 · 주가가 이익 전망보다 앞선 정도</div>
             <div><strong>TTM PER·F.PER 반영</strong> {num(inputs.valuation_reflection_pct, 1)}% → {num(parts.valuation, 1)}/20 · 과거 PER 대비 현재 배수</div>
             <div><strong>중기 상대 주가</strong> {num(inputs.relative_return_pct, 1)}%p → {num(parts.relative, 1)}/20 · 3·6·12개월 섹터 대비 평균</div>
-            <div className="mt-1 text-slate-100">PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
+            <div className="mt-1 text-slate-100">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
           </>
         ) : (
           <>
@@ -387,7 +387,7 @@ export function PriBreakdown({
             <div>P3 현재 TTM PER의 과거 9분기 평균 대비 {num(inputs.per_vs_9q_avg_pct, 1)}% → {num(parts.p3, 1)}/20</div>
             <div>P4 발표일부터 5거래일 외국인 순매수/거래량 {num(inputs.foreign_net_ratio_5d_pct, 2)}% → {num(parts.p4, 1)}/10</div>
             <div>P5 RSI(14) {num(inputs.rsi_14, 1)} (45가 중립) → {num(parts.p5, 1)}/20</div>
-            <div className="mt-1 text-slate-100">기존 PRI = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
+            <div className="mt-1 text-slate-100">기존 주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
           </>
         )}
       </div>

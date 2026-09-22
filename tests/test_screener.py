@@ -655,8 +655,8 @@ def test_pri_v4_groups_supporting_inputs_without_counting_them_twice():
             overheat_score_pct=0.0,
         )
     )
-    assert r.confidence == 40
-    assert r.pri is None
+    assert r.confidence == 60
+    assert r.pri == pytest.approx(33.3333333333)
 
 
 def test_pri_v3_growth_and_multiple_formulas_hand_check():

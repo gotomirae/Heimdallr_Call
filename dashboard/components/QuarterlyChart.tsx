@@ -72,6 +72,7 @@ function chartSeries(points: ChartPoint[]) {
       opForecast: forecast ? point.op : null,
       opmActual: forecast ? null : point.opm,
       opmForecast: connector ? point.opm : null,
+      gpmActual: forecast ? null : point.gpm,
       revenueYoyActual: forecast ? null : point.revenueYoy,
       revenueYoyForecast: connector ? point.revenueYoy : null,
       opYoyActual: forecast ? null : point.opYoy,
@@ -83,13 +84,16 @@ function chartSeries(points: ChartPoint[]) {
 function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   const data = chartSeries(points);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액</strong><span className="text-slate-400">억원</span></div>
-    <div className="h-40"><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
-      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><Axis />
-      <Tooltip formatter={(v) => [fmt(v, "억"), "매출액"]} contentStyle={tooltipStyle} />
-      <Bar dataKey="revenueActual" name="매출액 확정·잠정" fill="#2563eb" isAnimationActive={false}><LabelList dataKey="revenueActual" position="top" fill="#e2e8f0" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar dataKey="revenueForecast" name="다음 분기 매출 전망" fill="transparent" stroke="#93c5fd" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="revenueForecast" position="top" fill="#bfdbfe" fontSize={9} formatter={valueLabel("억")} /></Bar>
-    </BarChart></ResponsiveContainer></div>
+    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액 · GPM</strong><span className="text-slate-400">억원 · %</span></div>
+    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 30, right: 10, bottom: 0, left: 0 }}>
+      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
+      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke="#fff" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+      <Tooltip formatter={(v, name) => [fmt(v, name === "GPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <Bar yAxisId="amount" dataKey="revenueActual" name="매출액 확정·잠정" fill="#16a34a" isAnimationActive={false}><LabelList dataKey="revenueActual" position="top" fill="#bbf7d0" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="revenueForecast" name="다음 분기 매출 전망" fill="transparent" stroke="#4ade80" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="revenueForecast" position="top" fill="#86efac" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Line yAxisId="percent" dataKey="gpmActual" name="GPM" stroke={SERIES_COLOR.GPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="gpmActual" content={(p) => lineLabel(SERIES_COLOR.GPM_COLOR, "%", -15)({ ...p })} /></Line>
+    </ComposedChart></ResponsiveContainer></div>
     <Explanation items={[meaning]} />
   </div>;
 }
@@ -103,8 +107,8 @@ function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: M
       <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke={SERIES_COLOR.OPM_COLOR} fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <Tooltip formatter={(v, name) => [fmt(v, name === "OPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
-      <Bar yAxisId="amount" dataKey="opActual" name="영업이익 확정·잠정" fill="#0891b2" isAnimationActive={false}><LabelList dataKey="opActual" position="top" fill="#bae6fd" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar yAxisId="amount" dataKey="opForecast" name="다음 분기 영업이익 전망" fill="transparent" stroke="#67e8f9" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="opForecast" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="opActual" name="영업이익 확정·잠정" fill="#d4a017" isAnimationActive={false}><LabelList dataKey="opActual" position="top" fill="#fde68a" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="opForecast" name="다음 분기 영업이익 전망" fill="transparent" stroke="#facc15" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="opForecast" position="top" fill="#fde047" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Line yAxisId="percent" dataKey="opmActual" name="영업이익률" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmActual" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
       <Line yAxisId="percent" dataKey="opmForecast" name="영업이익률 전망" stroke={SERIES_COLOR.OPM_COLOR} strokeDasharray="5 4" strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmForecast" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>

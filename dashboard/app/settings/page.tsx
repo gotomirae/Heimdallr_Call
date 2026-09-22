@@ -209,7 +209,7 @@ export default async function SettingsPage() {
 
       <Card
         title="투자 매력도 배점"
-        note="산업·기업·밸류·현금흐름을 결합한다. 현재 가격은 PRI와 2축 등급에서 별도로 반영한다(ADR 5). 성장 스토리는 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다."
+        note="산업·기업·밸류·현금흐름을 결합한다. 현재 가격은 주가반영도와 2축 등급에서 별도로 반영한다(ADR 5). 성장 스토리는 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다."
       >
         <div className="grid gap-x-8 sm:grid-cols-2">
           <div>
@@ -225,7 +225,7 @@ export default async function SettingsPage() {
           <div>
             <Row label="계산 하한" value={`${investment.min_denominator}/100`} hint="미만이면 판정 보류" />
             <Row label="피어 최소 표본" value={`${investment.peer_min_count}종목`} />
-            <Row label="가격 반영" value="PRI 별도 축" hint="스코어와 합산하지 않음" />
+            <Row label="가격 반영" value="주가반영도 별도 축" hint="스코어와 합산하지 않음" />
           </div>
         </div>
       </Card>
@@ -272,7 +272,7 @@ export default async function SettingsPage() {
       </Card>
 
       <Card
-        title="주가반영도 (PRI)"
+        title="주가반영도"
         note="낮을수록 실적이 아직 주가에 덜 반영된 상태다. 분모 하한 미만이면 0점이 아니라 '판정 불가'다."
       >
         <div className="grid gap-x-8 sm:grid-cols-2">
@@ -287,7 +287,7 @@ export default async function SettingsPage() {
             <Row label="단기 과열" value={`${pri.overheat}점`} />
           </div>
           <div>
-            <Row label="PRI 계산 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />
+            <Row label="주가반영도 계산 하한" value={`${pri.min_denominator}`} hint="미만이면 판정 보류" />
             <Row label="신뢰도 기준" value={`${pri.min_confidence}/100`} hint="미만이면 참고용" />
             <Row label="내재 성장 역산 기간" value={`${pri.implied_growth_years}년`} />
             <Row label="피어 중앙값 최소 표본" value={`${pri.peer_min_count}종목`} />

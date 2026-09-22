@@ -268,9 +268,9 @@ export const AXIS_MISSING_REASON: Record<string, string> = {
 };
 
 export const PRI_PARTS = [
-  { key: "earnings_reaction", label: "실적 발표 반응", max: 20 },
+  { key: "earnings_reaction", label: "실적 발표~현재 주가 반응", max: 20 },
+  { key: "valuation_burden", label: "밸류에이션", max: 20 },
+  { key: "earnings_vs_multiple", label: "PEG(주가 수익 성장 비율)", max: 20 },
   { key: "expectation_gap", label: "이익 전망 반영", max: 20 },
-  { key: "earnings_vs_multiple", label: "이익 대 멀티플", max: 20 },
-  { key: "valuation_burden", label: "밸류에이션 부담", max: 20 },
   { key: "momentum_overheat", label: "가격 모멘텀·과열", max: 20 },
 ] as const;

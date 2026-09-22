@@ -104,7 +104,7 @@ def main() -> int:
         print(
             f"  {r['from_grade']} → {r['to_grade']}  {r['name']}({r['code']}) "
             f"{r['fiscal_year']}.{r['fiscal_quarter']}Q "
-            f"스코어 {r['score']:.1f} · PRI {r['pri_before']} → {r['pri']}"
+            f"스코어 {r['score']:.1f} · 주가반영도 {r['pri_before']} → {r['pri']}"
         )
 
     if not rows:

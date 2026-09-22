@@ -18,6 +18,7 @@ import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
 import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
 import { trailing4qPer, ttmNetIncome } from "@/lib/valuation";
+import { productSharesFromExcerpt } from "@/lib/productShares";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
 import { getOutcomesForCode } from "@/lib/outcome";
 import { getNaverDailyPrices, getNaverLiveSnapshot } from "@/lib/naver";
@@ -76,6 +77,17 @@ function median(values: Array<number | null | undefined>): number | null {
   return measured.length % 2
     ? measured[middle]
     : (measured[middle - 1] + measured[middle]) / 2;
+}
+
+function productSimilarity(left: string | null | undefined, right: string | null | undefined): number {
+  const tokens = (value: string | null | undefined) => new Set(
+    String(value ?? "").toLowerCase().split(/[^0-9a-z가-힣]+/).filter((token) => token.length >= 2)
+  );
+  const a = tokens(left);
+  const b = tokens(right);
+  if (!a.size || !b.size) return 0;
+  const common = [...a].filter((token) => b.has(token)).length;
+  return common / (a.size + b.size - common);
 }
 
 /**
@@ -226,7 +238,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     analysisMeta?.analysis_stage === "dashboard_on_demand"
       ? "사용자 요청 · 기업 투자판단 LLM 분석 완료"
       : analysisMeta?.analysis_stage === "report_final"
-      ? "(3단계) 정기보고서 후 5거래일·최근 10일 리포트 반영 완료"
+      ? "(3단계) LLM 추가 분석 · 최근 공개자료 반영 완료"
       : analysisMeta?.analysis_stage === "filing" || analysisMeta?.analysis_stage === "final"
         ? "(2단계) 분기/반기/사업보고서 공시 분석"
       : analysisMeta?.analysis_stage === "preliminary"
@@ -319,8 +331,8 @@ export default async function StockPage({ params }: { params: { code: string } }
     },
     {
       key: "report_final",
-      title: "3단계 · 리포트 최종",
-      trigger: "2단계 뒤 5거래일 · 최근 10일 리포트 검색",
+      title: "3단계 · LLM 추가 분석",
+      trigger: "정기보고서·최근 리포트·공개 이벤트를 추가 해석",
       status: completedAt("report_final")
         ? `${completedAt("report_final")} 최종 분석 완료`
         : analysisStageRank >= 3
@@ -366,9 +378,13 @@ export default async function StockPage({ params }: { params: { code: string } }
   const sectorScreens = quarterScreenResult.rows
     .filter((row) => sectorOf(universe.get(row.code)) === stockSector)
     .sort(
-      (left, right) =>
-        (right.score_final ?? right.score_flash ?? -Infinity) -
-        (left.score_final ?? left.score_flash ?? -Infinity)
+      (left, right) => {
+        const similarity = productSimilarity(stock.products, universe.get(right.code)?.products) -
+          productSimilarity(stock.products, universe.get(left.code)?.products);
+        if (Math.abs(similarity) > 1e-9) return similarity;
+        return (right.score_final ?? right.score_flash ?? -Infinity) -
+          (left.score_final ?? left.score_flash ?? -Infinity);
+      }
     );
   const topSectorScreens = sectorScreens.slice(0, 5);
   const currentSectorScreen = sectorScreens.find((row) => row.code === code);
@@ -498,6 +514,10 @@ export default async function StockPage({ params }: { params: { code: string } }
   const baseEffectMeasurable = Boolean(
     (screen?.gate_detail as Record<string, unknown> | null)?.base_effect_measurable ?? true
   );
+  const productShares = productSharesFromExcerpt(disclosureExcerpt);
+  const analysisAsOf = typeof lastAttempt.attempted_at === "string"
+    ? lastAttempt.attempted_at.slice(0, 10)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -518,6 +538,14 @@ export default async function StockPage({ params }: { params: { code: string } }
           {stock.products && (
             <p className="mt-1 text-xs text-slate-300">{stock.products}</p>
           )}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="font-bold text-sky-200">최근 정기보고서 제품·사업 비중</span>
+            {productShares.length > 0 ? productShares.map((item) => (
+              <span key={item.name} className="rounded-full border border-sky-800/70 bg-sky-950/35 px-2 py-1 text-slate-100">
+                {item.name} <strong className="text-sky-200">{item.sharePct.toFixed(1)}%</strong>
+              </span>
+            )) : <span className="text-slate-400">공시에 명시된 비중 미확인 · 제품 설명만 표시</span>}
+          </div>
         </div>
         <div className="text-right">
           <div className="text-2xl font-semibold">{num(currentClose)}원</div>
@@ -607,7 +635,7 @@ export default async function StockPage({ params }: { params: { code: string } }
               </div>
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">
-                  주가반영도 (PRI)
+                  주가반영도
                 </h3>
                 {/* ★ 숫자 바로 아래에 뜻을 붙인다 — 62점이 좋은 건지 나쁜 건지가
                     이 화면에서 가장 자주 막히는 지점이다. */}
@@ -658,7 +686,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           priceAnalysis={analysis.pricePosition.priceHistory}
           priceOutlook={analysis.pricePosition.reason}
         />
-        <Note>네이버 일봉을 주간으로 접지 않고 그대로 표시하며, MACD(12·26·9)와 RSI(14)도 거래일 기준으로 계산한다. 세로선은 해당 분기의 첫 실적 공시일이다.</Note>
+        <Note>네이버 일봉을 주간으로 접지 않고 그대로 표시하며, MACD(12·26·9)와 RSI(14)도 거래일 기준으로 계산한다. 점선은 각 분기의 잠정실적과 정기보고서 확정 공시일을 구분한다.</Note>
 
         {/* ★★ 핵심 투자 포인트 — **모양이 무엇을 뜻하는가**(사용자 지정 2026-08-23).
             "성장률이 빨라졌다"는 차트를 보면 누구나 아는 사실이다. 화면이 보태야 하는
@@ -777,7 +805,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         title="LLM 분석"
         note={
           analysisYear && analysisQuarter
-            ? `${quarterLabel(analysisYear, analysisQuarter)} 기준`
+            ? `${quarterLabel(analysisYear, analysisQuarter)} · 분석 기준일 ${analysisAsOf ?? "미확인"}`
             : undefined
         }
       >
@@ -807,9 +835,11 @@ export default async function StockPage({ params }: { params: { code: string } }
               ))}
             </div>
             <p className="mb-3 text-xs leading-relaxed text-slate-300">
-              각 단계는 같은 분기의 최신 해석으로 갱신된다. 1단계는 잠정 숫자, 2단계는 확정 재무와
-              정기보고서 발췌, 3단계는 정기보고서 뒤 5거래일 동안 나온 최근 10일 증권사 리포트를
-              반영한다. 시세 변화만으로는 재호출하지 않으며, 동일 단계·동일 근거의 실패도 반복 결제하지 않는다.
+              각 단계는 같은 분기의 최신 해석으로 갱신된다.<br />
+              1단계는 잠정 숫자를 반영한다.<br />
+              2단계는 확정 재무와 정기보고서 발췌를 반영한다.<br />
+              3단계는 정기보고서와 최근 리포트·공개 이벤트를 LLM이 추가 분석한다.
+              동일 단계·동일 근거의 실패도 반복 결제하지 않는다.
             </p>
           </>
         )}
@@ -833,6 +863,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           <div className="text-xs font-bold uppercase tracking-wide text-sky-200">기업 기본 개요</div>
           <div className="mt-2 grid gap-3 text-sm md:grid-cols-2">
             <div><span className="text-slate-400">산업·사업</span><p className="mt-1 leading-relaxed text-slate-100">{stock.industry ?? DASH}<br />{stock.products ?? "주요 제품 공개 정보 미수집"}</p></div>
+            <div><span className="text-slate-400">최근 제품별 매출 비중</span><p className="mt-1 leading-relaxed text-slate-100">{productShares.length ? productShares.map((item) => `${item.name} ${item.sharePct.toFixed(1)}%`).join(" · ") : "정기보고서에서 명시된 비중을 확인하지 못함"}</p></div>
             <div><span className="text-slate-400">최근 실적 위치</span><p className="mt-1 leading-relaxed text-slate-100">매출 {eok(evaluated?.revenue)} · 영업이익 {eok(evaluated?.op)} · OPM {pct(evaluated?.opm)}<br />매출 YoY {pct(evaluated?.revenue_yoy)} · 영업이익 YoY {growthOrLabel(evaluated?.op_yoy, evaluated?.op_status_label)}</p></div>
           </div>
         </div>
@@ -957,9 +988,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           {priceBasisDate && ` (${priceBasisDate} 기준)`} ·
           네이버 올해 PER(예상) {per4q != null ? `${per4q.toFixed(2)}배` : DASH} ·
           네이버 내년 F.PER {forwardPerValue != null ? `${forwardPerValue.toFixed(2)}배` : DASH}.
-          이익 성장으로 배수가 낮아지는지와 PRI가 낮아 아직 가격이 덜 움직였는지를 함께 비교한다.
+          이익 성장으로 배수가 낮아지는지와 주가반영도가 낮아 아직 가격이 덜 움직였는지를 함께 비교한다.
         </p>
-        <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-6">
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">
               ① 올해 PER(예상)
@@ -1010,7 +1041,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">④ 과거 9분기 평균 PER 대비</div>
+            <div className="text-xs font-semibold text-slate-200">④ 과거 3개년 평균 PER 대비</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
               {price?.per_vs_9q_avg_pct != null
                 ? `${price.per_vs_9q_avg_pct >= 0 ? "+" : ""}${price.per_vs_9q_avg_pct.toFixed(1)}%`
@@ -1031,6 +1062,17 @@ export default async function StockPage({ params }: { params: { code: string } }
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               네이버증권이 공개한 PEG만 표시한다. 네이버가 값을 제공하지 않으면 다른 성장률로
               대체하지 않고 —로 둔다.
+            </p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
+            <div className="text-xs font-semibold text-slate-200">⑥ FCF (네이버)</div>
+            <div className={`mt-1 text-2xl font-semibold ${(naverLive?.fcf ?? 0) >= 0 ? "text-emerald-200" : "text-rose-200"}`}>
+              {naverLive?.fcf != null ? `${naverLive.fcf.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억원` : DASH}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              네이버 증권 {naverLive?.fcfYear ?? "올해"}년(E) 잉여현금흐름이다.
+              양수면 영업과 투자 뒤 현금이 남는 구조이고, 음수면 증설 투자와 운전자본 증가 원인을 함께 확인한다.
+              네이버가 공개하지 않으면 DART 값으로 바꿔 끼우지 않는다.
             </p>
           </div>
         </div>
@@ -1061,12 +1103,12 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       </Card>
 
-      <Card title="섹터 비교" note={stockSector + " · 같은 평가 분기 스코어 상위 5개"}>
+      <Card title="섹터 비교" note={stockSector + " · 주요 제품 유사도 우선, 같은 평가 분기 5개"}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1260px] text-right text-sm">
             <thead className="text-xs text-slate-300">
               <tr className="border-b border-slate-800">
-                <th className="py-2 text-left">종목</th>
+                <th className="sticky left-0 z-20 bg-slate-900 py-2 text-left">종목</th>
                 <th className="py-2">시총</th>
                 <th className="py-2">최신 분기 매출</th>
                 <th className="py-2">영업이익</th>
@@ -1079,7 +1121,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </thead>
             <tbody>
               <tr className="border-b border-slate-700 bg-slate-800/30 font-semibold">
-                <td className="py-2 text-left">표시 종목 중앙값 ({sectorPeerRows.length}종목)</td>
+                <td className="sticky left-0 z-10 bg-slate-800 py-2 text-left">표시 종목 중앙값 ({sectorPeerRows.length}종목)</td>
                 <td className="py-2">{marketCap(sectorMedians.marketCap)}</td>
                 <td className="py-2">{eok(sectorMedians.revenue)}</td>
                 <td className="py-2">{eok(sectorMedians.op)}</td>
@@ -1097,7 +1139,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                     (peer.isCurrent ? "bg-amber-950/25 font-semibold text-amber-100" : "")
                   }
                 >
-                  <td className="py-2 text-left">
+                  <td className={`sticky left-0 z-10 py-2 text-left ${peer.isCurrent ? "bg-amber-950" : "bg-slate-900"}`}>
                     <Link href={"/stock/" + peer.code} className="hover:underline">
                       {peer.isCurrent ? "현재 · " : ""}{peer.name} ({peer.code})
                     </Link>
@@ -1119,7 +1161,8 @@ export default async function StockPage({ params }: { params: { code: string } }
           매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. 현재 종목의 PER·F.PER·ROE는
           위 가치 카드와 같은 네이버 올해/내년 예상값이고, 비교 종목도 같은 네이버 연간 표를 우선한다.
           조회 실패 시 저장값, 올해 PER까지 없을 때만 시총÷최근 4분기 순이익 검산값을 쓴다. 상위 5개만 비교하며 평균 대신 이상치에 덜 흔들리는
-          중앙값을 썼다. 현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
+          중앙값을 썼다. 같은 섹터 안에서 주요 제품 설명의 겹치는 단어 비율을 먼저 비교하고, 동률이면 투자 매력도가 높은 순으로 고른다.
+          현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
         </Note>
       </Card>
 

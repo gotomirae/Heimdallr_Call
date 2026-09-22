@@ -16,6 +16,8 @@ export interface ChartPoint {
   opYoy: number | null;
   /** 영업이익률(%). 주가를 제거한 자리에 표시한다. */
   opm: number | null;
+  /** 매출총이익률(%). */
+  gpm: number | null;
   /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
   orderBacklog: number | null;
   newOrders: number | null;
@@ -49,8 +51,9 @@ export const SERIES_COLOR = {
   /** 매출 YoY — 녹색 실선. */
   REVENUE_COLOR: "#34d399",
   REVENUE_LABEL: "#6ee7b7",
-  /** OPM — 하늘색 점선. */
-  OPM_COLOR: "#38bdf8",
+  /** GPM·OPM — 흰색 실선. */
+  GPM_COLOR: "#ffffff",
+  OPM_COLOR: "#ffffff",
   /** TTM 매출 — 분홍 점선. */
   TTM_COLOR: "#f9a8d4",
   /** 축·눈금 — 계열 색이 아니다. 계열과 헷갈리지 않게 따로 둔다. */
@@ -74,6 +77,7 @@ export function toChartPoints(
     revenueYoy: r.revenue_yoy,
     opYoy: r.op_yoy,
     opm: r.opm,
+    gpm: r.gpm,
     orderBacklog: null,
     newOrders: null,
     opStatusLabel: r.op_status_label,
@@ -118,6 +122,7 @@ export function appendNextQuarterConsensus(
     revenueYoy: growth(revenue, yearAgo?.revenue ?? null),
     opYoy: op != null && op > 0 ? growth(op, yearAgo?.op ?? null) : null,
     opm: revenue != null && revenue > 0 && op != null ? op / revenue * 100 : null,
+    gpm: null,
     orderBacklog: null,
     newOrders: null,
     opStatusLabel: opTransition(op, yearAgo?.op ?? null),

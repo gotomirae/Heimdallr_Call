@@ -198,6 +198,25 @@ const GATE_LABEL: Record<GateFilter, string> = {
   all: "전 종목",
 };
 
+function translatedSourceUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith(".kr") || host.includes("naver.com") || host.includes("dart.fss.or.kr")) return url;
+    return `https://translate.google.com/translate?sl=auto&tl=ko&u=${encodeURIComponent(url)}`;
+  } catch {
+    return url;
+  }
+}
+
+const GATE_CRITERIA: Record<GateFilter, string[]> = {
+  opportunity: ["실적 가속 또는 가속 게이트를 통과한 흑자전환", "★·○와 낮은 주가반영도를 우선", "수주·고객 수요는 공시에서 재확인"],
+  growth: ["매출 YoY 가속", "영업이익 YoY 가속", "OPM YoY 상승"],
+  revenue_slow_op_accel: ["매출은 둔화", "영업이익은 가속", "원가·제품 믹스 개선 여부 확인"],
+  turnaround: ["영업이익 흑자전환", "매출·마진의 지속 가능성 확인", "낮은 주가반영도 우선"],
+  other: ["위 성장 유형에 속하지 않은 종목", "최신 실적·가격을 개별 확인", "등급과 주가반영도를 함께 비교"],
+  all: ["전체 성장 유형", "사용자 필터와 다중 정렬 적용", "버튼으로 기본 우선순위 복원"],
+};
+
 const CAP_BOUNDS: Record<Exclude<CapFilter, "all">, [number, number]> = {
   large: [1e12, Infinity],
   mid: [3e11, 1e12],
@@ -467,8 +486,9 @@ export default function DiscoveryTable({
         if (gradeSet.size > 0 && (r.grade == null || !gradeSet.has(r.grade))) return false;
         if (sectorSet.size > 0 && !sectorSet.has(r.sector)) return false;
         if (quarter !== "all" && r.quarter !== quarter) return false;
-        if (consensus === "yes" && !r.hasConsensus) return false;
-        if (consensus === "no" && r.hasConsensus) return false;
+        if (consensus === "beat" && !(r.opConsensusGap != null && r.opConsensusGap >= 0)) return false;
+        if (consensus === "miss" && !(r.opConsensusGap != null && r.opConsensusGap < 0)) return false;
+        if (consensus === "none" && r.opConsensusGap != null) return false;
         if (cap !== "all") {
           const [lo, hi] = CAP_BOUNDS[cap];
           const v = r.marketCap ?? -1;
@@ -507,68 +527,6 @@ export default function DiscoveryTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={query}
-          onChange={(e) => patch({ query: e.target.value })}
-          placeholder="종목명 또는 코드"
-          className={`${select} w-44 placeholder:text-slate-300`}
-          aria-label="종목 검색"
-        />
-        {!favoriteOnly && (
-          <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })}
-                  className={select} aria-label="종목 분류">
-            {(Object.keys(GATE_LABEL) as GateFilter[]).map((k) => (
-              <option key={k} value={k}>{GATE_LABEL[k]}</option>
-            ))}
-          </select>
-        )}
-        {/* ★ 등급·섹터는 복수 선택이다(사용자 요청). 빈 선택 = 전체. */}
-        <MultiSelect
-          label="등급"
-          options={gradeOptions}
-          selected={grades}
-          onChange={(next) => patch({ grades: next as Grade[] })}
-          widthClass="w-40"
-        />
-        <MultiSelect
-          label="섹터"
-          options={sectorOptions}
-          selected={sectors}
-          onChange={(next) => patch({ sectors: next })}
-          widthClass="w-52"
-        />
-        <select value={cap} onChange={(e) => patch({ cap: e.target.value as CapFilter })}
-                className={select} aria-label="시가총액">
-          {(Object.keys(CAP_LABEL) as CapFilter[]).map((k) => (
-            <option key={k} value={k}>{CAP_LABEL[k]}</option>
-          ))}
-        </select>
-        <select value={consensus}
-                onChange={(e) => patch({ consensus: e.target.value as ConsensusFilter })}
-                className={select} aria-label="컨센서스">
-          <option value="all">컨센 전체</option>
-          <option value="yes">컨센 있음</option>
-          <option value="no">컨센 없음</option>
-        </select>
-        <select value={quarter} onChange={(e) => patch({ quarter: e.target.value })}
-                className={select} aria-label="분기">
-          <option value="all">분기 전체</option>
-          {quarters.map((q) => <option key={q} value={q}>{q}</option>)}
-        </select>
-        {active && (
-          <button
-            type="button"
-            onClick={() => setFilters(
-              favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS
-            )}
-            className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            필터 초기화
-          </button>
-        )}
-      </div>
-
       {!favoriteOnly && (
         <section className="overflow-hidden rounded-2xl border border-sky-700/60 bg-gradient-to-br from-slate-950 via-sky-950/35 to-indigo-950/40 shadow-[0_18px_55px_-30px_rgba(56,189,248,0.55)]">
           <header className="border-b border-sky-800/60 bg-sky-950/45 px-4 py-4 md:px-5">
@@ -622,7 +580,7 @@ export default function DiscoveryTable({
                 <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
                 <div className="rounded-lg border border-indigo-600/50 bg-indigo-950/50 px-3 py-3 text-indigo-100"><span className="block text-lg">③ 🏭</span>적합 섹터 우선 배치</div>
                 <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
-                <div className="rounded-lg border border-emerald-600/50 bg-emerald-950/50 px-3 py-3 text-emerald-100"><span className="block text-lg">④ 📈</span>실적·PRI·등급 재정렬</div>
+                <div className="rounded-lg border border-emerald-600/50 bg-emerald-950/50 px-3 py-3 text-emerald-100"><span className="block text-lg">④ 📈</span>실적·주가반영도·등급 재정렬</div>
               </div>
             </article>
 
@@ -644,7 +602,7 @@ export default function DiscoveryTable({
                       {macroContext.briefings.map((briefing) => (
                         <tr key={briefing.url} className="align-top hover:bg-slate-900/55">
                           <td className="px-4 py-3">
-                            <a href={briefing.url} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 underline decoration-sky-500/60 underline-offset-2">{briefing.title}</a>
+                            <a href={translatedSourceUrl(briefing.url)} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 underline decoration-sky-500/60 underline-offset-2">{briefing.title} · 한글 번역</a>
                             <span className="mt-1 block text-[11px] text-slate-400">📅 {briefing.publishedAt}</span>
                           </td>
                           <td className="px-4 py-3 leading-5 text-slate-200">{briefing.summary}</td>
@@ -671,7 +629,7 @@ export default function DiscoveryTable({
                         </div>
                         <div className="grid grid-cols-3 gap-1 text-center text-slate-300">
                           <span>점수<strong className="mt-0.5 block text-white">{fmtNum(sector.medianScore)}</strong></span>
-                          <span>PRI<strong className="mt-0.5 block text-white">{fmtNum(sector.medianPri)}</strong></span>
+                          <span>주가반영도<strong className="mt-0.5 block text-white">{fmtNum(sector.medianPri)}</strong></span>
                           <span>5일<strong className="mt-0.5 block text-white">{fmtPct(sector.medianRet5d)}</strong></span>
                         </div>
                       </div>
@@ -680,11 +638,9 @@ export default function DiscoveryTable({
                 ) : <p className="text-xs text-slate-300">현재 비교 가능한 적합 섹터가 없습니다.</p>}
               </article>
               <article className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-4">
-                <h3 className="font-extrabold text-emerald-200">🌱 초기 성장 기준</h3>
+                <h3 className="font-extrabold text-emerald-200">🌱 {GATE_LABEL[gate]} 기준</h3>
                 <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-200">
-                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>실적 가속 또는 가속 게이트를 통과한 흑자전환</span></li>
-                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>매크로 적합 섹터 안에서 흑전·★/○·낮은 PRI 우선</span></li>
-                  <li className="flex gap-2"><span className="text-emerald-300">◆</span><span>수주 증가와 글로벌 고객 수요는 종목 상세 공시에서 별도 확인</span></li>
+                  {GATE_CRITERIA[gate].map((criterion) => <li key={criterion} className="flex gap-2"><span className="text-emerald-300">◆</span><span>{criterion}</span></li>)}
                 </ul>
               </article>
             </div>
@@ -692,13 +648,24 @@ export default function DiscoveryTable({
             <footer className="border-t border-slate-800 pt-3 text-[11px] leading-5 text-slate-400">
               {macroContext.items.length > 0 ? (
                 <><strong className="text-slate-300">🔗 출처 · {macroContext.source}</strong><span className="mx-2 text-slate-700">|</span>{macroContext.items.map((item, index) => (
-                  <span key={`${item.url}-${index}`}>{index > 0 && " · "}<a href={item.url} target="_blank" rel="noreferrer" className="text-sky-300 underline underline-offset-2">{item.title}</a></span>
+                  <span key={`${item.url}-${index}`}>{index > 0 && " · "}<a href={translatedSourceUrl(item.url)} target="_blank" rel="noreferrer" className="text-sky-300 underline underline-offset-2">{item.title} · 한글 번역</a></span>
                 ))}</>
               ) : "공식 매크로 원문을 불러오지 못했습니다. 뉴스는 추정하지 않습니다."}
             </footer>
           </div>
         </section>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3" aria-label="발굴 목록 필터">
+        <input value={query} onChange={(e) => patch({ query: e.target.value })} placeholder="종목명 또는 코드" className={`${select} w-44 placeholder:text-slate-300`} aria-label="종목 검색" />
+        {!favoriteOnly && <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })} className={select} aria-label="해당 조건의 종목"><option value="all">조건 전체</option>{(Object.keys(GATE_LABEL) as GateFilter[]).filter((k) => k !== "all").map((k) => <option key={k} value={k}>{GATE_LABEL[k]}</option>)}</select>}
+        <MultiSelect label="등급" options={gradeOptions} selected={grades} onChange={(next) => patch({ grades: next as Grade[] })} widthClass="w-40" />
+        <MultiSelect label="섹터" options={sectorOptions} selected={sectors} onChange={(next) => patch({ sectors: next })} widthClass="w-52" />
+        <select value={cap} onChange={(e) => patch({ cap: e.target.value as CapFilter })} className={select} aria-label="시가총액">{(Object.keys(CAP_LABEL) as CapFilter[]).map((k) => <option key={k} value={k}>{CAP_LABEL[k]}</option>)}</select>
+        <select value={consensus} onChange={(e) => patch({ consensus: e.target.value as ConsensusFilter })} className={select} aria-label="영업이익 컨센서스 대비"><option value="all">vs 컨센</option><option value="beat">영업이익 컨센 상회</option><option value="miss">영업이익 컨센 하회</option><option value="none">분기 컨센 없음</option></select>
+        <select value={quarter} onChange={(e) => patch({ quarter: e.target.value })} className={select} aria-label="분기"><option value="all">분기 전체</option>{quarters.map((q) => <option key={q} value={q}>{q}</option>)}</select>
+        {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
+      </div>
 
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
@@ -757,6 +724,7 @@ export default function DiscoveryTable({
               {macroContext.summary.recommendedSort.replace(/^.*?:\s*/, "")}
             </p>
             {sorts.length > 0 && <span className="shrink-0 rounded-full border border-amber-300/40 bg-black/20 px-3 py-1 text-[11px] font-bold text-amber-200">현재 표는 사용자 정렬 적용 중</span>}
+            <button type="button" onClick={() => patch({ sorts: [] })} className="shrink-0 rounded-lg border border-amber-300/70 bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-yellow-200">기본 추천 순서 복원</button>
           </div>
         </section>
       )}
@@ -774,7 +742,7 @@ export default function DiscoveryTable({
               <th colSpan={13} className="border-l border-slate-700 bg-slate-900 px-3 py-1.5 text-center">실적 · 가격</th>
               <th colSpan={showTracking ? HORIZONS.length : 1}
                   className="border-l border-indigo-700/60 bg-indigo-950/70 px-3 py-1.5 text-center text-indigo-100">
-                {showTracking ? "분기실적 발표" : "분류 근거"}
+                {showTracking ? "분기실적 발표 전후 주가 변화" : "분류 근거"}
               </th>
             </tr>
             <tr>
@@ -788,7 +756,7 @@ export default function DiscoveryTable({
               <th scope="col" className="w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold">분기</th>
               <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
                           onSort={toggleSort}
-                          title="산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF를 결합한 투자 점수. 현재 주가는 PRI와 등급에서 별도 반영" />
+                          title="산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF를 결합한 투자 점수. 현재 주가는 주가반영도와 등급에서 별도 반영" />
               {/* ★ 사용자 요청(2026-08-22): 게이트가 보는 성장률을 표에 직접 싣는다.
                   스코어만 있으면 "왜 이 점수인가"를 상세 화면에 들어가야 안다. */}
               <SortableTh label="매출 YoY" sortKey="revenueYoy" {...sortState("revenueYoy")}

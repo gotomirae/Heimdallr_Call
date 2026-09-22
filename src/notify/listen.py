@@ -356,8 +356,10 @@ def main() -> int:
         from src.config.constants import DASHBOARD_URL_DEFAULT
         from src.utils.env import optional_env
 
-        client.set_dashboard_menu(optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT))
-        print("텔레그램 고정 메뉴: 📊 Heimdallr 대시보드 ✓")
+        dashboard_url = optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT)
+        client.set_dashboard_menu(dashboard_url)
+        client.ensure_dashboard_pin(dashboard_url)
+        print("텔레그램 고정 메시지: 📊 Heimdallr 대시보드 전체 화면 링크 ✓")
     except Exception as exc:
         # 메뉴 설정 장애가 기업명 수신을 멈추면 안 된다. 다음 폴링에서 다시 시도한다.
         print(f"텔레그램 고정 메뉴 설정 보류: {type(exc).__name__}")

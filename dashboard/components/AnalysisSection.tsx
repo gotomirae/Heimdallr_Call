@@ -12,6 +12,7 @@
 import TriggerTimeline, { type TimelineItem } from "@/components/TriggerTimeline";
 import Emphasized, { Highlighted } from "@/components/Emphasized";
 import type { AnalysisView } from "@/lib/analysis";
+import { koreanTranslatedUrl } from "@/lib/links";
 import type { NarrativeCheck, Verdict } from "@/lib/narrativeCheck";
 import { DASH } from "@/lib/format";
 
@@ -31,10 +32,11 @@ export interface ValuationView {
  *   `Highlighted`가 숫자·단위·방향어만 집는다(문장은 그대로 둔다).
  */
 function Prose({ text }: { text: string }) {
+  const sentences = text.split(/(?<=\.)\s+|\n+/).map((sentence) => sentence.trim()).filter(Boolean);
   return (
-    <p className="mt-1 text-sm leading-relaxed text-slate-100">
-      <Highlighted text={text} />
-    </p>
+    <div className="mt-1 space-y-1 text-sm leading-relaxed text-slate-100">
+      {sentences.map((sentence, index) => <p key={`${index}-${sentence.slice(0, 24)}`}><Highlighted text={sentence} /></p>)}
+    </div>
   );
 }
 
@@ -194,7 +196,7 @@ export default function AnalysisSection({
                   </div>
                   <div className="mt-1 text-sm font-semibold text-slate-100">
                     {report.url ? (
-                      <a href={report.url} target="_blank" rel="noreferrer" className="underline decoration-cyan-500/60 underline-offset-2 hover:text-cyan-200">
+                      <a href={koreanTranslatedUrl(report.url)} target="_blank" rel="noreferrer" className="underline decoration-cyan-500/60 underline-offset-2 hover:text-cyan-200">
                         {report.title ?? report.url}
                       </a>
                     ) : report.title ?? DASH}
@@ -226,7 +228,7 @@ export default function AnalysisSection({
                     <span className="rounded bg-indigo-500/15 px-1.5 py-0.5 font-semibold text-indigo-100">{item.verdict ?? DASH}</span>
                     <span>{item.sourceDate ?? DASH}</span>
                     {item.url ? (
-                      <a href={item.url} target="_blank" rel="noreferrer" className="underline decoration-indigo-500/60 underline-offset-2 hover:text-indigo-200">
+                      <a href={koreanTranslatedUrl(item.url)} target="_blank" rel="noreferrer" className="underline decoration-indigo-500/60 underline-offset-2 hover:text-indigo-200">
                         {item.sourceTitle ?? item.url}
                       </a>
                     ) : <span>{item.sourceTitle ?? DASH}</span>}
@@ -346,7 +348,7 @@ export default function AnalysisSection({
         <div className="mt-3 text-xs font-semibold text-cyan-200">최근 3개월 글로벌 기업향 수주·협업</div>
         {analysis.valueChain.recentGlobalEvents.length ? <ul className="mt-1 space-y-1 text-xs text-slate-100">
           {analysis.valueChain.recentGlobalEvents.map((item) => <li key={`${item.date}-${item.url}`} className="rounded border border-slate-800 p-2">
-            {item.date} · {item.company} · {item.status} — {item.event} <a href={item.url} target="_blank" rel="noreferrer" className="ml-1 text-cyan-200 underline">원문</a>
+            {item.date} · {item.company} · {item.status} — {item.event} <a href={koreanTranslatedUrl(item.url)} target="_blank" rel="noreferrer" className="ml-1 text-cyan-200 underline">한글 번역 원문</a>
           </li>)}
         </ul> : <p className="mt-1 text-xs text-slate-300">확인된 원문 수주·협업 없음. 미공개 고객 관계를 실제 계약으로 간주하지 않는다.</p>}
         {analysis.valueChain.searchLimit && <p className="mt-2 text-xs text-slate-400">확인 범위: {analysis.valueChain.searchLimit}</p>}

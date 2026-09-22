@@ -51,15 +51,17 @@ function Explanation({ item, evidence, outlook }: { item: MetricMeaning; evidenc
 function announcementDates(points: NaverDailyPrice[], disclosures: DisclosureRow[]): Array<{ date: string; title: string }> {
   const dates = points.map((point) => point.trade_date);
   const picked = new Map<string, { date: string; title: string }>();
-  for (const row of disclosures) {
+  for (const row of [...disclosures].sort((left, right) => String(left.disclosed_at).localeCompare(String(right.disclosed_at)))) {
     if (!row.disclosed_at || !/잠정|영업.*실적|분기보고서|반기보고서|사업보고서/.test(row.report_nm ?? "")) continue;
     const disclosed = row.disclosed_at.slice(0, 10);
     const marketDate = dates.find((date) => date >= disclosed);
     if (!marketDate) continue;
     const quarter = row.fiscal_year && row.fiscal_quarter ? `${String(row.fiscal_year).slice(-2)}.${row.fiscal_quarter}Q` : "실적";
-    if (!picked.has(quarter)) picked.set(quarter, { date: marketDate, title: `${quarter} 실적 발표 · ${disclosed}` });
+    const kind = /잠정|영업.*실적/.test(row.report_nm ?? "") && row.doc_type !== "periodic" ? "잠정" : "확정";
+    const key = `${quarter}-${kind}`;
+    if (!picked.has(key)) picked.set(key, { date: marketDate, title: `${quarter}(${kind}) · ${disclosed}` });
   }
-  return [...picked.values()].sort((left, right) => left.date.localeCompare(right.date)).slice(-10);
+  return [...picked.values()].sort((left, right) => left.date.localeCompare(right.date));
 }
 
 export default function DailyPriceChart({
@@ -91,21 +93,21 @@ export default function DailyPriceChart({
     <div>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-200">
         <span>네이버 증권 실제 일간 종가</span>
-        <span className="font-normal text-slate-400">세로선 = 분기실적 발표일 · {visible.length}거래일</span>
+        <span className="font-normal text-slate-400">점선 = 잠정·확정 분기실적 발표일 · {visible.length}거래일</span>
       </div>
       <div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} margin={{ top: 16, right: 8, left: 4, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
         <XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} />
         <YAxis domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
         <Tooltip formatter={(v) => [`${Number(v).toLocaleString("ko-KR")}원`, "일간 종가"]} contentStyle={tooltipStyle} />
-        {marks.map((mark) => <ReferenceLine key={`${mark.date}-${mark.title}`} x={mark.date} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: mark.title.split(" · ")[0], position: "insideTopLeft", fill: "#fbbf24", fontSize: 9 }} />)}
+        {marks.map((mark, index) => <ReferenceLine key={`${mark.date}-${mark.title}`} x={mark.date} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: mark.title.split(" · ")[0], position: index % 2 ? "insideTopRight" : "insideTopLeft", fill: "#fbbf24", fontSize: 9 }} />)}
         <Line dataKey="close" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
       </LineChart></ResponsiveContainer></div>
       <Explanation item={price} evidence={priceAnalysis} outlook={priceOutlook} />
     </div>
     <div>
       <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-200">
-        <span>MACD (일간 12·26·9)</span><span className="font-normal text-slate-400">네이버 일봉 · {macdPoints.length}거래일</span>
+        <span>MACD (일간 12·26·9)</span><span className="font-normal text-slate-400">MACD=단기·장기 추세 차이 · Signal=MACD 9일 평균 · {macdPoints.length}거래일</span>
       </div>
       {macdPoints.length === 0 ? <div className="flex h-44 items-center justify-center text-xs text-slate-400">MACD 계산에는 최소 26거래일 종가가 필요하다.</div> : <>
         {latestMacd && <div className="mb-1 flex flex-wrap gap-3 text-[10px] text-slate-300"><span>{latestMacd.trade_date}</span><span>MACD {latestMacd.macd?.toFixed(1)}</span><span>Signal {latestMacd.signal?.toFixed(1)}</span><span>Histogram {latestMacd.histogram != null && latestMacd.histogram >= 0 ? "+" : ""}{latestMacd.histogram?.toFixed(1)}</span></div>}
@@ -117,7 +119,7 @@ export default function DailyPriceChart({
       <Explanation item={macd} />
     </div>
     <div>
-      <div className="mb-1 text-xs font-semibold text-slate-200">RSI (일간 14)</div>
+      <div className="mb-1 flex flex-wrap justify-between gap-2 text-xs font-semibold text-slate-200"><span>RSI (일간 14)</span><span className="font-normal text-slate-400">최근 14일 상승·하락 힘의 비율 · 45선은 추세 회복 기준</span></div>
       <div className="h-40"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible}><CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis domain={[0, 100]} ticks={[30, 45, 70]} stroke="#94a3b8" fontSize={9} /><ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" /><ReferenceLine y={45} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={30} stroke="#38bdf8" strokeDasharray="3 3" /><Tooltip formatter={(v) => [Number(v).toFixed(1), "RSI"]} contentStyle={tooltipStyle} /><Line dataKey="rsi" stroke="#c084fc" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
       <Explanation item={rsi} />
     </div>
