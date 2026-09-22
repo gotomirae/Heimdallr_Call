@@ -1,12 +1,12 @@
 {
   "source": "미국 전 거래일 종가: Yahoo Finance · 통화정책: Federal Reserve",
-  "checkedAt": "2026-09-21 08:30 KST",
-  "marketDate": "2026-09-18",
+  "checkedAt": "2026-09-22 09:16 KST",
+  "marketDate": "2026-09-21",
   "items": [
     {
-      "title": "미국 2026-09-18 주요 지수 (Yahoo Finance)",
+      "title": "미국 2026-09-21 주요 지수 (Yahoo Finance)",
       "url": "https://finance.yahoo.com/markets/",
-      "publishedAt": "2026-09-18"
+      "publishedAt": "2026-09-21"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-09-16)",
@@ -20,7 +20,7 @@
     },
     {
       "title": "미국 고용 · 2026년 8월",
-    "url": "https://www.bls.gov/news.release/archives/empsit_09042026.htm",
+      "url": "https://www.bls.gov/news.release/archives/empsit_09042026.htm",
       "publishedAt": "2026-09-04"
     },
     {
@@ -35,10 +35,30 @@
     }
   ],
   "briefings": [
-    {"title":"미국 소비자물가 · 2026년 8월","url":"https://www.bls.gov/news.release/archives/cpi_09112026.htm","publishedAt":"2026-09-11","summary":"소비자물가가 전월 대비 0.4%, 전년 대비 3.4% 상승했다. 에너지와 휘발유가 월간 상승의 상당 부분을 차지했고 근원 물가는 전년 대비 2.4%였다. 물가 압력 재확대 여부가 금리 전망의 변수다."},
-    {"title":"미국 고용 · 2026년 8월","url":"https://www.bls.gov/news.release/empsit.htm","publishedAt":"2026-09-04","summary":"비농업 고용은 16만 2천 명 증가하고 실업률은 4.1%로 유지됐다. 음식점·지방정부 교육 부문의 고용은 증가했지만 정보산업은 감소했다. 노동시장 급랭보다는 업종별 차이를 확인할 구간이다."},
-    {"title":"미국 GDP · 2026년 2분기 2차 추정","url":"https://www.bea.gov/news/2026/gdp-second-estimate-and-corporate-profits-2nd-quarter-2026","publishedAt":"2026-08-26","summary":"실질 GDP는 연율 1.5% 성장해 1분기 2.1%보다 둔화했다. 소비지출·수출·투자는 성장에 기여했으나 정부지출 감소가 일부 상쇄했다. 국내 민간 최종수요는 4.2% 증가했다."},
-    {"title":"IMF 세계경제전망 · 2026년 7월","url":"https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026","publishedAt":"2026-07-08","summary":"세계 성장률 전망은 2026년 3.0%, 2027년 3.4%다. 인공지능 기술 가치사슬 수요가 일부 국가를 지지하지만 전쟁 여파는 에너지 수입국에 부담이다. 세계 물가 둔화는 정체됐고 분쟁·금융시장 재평가가 하방 위험이다."}
+    {
+      "title": "미국 소비자물가 · 2026년 8월",
+      "url": "https://www.bls.gov/news.release/archives/cpi_09112026.htm",
+      "publishedAt": "2026-09-11",
+      "summary": "소비자물가가 전월 대비 0.4%, 전년 대비 3.4% 상승했다. 에너지와 휘발유가 월간 상승의 상당 부분을 차지했고 근원 물가는 전년 대비 2.4%였다. 물가 압력 재확대 여부가 금리 전망의 변수다."
+    },
+    {
+      "title": "미국 고용 · 2026년 8월",
+      "url": "https://www.bls.gov/news.release/archives/empsit_09042026.htm",
+      "publishedAt": "2026-09-04",
+      "summary": "비농업 고용은 16만 2천 명 증가하고 실업률은 4.1%로 유지됐다. 음식점·지방정부 교육 부문의 고용은 증가했지만 정보산업은 감소했다. 노동시장 급랭보다는 업종별 차이를 확인할 구간이다."
+    },
+    {
+      "title": "미국 GDP · 2026년 2분기 2차 추정",
+      "url": "https://www.bea.gov/news/2026/gdp-second-estimate-and-corporate-profits-2nd-quarter-2026",
+      "publishedAt": "2026-08-26",
+      "summary": "실질 GDP는 연율 1.5% 성장해 1분기 2.1%보다 둔화했다. 소비지출·수출·투자는 성장에 기여했으나 정부지출 감소가 일부 상쇄했다. 국내 민간 최종수요는 4.2% 증가했다."
+    },
+    {
+      "title": "IMF 세계경제전망 · 2026년 7월",
+      "url": "https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026",
+      "publishedAt": "2026-07-08",
+      "summary": "세계 성장률 전망은 2026년 3.0%, 2027년 3.4%다. 인공지능 기술 가치사슬 수요가 일부 국가를 지지하지만 전쟁 여파는 에너지 수입국에 부담이다. 세계 물가 둔화는 정체됐고 분쟁·금융시장 재평가가 하방 위험이다."
+    }
   ],
   "flags": {
     "rates": true,
@@ -58,8 +78,8 @@
     "방산·우주"
   ],
   "summary": {
-    "current": "미국 2026-09-18 장 마감: S&P 500 +0.17%, 나스닥 +0.39%, 필라델피아 반도체 +2.78%, VIX 14.81. 미국 반도체 상대강세 국면으로 해석합니다.",
-    "forward": "연준 성명(2026-09-16): 정책금리를 0.25%포인트 인상해 목표범위를 3.75~4.00%로 설정했다. 경제활동은 견조하게 확장하지만 물가는 여전히 높다고 평가했다. 아래 물가·고용·GDP·IMF 원문 요약의 발표일과 숫자를 함께 확인한다.",
+    "current": "미국 2026-09-21 장 마감: S&P 500 +1.49%, 나스닥 +2.26%, 필라델피아 반도체 +4.29%, VIX 14.87. 미국 반도체 상대강세 국면으로 해석합니다.",
+    "forward": "연준 성명(2026-09-16): 연준이 금리를 인상해 정책금리 목표범위를 3.75~4%로 설정했습니다. 경제활동이 견조한 속도로 확장한다고 평가했습니다. 연준은 물가가 여전히 높다고 평가했습니다. 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
     "recommendedSort": "추천 정렬: 미국 반도체 상대강세 적합 섹터 → 초기 흑전·낮은 PRI 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 PRI → 등급 → 최신 분기"
   }
 }
