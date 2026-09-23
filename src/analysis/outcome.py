@@ -21,10 +21,10 @@ from dataclasses import dataclass, field
 #:    0 = 발표 당일 등락률       (직전 거래일 종가 → 발표일 종가)
 #:   +5 / +20 / +60 = 발표일 종가 대비
 #: ★ D+60은 약 3개월이라 분기마다 한 번 채워진다.
-HORIZONS = (-5, 0, 1, 5, 20, 60)
+HORIZONS = (-5, 0, 1, 5, 20, 40, 60)
 
 #: 화면에서 보여 주는 시점(사용자 지정). D+1은 저장만 하고 표시하지 않는다.
-DISPLAY_HORIZONS = (-5, 0, 5, 20, 60)
+DISPLAY_HORIZONS = (-5, 0, 5, 20, 40, 60)
 
 
 def horizon_column(days: int) -> str:

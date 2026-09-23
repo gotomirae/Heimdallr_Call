@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MultiSelect from "@/components/MultiSelect";
+import MacroMarketOverview from "@/components/MacroMarketOverview";
 import constants from "@/lib/constants.json";
 import { GRADE_COLOR, GRADE_MEANING, type Grade } from "@/lib/types";
 import type { MacroContext } from "@/lib/macroContext";
@@ -199,13 +200,9 @@ const GATE_LABEL: Record<GateFilter, string> = {
 };
 
 function translatedSourceUrl(url: string): string {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    if (host.endsWith(".kr") || host.includes("naver.com") || host.includes("dart.fss.or.kr")) return url;
-    return `https://translate.google.com/translate?sl=auto&tl=ko&u=${encodeURIComponent(url)}`;
-  } catch {
-    return url;
-  }
+  // 공식 사이트는 Google 번역 프록시의 iframe/봇 차단 때문에 빈 화면이 될 수 있다.
+  // 수집 때 검증한 한국어 요약을 같은 대시보드 안에서 보여 주고 원문은 그 페이지에서 분리한다.
+  return `/macro/translation?source=${encodeURIComponent(url)}`;
 }
 
 const GATE_CRITERIA: Record<GateFilter, string[]> = {
@@ -335,6 +332,7 @@ function growthCell(value: number | null, label: string | null): string {
 const INITIAL_ROWS = constants.discovery_initial_rows;
 const ROW_STEP = constants.discovery_row_step;
 const FAVORITES_KEY = "heimdallr.favorite_codes.v1";
+const SECTOR_OVERRIDES_KEY = "heimdallr.sector_overrides.v1";
 
 function loadFavorites(): string[] {
   try {
@@ -349,6 +347,18 @@ function loadFavorites(): string[] {
   }
 }
 
+function loadSectorOverrides(): Record<string, string> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SECTOR_OVERRIDES_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([code, sector]) =>
+      /^[0-9A-Z]{6}$/.test(code) && typeof sector === "string" && sector.trim().length > 0 && sector.trim().length <= 40
+    ).map(([code, sector]) => [code, String(sector).trim()]));
+  } catch {
+    return {};
+  }
+}
+
 export default function DiscoveryTable({
   wireRows,
   favoriteOnly = false,
@@ -360,7 +370,7 @@ export default function DiscoveryTable({
   dataAsOf: string | null;
   macroContext: MacroContext;
 }) {
-  const rows = useMemo(() => wireRows.map(unpackDiscoveryRow), [wireRows]);
+  const baseRows = useMemo(() => wireRows.map(unpackDiscoveryRow), [wireRows]);
   // ★ 첫 렌더는 **반드시 기본값**이어야 한다. sessionStorage를 렌더 중에 읽으면
   //   서버가 그린 HTML과 달라져 하이드레이션이 깨진다(화면이 통째로 다시 그려진다).
   //   복원은 마운트 후 effect에서 한다.
@@ -368,6 +378,9 @@ export default function DiscoveryTable({
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesRestored, setFavoritesRestored] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_ROWS);
+  const [sectorOverrides, setSectorOverrides] = useState<Record<string, string>>({});
+  const [sectorEditCode, setSectorEditCode] = useState("");
+  const [sectorEditValue, setSectorEditValue] = useState("");
   // ★★ **ref가 아니라 state여야 한다.** ref로 두면 복원 effect가 `true`로 바꾼 값을
   //   같은 커밋의 저장 effect가 곧바로 읽어, 아직 **기본값인** filters를 저장해
   //   방금 복원한 값을 덮어쓴다. 실측: 결과 추적 탭에 갔다 돌아오면 필터가 초기화됐다.
@@ -391,7 +404,13 @@ export default function DiscoveryTable({
     setRestored(true);
     setFavorites(loadFavorites());
     setFavoritesRestored(true);
+    setSectorOverrides(loadSectorOverrides());
   }, [favoriteOnly]);
+
+  const rows = useMemo(() => baseRows.map((row) => ({
+    ...row,
+    sector: sectorOverrides[row.code] ?? row.sector,
+  })), [baseRows, sectorOverrides]);
 
   // ── 저장 + 주소 반영 ──────────────────────────────────────────
   // ★ `history.replaceState`를 쓴다. Next의 router.replace를 쓰면 서버 컴포넌트가
@@ -412,6 +431,28 @@ export default function DiscoveryTable({
       window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
       return next;
     });
+  }
+
+  function saveSectorOverride() {
+    const value = sectorEditValue.trim();
+    if (!/^[0-9A-Z]{6}$/.test(sectorEditCode) || !value || value.length > 40) return;
+    setSectorOverrides((current) => {
+      const next = { ...current, [sectorEditCode]: value };
+      window.localStorage.setItem(SECTOR_OVERRIDES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function removeSectorOverride() {
+    if (!sectorEditCode) return;
+    setSectorOverrides((current) => {
+      const next = { ...current };
+      delete next[sectorEditCode];
+      window.localStorage.setItem(SECTOR_OVERRIDES_KEY, JSON.stringify(next));
+      return next;
+    });
+    const original = baseRows.find((row) => row.code === sectorEditCode);
+    setSectorEditValue(original?.sector ?? "");
   }
 
   function patch(next: Partial<DiscoveryFilters>) {
@@ -568,6 +609,23 @@ export default function DiscoveryTable({
               </article>
             </div>
 
+            <MacroMarketOverview context={macroContext} />
+
+            <article className="overflow-hidden rounded-xl border border-violet-700/50 bg-violet-950/15">
+              <div className="border-b border-violet-800/60 px-4 py-3">
+                <h3 className="font-extrabold text-violet-100">앞으로 3개월 · 증시를 움직일 공식 일정과 대응</h3>
+                <p className="mt-1 text-[11px] text-slate-400">발표 전 예측보다 발표값·시장 반응·기업 이익 전망이 같은 방향인지 확인한다.</p>
+              </div>
+              {(macroContext.nextEvents ?? []).length ? <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs">
+                <thead className="bg-slate-900/80 text-slate-300"><tr><th className="px-4 py-2">일정</th><th className="px-4 py-2">볼 변수</th><th className="px-4 py-2">대응 방안</th></tr></thead>
+                <tbody className="divide-y divide-slate-800">{macroContext.nextEvents?.map((item) => <tr key={`${item.date}-${item.event}`} className="align-top">
+                  <td className="px-4 py-3"><a href={`/macro/translation?source=${encodeURIComponent(item.url)}&eventDate=${encodeURIComponent(item.date)}`} target="_blank" rel="noreferrer" className="font-bold text-violet-200 underline">{item.date} · {item.event}</a><span className="mt-1 block text-[10px] text-slate-400">{item.source} 공식 일정 · 한국어 설명</span></td>
+                  <td className="px-4 py-3 font-semibold text-slate-100">{item.watch}</td>
+                  <td className="px-4 py-3 leading-5 text-slate-200">{item.response}</td>
+                </tr>)}</tbody>
+              </table></div> : <p className="px-4 py-4 text-sm text-slate-300">현재 스냅샷에 향후 3개월 공식 일정이 없습니다.</p>}
+            </article>
+
             <article className="rounded-xl border border-slate-700/80 bg-slate-950/65 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-extrabold text-white">⚙️ 실적 갱신 자동 계산 흐름</h3>
@@ -605,7 +663,10 @@ export default function DiscoveryTable({
                             <a href={translatedSourceUrl(briefing.url)} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 underline decoration-sky-500/60 underline-offset-2">{briefing.title} · 한글 번역</a>
                             <span className="mt-1 block text-[11px] text-slate-400">📅 {briefing.publishedAt}</span>
                           </td>
-                          <td className="px-4 py-3 leading-5 text-slate-200">{briefing.summary}</td>
+                          <td className="px-4 py-3 leading-5 text-slate-200">
+                            <strong className="block text-white">핵심 · {briefing.keyPoint ?? briefing.summary}</strong>
+                            <span className="mt-1 block text-amber-100">시장 의미 · {briefing.marketImpact ?? briefing.summary}</span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -666,6 +727,30 @@ export default function DiscoveryTable({
         <select value={quarter} onChange={(e) => patch({ quarter: e.target.value })} className={select} aria-label="분기"><option value="all">분기 전체</option>{quarters.map((q) => <option key={q} value={q}>{q}</option>)}</select>
         {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
       </div>
+
+      <details className="rounded-xl border border-slate-700 bg-slate-950/55 px-3 py-2">
+        <summary className="cursor-pointer text-sm font-bold text-sky-200">섹터 선택·추가·종목별 수정</summary>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="text-xs text-slate-300">종목
+            <select value={sectorEditCode} onChange={(event) => {
+              const nextCode = event.target.value;
+              setSectorEditCode(nextCode);
+              const selected = baseRows.find((row) => row.code === nextCode);
+              setSectorEditValue(sectorOverrides[nextCode] ?? selected?.sector ?? "");
+            }} className={`${select} mt-1 block w-56`}>
+              <option value="">수정할 종목 선택</option>
+              {[...baseRows].sort((a, b) => a.name.localeCompare(b.name, "ko")).map((row) => <option key={row.code} value={row.code}>{row.name} · {row.code}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-slate-300">섹터
+            <input value={sectorEditValue} onChange={(event) => setSectorEditValue(event.target.value)} list="heimdallr-sector-list" maxLength={40} placeholder="기존 섹터 선택 또는 새 섹터 입력" className={`${select} mt-1 block w-64`} />
+            <datalist id="heimdallr-sector-list">{sectorOptions.map((option) => <option key={option.value} value={option.value} />)}</datalist>
+          </label>
+          <button type="button" onClick={saveSectorOverride} disabled={!sectorEditCode || !sectorEditValue.trim()} className="rounded bg-sky-500 px-3 py-1.5 text-sm font-bold text-white disabled:bg-slate-700">저장</button>
+          <button type="button" onClick={removeSectorOverride} disabled={!sectorEditCode || !sectorOverrides[sectorEditCode]} className="rounded border border-slate-600 px-3 py-1.5 text-sm font-bold text-slate-200 disabled:opacity-40">원래 분류 복원</button>
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-slate-400">새 섹터명도 직접 입력할 수 있으며 이 브라우저에 저장됩니다. 저장 즉시 섹터 필터·정렬·표시에 반영되고, 서버의 공용 분류는 바꾸지 않습니다.</p>
+      </details>
 
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
@@ -812,6 +897,7 @@ export default function DiscoveryTable({
                 <td className="sticky left-0 z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   {r.sector}
+                  {sectorOverrides[r.code] && <sup className="ml-1 text-[9px] font-black text-sky-300" title="이 브라우저에서 수정한 사용자 섹터">편집</sup>}
                   {r.sectorProcess && (
                     <sup className="ml-1 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
                          title={`${r.sectorProcess}공정`}>

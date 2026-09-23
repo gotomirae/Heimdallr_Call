@@ -11,7 +11,7 @@ import type { Grade } from "./types";
  * 측정 시점(**거래일** 기준). 음수는 발표 **전**이다.
  * `src/analysis/outcome.py::HORIZONS`와 같아야 한다 — 갈라지면 화면과 DB가 어긋난다.
  */
-export const HORIZONS = [-5, 0, 5, 20, 60] as const;
+export const HORIZONS = [-5, 0, 5, 20, 40, 60] as const;
 export type Horizon = (typeof HORIZONS)[number];
 
 /** DB 컬럼 접미사. **음수는 `m`** — `excess_d-5`는 컬럼명이 될 수 없다. */
@@ -32,6 +32,7 @@ export const HORIZON_MEANING: Record<Horizon, string> = {
   [0]: "발표 당일 시장의 첫 반응",
   [5]: "발표 직후 1주 — 초기 반응이 이어지는가",
   [20]: "발표 후 1개월 — 실적을 소화한 뒤의 방향",
+  [40]: "발표 후 2개월 — 다음 실적 기대가 형성되는 구간",
   [60]: "발표 후 3개월 — 다음 분기까지 끌고 가는가",
 };
 
@@ -48,12 +49,14 @@ export interface OutcomeRow {
   ret_d1: number | null;
   ret_d5: number | null;
   ret_d20: number | null;
+  ret_d40: number | null;
   ret_d60: number | null;
   excess_dm5: number | null;
   excess_d0: number | null;
   excess_d1: number | null;
   excess_d5: number | null;
   excess_d20: number | null;
+  excess_d40: number | null;
   excess_d60: number | null;
 }
 
@@ -62,13 +65,13 @@ export interface OutcomeRow {
 const COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter", "announce_date", "grade_at_announce",
   "score_at_announce", "pri_at_announce",
-  "ret_dm5", "ret_d0", "ret_d1", "ret_d5", "ret_d20", "ret_d60",
-  "excess_dm5", "excess_d0", "excess_d1", "excess_d5", "excess_d20", "excess_d60",
+  "ret_dm5", "ret_d0", "ret_d1", "ret_d5", "ret_d20", "ret_d40", "ret_d60",
+  "excess_dm5", "excess_d0", "excess_d1", "excess_d5", "excess_d20", "excess_d40", "excess_d60",
 ];
 
 const DISCOVERY_COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter",
-  "excess_dm5", "excess_d0", "excess_d5", "excess_d20", "excess_d60",
+  "excess_dm5", "excess_d0", "excess_d5", "excess_d20", "excess_d40", "excess_d60",
 ];
 
 export async function getOutcomes(): Promise<{

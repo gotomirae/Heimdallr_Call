@@ -8,6 +8,7 @@ import pytest
 from src.finance.detail import (
     cumulative_value,
     extract_accounts,
+    quarter_income_value,
     select_total_shares,
     shares_yoy,
     standalone_value,
@@ -60,6 +61,35 @@ def test_extract_accounts_uses_stable_ids_and_current_bs_values():
     assert result.assets == 1000
     assert result.liabilities == 400
     assert result.equity == 600
+
+
+def test_extract_accounts_reads_gross_profit_from_income_statement():
+    rows = [
+        _row(
+            "ifrs-full_GrossProfit",
+            "360",
+            sj_div="IS",
+            account_nm="매출총이익",
+            thstrm_add_amount="600",
+        )
+    ]
+
+    result = extract_accounts(rows)
+
+    assert result.gross_profit.amount == 360
+    assert result.gross_profit.add_amount == 600
+
+
+def test_quarter_income_value_uses_cumulative_difference_not_direct_interim_amount():
+    # 반기 당기 360, 반기누적 600, 1분기누적 240이면 Q2는 600-240=360이다.
+    current = extract_accounts([
+        _row("ifrs-full_GrossProfit", "360", sj_div="IS", thstrm_add_amount="600")
+    ])
+    previous = extract_accounts([
+        _row("ifrs-full_GrossProfit", "240", sj_div="IS", thstrm_add_amount="240")
+    ])
+
+    assert quarter_income_value(2, current.gross_profit, previous.gross_profit) == 360
 
 
 def test_extract_accounts_sums_ppe_and_intangible_capex_without_double_counting():

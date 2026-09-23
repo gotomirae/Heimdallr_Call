@@ -19,6 +19,16 @@ from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
 
 
+def inaccessible_search_domain(error: Exception) -> bool:
+    """Anthropic가 검색 허용 도메인을 거부한 호출인지 Provider SDK 타입 없이 판정한다.
+
+    ADR 9에 따라 SDK 예외를 분석 도메인 계약으로 끌어올리지 않는다. 이 400은 모델
+    생성 전 도구 설정 검증에서 난 것이므로 같은 Provider를 웹검색 없이 한 번 실행한다.
+    """
+    message = str(error).lower()
+    return "domains are not accessible to our user agent" in message
+
+
 def pending_rows(limit: int) -> list[dict]:
     db = get_client()
     result = (
@@ -72,7 +82,13 @@ def run(limit: int, max_seconds: float) -> int:
                 allow_fetch=True,
             )
             data.analysis_stage = "dashboard_on_demand"
-            result = analyze(data, env="prod", web_search=True)
+            try:
+                result = analyze(data, env="prod", web_search=True)
+            except Exception as exc:
+                if not inaccessible_search_domain(exc):
+                    raise
+                print(f"⚠ {label} · 검색 허용 도메인 거부 — 같은 Provider로 공개 원문 검색 없이 재시도")
+                result = analyze(data, env="prod", web_search=False)
             save(result)
             set_status(row["id"], "completed")
             done += 1

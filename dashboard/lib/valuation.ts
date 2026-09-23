@@ -37,6 +37,18 @@ export function trailing4qPer(
   return marketCapKrw / ttmNp;
 }
 
+/** PEG = 내년 예상 PER ÷ 네이버 올해→내년 예상 EPS 성장률(%). 성장률이 양수일 때만 잰다. */
+export function forwardPeg(
+  forwardPer: number | null | undefined,
+  currentEps: number | null | undefined,
+  nextEps: number | null | undefined
+): { peg: number; growthPct: number } | null {
+  if (forwardPer == null || currentEps == null || nextEps == null || forwardPer <= 0 || currentEps <= 0) return null;
+  const growthPct = (nextEps / currentEps - 1) * 100;
+  if (!Number.isFinite(growthPct) || growthPct <= 0) return null;
+  return { peg: forwardPer / growthPct, growthPct };
+}
+
 export interface ForwardPer {
   per: number | null;
   /** 무엇을 근거로 만든 숫자인지. 추정 위의 추정이라 반드시 화면에 밝힌다. */

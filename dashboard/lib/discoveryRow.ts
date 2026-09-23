@@ -49,7 +49,7 @@ export type DiscoveryRowWire = [
   number | null, number | null, number | null, number | null, string | null,
   number | null, number | null, number | null, number | null, number | null,
   number | null, number | null, number | null, number | null, number | null,
-  number | null, number | null,
+  number | null, number | null, number | null,
 ];
 
 export function packDiscoveryRow(row: DiscoveryRow): DiscoveryRowWire {
@@ -61,7 +61,8 @@ export function packDiscoveryRow(row: DiscoveryRow): DiscoveryRowWire {
     row.opYoy, row.opQoq, row.opStatusLabel, row.opmYoyDelta, row.per4q,
     row.forwardPer, row.roe, row.forwardRoe, row.ret5d,
     row.excess[-5] ?? null, row.excess[0] ?? null, row.excess[5] ?? null,
-    row.excess[20] ?? null, row.excess[60] ?? null, row.opConsensusGap,
+    row.excess[20] ?? null, row.excess[40] ?? null, row.excess[60] ?? null,
+    row.opConsensusGap,
   ];
 }
 
@@ -75,7 +76,7 @@ export function unpackDiscoveryRow(row: DiscoveryRowWire): DiscoveryRow {
     revenueYoy: row[20], revenueQoq: row[21], opYoy: row[22], opQoq: row[23],
     opStatusLabel: row[24], opmYoyDelta: row[25], per4q: row[26],
     forwardPer: row[27], roe: row[28], forwardRoe: row[29], ret5d: row[30],
-    excess: { [-5]: row[31], [0]: row[32], [5]: row[33], [20]: row[34], [60]: row[35] },
-    opConsensusGap: row[36] ?? null,
+    excess: { [-5]: row[31], [0]: row[32], [5]: row[33], [20]: row[34], [40]: row[35], [60]: row[36] },
+    opConsensusGap: row[37] ?? null,
   };
 }

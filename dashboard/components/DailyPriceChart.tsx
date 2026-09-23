@@ -31,7 +31,7 @@ function causalSegments(text: string): string[] {
 
 function Explanation({ item, evidence, outlook }: { item: MetricMeaning; evidence?: string | null; outlook?: string | null }) {
   return <div className="mt-2 rounded border border-slate-800 bg-slate-900/60 p-3">
-    <div className="text-[11px] font-bold text-sky-200">현재 위치 · {item.label}</div>
+    <div className="text-lg font-black tracking-tight text-sky-200">현재 위치 · {item.label}</div>
     <div className="mt-0.5 text-sm font-semibold text-slate-100">{item.value}</div>
     <p className="mt-1 text-xs leading-relaxed text-slate-300">{item.meaning}</p>
     {evidence && <div className="mt-3 rounded border border-violet-800/70 bg-violet-950/20 p-3">
@@ -89,13 +89,16 @@ export default function DailyPriceChart({
   const price = priceMeaning(visible, high52w);
   const macd = macdMeaning(visible);
   const rsi = rsiMeaning(visible);
-  return <div id="daily-technical" className="mt-5 space-y-5">
+  return <div id="daily-technical" className="mt-5 space-y-3 rounded-xl border border-sky-900/70 bg-slate-950/35 p-3">
+    <p className="rounded-lg border border-sky-700/50 bg-sky-950/30 px-3 py-2 text-xs text-sky-100">
+      같은 날짜 축으로 연결했다. 한 그래프의 특정 시기를 가리키면 일간 종가·MACD·RSI의 세로 커서가 함께 이동한다.
+    </p>
     <div>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-200">
-        <span>네이버 증권 실제 일간 종가</span>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-lg font-black text-white">
+        <span>일간 종가</span>
         <span className="font-normal text-slate-400">점선 = 잠정·확정 분기실적 발표일 · {visible.length}거래일</span>
       </div>
-      <div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} margin={{ top: 16, right: 8, left: 4, bottom: 0 }}>
+      <div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} syncId="daily-technical" syncMethod="value" margin={{ top: 16, right: 8, left: 4, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
         <XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} />
         <YAxis domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
@@ -106,12 +109,12 @@ export default function DailyPriceChart({
       <Explanation item={price} evidence={priceAnalysis} outlook={priceOutlook} />
     </div>
     <div>
-      <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-200">
-        <span>MACD (일간 12·26·9)</span><span className="font-normal text-slate-400">MACD=단기·장기 추세 차이 · Signal=MACD 9일 평균 · {macdPoints.length}거래일</span>
+      <div className="mb-1 flex items-center justify-between text-lg font-black text-white">
+        <span>MACD</span><span className="text-xs font-normal text-slate-400">일간 12·26·9 · MACD=단기·장기 추세 차이 · Signal=MACD 9일 평균 · {macdPoints.length}거래일</span>
       </div>
       {macdPoints.length === 0 ? <div className="flex h-44 items-center justify-center text-xs text-slate-400">MACD 계산에는 최소 26거래일 종가가 필요하다.</div> : <>
         {latestMacd && <div className="mb-1 flex flex-wrap gap-3 text-[10px] text-slate-300"><span>{latestMacd.trade_date}</span><span>MACD {latestMacd.macd?.toFixed(1)}</span><span>Signal {latestMacd.signal?.toFixed(1)}</span><span>Histogram {latestMacd.histogram != null && latestMacd.histogram >= 0 ? "+" : ""}{latestMacd.histogram?.toFixed(1)}</span></div>}
-        <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={macdPoints} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
+        <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={macdPoints} syncId="daily-technical" syncMethod="value" margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
           <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} /><ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1.2} /><Tooltip formatter={(v, name) => [Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 }), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
           <Bar dataKey="histogram" name="Histogram" isAnimationActive={false}>{macdPoints.map((point) => <Cell key={point.trade_date} fill={point.histogram == null ? "#475569" : point.histogram >= 0 ? "#22c55e" : "#ef4444"} fillOpacity={0.72} />)}</Bar><Line type="linear" dataKey="macd" name="MACD" stroke="#38bdf8" strokeWidth={2.4} dot={false} connectNulls={false} isAnimationActive={false} /><Line type="linear" dataKey="signal" name="Signal" stroke="#f59e0b" strokeWidth={2.2} dot={false} connectNulls={false} isAnimationActive={false} />
         </ComposedChart></ResponsiveContainer></div>
@@ -119,8 +122,8 @@ export default function DailyPriceChart({
       <Explanation item={macd} />
     </div>
     <div>
-      <div className="mb-1 flex flex-wrap justify-between gap-2 text-xs font-semibold text-slate-200"><span>RSI (일간 14)</span><span className="font-normal text-slate-400">최근 14일 상승·하락 힘의 비율 · 45선은 추세 회복 기준</span></div>
-      <div className="h-40"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible}><CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis domain={[0, 100]} ticks={[30, 45, 70]} stroke="#94a3b8" fontSize={9} /><ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" /><ReferenceLine y={45} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={30} stroke="#38bdf8" strokeDasharray="3 3" /><Tooltip formatter={(v) => [Number(v).toFixed(1), "RSI"]} contentStyle={tooltipStyle} /><Line dataKey="rsi" stroke="#c084fc" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
+      <div className="mb-1 flex flex-wrap justify-between gap-2 text-lg font-black text-white"><span>RSI</span><span className="text-xs font-normal text-slate-400">일간 14 · 최근 14일 상승·하락 힘의 비율 · 45선은 추세 회복 기준</span></div>
+      <div className="h-40"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} syncId="daily-technical" syncMethod="value"><CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis domain={[0, 100]} ticks={[30, 45, 70]} stroke="#94a3b8" fontSize={9} /><ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" /><ReferenceLine y={45} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={30} stroke="#38bdf8" strokeDasharray="3 3" /><Tooltip formatter={(v) => [Number(v).toFixed(1), "RSI"]} contentStyle={tooltipStyle} /><Line dataKey="rsi" stroke="#c084fc" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
       <Explanation item={rsi} />
     </div>
   </div>;

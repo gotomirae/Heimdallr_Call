@@ -44,10 +44,10 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "분기 내 백분위",
         "FCF",
         "과거 3개년 평균 PER 대비",
-        "PEG (네이버)",
+        "PEG (자체 계산)",
         "섹터 비교",
         "종목별 결과 추적",
-        "네이버 증권 기업실적분석",
+        "네이버 증권",
         "일간 종가",
         "올해 → 내년 ROE",
         "최신 분기 매출",
@@ -83,7 +83,8 @@ def test_stock_detail_isolates_optional_reads_and_does_not_refetch_live_peer_dat
     assert "getUniverseForCode(code)" in STOCK
     assert "withDetailFallback" in STOCK
     assert "일부 보조 자료가 잠시 연결되지 않아 결측으로 표시했습니다" in STOCK
-    assert "peerAnnual?.per ?? peerPrice?.per_current_ttm" in STOCK
+    assert "peerAnnual?.per ?? null" in STOCK
+    assert "peerAnnual?.per ?? peerPrice?.per_current_ttm" not in STOCK
     assert STOCK.count("getNaverLiveSnapshot(") == 1
     assert "getFundamentals(peerScreen.code)" not in STOCK
 
@@ -99,7 +100,7 @@ def test_discovery_rows_use_compact_wire_contract_and_restore_all_outcomes():
     assert "wireRows={rows.map(packDiscoveryRow)}" in HOME
     assert "wireRows.map(unpackDiscoveryRow)" in DISCOVERY
     assert "export type DiscoveryRowWire = [" in DISCOVERY_ROW
-    for day in (-5, 0, 5, 20, 60):
+    for day in (-5, 0, 5, 20, 40, 60):
         assert f"row.excess[{day}] ?? null" in DISCOVERY_ROW
     for field in ("code", "sectorProcess", "failReasons", "forwardRoe", "ret5d", "excess"):
         assert f"{field}:" in DISCOVERY_ROW
@@ -115,7 +116,8 @@ def test_cost_history_pages_and_exposes_forecast_basis():
 def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
     assert "getScreensForQuarter" in QUERIES
     assert "selectAll<ScreenRow>" in QUERIES
-    assert "trailing4qPer" in STOCK
+    assert "productSimilarity" in STOCK
+    assert "trailing4qPer" not in STOCK, "PER은 자체 계산하지 않고 네이버 값을 써야 한다"
 
 
 def test_quarter_chart_uses_opm_and_daily_price_matches_its_period():
@@ -123,7 +125,8 @@ def test_quarter_chart_uses_opm_and_daily_price_matches_its_period():
         assert label in QUARTER_CHART
     assert 'dataKey="close"' not in QUARTER_CHART
     assert "fromDate={dailyFromDate}" in STOCK
-    assert "MACD (일간 12·26·9)" in DAILY_CHART and "RSI (일간 14)" in DAILY_CHART
+    assert ">MACD<" in DAILY_CHART and ">RSI<" in DAILY_CHART
+    assert DAILY_CHART.count('syncId="daily-technical"') == 3
     assert "normalizeDailyRows" in DAILY_CHART
     assert "macdPoints" in DAILY_CHART
     assert "실적 발표" in DAILY_CHART and "ReferenceLine" in DAILY_CHART
@@ -134,9 +137,9 @@ def test_quarter_chart_uses_opm_and_daily_price_matches_its_period():
 def test_stock_detail_uses_live_naver_quote_and_exact_valuation_source():
     for endpoint in ("/integration", "/finance/annual"):
         assert endpoint in NAVER
-    for field in ("priceDate", "per4q", "fwdPer", "roe"):
+    for field in ("per4q", "fwdPer", "roe"):
         assert field in NAVER and field in STOCK
-    assert "최대 1분 캐시" in STOCK
+    assert "completedCloseAtKst16" in NAVER and "completedCloseAtKst16" in STOCK
     assert "네이버 올해 PER(예상)" in STOCK
     assert "네이버 내년 F.PER" in STOCK
 
@@ -145,9 +148,9 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "발굴 목록" in HOME
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
-    assert "수주잔고 · 신규수주" in QUARTER_CHART
+    assert "수주잔고 / 신규 수주" in QUARTER_CHART
     assert QUARTER_CHART.count("<LabelList") == 13
-    assert "영업이익 · OPM" in QUARTER_CHART
+    assert "영업이익 / OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")
         < QUARTER_CHART.index("<EarningsPanel")

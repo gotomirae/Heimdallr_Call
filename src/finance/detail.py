@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from src.collectors.dart_financials import REQUEST_INTERVAL_SEC, _to_int, fetch_single_all
 from src.config.constants import DART_BASE_URL, REPRT_CODE
 from src.db.supabase_client import get_client, select_all
+from src.finance.derive import margin_pct
+from src.finance.quarterize import ReportFigure, quarterize
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import require_env
 from src.utils.http import http_get
@@ -34,6 +36,7 @@ class FlowFigure:
 
 @dataclass(frozen=True)
 class DetailedAccounts:
+    gross_profit: ReportFigure = ReportFigure()
     cfo: FlowFigure = FlowFigure()
     capex: FlowFigure = FlowFigure()
     receivables: int | None = None
@@ -51,6 +54,8 @@ class DetailTarget:
     fiscal_year: int
     fiscal_quarter: int
     fs_div: str
+    current_revenue: float | None
+    prior_revenue: float | None
 
 
 @dataclass
@@ -63,6 +68,7 @@ class DetailStats:
 
 
 _ACCOUNT_IDS: dict[str, tuple[str, ...]] = {
+    "gross_profit": ("ifrs-full_GrossProfit", "ifrs_GrossProfit"),
     "cfo": (
         "ifrs-full_CashFlowsFromUsedInOperatingActivities",
         "ifrs_CashFlowsFromUsedInOperatingActivities",
@@ -92,6 +98,7 @@ _ACCOUNT_IDS: dict[str, tuple[str, ...]] = {
 }
 
 _ACCOUNT_NAMES: dict[str, tuple[str, ...]] = {
+    "gross_profit": ("매출총이익", "매출총이익(손실)", "매출총손익"),
     "cfo": ("영업활동현금흐름", "영업활동으로 인한 현금흐름"),
     "receivables": (
         "매출채권",
@@ -151,6 +158,25 @@ def _flow_of(row: dict | None, *, expenditure: bool = False) -> FlowFigure:
     return FlowFigure(current, prior)
 
 
+def _income_figure(row: dict | None) -> ReportFigure:
+    if row is None:
+        return ReportFigure()
+    return ReportFigure(
+        amount=cumulative_value(row.get("thstrm_amount")),
+        add_amount=cumulative_value(row.get("thstrm_add_amount")),
+    )
+
+
+def quarter_income_value(
+    quarter: int, current: ReportFigure, previous: ReportFigure
+) -> int | None:
+    """손익 누적치를 quarterize의 검증된 규칙으로 분기 단독치로 바꾼다."""
+    reports = {REPRT_CODE[quarter]: current}
+    if quarter > 1:
+        reports[REPRT_CODE[quarter - 1]] = previous
+    return quarterize(reports)[quarter].value
+
+
 def _sum_optional(values: list[int | None]) -> int | None:
     measured = [value for value in values if value is not None]
     return sum(measured) if measured else None
@@ -158,6 +184,10 @@ def _sum_optional(values: list[int | None]) -> int | None:
 
 def extract_accounts(rows: list[dict]) -> DetailedAccounts:
     """전체 재무제표 응답에서 D축과 화면용 계정을 추출한다."""
+    gross_profit_row = _pick_row(rows, "gross_profit", "IS") or _pick_row(
+        rows, "gross_profit", "CIS"
+    )
+    gross_profit = _income_figure(gross_profit_row)
     cfo = _flow_of(_pick_row(rows, "cfo", "CF"))
     capex_parts = [
         _flow_of(_pick_row(rows, "capex_ppe", "CF"), expenditure=True),
@@ -173,6 +203,7 @@ def extract_accounts(rows: list[dict]) -> DetailedAccounts:
         return cumulative_value(row.get("thstrm_amount")) if row else None
 
     return DetailedAccounts(
+        gross_profit=gross_profit,
         cfo=cfo,
         capex=capex,
         receivables=balance("receivables"),
@@ -246,7 +277,7 @@ def _latest_gate_targets(
     for row in select_all(
         "quarterly_fundamentals",
         "code,fiscal_year,fiscal_quarter,fs_div,is_estimate,"
-        "ttm_cfo,receivables,inventory,shares_yoy",
+        "revenue,gross_profit,ttm_cfo,receivables,inventory,shares_yoy",
     ):
         if row.get("is_estimate") is False:
             fundamentals[(row["code"], row["fiscal_year"], row["fiscal_quarter"])] = row
@@ -265,6 +296,7 @@ def _latest_gate_targets(
         prior = fundamentals.get((code, screened["fiscal_year"] - 1, screened["fiscal_quarter"]))
         detail_complete = (
             fund.get("ttm_cfo") is not None
+            and fund.get("gross_profit") is not None
             and fund.get("shares_yoy") is not None
             and fund.get("receivables") is not None
             and prior is not None
@@ -280,6 +312,8 @@ def _latest_gate_targets(
                 fiscal_year=screened["fiscal_year"],
                 fiscal_quarter=screened["fiscal_quarter"],
                 fs_div=fund["fs_div"],
+                current_revenue=float(fund["revenue"]) if fund.get("revenue") is not None else None,
+                prior_revenue=float(prior["revenue"]) if prior and prior.get("revenue") is not None else None,
             )
         )
     return sorted(targets, key=lambda target: target.code)
@@ -353,6 +387,11 @@ def collect_target(
         else DetailedAccounts()
     )
     prior_same = extract_accounts(accounts(year - 1, quarter))
+    prior_previous = (
+        extract_accounts(accounts(year - 1, previous_quarter))
+        if previous_quarter is not None
+        else DetailedAccounts()
+    )
     prior_annual = prior_same if quarter == 4 else extract_accounts(accounts(year - 1, 4))
 
     cfo = standalone_value(
@@ -372,12 +411,18 @@ def collect_target(
     current_shares = select_total_shares(stocks(year, quarter))
     prior_shares = select_total_shares(stocks(year - 1, quarter))
     stamp = datetime.now(timezone.utc).isoformat()
+    gross_profit = quarter_income_value(quarter, current.gross_profit, previous.gross_profit)
+    prior_gross_profit = quarter_income_value(
+        quarter, prior_same.gross_profit, prior_previous.gross_profit
+    )
 
     current_payload = {
         "code": target.code,
         "fiscal_year": year,
         "fiscal_quarter": quarter,
         "fs_div": target.fs_div,
+        "gross_profit": gross_profit,
+        "gpm": margin_pct(gross_profit, target.current_revenue),
         "ttm_cfo": ttm_cfo,
         "cfo": cfo,
         "capex": capex,
@@ -396,6 +441,8 @@ def collect_target(
         "fiscal_year": year - 1,
         "fiscal_quarter": quarter,
         "fs_div": target.fs_div,
+        "gross_profit": prior_gross_profit,
+        "gpm": margin_pct(prior_gross_profit, target.prior_revenue),
         "receivables": prior_same.receivables,
         "inventory": prior_same.inventory,
         "shares_outstanding": prior_shares,
@@ -432,7 +479,9 @@ def run(
     current_rows = [
         row for row in payload if row["fiscal_year"] == current_year.get(row["code"])
     ]
-    for field_name in ("ttm_cfo", "receivables", "inventory", "shares_yoy", "cfo", "fcf"):
+    for field_name in (
+        "gross_profit", "gpm", "ttm_cfo", "receivables", "inventory", "shares_yoy", "cfo", "fcf"
+    ):
         measured = sum(row.get(field_name) is not None for row in current_rows)
         print(f"  {field_name:18} {measured}/{len(targets)}종목 측정")
     print(f"  주식수 API status: {stats.stock_status}")

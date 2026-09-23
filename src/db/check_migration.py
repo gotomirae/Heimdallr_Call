@@ -52,6 +52,8 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("outcome_tracking", "excess_dm5", "NUMERIC", "발표 전 5일 초과수익"),
     ("outcome_tracking", "ret_d0", "NUMERIC", "발표 당일 수익률"),
     ("outcome_tracking", "excess_d0", "NUMERIC", "발표 당일 초과수익"),
+    ("outcome_tracking", "ret_d40", "NUMERIC", "발표 후 40거래일 수익률"),
+    ("outcome_tracking", "excess_d40", "NUMERIC", "발표 후 40거래일 초과수익"),
 )
 
 #: 있으면 좋지만 **없어도 화면이 정상 동작하는** 컬럼.

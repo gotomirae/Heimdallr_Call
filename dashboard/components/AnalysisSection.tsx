@@ -18,7 +18,7 @@ import { DASH } from "@/lib/format";
 
 /** 네이버 기준 투자지표. 화면이 확인해 넘긴다 — LLM 문장의 숫자를 믿지 않는다. */
 export interface ValuationView {
-  per4q: number | null;
+  perCurrent: number | null;
   perForward: number | null;
   forwardBasis: string | null;
   roeCurrent: number | null;
@@ -66,7 +66,7 @@ function NarrativeBlock({ check }: { check: NarrativeCheck }) {
   return (
     <div className="rounded-lg border border-indigo-700/60 bg-indigo-950/20 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase text-indigo-200">
+        <span className="text-lg font-black tracking-tight text-indigo-200">
           내러티브 검증 — 스토리대로 실적이 나오고 있나
         </span>
         <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-200">
@@ -145,7 +145,7 @@ export default function AnalysisSection({
   analysis: AnalysisView;
   narrative: NarrativeCheck;
   timelineItems: TimelineItem[];
-  /** ★ 화면이 직접 계산한 배수. LLM 문장에 적힌 PER은 믿지 않는다. */
+  /** ★ 화면이 네이버 연간 표에서 확인한 배수. LLM 문장에 적힌 PER은 믿지 않는다. */
   valuation: ValuationView;
 }) {
   if (analysis.isEmpty) {
@@ -167,14 +167,14 @@ export default function AnalysisSection({
 
       {analysis.whyNow && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-300">왜 지금인가</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">왜 지금인가</div>
           <Prose text={analysis.whyNow} />
         </div>
       )}
 
       {(analysis.brokerReportSearchPerformed || analysis.brokerReports.length > 0) && (
         <div className="rounded-lg border border-cyan-800/70 bg-cyan-950/20 p-4">
-          <div className="text-xs font-semibold uppercase text-cyan-200">
+          <div className="text-lg font-black tracking-tight text-cyan-200">
             공시 후 최근 10일 증권사 리포트
           </div>
           <Note>
@@ -211,7 +211,7 @@ export default function AnalysisSection({
 
       {(analysis.brokerReportSearchPerformed || analysis.narrativeVerification.length > 0) && (
         <div className="rounded-lg border border-indigo-700/60 bg-indigo-950/20 p-4">
-          <div className="text-xs font-semibold uppercase text-indigo-200">
+          <div className="text-lg font-black tracking-tight text-indigo-200">
             지난 4개 분기 경영진 내러티브 검증
           </div>
           <Note>
@@ -249,7 +249,7 @@ export default function AnalysisSection({
         analysis.earningsChange.outlook) && (
         <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase text-slate-200">
+            <span className="text-lg font-black tracking-tight text-slate-100">
               실적 변화 — 원인 · 결과 · 전망
             </span>
             {analysis.earningsChange.confidence && (
@@ -300,7 +300,7 @@ export default function AnalysisSection({
       {(analysis.growthEngine.drivers.length > 0 || analysis.growthEngine.evidence) && (
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase text-slate-200">성장 엔진</span>
+            <span className="text-lg font-black tracking-tight text-slate-100">성장 엔진</span>
             {analysis.growthEngine.nature && (
               <span
                 className={`rounded border px-1.5 py-0.5 text-[11px] ${
@@ -334,7 +334,7 @@ export default function AnalysisSection({
       )}
 
       <div className="rounded-lg border border-cyan-800/70 bg-cyan-950/15 p-4">
-        <div className="text-xs font-bold text-cyan-200">주요 고객·글로벌 밸류체인</div>
+        <div className="text-lg font-black tracking-tight text-cyan-200">주요 고객·글로벌 밸류체인</div>
         {analysis.valueChain.companyRole || analysis.valueChain.customers || analysis.valueChain.globalChain ? (
           <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
             {([ ["상류 공급·조달", analysis.valueChain.upstream], ["기업의 공정·제품", analysis.valueChain.companyRole],
@@ -356,7 +356,7 @@ export default function AnalysisSection({
 
       {analysis.baseEffectAssessment && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-300">
+          <div className="text-lg font-black tracking-tight text-slate-100">
             기저효과 판단
             {analysis.isGenuine != null && (
               <span
@@ -379,7 +379,7 @@ export default function AnalysisSection({
           확률만 보이니 모델이 성의 없이 답한 것처럼 읽혔지만 내용은 멀쩡히 있었다. */}
       {analysis.scenarios.length > 0 && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-200">시나리오</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">시나리오</div>
           <Note>
             <strong className="text-slate-200">조건</strong>은 “무엇이 관측되면 이 시나리오인가”다 —
             다음 분기 실적이 나오면 이 문장과 직접 대조하면 된다.
@@ -426,7 +426,7 @@ export default function AnalysisSection({
           사건을 알 방법이 없다. 숫자표만으로 사건을 쓰라고 하면 지어내게 된다. */}
       {timelineItems.length === 0 && (
         <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
-          <div className="text-xs font-semibold uppercase text-slate-200">주가 상승 트리거</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">주가 상승 트리거</div>
           <p className="mt-1.5 text-sm text-slate-100">
             <strong className="text-amber-300">확인 가능한 상승 이벤트를 찾지 못했다.</strong>{" "}
             이 분석의 입력은 분기 실적 표가 중심이라 CAPA 증설·신제품 출시·고객사 협업 같은
@@ -443,7 +443,7 @@ export default function AnalysisSection({
           목록이 아니라 **타임라인**으로 그린다. 시점 순서가 곧 판단이다. */}
       {timelineItems.length > 0 && (
         <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-          <div className="text-xs font-semibold uppercase text-slate-200">
+          <div className="text-lg font-black tracking-tight text-slate-100">
             주가 상승 트리거 ({timelineItems.length}건)
           </div>
           <Note>
@@ -464,31 +464,26 @@ export default function AnalysisSection({
         analysis.pricePosition.reason) && (
         <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase text-slate-200">주가 위치</span>
+            <span className="text-lg font-black tracking-tight text-slate-100">주가 위치</span>
             {analysis.pricePosition.verdict && (
               <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-100">
                 {analysis.pricePosition.verdict}
               </span>
             )}
           </div>
-          {/* ★★ PER은 **화면이 계산한 값**을 먼저 보여준다(사용자 지적 2026-08-23).
-              `price_snapshots.per`는 직전 사업연도 EPS 기준이라 가속 구간에서 2~3배
-              과대평가된다 — 실측: 고영 스냅샷 131.6 vs 실제 40.5.
-              2026-08-23 이전에 저장된 분석 본문에는 그 틀린 숫자가 남아 있다. */}
+          {/* PER·F.PER·ROE는 화면에서 다시 계산하지 않고 네이버 연간 표의 값을 보여준다. */}
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">① 최근 4개 분기 순이익 기준 PER</div>
+              <div className="text-[11px] text-slate-300">① 네이버 올해 PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-white">
-                {valuation.per4q != null ? `${valuation.per4q.toFixed(1)}배` : DASH}
+                {valuation.perCurrent != null ? `${valuation.perCurrent.toFixed(1)}배` : DASH}
               </div>
               <div className="text-[11px] text-slate-300">
-                {valuation.per4q != null
-                  ? "실제로 번 돈 기준 (추정 없음)"
-                  : "4개 분기가 안 모였거나 누적 순이익 0 이하"}
+                {valuation.perCurrent != null ? "네이버 기업실적분석 연간 예상값" : "네이버 예상값 없음"}
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">② 향후 4개 분기 선행 PER</div>
+              <div className="text-[11px] text-slate-300">② 네이버 내년 F.PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-amber-200">
                 {valuation.perForward != null ? `${valuation.perForward.toFixed(1)}배` : DASH}
               </div>
@@ -507,10 +502,9 @@ export default function AnalysisSection({
             </div>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-300">
-            위 세 숫자는 <strong className="text-slate-200">화면이 직접 계산한 값</strong>이다.
-            아래 해석 본문의 PER과 다르면{" "}
-            <strong className="text-amber-300">위 숫자가 맞다</strong> — 증권사 화면의 후행 PER은
-            직전 사업연도 이익 기준이라 실적이 급가속하면 2~3배 부풀려진다.
+            위 세 숫자는 <strong className="text-slate-200">네이버 증권 연간 기업실적분석 값</strong>이다.
+            화면에서 PER·F.PER·ROE를 다시 계산하지 않는다. 아래 LLM 본문과 다르면{" "}
+            <strong className="text-amber-300">위 원자료를 기준</strong>으로 판단한다.
           </p>
 
           {analysis.pricePosition.reason && <Prose text={analysis.pricePosition.reason} />}
@@ -553,7 +547,7 @@ export default function AnalysisSection({
 
       {analysis.risks.length > 0 && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-300">리스크</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">리스크</div>
           <table className="mt-1 w-full text-left text-xs">
             <thead className="text-slate-300">
               <tr>
@@ -579,7 +573,7 @@ export default function AnalysisSection({
 
       {analysis.nextDataToWatch.length > 0 && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-300">
+          <div className="text-lg font-black tracking-tight text-slate-100">
             다음 분기에 확인할 것
           </div>
           <ul className="mt-1 list-disc pl-4 text-slate-100">

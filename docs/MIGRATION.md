@@ -37,6 +37,8 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_dm5    NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_dm5 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d0     NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0  NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d40    NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d40 NUMERIC;
 
 -- 가치와 가격 비교: 네이버/FnGuide 올해·내년 ROE
 ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_est       NUMERIC;

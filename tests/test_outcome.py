@@ -258,7 +258,7 @@ def test_trading_days_after_counts_sessions_not_calendar():
 
 
 def test_display_horizons_are_what_user_asked_for():
-    assert DISPLAY_HORIZONS == (-5, 0, 5, 20, 60)
+    assert DISPLAY_HORIZONS == (-5, 0, 5, 20, 40, 60)
     assert all(d in HORIZONS for d in DISPLAY_HORIZONS)
 
 

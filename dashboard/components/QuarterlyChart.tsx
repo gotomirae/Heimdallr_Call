@@ -83,17 +83,19 @@ function chartSeries(points: ChartPoint[]) {
 
 function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   const data = chartSeries(points);
+  const gpmMeasured = data.filter((point) => point.gpmActual != null).length;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">매출액 · GPM</strong><span className="text-slate-400">억원 · %</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">매출액 / GPM</strong><span className="text-xs text-slate-400">억원 · % · GPM {gpmMeasured}/{data.length}</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 30, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke="#fff" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
-      <Tooltip formatter={(v, name) => [fmt(v, name === "GPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <Tooltip formatter={(v, name) => [fmt(v, String(name).startsWith("GPM") ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar yAxisId="amount" dataKey="revenueActual" name="매출액 확정·잠정" fill="#16a34a" isAnimationActive={false}><LabelList dataKey="revenueActual" position="top" fill="#bbf7d0" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar yAxisId="amount" dataKey="revenueForecast" name="다음 분기 매출 전망" fill="transparent" stroke="#4ade80" strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false}><LabelList dataKey="revenueForecast" position="top" fill="#86efac" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Line yAxisId="percent" dataKey="gpmActual" name="GPM" stroke={SERIES_COLOR.GPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="gpmActual" content={(p) => lineLabel(SERIES_COLOR.GPM_COLOR, "%", -15)({ ...p })} /></Line>
+      <Line yAxisId="percent" dataKey="gpmActual" name="GPM(흰색)" stroke="#ffffff" strokeWidth={3.5} dot={{ r: 4, fill: "#0f172a", stroke: "#ffffff", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#ffffff", stroke: "#0f172a", strokeWidth: 2 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="gpmActual" content={(p) => lineLabel("#ffffff", "%", -15)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
+    {gpmMeasured === 0 && <p className="mt-1 rounded border border-amber-800/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">GPM 원자료가 수집되지 않아 선을 그리지 않았다. 0%가 아니다.</p>}
     <Explanation items={[meaning]} />
   </div>;
 }
@@ -101,7 +103,7 @@ function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: Metr
 function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
   const data = chartSeries(points);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">영업이익 · OPM</strong><span className="text-slate-400">억원 · %</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">영업이익 / OPM</strong><span className="text-xs text-slate-400">억원 · %</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
@@ -123,7 +125,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
   const measured = revenueMeasured + opMeasured;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
-      <strong className="text-slate-100">매출액 YoY · 영업이익 YoY</strong>
+      <strong className="text-lg font-black text-white">매출액 YoY / 영업이익 YoY</strong>
       <span className="text-slate-400">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{points.filter((point) => !point.isCurrentQuarter).length} · 영업이익 {opMeasured}/{points.filter((point) => !point.isCurrentQuarter).length}</span>
     </div>
     {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
@@ -157,7 +159,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
 function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between text-xs"><strong className="text-slate-100">수주잔고 · 신규수주</strong><span className="text-slate-400">억원</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주</strong><span className="text-xs text-slate-400">억원</span></div>
     {!measured ? <div className="flex h-40 items-center justify-center text-xs text-slate-400">공개 자료의 구조화 수치 미수집</div> : <div className="h-40"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><YAxis width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.collectors.us_macro_daily import build_context, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
+from src.collectors.us_macro_daily import build_context, parse_fear_greed, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
 
 
 def test_premarket_vix_cannot_mix_with_previous_completed_us_session():
@@ -39,6 +39,7 @@ def test_market_regime_changes_default_sort_without_mixing_score_and_pri():
     markets = {
         "sp500": {"date": "2026-09-15", "close": 7000, "changePct": -0.3},
         "nasdaq": {"date": "2026-09-15", "close": 22000, "changePct": -0.5},
+        "dow": {"date": "2026-09-15", "close": 45000, "changePct": 0.1},
         "semiconductor": {"date": "2026-09-15", "close": 9000, "changePct": 0.4},
         "vix": {"date": "2026-09-15", "close": 17, "changePct": -1},
     }
@@ -50,6 +51,16 @@ def test_market_regime_changes_default_sort_without_mixing_score_and_pri():
     defensive = build_context(markets, fed, now)
     assert defensive["sortMode"] == "quality_price"
     assert defensive["preferredSectors"][0] == "전력인프라"
+
+
+def test_fear_greed_deduplicates_latest_day_and_keeps_bounded_history():
+    parsed = parse_fear_greed({"dates": ["2026-09-21", "2026-09-22", "2026-09-22"], "values": [28, 34, 35]})
+    assert parsed["value"] == 35
+    assert parsed["label"] == "공포"
+    assert parsed["history"] == [
+        {"date": "2026-09-21", "value": 28.0},
+        {"date": "2026-09-22", "value": 35.0},
+    ]
 
 
 def test_seven_oclock_snapshot_replaces_early_prewarm_but_not_repeated_run():

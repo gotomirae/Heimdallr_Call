@@ -33,3 +33,27 @@ def test_dashboard_request_waits_for_usage_reset(monkeypatch):
     monkeypatch.setattr(queue, "claim", lambda row: (_ for _ in ()).throw(AssertionError("must not claim")))
     assert queue.run(3, 240) == 0
     assert statuses == [("deferred", "daily limit")]
+
+
+def test_dashboard_request_retries_same_provider_without_search_when_domain_is_blocked(monkeypatch):
+    statuses = []
+    data = SimpleNamespace(analysis_stage=None)
+    result = SimpleNamespace(cost_usd=0.04)
+    calls = []
+    monkeypatch.setattr(queue, "pending_rows", lambda limit: [ROW])
+    monkeypatch.setattr(queue, "check_budget", lambda: SimpleNamespace(allowed=True, reason=None))
+    monkeypatch.setattr(queue, "claim", lambda row: True)
+    monkeypatch.setattr(queue, "build_input", lambda *a, **k: data)
+
+    def analyze(value, **kwargs):
+        calls.append(kwargs)
+        if kwargs["web_search"]:
+            raise RuntimeError("The following domains are not accessible to our user agent: ['blocked.example']")
+        return result
+
+    monkeypatch.setattr(queue, "analyze", analyze)
+    monkeypatch.setattr(queue, "save", lambda value: None)
+    monkeypatch.setattr(queue, "set_status", lambda row_id, status, **kwargs: statuses.append(status))
+    assert queue.run(3, 240) == 0
+    assert [call["web_search"] for call in calls] == [True, False]
+    assert statuses == ["completed"]

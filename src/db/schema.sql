@@ -229,8 +229,8 @@ CREATE TABLE IF NOT EXISTS outcome_tracking (
   code TEXT NOT NULL, fiscal_year INT NOT NULL, fiscal_quarter INT NOT NULL,
   announce_date DATE,
   grade_at_announce TEXT, score_at_announce NUMERIC, pri_at_announce NUMERIC,
-  ret_d1 NUMERIC, ret_d5 NUMERIC, ret_d20 NUMERIC, ret_d60 NUMERIC,
-  excess_d1 NUMERIC, excess_d5 NUMERIC, excess_d20 NUMERIC, excess_d60 NUMERIC,
+  ret_d1 NUMERIC, ret_d5 NUMERIC, ret_d20 NUMERIC, ret_d40 NUMERIC, ret_d60 NUMERIC,
+  excess_d1 NUMERIC, excess_d5 NUMERIC, excess_d20 NUMERIC, excess_d40 NUMERIC, excess_d60 NUMERIC,
   updated_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (code, fiscal_year, fiscal_quarter)
 );
@@ -425,3 +425,7 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_dm5 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_dm5 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d0 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0 NUMERIC;
+
+-- 2026-09-23 — 분기실적 발표 뒤 40거래일 성과
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d40 NUMERIC;
+ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d40 NUMERIC;

@@ -11,6 +11,7 @@ import pytest
 
 from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME
 from src.config.constants import ANALYSIS_MODEL
+from src.config.constants import WEB_SEARCH_ALLOWED_DOMAINS
 from src.llm.provider import LLMRequest, LLMResponse, NormalizedUsage
 from src.llm.providers.anthropic import AnthropicProvider
 from src.llm.providers.openai import OpenAIProvider
@@ -18,6 +19,10 @@ from src.llm.registry import resolve_provider
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_web_search_allowlist_excludes_domains_rejected_by_anthropic():
+    assert not {"www.mk.co.kr", "biz.chosun.com", "www.yna.co.kr"} & set(WEB_SEARCH_ALLOWED_DOMAINS)
 
 
 def _request(*, web_search: bool = False) -> LLMRequest:

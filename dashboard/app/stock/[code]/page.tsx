@@ -17,11 +17,11 @@ import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
 import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
-import { trailing4qPer, ttmNetIncome } from "@/lib/valuation";
-import { productSharesFromExcerpt } from "@/lib/productShares";
+import { forwardPeg } from "@/lib/valuation";
+import { productShareDisclosure } from "@/lib/productShares";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
 import { getOutcomesForCode } from "@/lib/outcome";
-import { getNaverDailyPrices, getNaverLiveSnapshot } from "@/lib/naver";
+import { completedCloseAtKst16, getNaverDailyPrices, getNaverLiveSnapshot } from "@/lib/naver";
 import {
   getAnalysis,
   getAnnualConsensus,
@@ -54,9 +54,9 @@ function Card({
 }) {
   return (
     <section id={id} className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-100">
+      <h2 className="mb-3 text-xl font-black tracking-tight text-white md:text-2xl">
         {title}
-        {note && <span className="ml-2 font-normal text-slate-300">{note}</span>}
+        {note && <span className="ml-2 text-xs font-normal tracking-normal text-slate-300 md:text-sm">{note}</span>}
       </h2>
       {children}
     </section>
@@ -80,8 +80,9 @@ function median(values: Array<number | null | undefined>): number | null {
 }
 
 function productSimilarity(left: string | null | undefined, right: string | null | undefined): number {
+  const stop = new Set(["제품", "사업", "제조", "판매", "서비스", "부문", "기타", "국내", "해외", "관련"]);
   const tokens = (value: string | null | undefined) => new Set(
-    String(value ?? "").toLowerCase().split(/[^0-9a-z가-힣]+/).filter((token) => token.length >= 2)
+    String(value ?? "").toLowerCase().split(/[^0-9a-z가-힣]+/).filter((token) => token.length >= 2 && !stop.has(token))
   );
   const a = tokens(left);
   const b = tokens(right);
@@ -151,7 +152,6 @@ export default async function StockPage({ params }: { params: { code: string } }
     : null;
 
   const [
-    consensus,
     analysisPayload,
     annualConsensus,
     nextConsensus,
@@ -160,9 +160,6 @@ export default async function StockPage({ params }: { params: { code: string } }
     quarterScreenResult,
     quarterFundamentals,
   ] = await Promise.all([
-    year && quarter
-      ? withDetailFallback("분기 컨센서스", getConsensus(code, year, quarter), null, detailWarnings)
-      : Promise.resolve(null),
     year && quarter
       ? withDetailFallback("LLM 분석", getAnalysis(code, year, quarter), null, detailWarnings)
       : Promise.resolve(null),
@@ -356,8 +353,9 @@ export default async function StockPage({ params }: { params: { code: string } }
   const liveAnnual = naverLive?.annualAvailable === true;
   const liveCurrentAnnual = liveAnnual && naverLive?.per4q != null;
   const liveNextAnnual = liveAnnual && naverLive?.fwdPer != null;
-  const currentClose = liveQuote ? naverLive.close : price?.close ?? null;
-  const currentChgPct = liveQuote ? naverLive.chgPct : price?.chg_pct ?? null;
+  const completedQuote = completedCloseAtKst16(dailyPrices);
+  const currentClose = completedQuote?.close ?? price?.close ?? null;
+  const currentChgPct = completedQuote?.chgPct ?? price?.chg_pct ?? null;
   const currentMarketCap = liveQuote
     ? naverLive.marketCapKrw ?? price?.market_cap_krw ?? stock.market_cap_krw
     : price?.market_cap_krw ?? stock.market_cap_krw;
@@ -367,8 +365,11 @@ export default async function StockPage({ params }: { params: { code: string } }
     currentClose != null && currentHigh52w != null && currentLow52w != null && currentHigh52w > currentLow52w
       ? (currentClose - currentLow52w) / (currentHigh52w - currentLow52w)
       : price?.pos_52w ?? null;
-  const priceBasisDate = liveQuote ? naverLive.priceDate : price?.snap_date ?? null;
-  const priceBasisLabel = liveQuote ? "네이버 현재 시세(최대 1분 캐시)" : "마지막 저장 시세";
+  const priceBasisDate = completedQuote?.tradeDate ?? price?.snap_date ?? null;
+  const priceBasisLabel = completedQuote ? "네이버 한국시간 16:00 확정 종가" : "마지막 저장 시세";
+  const currentAnnouncementReturn = currentClose != null && price?.announcement_close != null && price.announcement_close > 0
+    ? (currentClose / price.announcement_close - 1) * 100
+    : null;
 
   // ── 섹터 비교 ────────────────────────────────────────────────
   // 같은 평가 분기의 행끼리만 비교한다(T40). 상위 5개에 현재 종목이 없으면
@@ -377,6 +378,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   const quarterFundByCode = new Map(quarterFundamentals.map((row) => [row.code, row]));
   const sectorScreens = quarterScreenResult.rows
     .filter((row) => sectorOf(universe.get(row.code)) === stockSector)
+    .filter((row) => row.code === code || productSimilarity(stock.products, universe.get(row.code)?.products) > 0)
     .sort(
       (left, right) => {
         const similarity = productSimilarity(stock.products, universe.get(right.code)?.products) -
@@ -424,6 +426,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         code: peerScreen.code,
         name: universe.get(peerScreen.code)?.name ?? peerScreen.code,
         isCurrent,
+        productSimilarity: isCurrent ? 1 : productSimilarity(stock.products, universe.get(peerScreen.code)?.products),
         marketCap: peerCap,
         revenue: peerFund?.revenue ?? null,
         op: peerFund?.op ?? null,
@@ -432,8 +435,8 @@ export default async function StockPage({ params }: { params: { code: string } }
         roeNext: isCurrent ? naverLive?.roeNext ?? peerAnnual?.roe_next_est ?? null : peerAnnual?.roe_next_est ?? null,
         roeNextYear: isCurrent ? naverLive?.roeNextYear ?? peerAnnual?.roe_next_year ?? null : peerAnnual?.roe_next_year ?? null,
         per4q: isCurrent
-          ? naverLive?.per4q ?? peerAnnual?.per ?? peerPrice?.per_current_ttm ?? null
-          : peerAnnual?.per ?? peerPrice?.per_current_ttm ?? null,
+          ? naverLive?.per4q ?? peerAnnual?.per ?? null
+          : peerAnnual?.per ?? null,
         forwardPer: isCurrent
           ? naverLive?.fwdPer ?? peerAnnual?.fwd_per ?? null
           : peerAnnual?.fwd_per ?? null,
@@ -452,13 +455,6 @@ export default async function StockPage({ params }: { params: { code: string } }
   };
 
   // ── 밸류에이션 ──────────────────────────────────────────────
-  // ★ 시총은 시세 스냅샷 것을 우선한다 — 유니버스 값은 하루 늦을 수 있다.
-  const capForPer = currentMarketCap;
-  // ★ 평가 분기까지의 4분기 누적으로 잡는다. 그냥 마지막 4행을 쓰면 스크리너가
-  //   본 분기와 다른 구간의 PER이 나와 텔레그램과 화면이 어긋난다.
-  const ttmNp =
-    year && quarter ? ttmNetIncome(funds, year, quarter) : null;
-  const calculatedPer4q = trailing4qPer(capForPer, ttmNp);
   // 투자지표의 주 원천은 네이버다. 실시간 integration이 실패하면 저장된
   // 네이버 연간 스냅샷으로 물러서고, 다른 출처의 PER을 섞지 않는다.
   const per4q = naverLive?.per4q ?? annualConsensus?.per ?? null;
@@ -472,11 +468,14 @@ export default async function StockPage({ params }: { params: { code: string } }
   const storedAnnualBasisDate = annualConsensus?.snapshot_at?.slice(0, 10) ?? null;
   const currentAnnualBasisDate = liveCurrentAnnual ? priceBasisDate : storedAnnualBasisDate;
   const nextAnnualBasisDate = liveNextAnnual ? priceBasisDate : storedAnnualBasisDate;
-  // PEG는 네이버 integration이 공개한 값만 사용한다. 공개하지 않는 종목은 결측이다.
-  const referencePeg = liveQuote ? naverLive.peg : null;
+  const historicalPerAvg = naverLive?.perHistory3yAvg ?? null;
+  const historicalPerYears = naverLive?.perHistoryYears ?? [];
+  const calculatedPeg = forwardPeg(forwardPerValue, naverLive?.eps, naverLive?.epsNext);
 
   const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
   const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
+  const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
+  const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
   const actualChartPoints = toChartPoints(funds, CHART_QUARTERS).map((point, index) => {
     const source = funds.slice(-CHART_QUARTERS)[index];
@@ -514,7 +513,8 @@ export default async function StockPage({ params }: { params: { code: string } }
   const baseEffectMeasurable = Boolean(
     (screen?.gate_detail as Record<string, unknown> | null)?.base_effect_measurable ?? true
   );
-  const productShares = productSharesFromExcerpt(disclosureExcerpt);
+  const productShareSource = productShareDisclosure(disclosureExcerpt);
+  const productShares = productShareSource.shares;
   const analysisAsOf = typeof lastAttempt.attempted_at === "string"
     ? lastAttempt.attempted_at.slice(0, 10)
     : null;
@@ -539,12 +539,13 @@ export default async function StockPage({ params }: { params: { code: string } }
             <p className="mt-1 text-xs text-slate-300">{stock.products}</p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="font-bold text-sky-200">최근 정기보고서 제품·사업 비중</span>
+            <span className="font-bold text-sky-200">{productShareSource.sourceLabel ?? "최근 정기보고서"} 제품·사업 매출 비중</span>
             {productShares.length > 0 ? productShares.map((item) => (
               <span key={item.name} className="rounded-full border border-sky-800/70 bg-sky-950/35 px-2 py-1 text-slate-100">
                 {item.name} <strong className="text-sky-200">{item.sharePct.toFixed(1)}%</strong>
               </span>
-            )) : <span className="text-slate-400">공시에 명시된 비중 미확인 · 제품 설명만 표시</span>}
+            )) : <span className="text-slate-400">{productShareSource.statusLabel} · 제품 설명만 표시</span>}
+            {productShareSource.rceptNo && <a href={dartReportUrl(productShareSource.rceptNo)} target="_blank" rel="noreferrer" className="font-bold text-cyan-300 underline">DART 원문</a>}
           </div>
         </div>
         <div className="text-right">
@@ -624,17 +625,24 @@ export default async function StockPage({ params }: { params: { code: string } }
             />
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">투자 매력도</h3>
+                <h3 className="mb-2 text-xl font-black tracking-tight text-amber-200">투자 매력도</h3>
                 <Note>
                   산업·실적·밸류·ROE·현금흐름 종합 100점 · 미측정 축은 0점이 아니라{" "}
                   <strong className="text-slate-100">분모 제외</strong>
                 </Note>
                 <div className="mt-2">
-                  <ScoreBreakdown screen={screen} />
+                  <ScoreBreakdown screen={screen} valuation={{
+                    per: per4q,
+                    forwardPer: forwardPerValue,
+                    roe: currentRoe,
+                    forwardRoe: nextRoe,
+                    fcf: naverLive?.fcf ?? null,
+                    fcfYear: naverLive?.fcfYear ?? null,
+                  }} />
                 </div>
               </div>
               <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase text-slate-200">
+                <h3 className="mb-2 text-xl font-black tracking-tight text-sky-200">
                   주가반영도
                 </h3>
                 {/* ★ 숫자 바로 아래에 뜻을 붙인다 — 62점이 좋은 건지 나쁜 건지가
@@ -648,7 +656,13 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <span className="block">기업·산업 점수와 <strong>합산하지 않는다</strong> · ★ = 투자 매력 높음 + 반영도 낮음</span>
                 </Note>
                 <div className="mt-2">
-                  <PriBreakdown pri={screen.pri} detail={screen.pri_detail} />
+                  <PriBreakdown pri={screen.pri} detail={screen.pri_detail} valuation={{
+                    historicalPerAvg,
+                    historicalPerYears,
+                    forwardPer: forwardPerValue,
+                    peg: calculatedPeg?.peg ?? null,
+                    pegGrowthPct: calculatedPeg?.growthPct ?? null,
+                  }} currentAnnouncement={{ returnPct: currentAnnouncementReturn, asOf: priceBasisDate }} />
                 </div>
               </div>
             </div>
@@ -746,7 +760,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 4. 분기 히스토리 표 */}
-      <Card id="quarterly-history" title="분기 히스토리">
+      <Card id="quarterly-history" title="분기실적 History">
         <Note>
           <strong className="text-slate-100">흑전/적전</strong> 흑↔적 전환(%계산 불가) ·{" "}
           <strong className="text-slate-100">QoQ</strong> 참고용(점수 미반영)
@@ -863,7 +877,19 @@ export default async function StockPage({ params }: { params: { code: string } }
           <div className="text-xs font-bold uppercase tracking-wide text-sky-200">기업 기본 개요</div>
           <div className="mt-2 grid gap-3 text-sm md:grid-cols-2">
             <div><span className="text-slate-400">산업·사업</span><p className="mt-1 leading-relaxed text-slate-100">{stock.industry ?? DASH}<br />{stock.products ?? "주요 제품 공개 정보 미수집"}</p></div>
-            <div><span className="text-slate-400">최근 제품별 매출 비중</span><p className="mt-1 leading-relaxed text-slate-100">{productShares.length ? productShares.map((item) => `${item.name} ${item.sharePct.toFixed(1)}%`).join(" · ") : "정기보고서에서 명시된 비중을 확인하지 못함"}</p></div>
+            <div className="md:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-slate-400">판매 제품·사업 매출 비중</span>
+                <span className="text-xs font-semibold text-sky-200">{productShareSource.sourceLabel ?? "정기보고서 미수집"} · {productShareSource.periodLabel ?? "기간 미확인"}</span>
+              </div>
+              {productShares.length ? <div className="mt-2 overflow-x-auto rounded-lg border border-slate-800">
+                <table className="w-full min-w-[480px] text-left text-xs">
+                  <thead className="bg-slate-900 text-slate-300"><tr><th className="px-3 py-2">공시 제품·사업</th><th className="px-3 py-2 text-right">명시 매출 비중</th><th className="px-3 py-2">확인 상태</th></tr></thead>
+                  <tbody className="divide-y divide-slate-800">{productShares.map((item) => <tr key={item.name}><td className="px-3 py-2 text-slate-100">{item.name}</td><td className="px-3 py-2 text-right font-bold text-sky-200">{item.sharePct.toFixed(1)}%</td><td className="px-3 py-2 text-emerald-300">공시 표 직접 확인</td></tr>)}</tbody>
+                </table>
+              </div> : <p className="mt-1 leading-relaxed text-slate-300">{productShareSource.statusLabel}</p>}
+              <p className="mt-2 text-[11px] leading-5 text-slate-400">DART 표에 % 기호가 있거나 머리글이 비중(%)로 명시된 현재 보고기간 항목만 표시합니다. 매출 금액으로 비중을 역산하지 않습니다.{productShareSource.truncated ? " 발췌가 잘린 보고서이므로 원문 재확인이 필요합니다." : ""} {productShareSource.rceptNo && <a href={dartReportUrl(productShareSource.rceptNo)} target="_blank" rel="noreferrer" className="text-cyan-300 underline">공시 원문 확인</a>}</p>
+            </div>
             <div><span className="text-slate-400">최근 실적 위치</span><p className="mt-1 leading-relaxed text-slate-100">매출 {eok(evaluated?.revenue)} · 영업이익 {eok(evaluated?.op)} · OPM {pct(evaluated?.opm)}<br />매출 YoY {pct(evaluated?.revenue_yoy)} · 영업이익 YoY {growthOrLabel(evaluated?.op_yoy, evaluated?.op_status_label)}</p></div>
           </div>
         </div>
@@ -871,9 +897,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           analysis={analysis}
           narrative={narrative}
           timelineItems={timelineItems}
-          /* ★ 배수는 **화면이 계산한 값**을 넘긴다 — LLM 본문의 PER은 믿지 않는다. */
+          /* 네이버 연간 표의 값을 넘긴다 — LLM 본문의 PER은 믿지 않는다. */
           valuation={{
-            per4q,
+            perCurrent: per4q,
             perForward: forwardPerValue,
             forwardBasis: liveNextAnnual ? "네이버 증권 내년 예상 PER" : "저장된 네이버 연간 컨센서스",
             roeCurrent: currentRoe,
@@ -888,11 +914,12 @@ export default async function StockPage({ params }: { params: { code: string } }
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
       <Card title="수주잔고·신규수주" note="DART 정기보고서·주요계약 원문 기준">
         {orderSummaries.length > 0 ? <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="text-left text-xs text-slate-300"><tr className="border-b border-slate-700">
-              <th className="py-2">분기</th><th>수주잔고</th><th>신규수주</th><th>공시 범위·상태</th><th>출처</th>
+              <th className="py-2">공시일</th><th>분기</th><th>수주잔고</th><th>신규수주</th><th>공시 범위·상태</th><th>출처</th>
             </tr></thead>
             <tbody>{orderSummaries.map((row) => <tr key={row.rceptNo} className="border-b border-slate-800/70 align-top">
+              <td className="py-2 text-slate-300">{disclosureDateByReceipt.get(row.rceptNo) ?? DASH}</td>
               <td className="py-2 text-slate-100">{quarterLabel(row.year, row.quarter)}</td>
               <td className="py-2 tabular-nums">{row.backlogEok == null ? DASH : `${num(row.backlogEok, 1)}억원`}</td>
               <td className="py-2 tabular-nums">{row.newOrdersEok == null ? DASH : `${num(row.newOrdersEok, 1)}억원`}</td>
@@ -901,7 +928,13 @@ export default async function StockPage({ params }: { params: { code: string } }
             </tr>)}</tbody>
           </table>
         </div> : <div className="rounded border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-100">
-          최신 정기보고서 수주 원문 수집 대기 중이다. 전 종목 점진 수집 작업이 완료되면 수치·비공개·해당 없음 상태가 표시된다.
+          DART 정기보고서에서 구조화 가능한 수주 수치를 찾지 못했다. 아래 공개 웹 원문에서 계약·공급 이벤트를 보완 확인한다.
+        </div>}
+        {webOrderEvents.length > 0 && <div className="mt-3 rounded-lg border border-cyan-800/60 bg-cyan-950/20 p-3">
+          <h3 className="text-base font-black text-cyan-200">웹 검색 보완 · 일자별 수주·계약 공시</h3>
+          <ul className="mt-2 space-y-2 text-xs text-slate-100">{webOrderEvents.map((item) => <li key={`${item.date}-${item.url}`} className="rounded border border-slate-800 bg-slate-950/40 p-2">
+            <strong>{item.date}</strong> · {item.company} · {item.status} — {item.event} <a href={item.url} target="_blank" rel="noreferrer" className="ml-1 text-cyan-300 underline">공개 원문</a>
+          </li>)}</ul>
         </div>}
         {orderSignal && (
           <div className="rounded-lg border border-sky-800/70 bg-sky-950/25 p-4">
@@ -934,54 +967,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         <Note>수주총액을 신규수주로 바꾸지 않는다. 여러 사업부의 표를 임의 합산하지 않으며, 주요계약 합계는 전체 회사 수주잔고와 구분한다.</Note>
       </Card>
 
-      {/* 6. 컨센서스 대비 */}
-      <Card title="컨센서스 대비">
-        <Note>출처: 네이버 증권 기업실적분석 · 스냅샷 {consensus?.snapshot_at?.slice(0, 10) ?? DASH} · 추정기관 2곳 이상만 인정</Note>
-        <div className="mt-3" />
-        {consensus && (consensus.n_estimates ?? 0) >= 2 ? (
-          <div className="grid gap-4 text-sm sm:grid-cols-3">
-            <div>
-              <div className="text-xs text-slate-300">추정기관 수</div>
-              <div className="text-lg">{consensus.n_estimates}곳</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-300">매출 서프라이즈</div>
-              <div className="text-lg">
-                {consensus.revenue_est && evaluated?.revenue
-                  ? pct(((evaluated.revenue - consensus.revenue_est) / consensus.revenue_est) * 100)
-                  : DASH}
-              </div>
-              <div className="text-xs text-slate-300">컨센 {eok(consensus.revenue_est)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-300">영업이익 서프라이즈</div>
-              <div className="text-lg">
-                {/* 부호가 바뀌면 %를 만들지 않는다(T37) */}
-                {consensus.op_est != null &&
-                evaluated?.op != null &&
-                consensus.op_est > 0 &&
-                evaluated.op > 0
-                  ? pct(((evaluated.op - consensus.op_est) / consensus.op_est) * 100)
-                  : consensus.op_est != null && evaluated?.op != null
-                    ? consensus.op_est <= 0 && evaluated.op > 0
-                      ? "흑전 서프라이즈"
-                      : "적자 구간 — % 계산 불가"
-                    : DASH}
-              </div>
-              <div className="text-xs text-slate-300">컨센 {eok(consensus.op_est)}</div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-200">
-            <strong className="text-slate-100">커버리지 없음.</strong> 추정기관이 2곳 미만이라
-            컨센서스로 인정하지 않는다. C축을 <strong>분모에서 제외</strong>하고 정규화했다 —
-            0점 처리가 아니다(ADR 2). 코스닥 상장사의 약 60%가 최근 1년 리포트 0건이며,
-            이 시스템은 그 구간을 발굴 대상으로 삼는다.
-          </p>
-        )}
-      </Card>
-
-      {/* 7. 밸류에이션 — 네이버 올해 예상 → 내년 예상. 시간축을 섞지 않는다. */}
+      {/* 밸류에이션 — 네이버 올해 예상 → 내년 예상. 시간축을 섞지 않는다. */}
       <Card title="가치와 가격 비교" note="실적이 만든 가치와 시장이 붙인 가격을 반드시 함께 본다">
         <p className="mb-4 rounded border border-amber-700/60 bg-amber-950/25 px-3 py-2 text-sm leading-relaxed text-amber-100">
           <strong>현재 가격 {currentClose != null ? `${currentClose.toLocaleString("ko-KR")}원` : DASH}</strong>
@@ -1001,11 +987,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               {per4q != null ? <>
                 출처: <strong>네이버 증권 {perYear ?? "올해"}년 PER(E)</strong>({currentAnnualBasisDate ?? "조회일 기준"}).
-                네이버 연간 기업실적분석의 올해 예상 이익 배수를 그대로 표시한다.
-                {calculatedPer4q != null && <> DART 최근 4분기 순이익·현재 시총 검산값은 {calculatedPer4q.toFixed(2)}배다.</>}
+                네이버 연간 기업실적분석의 올해 예상 이익 배수를 계산 없이 그대로 표시한다.
               </> : <>
                 네이버 현재 조회가 실패해 마지막 저장된 올해 예상 PER을 표시했다.
-                {ttmNp != null && <> DART 검산 분모는 {eok(ttmNp)}({quarterLabel(year ?? 0, quarter ?? 0)}까지 4분기 누적).</>}
               </>}
               {per4q == null && (
                 <> 네이버에 올해 예상 PER이 없어 다른 연도나 계산값으로 대체하지 않았다.</>
@@ -1043,25 +1027,24 @@ export default async function StockPage({ params }: { params: { code: string } }
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
             <div className="text-xs font-semibold text-slate-200">④ 과거 3개년 평균 PER 대비</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {price?.per_vs_9q_avg_pct != null
-                ? `${price.per_vs_9q_avg_pct >= 0 ? "+" : ""}${price.per_vs_9q_avg_pct.toFixed(1)}%`
-                : DASH}
+              {historicalPerAvg != null ? `${historicalPerAvg.toFixed(2)}배` : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              현재 TTM PER {price?.per_current_ttm != null ? `${price.per_current_ttm.toFixed(1)}배` : DASH}
-              {" · "}과거 {price?.per_avg_quarters ?? 0}개 분기 평균{" "}
-              {price?.per_avg_9q != null ? `${price.per_avg_9q.toFixed(1)}배` : DASH}. 음수일수록
-              과거 평균보다 싸고, 값이 없으면 아직 측정하지 않은 것이며 0으로 보지 않는다.
+              네이버 증권의 최근 확정 {historicalPerYears.length}개 연도
+              {historicalPerYears.length ? `(${historicalPerYears.join("·")})` : ""} PER 단순 평균이다.
+              내년 F.PER {forwardPerValue != null ? `${forwardPerValue.toFixed(2)}배` : DASH}와 같은 자리에서 비교한다.
+              네이버에 확정 연도 PER이 없으면 계산값으로 채우지 않는다.
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
-            <div className="text-xs font-semibold text-slate-200">⑤ PEG (네이버)</div>
+            <div className="text-xs font-semibold text-slate-200">⑤ PEG (자체 계산)</div>
             <div className="mt-1 text-2xl font-semibold text-slate-100">
-              {referencePeg != null ? referencePeg.toFixed(2) : DASH}
+              {calculatedPeg != null ? calculatedPeg.peg.toFixed(2) : DASH}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              네이버증권이 공개한 PEG만 표시한다. 네이버가 값을 제공하지 않으면 다른 성장률로
-              대체하지 않고 —로 둔다.
+              자체 계산: 네이버 내년 F.PER {forwardPerValue != null ? `${forwardPerValue.toFixed(2)}배` : DASH}
+              {" ÷ "}네이버 올해→내년 EPS 성장률 {calculatedPeg != null ? `${calculatedPeg.growthPct.toFixed(1)}%` : DASH}.
+              EPS 성장률이 0% 이하이거나 두 연도 값이 없으면 PEG를 측정하지 않는다.
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
@@ -1103,12 +1086,13 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       </Card>
 
-      <Card title="섹터 비교" note={stockSector + " · 주요 제품 유사도 우선, 같은 평가 분기 5개"}>
+      <Card title="섹터 비교" note={stockSector + " · 주요 제품 공통어가 확인된 같은 평가 분기 기업만"}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1260px] text-right text-sm">
             <thead className="text-xs text-slate-300">
               <tr className="border-b border-slate-800">
                 <th className="sticky left-0 z-20 bg-slate-900 py-2 text-left">종목</th>
+                <th className="py-2">제품 유사도</th>
                 <th className="py-2">시총</th>
                 <th className="py-2">최신 분기 매출</th>
                 <th className="py-2">영업이익</th>
@@ -1122,6 +1106,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             <tbody>
               <tr className="border-b border-slate-700 bg-slate-800/30 font-semibold">
                 <td className="sticky left-0 z-10 bg-slate-800 py-2 text-left">표시 종목 중앙값 ({sectorPeerRows.length}종목)</td>
+                <td className="py-2">—</td>
                 <td className="py-2">{marketCap(sectorMedians.marketCap)}</td>
                 <td className="py-2">{eok(sectorMedians.revenue)}</td>
                 <td className="py-2">{eok(sectorMedians.op)}</td>
@@ -1144,6 +1129,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                       {peer.isCurrent ? "현재 · " : ""}{peer.name} ({peer.code})
                     </Link>
                   </td>
+                  <td className="py-2">{peer.isCurrent ? "기준" : `${(peer.productSimilarity * 100).toFixed(0)}%`}</td>
                   <td className="py-2">{marketCap(peer.marketCap)}</td>
                   <td className="py-2">{eok(peer.revenue)}</td>
                   <td className="py-2">{eok(peer.op)}</td>
@@ -1160,8 +1146,8 @@ export default async function StockPage({ params }: { params: { code: string } }
         <Note>
           매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. 현재 종목의 PER·F.PER·ROE는
           위 가치 카드와 같은 네이버 올해/내년 예상값이고, 비교 종목도 같은 네이버 연간 표를 우선한다.
-          조회 실패 시 저장값, 올해 PER까지 없을 때만 시총÷최근 4분기 순이익 검산값을 쓴다. 상위 5개만 비교하며 평균 대신 이상치에 덜 흔들리는
-          중앙값을 썼다. 같은 섹터 안에서 주요 제품 설명의 겹치는 단어 비율을 먼저 비교하고, 동률이면 투자 매력도가 높은 순으로 고른다.
+          조회 실패 시 저장된 네이버 값으로만 물러서며 자체 PER을 계산해 끼우지 않는다. 상위 5개만 비교하며 평균 대신 이상치에 덜 흔들리는
+          중앙값을 썼다. 같은 섹터라도 주요 제품 설명에 의미 있는 공통어가 하나도 없으면 비교군에서 제외하고, 유사도 동률이면 투자 매력도가 높은 순으로 고른다.
           현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
         </Note>
       </Card>
@@ -1175,7 +1161,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                   <th className="py-2 text-left">분기</th>
                   <th className="py-2 text-left">발표일</th>
                   <th className="py-2 text-center">등급</th>
-                  {["D+1", "D+5", "D+20", "D+60"].map((label) => (
+                  {["D+1", "D+5", "D+20", "D+40", "D+60"].map((label) => (
                     <th key={label} className="py-2">
                       {label}<br /><span className="font-normal">수익 / 지수대비</span>
                     </th>
@@ -1188,6 +1174,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                     { label: "D+1", ret: row.ret_d1, excess: row.excess_d1 },
                     { label: "D+5", ret: row.ret_d5, excess: row.excess_d5 },
                     { label: "D+20", ret: row.ret_d20, excess: row.excess_d20 },
+                    { label: "D+40", ret: row.ret_d40, excess: row.excess_d40 },
                     { label: "D+60", ret: row.ret_d60, excess: row.excess_d60 },
                   ];
                   return (

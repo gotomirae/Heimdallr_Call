@@ -12,21 +12,23 @@ const AXIS_COLOR: Record<string, string> = {
 };
 
 const INVESTMENT_PARTS = [
-  { key: "industry_growth", label: "산업 성장" },
-  { key: "industry_position", label: "산업 내 위치" },
-  { key: "earnings", label: "실적" },
-  { key: "growth_story", label: "성장 스토리" },
-  { key: "valuation", label: "PER · F.PER" },
-  { key: "roe", label: "ROE" },
-  { key: "fcf", label: "FCF" },
+  { key: "industry_growth", label: "산업 성장", meaning: "회사가 속한 시장의 수요와 이익 풀이 커지는가" },
+  { key: "industry_position", label: "산업 내 위치", meaning: "점유율·기술·고객 기반으로 성장 몫을 가져올 위치인가" },
+  { key: "earnings", label: "실적", meaning: "매출·영업이익·마진이 실제로 가속하는가" },
+  { key: "growth_story", label: "성장 지속성", meaning: "TTM 이익과 다음 전망이 일회성이 아닌가" },
+  { key: "valuation", label: "PER · F.PER", meaning: "현재 가격이 올해·내년 예상 이익에 비해 과하지 않은가" },
+  { key: "roe", label: "ROE", meaning: "자기자본으로 이익을 내는 효율이 높고 개선되는가" },
+  { key: "fcf", label: "FCF", meaning: "회계상 이익이 실제 잉여현금으로 남는가" },
 ] as const;
 
 function InvestmentBreakdown({
   screen,
   detail,
+  valuation,
 }: {
   screen: ScreenRow;
   detail: InvestmentScoreDetail;
+  valuation?: InvestmentValuation;
 }) {
   const parts = detail.parts ?? {};
   const inputs = detail.inputs ?? {};
@@ -47,16 +49,15 @@ function InvestmentBreakdown({
           const value = parts[part.key];
           const max = Number(config[part.key]);
           return (
-            <div key={part.key} className="flex items-center gap-2 text-sm">
-              <span className="w-32 shrink-0 text-slate-100">{part.label}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded bg-slate-800">
-                {value != null && (
-                  <div className="h-full bg-amber-400" style={{ width: `${value / max * 100}%` }} />
-                )}
+            <div key={part.key} className="grid grid-cols-[7.5rem_1fr_5rem] items-center gap-x-2 gap-y-0.5 rounded border border-slate-800/70 bg-slate-950/30 px-2 py-1.5 text-sm">
+              <span className="font-semibold text-slate-100">{part.label}</span>
+              <div className="h-2 overflow-hidden rounded bg-slate-800">
+                {value != null && <div className="h-full bg-amber-400" style={{ width: `${value / max * 100}%` }} />}
               </div>
-              <span className="w-20 text-right text-xs text-slate-200">
+              <span className="text-right text-xs text-slate-200">
                 {value == null ? `${DASH} 미측정` : `${value.toFixed(1)}/${max}`}
               </span>
+              <span className="col-span-3 text-[11px] leading-relaxed text-slate-300">{part.meaning}</span>
             </div>
           );
         })}
@@ -65,8 +66,8 @@ function InvestmentBreakdown({
         <div>산업 성장 {num(inputs.industry_growth, 1)}/100 · 산업 내 위치 {num(inputs.industry_position, 1)}/100</div>
         <div>기존 실적 원점수 {num(inputs.fundamental_score, 1)} · 현재 가격은 주가반영도와 2축 등급에서 별도 반영</div>
         <div>성장 스토리 {num(inputs.growth_story, 1)}/100 · 예상 이익 성장 {num(inputs.forecast_earnings_growth_pct, 1)}%</div>
-        <div>PER {num(inputs.per_current_ttm, 1)}배 · F.PER {num(inputs.fwd_per, 1)}배 · ROE {num(inputs.roe, 1)}% · F.ROE {num(inputs.forward_roe, 1)}%</div>
-        <div>최근 분기 FCF {fcf == null ? DASH : `${(fcf / 1e8).toFixed(0)}억원`} · 시총 대비 {num(inputs.fcf_yield_pct, 1)}% · 영업이익 대비 현금전환 {num(inputs.fcf_conversion, 2)}배</div>
+        <div>네이버 PER {num(valuation?.per, 1)}배 · F.PER {num(valuation?.forwardPer, 1)}배 · ROE {num(valuation?.roe, 1)}% · F.ROE {num(valuation?.forwardRoe, 1)}%</div>
+        <div>네이버 {valuation?.fcfYear ?? "연간"} FCF {valuation?.fcf == null ? DASH : `${num(valuation.fcf, 1)}억원`} · 점수 계산 시점 현금흐름 측정 여부 {fcf == null ? "미측정" : "측정"}</div>
         <div className="mt-1 text-slate-300">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. 주가반영도는 이 점수에 합산하지 않는다.</div>
       </div>
     </div>
@@ -81,12 +82,21 @@ function InvestmentBreakdown({
  * ★ 축 **안의** 결측은 분모에서 빠지지 않아 조용히 감점된다(T26) — 따로 표시한다.
  * ★ 측정해서 0점인 항목도 숨기지 않는다(T38). 안 보이면 미측정과 구분되지 않는다.
  */
-export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
+interface InvestmentValuation {
+  per: number | null;
+  forwardPer: number | null;
+  roe: number | null;
+  forwardRoe: number | null;
+  fcf: number | null;
+  fcfYear: number | null;
+}
+
+export function ScoreBreakdown({ screen, valuation }: { screen: ScreenRow; valuation?: InvestmentValuation }) {
   const rawInvestment = screen.gate_detail?.investment_score;
   if (rawInvestment && typeof rawInvestment === "object") {
     const detail = rawInvestment as InvestmentScoreDetail;
     if (detail.mode === "investment_v1") {
-      return <InvestmentBreakdown screen={screen} detail={detail} />;
+      return <InvestmentBreakdown screen={screen} detail={detail} valuation={valuation} />;
     }
   }
   const measured = AXES.filter(
@@ -201,9 +211,19 @@ export function ScoreBreakdown({ screen }: { screen: ScreenRow }) {
 export function PriBreakdown({
   pri,
   detail,
+  valuation,
+  currentAnnouncement,
 }: {
   pri: number | null;
   detail: PriDetail | null;
+  valuation?: {
+    historicalPerAvg: number | null;
+    historicalPerYears: number[];
+    forwardPer: number | null;
+    peg: number | null;
+    pegGrowthPct: number | null;
+  };
+  currentAnnouncement?: { returnPct: number | null; asOf: string | null };
 }) {
   const parts = detail?.parts ?? {};
   const inputs = detail?.inputs ?? {};
@@ -319,18 +339,19 @@ export function PriBreakdown({
           <>
             <div className="rounded border border-sky-800/70 bg-sky-950/20 p-2">
               <strong>① 실적 발표~현재 주가 반응</strong>
-              <div>발표 당일 종가 대비 현재 {num(inputs.announcement_return_pct as number | null, 1)}% → {num(parts.earnings_reaction, 1)}/20</div>
+              <div>발표 당일 종가 대비 현재 {num(currentAnnouncement?.returnPct ?? (inputs.announcement_return_pct as number | null), 1)}% · {currentAnnouncement?.asOf ?? "저장 기준일"} 종가 기준 → 저장 점수 {num(parts.earnings_reaction, 1)}/20</div>
               <div className="text-slate-300">양수면 실적 기대가 가격에 반영됐고, 음수면 발표 뒤 주가가 낮아졌다는 뜻이다.</div>
             </div>
             <div className="mt-2 rounded border border-amber-800/70 bg-amber-950/20 p-2">
               <strong>② 밸류에이션</strong>
-              <div>과거 3개년 평균 PER 대비 내년 F.PER {num(inputs.valuation_reflection_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
+              <div>네이버 과거 {valuation?.historicalPerYears.length ?? 0}개년 평균 PER <strong>{num(valuation?.historicalPerAvg, 2)}배</strong> · 네이버 내년 F.PER <strong>{num(valuation?.forwardPer, 2)}배</strong></div>
+              <div>과거 평균 대비 반영도 {num(inputs.valuation_reflection_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
               <div className="text-slate-300">양수일수록 과거 평균보다 높은 선행 배수를 받고 있어 기대가 더 반영된 상태다.</div>
             </div>
             <div className="mt-2 rounded border border-violet-800/70 bg-violet-950/20 p-2">
               <strong>③ PEG(주가 수익 성장 비율)</strong>
-              <div>PEG형 성장단가 {num(inputs.growth_adjusted_pe as number | null, 2)} · 피어 중앙 {num(inputs.peer_median_growth_adjusted_pe as number | null, 2)} · 피어 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
-              <div className="text-slate-300">선행 이익 성장 1%당 지불하는 PER을 같은 섹터 피어와 비교한다.</div>
+              <div>현재 자체 PEG <strong>{num(valuation?.peg, 2)}</strong> · EPS 예상 성장 {num(valuation?.pegGrowthPct, 1)}% · 피어 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
+              <div className="text-slate-300">네이버 내년 F.PER를 네이버 올해→내년 EPS 예상 성장률(%)로 나눈 값이다.</div>
             </div>
             <div className="mt-2 rounded border border-emerald-800/70 bg-emerald-950/20 p-2">
               <strong>④ 이익 전망 반영</strong>

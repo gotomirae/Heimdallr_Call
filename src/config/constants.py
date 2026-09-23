@@ -353,12 +353,9 @@ WEB_SEARCH_ALLOWED_DOMAINS = (
     "kind.krx.co.kr",        # 거래소 공시
     "krx.co.kr",
     "www.hankyung.com",      # 경제지
-    "www.mk.co.kr",
     "www.sedaily.com",
     "www.etnews.com",        # 산업 전문지
     "www.thelec.kr",
-    "biz.chosun.com",
-    "www.yna.co.kr",         # 통신사
     "t.me",                  # 사용자 지정 공개 리포트 큐레이션 채널 2곳
 )
 #: 한 분석에서 허용할 검색 횟수. 늘리면 비용과 지연이 함께 는다.

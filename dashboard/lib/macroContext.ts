@@ -21,7 +21,35 @@ export interface MacroItem {
   url: string;
   publishedAt: string | null;
 }
-export interface MacroBriefing extends MacroItem { summary: string }
+export interface MacroBriefing extends MacroItem {
+  summary: string;
+  keyPoint?: string;
+  marketImpact?: string;
+}
+
+export interface MacroMarketPoint { date: string; value: number }
+export interface MacroMarketSeries {
+  date: string;
+  close: number;
+  changePct: number;
+  history?: MacroMarketPoint[];
+}
+export interface FearGreedSnapshot {
+  date: string;
+  value: number;
+  label: string;
+  history: MacroMarketPoint[];
+  sourceUrl: string;
+  sourceLabel: string;
+}
+export interface MacroEvent {
+  date: string;
+  event: string;
+  source: string;
+  url: string;
+  watch: string;
+  response: string;
+}
 
 export interface MacroContext {
   source: string;
@@ -31,6 +59,9 @@ export interface MacroContext {
   items: MacroItem[];
   briefings?: MacroBriefing[];
   briefingOverdue?: boolean;
+  markets?: Partial<Record<"sp500" | "nasdaq" | "dow" | "semiconductor" | "vix", MacroMarketSeries>>;
+  fearGreed?: FearGreedSnapshot | null;
+  nextEvents?: MacroEvent[];
   flags: {
     rates: boolean;
     industry: boolean;
@@ -62,5 +93,15 @@ export async function getMacroContext(): Promise<MacroContext> {
   const briefings = context.briefings ?? [];
   const cpiDate = briefings.find((item) => item.title.includes("소비자물가"))?.publishedAt;
   const briefingOverdue = !cpiDate || now.getTime() - new Date(`${cpiDate}T00:00:00Z`).getTime() > 45 * 86_400_000;
-  return { ...context, refreshOverdue, briefingOverdue, briefings: [...briefings], items: [...context.items], preferredSectors: [...context.preferredSectors] };
+  return {
+    ...context,
+    refreshOverdue,
+    briefingOverdue,
+    briefings: [...briefings],
+    items: [...context.items],
+    preferredSectors: [...context.preferredSectors],
+    nextEvents: [...(context.nextEvents ?? [])],
+    markets: context.markets ? { ...context.markets } : {},
+    fearGreed: context.fearGreed ? { ...context.fearGreed, history: [...context.fearGreed.history] } : null,
+  };
 }

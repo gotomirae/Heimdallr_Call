@@ -22,7 +22,10 @@ export interface NaverLiveSnapshot {
   perYear: number | null;
   fwdPer: number | null;
   fwdPerYear: number | null;
-  peg: number | null;
+  perHistory3yAvg: number | null;
+  perHistoryYears: number[];
+  eps: number | null;
+  epsNext: number | null;
   pbr: number | null;
   roeYear: number | null;
   roe: number | null;
@@ -105,8 +108,6 @@ function parseQuote(body: UnknownRecord) {
     low52w: numberOf(values.get("lowPriceOf52Weeks")),
     per4q: numberOf(values.get("per")),
     fwdPer: numberOf(values.get("cnsPer")),
-    // 네이버가 PEG를 공개하지 않는 종목은 null로 둔다. 다른 성장률로 대체하지 않는다.
-    peg: numberOf(values.get("peg")) ?? numberOf(values.get("cnsPeg")),
     pbr: numberOf(values.get("pbr")),
   };
 }
@@ -114,29 +115,39 @@ function parseQuote(body: UnknownRecord) {
 function parseAnnual(body: UnknownRecord) {
   const financeInfo = record(body.financeInfo);
   const titles = Array.isArray(financeInfo?.trTitleList) ? financeInfo.trTitleList : [];
-  const estimates = titles
+  const parsedTitles = titles
     .map(record)
-    .filter((row): row is UnknownRecord => row != null && row.isConsensus === "Y")
+    .filter((row): row is UnknownRecord => row != null)
     .map((row) => ({
       key: typeof row.key === "string" ? row.key : "",
       year: typeof row.title === "string" ? Number(row.title.slice(0, 4)) : NaN,
+      estimate: row.isConsensus === "Y",
     }))
     .filter((row) => row.key && Number.isFinite(row.year))
     .sort((left, right) => left.year - right.year);
+  const estimates = parsedTitles.filter((row) => row.estimate);
+  const actuals = parsedTitles.filter((row) => !row.estimate);
   const rows = Array.isArray(financeInfo?.rowList) ? financeInfo.rowList : [];
+  const metricFor = (title: string, column: { key: string } | undefined) => {
+    const metricRow = rows.map(record).find((row) => String(row?.title ?? "").replace(/\s/g, "").startsWith(title));
+    const columns = record(metricRow?.columns);
+    const cell = column && columns ? record(columns[column.key]) : null;
+    return numberOf(cell?.value);
+  };
   const metricAt = (title: string, index: number) => {
     const estimate = estimates[index];
-    const metricRow = rows.map(record).find((row) => row?.title === title);
-    const columns = record(metricRow?.columns);
-    const cell = estimate && columns ? record(columns[estimate.key]) : null;
     return {
       year: estimate?.year ?? null,
-      value: numberOf(cell?.value),
+      value: metricFor(title, estimate),
     };
   };
+  const history = actuals.slice(-3)
+    .map((column) => ({ year: column.year, per: metricFor("PER", column) }))
+    .filter((row): row is { year: number; per: number } => row.per != null && row.per > 0);
   return {
-    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value, fcf: metricAt("FCF", 0).value },
-    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value, fcf: metricAt("FCF", 1).value },
+    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value, fcf: metricAt("FCF", 0).value, eps: metricAt("EPS", 0).value },
+    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value, fcf: metricAt("FCF", 1).value, eps: metricAt("EPS", 1).value },
+    history,
   };
 }
 
@@ -151,19 +162,52 @@ function stripHtml(value: string): string {
 
 /** 모바일 연간 JSON이 다음 예상 연도를 생략하는 종목을 WiseReport 원표로 보완한다. */
 function parseWiseAnnual(html: string) {
-  const estimates: Array<{ year: number; per: number | null; roe: number | null }> = [];
+  const estimates: Array<{ year: number; per: number | null; roe: number | null; eps: number | null }> = [];
+  const actuals: Array<{ year: number; per: number | null }> = [];
   for (const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
     const cells = [...row[1].matchAll(/<(?:th|td)\b[^>]*>([\s\S]*?)<\/(?:th|td)>/gi)]
       .map((cell) => stripHtml(cell[1]));
     if (cells.length < 9) continue;
-    const matched = cells[0].replace(/\s/g, "").match(/^(\d{4})\(E\)$/);
+    const matched = cells[0].replace(/\s/g, "").match(/^(\d{4})\(([AE])\)$/);
     if (!matched) continue;
-    estimates.push({ year: Number(matched[1]), per: numberOf(cells[6]), roe: numberOf(cells[8]) });
+    const item = { year: Number(matched[1]), per: numberOf(cells[6]), roe: numberOf(cells[8]), eps: numberOf(cells[5]) };
+    if (matched[2] === "E") estimates.push(item);
+    else actuals.push({ year: item.year, per: item.per });
   }
   estimates.sort((left, right) => left.year - right.year);
+  actuals.sort((left, right) => left.year - right.year);
   return {
-    current: estimates[0] ?? { year: null, per: null, roe: null },
-    next: estimates[1] ?? { year: null, per: null, roe: null },
+    current: estimates[0] ?? { year: null, per: null, roe: null, eps: null },
+    next: estimates[1] ?? { year: null, per: null, roe: null, eps: null },
+    history: actuals.slice(-3).filter((row): row is { year: number; per: number } => row.per != null && row.per > 0),
+  };
+}
+
+/** 한국시간 16:00을 지난 거래일 종가만 현재가로 인정한다. 장중 가격을 섞지 않는다. */
+export function completedCloseAtKst16(points: NaverDailyPrice[], now = new Date()): {
+  close: number;
+  tradeDate: string;
+  chgPct: number | null;
+} | null {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  const today = `${part("year")}-${part("month")}-${part("day")}`;
+  const cutoff = new Date(`${today}T00:00:00+09:00`);
+  if (Number(part("hour")) < 16) cutoff.setDate(cutoff.getDate() - 1);
+  const cutoffDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(cutoff);
+  const completed = points.filter((point) => point.trade_date <= cutoffDate);
+  const latest = completed[completed.length - 1];
+  if (!latest) return null;
+  const previous = completed[completed.length - 2];
+  return {
+    close: latest.close,
+    tradeDate: latest.trade_date,
+    chgPct: previous?.close && previous.close > 0 ? (latest.close / previous.close - 1) * 100 : null,
   };
 }
 
@@ -244,13 +288,16 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
       per: mobileAnnual?.current.per ?? wise?.current.per ?? null,
       roe: mobileAnnual?.current.roe ?? wise?.current.roe ?? null,
       fcf: mobileAnnual?.current.fcf ?? null,
+      eps: mobileAnnual?.current.eps ?? wise?.current.eps ?? null,
     },
     next: {
       year: mobileAnnual?.next.year ?? wise?.next.year ?? null,
       per: mobileAnnual?.next.per ?? wise?.next.per ?? null,
       roe: mobileAnnual?.next.roe ?? wise?.next.roe ?? null,
       fcf: mobileAnnual?.next.fcf ?? null,
+      eps: mobileAnnual?.next.eps ?? wise?.next.eps ?? null,
     },
+    history: mobileAnnual?.history?.length ? mobileAnnual.history : wise?.history ?? [],
   } : null;
   if (!quote && !annual) return null;
   return {
@@ -267,7 +314,12 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     perYear: annual?.current.year ?? null,
     fwdPer: annual?.next.per ?? null,
     fwdPerYear: annual?.next.year ?? null,
-    peg: quote?.peg ?? null,
+    perHistory3yAvg: annual?.history?.length
+      ? annual.history.reduce((sum, row) => sum + row.per, 0) / annual.history.length
+      : null,
+    perHistoryYears: annual?.history?.map((row) => row.year) ?? [],
+    eps: annual?.current.eps ?? null,
+    epsNext: annual?.next.eps ?? null,
     pbr: quote?.pbr ?? null,
     roeYear: annual?.current.year ?? null,
     roe: annual?.current.roe ?? null,
