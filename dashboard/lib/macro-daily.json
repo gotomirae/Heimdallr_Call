@@ -1,12 +1,12 @@
 {
   "source": "미국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve",
-  "checkedAt": "2026-09-23 08:48 KST",
-  "marketDate": "2026-09-22",
+  "checkedAt": "2026-09-24 08:56 KST",
+  "marketDate": "2026-09-23",
   "items": [
     {
-      "title": "미국 2026-09-22 전 거래일 종가 · TradingView",
+      "title": "미국 2026-09-23 전 거래일 종가 · TradingView",
       "url": "https://www.tradingview.com/markets/stocks-usa/market-movers-all-stocks/",
-      "publishedAt": "2026-09-22"
+      "publishedAt": "2026-09-23"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-09-16)",
@@ -78,7 +78,7 @@
     "방산·우주"
   ],
   "summary": {
-    "current": "미국 2026-09-22 장 마감: S&P 500 -0.00%, 나스닥 +0.45%, 필라델피아 반도체 +2.06%, VIX 14.21. 미국 반도체 상대강세 국면으로 해석합니다.",
+    "current": "미국 2026-09-23 장 마감: S&P 500 -0.76%, 나스닥 -0.69%, 필라델피아 반도체 +0.81%, VIX 15.18. 미국 반도체 상대강세 국면으로 해석합니다.",
     "forward": "연준 성명(2026-09-16): 연준이 금리를 인상해 정책금리 목표범위를 3.75~4%로 설정했습니다. 경제활동이 견조한 속도로 확장한다고 평가했습니다. 연준은 물가가 여전히 높다고 평가했습니다. 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
     "recommendedSort": "추천 정렬: 미국 반도체 상대강세 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
   }
