@@ -35,11 +35,11 @@ jobs:
       - name: 설치 (깨끗한 환경)
         run: pip install -e ".[dev]"
 
-      # ★ 시크릿 없이 전부 돈다 — `conftest.py`의 `needs_secret` 마커가
-      #   외부 API 테스트를 스킵한다. 실측: 시크릿 0개로 376 passed / 6 skipped.
-      #   그래서 CI에 시크릿을 주지 않는다(노출면을 넓히지 않는다).
+      # ★ 시크릿 없이 순수·리플레이 회귀를 돈다. `needs_secret`은 conftest가,
+      #   `needs_network`는 명시적으로 제외한다. GitHub 러너 IP는 KIND가 403으로
+      #   막으므로 실네트워크 collector 검증은 해당 예약 워크플로에서 수행한다.
       - name: 테스트
-        run: python -m pytest tests/ -q
+        run: python -m pytest tests/ -q -m "not needs_network"
 
       - name: 진입점 임포트 확인
         run: |

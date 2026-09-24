@@ -36,6 +36,12 @@ def test_workflows_exist():
     }
 
 
+def test_ci_excludes_live_network_collectors():
+    """GitHub 러너에서 KIND 403이 나도 순수 회귀 게이트는 실패하면 안 된다."""
+    body = _text(WORKFLOWS / "ci.yml")
+    assert '-m "not needs_network"' in body
+
+
 @pytest.mark.parametrize("path", YAML_FILES, ids=lambda p: p.name)
 def test_yaml_parses(path: Path):
     yaml = pytest.importorskip("yaml")
