@@ -225,6 +225,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   const analysisIsStale = Boolean(fallback);
   const storedAnalysis = (analysisPayload ?? fallback?.payload ?? null) as Record<string, unknown> | null;
   const analysisMeta = storedAnalysis?._heimdallr as Record<string, unknown> | undefined;
+  const analysisInvalid = analysisMeta?.invalid === true;
   const removedFactualNumbers = Array.isArray(analysisMeta?.removed_factual_numbers)
     ? analysisMeta.removed_factual_numbers.length
     : 0;
@@ -232,7 +233,9 @@ export default async function StockPage({ params }: { params: { code: string } }
     ? funds.find((f) => f.fiscal_year === analysisYear && f.fiscal_quarter === analysisQuarter)
     : null;
   const analysisStage =
-    analysisMeta?.analysis_stage === "dashboard_on_demand"
+    analysisInvalid
+      ? "LLM 분석 결과 검증 실패 · 안전하게 숨김 · 재요청 대기"
+      : analysisMeta?.analysis_stage === "dashboard_on_demand"
       ? "사용자 요청 · 기업 투자판단 LLM 분석 완료"
       : analysisMeta?.analysis_stage === "report_final"
       ? "(3단계) LLM 추가 분석 · 최근 공개자료 반영 완료"
@@ -246,7 +249,9 @@ export default async function StockPage({ params }: { params: { code: string } }
             ? "(2단계) 정기보고서 공시 분석 · 단계 메타 보강 대기"
             : "(1단계) 성장 가속 분석 대기";
   const analysisStageClass =
-    analysisMeta?.analysis_stage === "dashboard_on_demand"
+    analysisInvalid
+      ? "border-rose-700 bg-rose-950/30 text-rose-100"
+      : analysisMeta?.analysis_stage === "dashboard_on_demand"
       ? "border-violet-600 bg-violet-950/30 text-violet-100"
       : analysisMeta?.analysis_stage === "report_final"
       ? "border-emerald-700 bg-emerald-950/30 text-emerald-200"
@@ -258,7 +263,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           ? "border-amber-700 bg-amber-950/30 text-amber-200"
         : "border-slate-700 bg-slate-950/30 text-slate-300";
   const analysisStageCode = String(
-    analysisMeta?.analysis_stage ??
+    analysisInvalid ? "failed" : analysisMeta?.analysis_stage ??
       (storedAnalysis ? (analyzedFund?.is_estimate ? "preliminary" : "filing") : "")
   );
   const isOnDemandAnalysis = analysisStageCode === "dashboard_on_demand";
@@ -832,6 +837,11 @@ export default async function StockPage({ params }: { params: { code: string } }
         <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
           {analysisStage}
         </p>
+        {analysisInvalid && (
+          <p className="mb-3 rounded border border-rose-700/70 bg-rose-950/20 px-3 py-2 text-xs leading-relaxed text-rose-100">
+            구조화 출력이 필수 계약을 충족하지 않아 일부 문장을 투자 분석으로 표시하지 않았습니다. 추가 과금 없이 실패 상태로 보존했으며 다시 요청할 수 있습니다.
+          </p>
+        )}
         {isOnDemandAnalysis ? (
           <p className="mb-3 rounded border border-violet-700/70 bg-violet-950/20 px-3 py-2 text-xs leading-relaxed text-violet-100">
             이 분석은 대시보드 요청으로 생성됐다. 기업 개요·실적 변화 원인·핵심 투자 아이디어·

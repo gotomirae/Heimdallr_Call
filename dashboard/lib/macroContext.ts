@@ -49,6 +49,7 @@ export interface MacroEvent {
   url: string;
   watch: string;
   response: string;
+  important?: boolean;
 }
 
 export interface MacroContext {

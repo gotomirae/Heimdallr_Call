@@ -83,17 +83,17 @@ def parse_fear_greed(payload: dict) -> dict:
 
 
 MACRO_EVENTS = (
-    {"date": "2026-09-30", "event": "미국 2분기 GDP 3차 추정·8월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule", "watch": "성장률 수정폭과 근원 PCE", "response": "물가가 예상보다 높으면 장기금리 민감 성장주의 추격을 줄이고, 둔화가 확인되면 실적 가속·낮은 PRI 종목을 분할 확인한다."},
-    {"date": "2026-10-02", "event": "미국 9월 고용", "source": "BLS", "url": "https://www.bls.gov/schedule/2026/", "watch": "신규고용·실업률·임금", "response": "강한 고용과 임금 재가속이 겹치면 금리 상승 위험을 우선하고, 완만한 둔화면 경기침체 신호와 구분한다."},
-    {"date": "2026-10-14", "event": "미국 9월 CPI", "source": "BLS", "url": "https://www.bls.gov/schedule/2026/", "watch": "근원 CPI 월간 속도", "response": "발표 전 포지션을 키우지 않고, 예상 상회 시 고PER 비중을 점검하며 예상 하회 시 이익 전망이 유지되는 성장주부터 본다."},
-    {"date": "2026-10-28", "event": "FOMC 금리 결정·기자회견", "source": "Federal Reserve", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "watch": "정책금리·성명 문구·파월 기자회견", "response": "첫 가격 반응보다 금리 경로와 이익 전망 변화를 확인하고, 방향이 엇갈리면 현금 비중과 분할 접근을 유지한다."},
-    {"date": "2026-10-29", "event": "미국 3분기 GDP 속보·9월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule", "watch": "민간 최종수요와 물가", "response": "성장·물가 동반 상향은 금리 부담, 성장 유지·물가 둔화는 실적주 우호 조합으로 구분한다."},
-    {"date": "2026-11-06", "event": "미국 10월 고용", "source": "BLS", "url": "https://www.bls.gov/schedule/2026/", "watch": "고용 추세와 이전치 수정", "response": "한 달 숫자보다 3개월 평균과 이전치 수정을 확인한 뒤 경기민감·방어 섹터 우선순위를 조정한다."},
-    {"date": "2026-11-10", "event": "미국 10월 CPI", "source": "BLS", "url": "https://www.bls.gov/schedule/2026/", "watch": "서비스·주거비 물가", "response": "서비스 물가가 꺾이지 않으면 밸류 부담을 낮추고, 둔화가 이어지면 F.PER 하락 종목을 우선한다."},
-    {"date": "2026-11-25", "event": "미국 3분기 GDP 2차 추정·10월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule", "watch": "GDP 수정·소비·근원 PCE", "response": "소비 둔화와 마진 압박이 겹치는 업종은 피하고, 수요가 유지되는 제품군을 분리해 본다."},
+    {"date": "2026-09-30", "event": "미국 2분기 GDP 3차 추정·8월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule/full", "watch": "성장률 수정폭과 근원 PCE", "response": "물가가 예상보다 높으면 장기금리 민감 성장주의 추격을 줄이고, 둔화가 확인되면 실적 가속·낮은 PRI 종목을 분할 확인한다."},
+    {"date": "2026-10-02", "event": "미국 9월 고용", "source": "BLS", "url": "https://www.bls.gov/schedule/news_release/empsit.htm", "watch": "신규고용·실업률·임금", "response": "강한 고용과 임금 재가속이 겹치면 금리 상승 위험을 우선하고, 완만한 둔화면 경기침체 신호와 구분한다."},
+    {"date": "2026-10-14", "event": "미국 9월 CPI", "source": "BLS", "url": "https://www.bls.gov/schedule/news_release/cpi.htm", "watch": "근원 CPI 월간 속도", "response": "발표 전 포지션을 키우지 않고, 예상 상회 시 고PER 비중을 점검하며 예상 하회 시 이익 전망이 유지되는 성장주부터 본다.", "important": True},
+    {"date": "2026-10-28", "event": "FOMC 금리 결정·기자회견", "source": "Federal Reserve", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "watch": "정책금리·성명 문구·파월 기자회견", "response": "첫 가격 반응보다 금리 경로와 이익 전망 변화를 확인하고, 방향이 엇갈리면 현금 비중과 분할 접근을 유지한다.", "important": True},
+    {"date": "2026-10-29", "event": "미국 3분기 GDP 속보·9월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule/full", "watch": "민간 최종수요와 물가", "response": "성장·물가 동반 상향은 금리 부담, 성장 유지·물가 둔화는 실적주 우호 조합으로 구분한다."},
+    {"date": "2026-11-06", "event": "미국 10월 고용", "source": "BLS", "url": "https://www.bls.gov/schedule/news_release/empsit.htm", "watch": "고용 추세와 이전치 수정", "response": "한 달 숫자보다 3개월 평균과 이전치 수정을 확인한 뒤 경기민감·방어 섹터 우선순위를 조정한다."},
+    {"date": "2026-11-10", "event": "미국 10월 CPI", "source": "BLS", "url": "https://www.bls.gov/schedule/news_release/cpi.htm", "watch": "서비스·주거비 물가", "response": "서비스 물가가 꺾이지 않으면 밸류 부담을 낮추고, 둔화가 이어지면 F.PER 하락 종목을 우선한다."},
+    {"date": "2026-11-25", "event": "미국 3분기 GDP 2차 추정·10월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule/full", "watch": "GDP 수정·소비·근원 PCE", "response": "소비 둔화와 마진 압박이 겹치는 업종은 피하고, 수요가 유지되는 제품군을 분리해 본다."},
     {"date": "2026-12-04", "event": "미국 11월 고용", "source": "BLS", "url": "https://www.bls.gov/schedule/news_release/empsit.htm", "watch": "연말 고용과 임금", "response": "12월 FOMC 직전 금리 기대가 과도하게 움직일 수 있어 발표 직후 추격보다 확인을 우선한다."},
-    {"date": "2026-12-09", "event": "FOMC 금리 결정·경제전망(SEP)", "source": "Federal Reserve", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "watch": "점도표·성장·물가 전망", "response": "점도표 변화가 실제 이익 전망과 일치하는지 확인하고, 멀티플만 오른 종목은 비중을 보수적으로 관리한다."},
-    {"date": "2026-12-23", "event": "미국 3분기 GDP 3차 추정·11월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule", "watch": "연말 소비·근원 PCE·GDP 수정폭", "response": "소비와 물가가 함께 강하면 금리 부담을, 물가 둔화와 이익 유지가 겹치면 낮은 PRI 실적주를 분할 확인한다."},
+    {"date": "2026-12-09", "event": "FOMC 금리 결정·경제전망(SEP)", "source": "Federal Reserve", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "watch": "점도표·성장·물가 전망", "response": "점도표 변화가 실제 이익 전망과 일치하는지 확인하고, 멀티플만 오른 종목은 비중을 보수적으로 관리한다.", "important": True},
+    {"date": "2026-12-23", "event": "미국 3분기 GDP 3차 추정·11월 PCE", "source": "BEA", "url": "https://www.bea.gov/news/schedule/full", "watch": "연말 소비·근원 PCE·GDP 수정폭", "response": "소비와 물가가 함께 강하면 금리 부담을, 물가 둔화와 이익 유지가 겹치면 낮은 PRI 실적주를 분할 확인한다."},
 )
 
 

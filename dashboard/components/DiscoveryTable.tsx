@@ -582,7 +582,7 @@ export default function DiscoveryTable({
               <div className="flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded-full border border-emerald-500/40 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">● 자동 계산 정상</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">📊 실적 {dataAsOf ?? "기준일 미측정"}</span>
-                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 장 {macroContext.marketDate}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 최근 완료 거래일 {macroContext.marketDate}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🕘 {macroContext.checkedAt}</span>
               </div>
             </div>
@@ -619,7 +619,11 @@ export default function DiscoveryTable({
               {(macroContext.nextEvents ?? []).length ? <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs">
                 <thead className="bg-slate-900/80 text-slate-300"><tr><th className="px-4 py-2">일정</th><th className="px-4 py-2">볼 변수</th><th className="px-4 py-2">대응 방안</th></tr></thead>
                 <tbody className="divide-y divide-slate-800">{macroContext.nextEvents?.map((item) => <tr key={`${item.date}-${item.event}`} className="align-top">
-                  <td className="px-4 py-3"><a href={`/macro/translation?source=${encodeURIComponent(item.url)}&eventDate=${encodeURIComponent(item.date)}`} target="_blank" rel="noreferrer" className="font-bold text-violet-200 underline">{item.date} · {item.event}</a><span className="mt-1 block text-[10px] text-slate-400">{item.source} 공식 일정 · 한국어 설명</span></td>
+                  <td className="px-4 py-3">
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" title="공식 기관 문서를 새 탭에서 열기" className="font-bold text-violet-200 underline">{item.important && <span className="mr-1 text-[#f7c948]" aria-label="핵심 일정">★</span>}{item.date} · {item.event}</a>
+                    <span className="mt-1 block text-[10px] text-slate-400">{item.source} 공식 문서 · 새 탭</span>
+                    <a href={`/macro/translation?source=${encodeURIComponent(item.url)}&eventDate=${encodeURIComponent(item.date)}`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[10px] font-bold text-sky-300 underline">한국어 핵심 설명</a>
+                  </td>
                   <td className="px-4 py-3 font-semibold text-slate-100">{item.watch}</td>
                   <td className="px-4 py-3 leading-5 text-slate-200">{item.response}</td>
                 </tr>)}</tbody>
@@ -728,7 +732,7 @@ export default function DiscoveryTable({
         {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
       </div>
 
-      <details className="rounded-xl border border-slate-700 bg-slate-950/55 px-3 py-2">
+      <details open className="rounded-xl border border-slate-700 bg-slate-950/55 px-3 py-2">
         <summary className="cursor-pointer text-sm font-bold text-sky-200">섹터 선택·추가·종목별 수정</summary>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <label className="text-xs text-slate-300">종목

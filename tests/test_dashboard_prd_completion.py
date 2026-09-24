@@ -306,6 +306,24 @@ def test_dashboard_refresh_yields_to_interaction_and_stock_links_do_not_prefetch
     assert "window.location.reload();" in error_page
 
 
+def test_macro_sentiment_compares_nasdaq_and_events_open_official_documents():
+    macro_chart = (ROOT / "dashboard/components/MacroMarketOverview.tsx").read_text(encoding="utf-8")
+    assert "Fear & Greed × 나스닥" in macro_chart
+    assert "dailyChangeCorrelation" in macro_chart
+    assert 'yAxisId="nasdaq"' in macro_chart and 'yAxisId="sentiment"' in macro_chart
+    assert "일간 변화 상관계수" in macro_chart and "인과관계" in macro_chart
+    assert '<a href={item.url} target="_blank"' in DISCOVERY
+    assert "item.important" in DISCOVERY and "한국어 핵심 설명" in DISCOVERY
+
+
+def test_sector_filter_and_browser_overrides_are_visible_and_persistent():
+    assert '<MultiSelect label="섹터"' in DISCOVERY
+    assert "섹터 선택·추가·종목별 수정" in DISCOVERY
+    assert "SECTOR_OVERRIDES_KEY" in DISCOVERY and "window.localStorage.setItem" in DISCOVERY
+    assert "기존 섹터 선택 또는 새 섹터 입력" in DISCOVERY
+    assert '<details open className=' in DISCOVERY
+
+
 def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_visible():
     assert "getAllConsensusForQuarter" in QUERIES and "getAllConsensusForQuarter" in OUTCOME
     for field in (
@@ -326,3 +344,6 @@ def test_every_stock_can_request_llm_analysis_and_links_are_exact():
     assert "(3단계) LLM 추가 분석 · 최근 공개자료 반영 완료" in STOCK
     assert "stockeasyStockUrl(code)" in STOCK
     assert "naverDisclosureUrl" not in STOCK
+    assert "analysisInvalid" in STOCK and "안전하게 숨김" in STOCK
+    analysis_reader = (ROOT / "dashboard/lib/analysis.ts").read_text(encoding="utf-8")
+    assert "meta?.invalid === true ? null : candidate" in analysis_reader

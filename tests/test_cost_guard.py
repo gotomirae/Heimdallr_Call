@@ -8,7 +8,7 @@ import inspect
 import pytest
 
 from src.analysis.analyze import build_user_message, AnalysisInput, validate_payload
-from src.analysis.prompts import ANALYSIS_SCHEMA, SYSTEM_PROMPT
+from src.analysis.prompts import ANALYSIS_SCHEMA, DASHBOARD_ANALYSIS_SCHEMA, SYSTEM_PROMPT
 from src.config.constants import (
     DAILY_ANALYSIS_LIMIT,
     MONTHLY_COST_CEILING_USD,
@@ -117,6 +117,24 @@ def test_schema_requires_prd_fields():
 def test_schema_is_strict_compatible():
     """strict: true는 additionalProperties: false를 요구한다."""
     assert ANALYSIS_SCHEMA["additionalProperties"] is False
+
+
+def test_dashboard_strict_schema_has_no_optional_parameters():
+    """Anthropic strict grammar의 선택 필드 폭증을 즉시 분석 계약에서 막는다."""
+    assert set(DASHBOARD_ANALYSIS_SCHEMA["properties"]) == set(ANALYSIS_SCHEMA["required"])
+
+    def optional_count(node):
+        if isinstance(node, dict):
+            properties = node.get("properties") or {}
+            required = set(node.get("required") or [])
+            own = sum(key not in required for key in properties)
+            return own + sum(optional_count(value) for value in node.values())
+        if isinstance(node, list):
+            return sum(optional_count(value) for value in node)
+        return 0
+
+    assert optional_count(DASHBOARD_ANALYSIS_SCHEMA) == 0
+    assert "description" not in str(DASHBOARD_ANALYSIS_SCHEMA)
 
 
 def _walk_schema(node, path="root"):

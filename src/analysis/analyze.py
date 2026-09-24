@@ -33,6 +33,7 @@ from src.config.constants import (
 from src.analysis.prompts import (
     ANALYSIS_SCHEMA,
     ANALYSIS_TOOL_NAME,
+    DASHBOARD_ANALYSIS_SCHEMA,
     FACT_REFERENCE_INSTRUCTIONS,
     SYSTEM_PROMPT,
 )
@@ -477,7 +478,11 @@ def build_llm_request(
             else raw_user_message
         ),
         schema_name=ANALYSIS_TOOL_NAME,
-        schema=ANALYSIS_SCHEMA,
+        schema=(
+            DASHBOARD_ANALYSIS_SCHEMA
+            if data.analysis_stage == "dashboard_on_demand" and not web_search
+            else ANALYSIS_SCHEMA
+        ),
         max_output_tokens=max_output_tokens,
         effort=LLM_EFFORT,
         web_search=web_search,
@@ -553,7 +558,7 @@ def analyze(
         if tokens > token_budget:
             raise AnalysisError(
                 f"{data.code}: 입력 {tokens:,}토큰이 상한 {token_budget:,}을 넘었다. "
-                f"공시 발췌가 너무 길다 — 호출하지 않는다(비용 0)."
+                f"입력 계약·도구 포함 크기를 줄여야 한다 — 호출하지 않는다(비용 0)."
             )
 
     response = provider.generate_structured(request)

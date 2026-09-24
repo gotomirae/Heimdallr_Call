@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 #: 분석 결과 스키마 (PRD §7.2 그대로). tool-forced JSON으로 강제한다.
 ANALYSIS_TOOL_NAME = "record_analysis"
 
@@ -336,6 +338,35 @@ ANALYSIS_SCHEMA: dict = {
         },
     },
 }
+
+
+def _dashboard_schema() -> dict:
+    """웹검색 없는 즉시 분석용 strict 계약.
+
+    Anthropic의 strict grammar는 선택 필드와 깊은 중첩의 조합에 내부 크기 제한이
+    있다. 즉시 분석에서는 검색 전용 선택 필드를 빼고 Canonical 필수 필드만
+    요구한다. 의미 설명은 고정 시스템 프롬프트가 담당하므로 grammar에는 싣지 않는다.
+    """
+    schema = deepcopy(ANALYSIS_SCHEMA)
+    required = set(schema["required"])
+    schema["properties"] = {
+        key: value for key, value in schema["properties"].items() if key in required
+    }
+
+    def strip_descriptions(node):
+        if isinstance(node, dict):
+            node.pop("description", None)
+            for value in node.values():
+                strip_descriptions(value)
+        elif isinstance(node, list):
+            for value in node:
+                strip_descriptions(value)
+
+    strip_descriptions(schema)
+    return schema
+
+
+DASHBOARD_ANALYSIS_SCHEMA = _dashboard_schema()
 
 #: 실제 canary에서만 붙이는 실험 계약. 품질 통과 전 운영 기본 프롬프트에 넣지 않는다.
 FACT_REFERENCE_INSTRUCTIONS = """\

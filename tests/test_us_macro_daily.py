@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.collectors.us_macro_daily import build_context, parse_fear_greed, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
+from src.collectors.us_macro_daily import MACRO_EVENTS, build_context, parse_fear_greed, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
 
 
 def test_premarket_vix_cannot_mix_with_previous_completed_us_session():
@@ -69,3 +69,11 @@ def test_seven_oclock_snapshot_replaces_early_prewarm_but_not_repeated_run():
     assert should_write_snapshot(prior, at_seven)
     assert not should_write_snapshot(at_seven, {**at_seven, "checkedAt": "2026-09-18 07:30 KST"})
     assert should_write_snapshot(at_seven, {**at_seven, "marketDate": "2026-09-18"})
+
+
+def test_official_events_have_direct_sources_and_at_most_three_gold_stars():
+    important = [event for event in MACRO_EVENTS if event.get("important")]
+    assert len(important) == 3
+    assert all(event["url"].startswith("https://") for event in MACRO_EVENTS)
+    assert all("/schedule/news_release/" in event["url"] for event in MACRO_EVENTS if event["source"] == "BLS")
+    assert all(event["url"].endswith("/full") for event in MACRO_EVENTS if event["source"] == "BEA")

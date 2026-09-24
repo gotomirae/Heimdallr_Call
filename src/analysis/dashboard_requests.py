@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import argparse
 import time
+from copy import copy
 from datetime import datetime, timezone
 
-from src.analysis.analyze import AnalysisError, BudgetExceeded, analyze, save
+from src.analysis.analyze import AnalysisError, BudgetExceeded, analyze, save, validate_payload
 from src.analysis.run import build_input
+from src.config.constants import DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS
 from src.db.supabase_client import get_client
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
@@ -27,6 +29,12 @@ def inaccessible_search_domain(error: Exception) -> bool:
     """
     message = str(error).lower()
     return "domains are not accessible to our user agent" in message
+
+
+def input_too_large(error: Exception) -> bool:
+    """무료 사전 계측에서 입력 토큰 상한을 넘긴 경우만 식별한다."""
+    message = str(error)
+    return isinstance(error, AnalysisError) and "입력 " in message and "토큰이 상한" in message
 
 
 def pending_rows(limit: int) -> list[dict]:
@@ -85,10 +93,33 @@ def run(limit: int, max_seconds: float) -> int:
             try:
                 result = analyze(data, env="prod", web_search=True)
             except Exception as exc:
-                if not inaccessible_search_domain(exc):
+                if inaccessible_search_domain(exc):
+                    print(f"⚠ {label} · 검색 허용 도메인 거부 — 같은 Provider로 공개 원문 검색 없이 재시도")
+                    result = analyze(data, env="prod", web_search=False)
+                elif input_too_large(exc):
+                    print(
+                        f"⚠ {label} · 검색 도구 포함 입력 상한 초과 — 검색 전용 선택 필드를 뺀 "
+                        "엄격 계약으로 같은 Provider를 재시도"
+                    )
+                    try:
+                        result = analyze(data, env="prod", web_search=False)
+                    except Exception as compact_exc:
+                        if not input_too_large(compact_exc):
+                            raise
+                        compact = copy(data)
+                        compact.excerpt = (data.excerpt or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
+                        print(
+                            f"⚠ {label} · 엄격 계약도 입력 상한 초과 — 구조화 재무는 유지하고 "
+                            f"공시 발췌 {DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS}자로 압축해 최종 재시도"
+                        )
+                        result = analyze(compact, env="prod", web_search=False)
+                else:
                     raise
-                print(f"⚠ {label} · 검색 허용 도메인 거부 — 같은 Provider로 공개 원문 검색 없이 재시도")
-                result = analyze(data, env="prod", web_search=False)
+            problems = validate_payload(result.payload)
+            if problems:
+                raise AnalysisError(
+                    f"{label}: 구조화 결과 검증 실패 — {'; '.join(problems[:8])}"
+                )
             save(result)
             set_status(row["id"], "completed")
             done += 1

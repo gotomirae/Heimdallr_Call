@@ -288,9 +288,12 @@ function readPricePosition(node: unknown): PricePosition {
 }
 
 export function readAnalysis(payload: unknown): AnalysisView {
-  const root = asRecord(payload);
+  const candidate = asRecord(payload);
+  const meta = candidate ? asRecord(candidate._heimdallr) : null;
+  // 유료 응답이라도 Canonical 구조 검증에 실패하면 일부 문장만 정상 분석처럼
+  // 노출하지 않는다. 원본은 비용·장애 감사용으로 보존하고 화면 해석만 비운다.
+  const root = meta?.invalid === true ? null : candidate;
   const quality = root ? asRecord(root.acceleration_quality) : null;
-  const meta = root ? asRecord(root._heimdallr) : null;
 
   const scenarios = root ? readScenarios(root.scenarios) : [];
   const probs = scenarios

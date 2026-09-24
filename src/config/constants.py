@@ -277,6 +277,10 @@ LLM_EFFORT = "low"
 #   (`analyze()`가 상한을 실제로 강제한다 — T97). 최대 + 16% 여유로 잡는다.
 #   ★ 늘릴 때는 반드시 **실측 최대**를 다시 재라. 짐작으로 올리면 T97이 되돌아온다.
 LLM_INPUT_TOKEN_BUDGET = 16000
+# 대시보드 즉시 분석은 Anthropic 웹검색 도구 계약까지 붙이면 입력이 크게 늘어난다.
+# 토큰 상한 초과 시 구조화 재무는 보존하고 현재 분기 공시 발췌만 이 길이로 줄여
+# 같은 Provider를 검색 없이 한 번 호출한다. SK하이닉스 2026.2Q 실측 15,900토큰.
+DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS = 800
 
 # ═══ LLM offline eval · canary 승인 기준 ═══
 # Provider 결과를 같은 replay 입력으로 비교하는 **결정론적** 평가다. LLM judge를
