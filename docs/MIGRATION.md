@@ -40,6 +40,10 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0  NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d40    NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d40 NUMERIC;
 
+-- 매출총이익을 따로 공시하지 않는 기업의 같은 보고서 반복 조회 방지
+ALTER TABLE quarterly_fundamentals
+  ADD COLUMN IF NOT EXISTS gross_profit_checked_at TIMESTAMPTZ;
+
 -- 가치와 가격 비교: 네이버/FnGuide 올해·내년 ROE
 ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_est       NUMERIC;
 ALTER TABLE consensus_snapshots ADD COLUMN IF NOT EXISTS roe_next_est  NUMERIC;

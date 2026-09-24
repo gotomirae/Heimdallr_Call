@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS quarterly_fundamentals (
   restated BOOLEAN DEFAULT false,
   delta_from_preliminary JSONB,
   disclosed_at TIMESTAMPTZ,
+  gross_profit_checked_at TIMESTAMPTZ,       -- GPM 원자료 확인 완료(정상 결측 재호출 방지)
   updated_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (code, fiscal_year, fiscal_quarter, fs_div)
 );
@@ -429,3 +430,7 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d0 NUMERIC;
 -- 2026-09-23 — 분기실적 발표 뒤 40거래일 성과
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS ret_d40 NUMERIC;
 ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d40 NUMERIC;
+
+-- 2026-09-24 — 매출총이익 미공시 기업의 같은 보고서 반복 호출 방지
+ALTER TABLE quarterly_fundamentals
+  ADD COLUMN IF NOT EXISTS gross_profit_checked_at TIMESTAMPTZ;

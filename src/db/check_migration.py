@@ -54,6 +54,8 @@ EXPECTED_COLUMNS: tuple[tuple[str, str, str, str], ...] = (
     ("outcome_tracking", "excess_d0", "NUMERIC", "발표 당일 초과수익"),
     ("outcome_tracking", "ret_d40", "NUMERIC", "발표 후 40거래일 수익률"),
     ("outcome_tracking", "excess_d40", "NUMERIC", "발표 후 40거래일 초과수익"),
+    ("quarterly_fundamentals", "gross_profit_checked_at", "TIMESTAMPTZ",
+     "매출총이익 정상 결측 보고서의 OpenDART 반복 호출 방지"),
 )
 
 #: 있으면 좋지만 **없어도 화면이 정상 동작하는** 컬럼.

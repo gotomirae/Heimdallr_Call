@@ -5,7 +5,11 @@ from __future__ import annotations
 
 import pytest
 
+import src.finance.detail as detail_module
 from src.finance.detail import (
+    DetailStats,
+    DetailTarget,
+    collect_target,
     cumulative_value,
     extract_accounts,
     quarter_income_value,
@@ -171,3 +175,75 @@ def test_shares_yoy_requires_positive_prior_denominator():
     assert shares_yoy(105, 100) == pytest.approx(5.0)
     assert shares_yoy(105, 0) is None
     assert shares_yoy(None, 100) is None
+
+
+def test_gross_profit_only_backfill_skips_unrelated_detail_calls(monkeypatch):
+    # 2026 H1 600 - Q1 240 = Q2 360, 2025 H1 500 - Q1 200 = Q2 300.
+    reports = {
+        (2026, 2): [_row("ifrs-full_GrossProfit", "360", sj_div="IS", thstrm_add_amount="600")],
+        (2026, 1): [_row("ifrs-full_GrossProfit", "240", sj_div="IS", thstrm_add_amount="240")],
+        (2025, 2): [_row("ifrs-full_GrossProfit", "300", sj_div="IS", thstrm_add_amount="500")],
+        (2025, 1): [_row("ifrs-full_GrossProfit", "200", sj_div="IS", thstrm_add_amount="200")],
+    }
+    calls: list[tuple[int, int]] = []
+
+    def fake_fetch_single_all(corp_code: str, year: int, quarter: int, fs_div: str) -> list[dict]:
+        assert corp_code == "00126380"
+        assert fs_div == "CFS"
+        calls.append((year, quarter))
+        return reports[(year, quarter)]
+
+    monkeypatch.setattr(detail_module, "fetch_single_all", fake_fetch_single_all)
+    monkeypatch.setattr(detail_module.time, "sleep", lambda _: None)
+    target = DetailTarget(
+        code="005930",
+        name="삼성전자",
+        corp_code="00126380",
+        fiscal_year=2026,
+        fiscal_quarter=2,
+        fs_div="CFS",
+        current_revenue=1200,
+        prior_revenue=1000,
+        gross_profit_only=True,
+        gross_profit_check_supported=True,
+    )
+    stats = DetailStats()
+
+    payload = collect_target(target, {}, {}, stats)
+
+    assert calls == [(2026, 2), (2026, 1), (2025, 2), (2025, 1)]
+    assert stats.account_calls == 4
+    assert stats.stock_calls == 0
+    assert stats.gross_profit_missing == []
+    assert payload[0]["gross_profit"] == 360
+    assert payload[0]["gpm"] == pytest.approx(30.0)
+    assert payload[0]["gross_profit_checked_at"] == payload[0]["updated_at"]
+    assert payload[1]["gross_profit"] == 300
+    assert payload[1]["gpm"] == pytest.approx(30.0)
+    assert "gross_profit_checked_at" not in payload[1]
+    assert "ttm_cfo" not in payload[0]
+    assert "shares_yoy" not in payload[0]
+
+
+def test_fundamental_rows_falls_back_only_for_missing_marker_column(monkeypatch):
+    class MissingColumnError(Exception):
+        code = "42703"
+
+    calls: list[str] = []
+
+    def fake_select_all(table: str, columns: str) -> list[dict]:
+        assert table == "quarterly_fundamentals"
+        calls.append(columns)
+        if "gross_profit_checked_at" in columns:
+            raise MissingColumnError("column does not exist")
+        return [{"code": "005930"}]
+
+    monkeypatch.setattr(detail_module, "select_all", fake_select_all)
+
+    rows, supported = detail_module._fundamental_rows()
+
+    assert rows == [{"code": "005930"}]
+    assert supported is False
+    assert len(calls) == 2
+    assert "gross_profit_checked_at" in calls[0]
+    assert "gross_profit_checked_at" not in calls[1]

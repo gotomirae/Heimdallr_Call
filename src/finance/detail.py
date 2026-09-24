@@ -56,6 +56,8 @@ class DetailTarget:
     fs_div: str
     current_revenue: float | None
     prior_revenue: float | None
+    gross_profit_only: bool = False
+    gross_profit_check_supported: bool = False
 
 
 @dataclass
@@ -64,6 +66,7 @@ class DetailStats:
     stock_calls: int = 0
     stock_status: dict[str, int] = field(default_factory=dict)
     current_report_missing: list[str] = field(default_factory=list)
+    gross_profit_missing: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
 
@@ -257,6 +260,25 @@ def shares_yoy(current: int | None, previous: int | None) -> float | None:
     return (current / previous - 1) * 100
 
 
+_FUNDAMENTAL_COLUMNS = (
+    "code,fiscal_year,fiscal_quarter,fs_div,is_estimate,"
+    "revenue,gross_profit,ttm_cfo,receivables,inventory,shares_yoy"
+)
+
+
+def _fundamental_rows() -> tuple[list[dict], bool]:
+    """GPM 확인 표식 DDL 적용 전에도 기존 수집을 계속한다."""
+    try:
+        return select_all(
+            "quarterly_fundamentals",
+            f"{_FUNDAMENTAL_COLUMNS},gross_profit_checked_at",
+        ), True
+    except Exception as exc:
+        if str(getattr(exc, "code", "") or "") != "42703":
+            raise
+        return select_all("quarterly_fundamentals", _FUNDAMENTAL_COLUMNS), False
+
+
 def _latest_gate_targets(
     codes: set[str] | None = None, *, refresh: bool = False
 ) -> list[DetailTarget]:
@@ -274,11 +296,8 @@ def _latest_gate_targets(
         for row in select_all("krx_universe", "code,name,corp_code,is_excluded")
     }
     fundamentals: dict[tuple[str, int, int], dict] = {}
-    for row in select_all(
-        "quarterly_fundamentals",
-        "code,fiscal_year,fiscal_quarter,fs_div,is_estimate,"
-        "revenue,gross_profit,ttm_cfo,receivables,inventory,shares_yoy",
-    ):
+    fundamental_rows, gross_profit_check_supported = _fundamental_rows()
+    for row in fundamental_rows:
         if row.get("is_estimate") is False:
             fundamentals[(row["code"], row["fiscal_year"], row["fiscal_quarter"])] = row
 
@@ -294,14 +313,18 @@ def _latest_gate_targets(
         if not uni or uni.get("is_excluded") or not uni.get("corp_code") or not fund:
             continue
         prior = fundamentals.get((code, screened["fiscal_year"] - 1, screened["fiscal_quarter"]))
-        detail_complete = (
+        base_detail_complete = (
             fund.get("ttm_cfo") is not None
-            and fund.get("gross_profit") is not None
             and fund.get("shares_yoy") is not None
             and fund.get("receivables") is not None
             and prior is not None
             and prior.get("receivables") is not None
         )
+        gross_profit_complete = (
+            fund.get("gross_profit") is not None
+            or fund.get("gross_profit_checked_at") is not None
+        )
+        detail_complete = base_detail_complete and gross_profit_complete
         if detail_complete and not refresh:
             continue
         targets.append(
@@ -314,6 +337,8 @@ def _latest_gate_targets(
                 fs_div=fund["fs_div"],
                 current_revenue=float(fund["revenue"]) if fund.get("revenue") is not None else None,
                 prior_revenue=float(prior["revenue"]) if prior and prior.get("revenue") is not None else None,
+                gross_profit_only=base_detail_complete and fund.get("gross_profit") is None,
+                gross_profit_check_supported=gross_profit_check_supported,
             )
         )
     return sorted(targets, key=lambda target: target.code)
@@ -379,8 +404,8 @@ def collect_target(
         stats.current_report_missing.append(target.code)
         return []
 
-    current = extract_accounts(current_rows)
     previous_quarter = _previous_report(quarter)
+    current = extract_accounts(current_rows)
     previous = (
         extract_accounts(accounts(year, previous_quarter))
         if previous_quarter is not None
@@ -392,6 +417,41 @@ def collect_target(
         if previous_quarter is not None
         else DetailedAccounts()
     )
+    stamp = datetime.now(timezone.utc).isoformat()
+    gross_profit = quarter_income_value(quarter, current.gross_profit, previous.gross_profit)
+    prior_gross_profit = quarter_income_value(
+        quarter, prior_same.gross_profit, prior_previous.gross_profit
+    )
+    if gross_profit is None:
+        stats.gross_profit_missing.append(target.code)
+
+    # 기존 정밀 재무가 모두 있고 GPM만 비어 있으면 주식수·CFO·전년 연간을 다시
+    # 가져오지 않는다. OpenDART 부하와 전체 백필 시간을 절반 가까이 줄인다.
+    if target.gross_profit_only:
+        current_payload = {
+            "code": target.code,
+            "fiscal_year": year,
+            "fiscal_quarter": quarter,
+            "fs_div": target.fs_div,
+            "gross_profit": gross_profit,
+            "gpm": margin_pct(gross_profit, target.current_revenue),
+            "updated_at": stamp,
+        }
+        if target.gross_profit_check_supported:
+            current_payload["gross_profit_checked_at"] = stamp
+        return [
+            current_payload,
+            {
+                "code": target.code,
+                "fiscal_year": year - 1,
+                "fiscal_quarter": quarter,
+                "fs_div": target.fs_div,
+                "gross_profit": prior_gross_profit,
+                "gpm": margin_pct(prior_gross_profit, target.prior_revenue),
+                "updated_at": stamp,
+            },
+        ]
+
     prior_annual = prior_same if quarter == 4 else extract_accounts(accounts(year - 1, 4))
 
     cfo = standalone_value(
@@ -410,11 +470,6 @@ def collect_target(
     )
     current_shares = select_total_shares(stocks(year, quarter))
     prior_shares = select_total_shares(stocks(year - 1, quarter))
-    stamp = datetime.now(timezone.utc).isoformat()
-    gross_profit = quarter_income_value(quarter, current.gross_profit, previous.gross_profit)
-    prior_gross_profit = quarter_income_value(
-        quarter, prior_same.gross_profit, prior_previous.gross_profit
-    )
 
     current_payload = {
         "code": target.code,
@@ -479,15 +534,24 @@ def run(
     current_rows = [
         row for row in payload if row["fiscal_year"] == current_year.get(row["code"])
     ]
-    for field_name in (
-        "gross_profit", "gpm", "ttm_cfo", "receivables", "inventory", "shares_yoy", "cfo", "fcf"
-    ):
+    gross_profit_only_codes = {target.code for target in targets if target.gross_profit_only}
+    full_rows = [row for row in current_rows if row["code"] not in gross_profit_only_codes]
+    print(f"  GPM 보충 전용       {len(gross_profit_only_codes)}/{len(targets)}종목")
+    for field_name in ("gross_profit", "gpm"):
         measured = sum(row.get(field_name) is not None for row in current_rows)
         print(f"  {field_name:18} {measured}/{len(targets)}종목 측정")
+    for field_name in (
+        "ttm_cfo", "receivables", "inventory", "shares_yoy", "cfo", "fcf"
+    ):
+        measured = sum(row.get(field_name) is not None for row in full_rows)
+        print(f"  {field_name:18} {measured}/{len(full_rows)}종목 이번 수집")
     print(f"  주식수 API status: {stats.stock_status}")
     if stats.current_report_missing:
         print(f"  ⚠ 현재 전체재무 응답 없음 {len(stats.current_report_missing)}종목: "
               f"{','.join(stats.current_report_missing[:20])}")
+    if stats.gross_profit_missing:
+        print(f"  ⚠ 현재 매출총이익 측정 불가 {len(stats.gross_profit_missing)}종목: "
+              f"{','.join(stats.gross_profit_missing[:20])}")
     if stats.errors:
         print(f"  ✗ 예외 {len(stats.errors)}건")
         for error in stats.errors[:20]:
