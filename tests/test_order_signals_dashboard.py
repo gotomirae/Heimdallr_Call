@@ -143,3 +143,21 @@ def test_every_fetched_report_has_an_explicit_order_status():
     assert private["status"] == "private" and private["statusLabel"] == "비공개·기재 생략"
     assert unmentioned["status"] == "unmentioned"
     assert unmentioned["backlogEok"] is None and unmentioned["newOrdersEok"] is None
+
+
+def test_single_sales_contract_is_kept_separate_from_total_new_orders():
+    contract, periodic = _run([
+        {"contract": True, "row": {"rcept_no": "20260924000001", "sections": {
+            "단일판매·공급계약": {
+                "disclosed_at": "2026-09-24", "contract_name": "HBM 검사장비 공급",
+                "amount_krw": 12340000000, "sales_ratio_pct": 12.34,
+                "counterparty": "Global Customer", "start_date": "2026-10-01",
+                "end_date": "2027-03-31",
+            }}}},
+        {"summary": True, "row": {"rcept_no": "20260924000001", "code": "000001",
+            "fiscal_year": None, "fiscal_quarter": None,
+            "sections": {"단일판매·공급계약": {"amount_krw": 12340000000}}}},
+    ])
+    assert contract["amountEok"] == 123.4
+    assert contract["contractName"] == "HBM 검사장비 공급"
+    assert periodic is None  # 수시공시 금액을 정기보고서 신규수주로 둔갑시키지 않는다.

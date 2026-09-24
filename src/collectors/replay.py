@@ -15,6 +15,7 @@ import time
 
 from src.collectors.dart_disclosure import (
     DOC_PERIODIC,
+    DOC_ORDER_CONTRACT,
     DOC_PL_CHANGE,
     DOC_PROVISIONAL,
     PollStats,
@@ -56,6 +57,7 @@ def replay(begin: str, end: str, parse_limit: int, save: bool) -> int:
         (DOC_PROVISIONAL, "provisional 잠정실적"),
         (DOC_PL_CHANGE, "pl_change 손익구조변경"),
         (DOC_PERIODIC, "periodic 정기보고서"),
+        (DOC_ORDER_CONTRACT, "order_contract 단일판매·공급계약"),
     ):
         print(f"      {label:24} {stats.by_type.get(doc_type, 0):>5}건")
     print(f"    정정공시 포함 {stats.corrections}건")
@@ -73,6 +75,7 @@ def replay(begin: str, end: str, parse_limit: int, save: bool) -> int:
         if "영업(잠정)실적" not in n
         and "매출액또는손익구조" not in n
         and not any(t in n for t in ("분기보고서", "반기보고서", "사업보고서"))
+        and not ("단일판매" in n and "공급계약" in n)
     ]
     print(f"    고유 공시명 {len(names)}종")
     for name, count in names.most_common(12):

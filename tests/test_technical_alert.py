@@ -30,6 +30,7 @@ def _series(revenue=(-5.0, 5.0, 15.0), op=(0.0, 10.0, 25.0)):
     return {
         100 + offset: {
             "revenue_yoy": revenue[offset], "op_yoy": op[offset], "op": 10.0,
+            "opm": 5.0 + offset,
         }
         for offset in range(3)
     }
@@ -41,6 +42,9 @@ def test_company_requires_both_growth_rates_to_improve_for_two_quarters():
     assert result.revenue_yoy == (5.0, 15.0)
     assert company_growth_streak(_series(op=(0.0, 20.0, 10.0)), 102) is None
     assert company_growth_streak(_series(revenue=(-5.0, None, 15.0)), 102) is None
+    falling_opm = _series()
+    falling_opm[102]["opm"] = 5.0
+    assert company_growth_streak(falling_opm, 102) is None
 
 
 def test_first_profitable_quarter_uses_status_not_fake_profit_growth_percent():
@@ -116,7 +120,7 @@ def test_sma_and_macd_crosses_are_mandatory_but_rsi_is_optional(monkeypatch):
     prices = _crossing_prices()
     assert screening.technical_setup(prices).qualifies is False
     result = screening.technical_setup(prices, announcement_date="20260001")
-    assert result is not None and result.qualifies is True
+    assert result is not None and result.qualifies is False
     assert result.sma_crossed is True and result.macd_crossed is True
     assert result.sma_approaching is True and result.macd_approaching is True
     assert result.strong_recommendation is False  # RSI 59여도 필수 두 교차는 통과.
@@ -131,8 +135,8 @@ def test_sma_and_macd_crosses_are_mandatory_but_rsi_is_optional(monkeypatch):
 
     monkeypatch.setattr(screening, "_rsi_series", recovering)
     result = screening.technical_setup(prices, announcement_date="20260001")
-    assert result is not None and result.qualifies is True
-    assert result.rsi_rising is True and result.strong_recommendation is True
+    assert result is not None and result.qualifies is False
+    assert result.rsi_rising is True and result.strong_recommendation is False
     assert result.announcement_close == 100
     assert result.announcement_return_pct == pytest.approx(-0.2431)
 
@@ -143,7 +147,7 @@ def test_sma_and_macd_crosses_are_mandatory_but_rsi_is_optional(monkeypatch):
         return measured
 
     monkeypatch.setattr(screening, "_rsi_series", recovering_from_oversold)
-    assert screening.technical_setup(prices, announcement_date="20260001").strong_recommendation is True
+    assert screening.technical_setup(prices, announcement_date="20260001").strong_recommendation is False
 
 
 def test_no_alert_after_macd_has_already_crossed():
@@ -159,26 +163,26 @@ def test_growth_candidates_require_gate_company_and_sector_together():
                 "gate_passed": True, "grade": "○", "score_final": 80}
                for i in range(1, 7)]
     universe = [{"code": f"00000{i}", "name": f"기업{i}", "industry": "반도체 제조업",
-                 "products": "반도체", "is_excluded": False} for i in range(1, 7)]
+                 "products": "HBM 반도체", "is_excluded": False} for i in range(1, 7)]
     fundamentals = []
     for code in (row["code"] for row in universe):
         for offset, revenue, op in ((0, -5, 3), (1, 5, 10), (2, 15, 25)):
             fundamentals.append({
                 "code": code, "fiscal_year": 2025, "fiscal_quarter": 1 + offset,
-                "revenue_yoy": revenue, "op_yoy": op, "op": 10,
+                "revenue_yoy": revenue, "op_yoy": op, "op": 10, "opm": 5 + offset,
             })
     assert len(growth_candidates(screens, universe, fundamentals)) == 6
     screens[0]["gate_passed"] = False
     assert len(growth_candidates(screens, universe, fundamentals)) == 5
 
 
-def test_growth_candidates_prioritize_low_pri_initial_inflection():
+def test_growth_candidates_reject_initial_inflection_without_op_yoy():
     screens = [{"code": f"00000{i}", "fiscal_year": 2025, "fiscal_quarter": 3,
                 "gate_passed": True, "grade": "★", "pri": 25 if i == 1 else 50,
                 "turnaround": i == 1, "score_final": 60 if i == 1 else 90}
                for i in range(1, 7)]
     universe = [{"code": f"00000{i}", "name": f"기업{i}", "industry": "반도체 제조업",
-                 "products": "반도체", "is_excluded": False} for i in range(1, 7)]
+                 "products": "HBM 반도체", "is_excluded": False} for i in range(1, 7)]
     fundamentals = []
     for row in universe:
         for quarter, revenue, op_yoy in ((2, 5, 10), (3, 15, 25)):
@@ -188,12 +192,11 @@ def test_growth_candidates_prioritize_low_pri_initial_inflection():
                 "revenue_yoy": revenue, "op_yoy": None if initial else op_yoy,
                 "op": (-3 if quarter == 2 else 2) if initial else 10,
                 "op_status_label": "흑전" if initial and quarter == 3 else None,
+                "opm": -2 if initial and quarter == 2 else 6 + quarter,
             })
     candidates = growth_candidates(screens, universe, fundamentals)
-    assert len(candidates) == 6
-    assert candidates[0]["code"] == "000001"
-    assert candidates[0]["early_priority"] is True
-    assert candidates[0]["company_growth"].op_yoy == ()
+    assert len(candidates) == 5
+    assert all(row["code"] != "000001" for row in candidates)
 
 
 def test_technical_message_discloses_that_cross_is_not_confirmed():
@@ -213,7 +216,7 @@ def test_technical_message_discloses_that_cross_is_not_confirmed():
     })
     assert "오늘의 추천 종목" in text and "상향 교차 접근" in text
     assert "보강 조건 미충족(필수 아님)" in text
-    assert "산업 2Q" in text and "기업 2Q" in text
+    assert "동종 산업 실적 2Q" in text and "기업 2Q" in text
     assert "MACD -2.00 / Signal -1.00" in text
     assert "펀더멘털 투자 아이디어" in text
     assert "본업: <b>반도체 검사장비 · 산업용 로봇</b>" in text
@@ -326,7 +329,7 @@ def test_daily_digest_discloses_zero_signal_and_scan_failure():
         "status": "complete", "price": 61, "sma": 5, "macd": 3, "rsi": 0, "sent": 0,
     }})
     assert "오늘의 종목 추천" in complete
-    assert "가격 61 → 5·20일선 5 → MACD 3 · RSI 보강 0 · 조건 충족 추천 0건" in complete
+    assert "가격 61 → 5·20일선 5 → MACD 3 → 3일 수급 0 · RSI 보강 0 · 조건 충족 추천 0건" in complete
     sent = daily_digest({**base, "technical_scan": {
         "status": "complete", "price": 61, "sma": 5, "macd": 3, "rsi": 1, "sent": 2,
     }})

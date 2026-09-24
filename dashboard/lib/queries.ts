@@ -396,7 +396,7 @@ export async function getDisclosureExcerpt(
   }
 }
 
-/** 최근 정기보고서 발췌의 공시 수주 표. 페이지당 한 종목만 읽으며 각 분기 최신본을 고른다. */
+/** 최근 정기보고서 수주 표 + 단일판매·공급계약 수시공시. */
 export async function getOrderDisclosureExcerpts(code: string): Promise<DisclosureExcerptRow[]> {
   try {
     const { data, error } = await supabase
@@ -404,10 +404,12 @@ export async function getOrderDisclosureExcerpts(code: string): Promise<Disclosu
       .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
       .eq("code", code)
       .order("fetched_at", { ascending: false })
-      .limit(32);
+      .limit(96);
     if (error) return [];
     const seen = new Set<string>();
     return ((data as unknown as DisclosureExcerptRow[]) ?? []).filter((row) => {
+      if (row.sections && typeof row.sections === "object" &&
+          !Array.isArray(row.sections) && "단일판매·공급계약" in row.sections) return true;
       const key = `${row.fiscal_year}-${row.fiscal_quarter}`;
       if (row.fiscal_year == null || row.fiscal_quarter == null || seen.has(key)) return false;
       seen.add(key);

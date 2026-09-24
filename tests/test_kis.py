@@ -14,7 +14,9 @@ from src.collectors.kis_prices import (
     Quote,
     _ratio,
     high_52w_drawdown_pct,
+    investor_buy_streak,
     parse_foreign_flow_rows,
+    parse_investor_flow_rows,
     relative_return_pp,
     return_from_base_pct,
     rsi_14,
@@ -47,6 +49,21 @@ def test_naver_foreign_table_parser_uses_volume_and_foreign_columns():
     html = """<table><tr><th>날짜</th><th>종가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>기관</th><th>외국인</th></tr>
     <tr><td>2026.09.03</td><td>250,000</td><td>0</td><td>0%</td><td>13,723,105</td><td>-839,601</td><td>+91,825</td></tr></table>"""
     assert parse_foreign_flow_rows(html) == {"20260903": (13_723_105, 91_825)}
+    assert parse_investor_flow_rows(html) == {"20260903": (13_723_105, -839_601, 91_825)}
+
+
+def test_investor_streak_requires_same_buyer_for_all_three_sessions():
+    foreign = investor_buy_streak({
+        "20260924": (100, -2, 5), "20260923": (100, 3, 4), "20260922": (100, -1, 2),
+    })
+    assert foreign is not None and foreign.buyer == "외국인"
+    institution = investor_buy_streak({
+        "20260924": (100, 2, -5), "20260923": (100, 3, 4), "20260922": (100, 1, -2),
+    })
+    assert institution is not None and institution.buyer == "기관"
+    assert investor_buy_streak({
+        "20260924": (100, 2, -5), "20260923": (100, -3, 4), "20260922": (100, 1, 2),
+    }) is None
 
 
 def test_per_history_uses_ttm_net_income_and_nine_quarter_average():

@@ -18,11 +18,13 @@ from datetime import datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from src.collectors.kis_prices import fetch_recent_investor_streak
 from src.collectors.quarter_prices import fetch_daily_closes_naver
 from src.config.constants import (
     DASHBOARD_URL_DEFAULT,
     PRI_LOW,
     TECHNICAL_ALERT_DAILY_MAX,
+    TECHNICAL_INVESTOR_BUY_STREAK_DAYS,
     TECHNICAL_MIN_DAILY_FETCH_RATE,
     TECHNICAL_PRICE_MAX_AGE_CALENDAR_DAYS,
 )
@@ -31,6 +33,7 @@ from src.notify.links import naver_stock_url
 from src.notify.telegram import TelegramClient, already_sent, send_once
 from src.notify.templates import technical_setup_message
 from src.screener.score import active_score
+from src.screener.sector_growth import sector_growth_profile
 from src.screener.technical_setup import (
     CompanyGrowth,
     SectorGrowth,
@@ -49,7 +52,7 @@ SCREEN_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,gate_passed,turnaround,grade,pri,score_flash,score_final"
 )
 CONSENSUS_COLUMNS = (
-    "code,fiscal_year,fiscal_quarter,fwd_per,roe_next_est,roe_next_year,source,snapshot_at"
+    "code,fiscal_year,fiscal_quarter,revenue_est,op_est,fwd_per,roe_next_est,roe_next_year,source,snapshot_at"
 )
 
 
@@ -80,7 +83,8 @@ def _fundamental_series(rows: list[dict]) -> dict[str, dict[int, dict]]:
 
 
 def growth_candidates(
-    screens: list[dict], universe_rows: list[dict], fundamental_rows: list[dict]
+    screens: list[dict], universe_rows: list[dict], fundamental_rows: list[dict],
+    stats: collections.Counter | None = None,
 ) -> list[dict]:
     """외부 호출 전에 초기 흑전·지속 가속 후보로 일봉 조회 대상을 줄인다."""
     universe = {str(row["code"]): row for row in universe_rows}
@@ -97,13 +101,21 @@ def growth_candidates(
 
     sector_cache: dict[tuple[str, int], SectorGrowth | None] = {}
     candidates: list[dict] = []
-    for screen in _latest_screens(screens):
+    stats = stats if stats is not None else collections.Counter()
+    latest_screens = _latest_screens(screens)
+    stats["latest"] = len(latest_screens)
+    for screen in latest_screens:
         code = str(screen.get("code") or "")
         if screen.get("gate_passed") is not True or code not in universe or code not in series:
             continue
+        stats["gate"] += 1
         index = _qi(int(screen["fiscal_year"]), int(screen["fiscal_quarter"]))
-        initial = company_initial_inflection(series[code], index) if screen.get("turnaround") is True else None
-        company = initial or company_growth_streak(series[code], index)
+        # 최신 사용자 기준은 영업이익 YoY가 측정되는 2개 분기 가속을 필수로 한다.
+        # 흑전 첫 분기는 성장률을 만들 수 없으므로 별도 후보로 우회시키지 않는다.
+        company = company_growth_streak(series[code], index)
+        if company is None:
+            continue
+        stats["company"] += 1
         sector = sector_of.get(code, UNKNOWN_SECTOR)
         cache_key = (sector, index)
         if cache_key not in sector_cache:
@@ -111,8 +123,16 @@ def growth_candidates(
                 sectors.get(sector, []), index
             ) if sector != UNKNOWN_SECTOR else None
         sector_growth = sector_cache[cache_key]
-        if company is None or sector_growth is None:
+        growth_profile = sector_growth_profile(
+            sector, universe[code].get("products"), universe[code].get("industry")
+        )
+        if sector_growth is None:
             continue
+        stats["sector_quarterly"] += 1
+        if growth_profile is None:
+            stats[f"cagr_missing:{sector}"] += 1
+            continue
+        stats["sector_cagr"] += 1
         candidates.append({
             **screen,
             "name": universe[code].get("name") or code,
@@ -121,9 +141,10 @@ def growth_candidates(
             "sector": sector,
             "company_growth": company,
             "sector_growth": sector_growth,
+            "sector_growth_profile": growth_profile,
             "current_fundamental": series[code][index],
             "early_priority": bool(
-                initial and screen.get("pri") is not None
+                screen.get("pri") is not None
                 and float(screen["pri"]) < PRI_LOW
                 and screen.get("grade") in {"★", "○"}
             ),
@@ -152,6 +173,24 @@ def latest_annual_consensus(rows: list[dict]) -> dict[str, dict]:
             int(previous.get("fiscal_year") or 0), str(previous.get("snapshot_at") or "")
         ) if previous else (-1, "")
         if key > previous_key:
+            latest[code] = row
+    return latest
+
+
+def latest_next_quarter_consensus(rows: list[dict], candidates: list[dict]) -> dict[str, dict]:
+    """후보 평가분기의 바로 다음 분기 네이버 컨센서스 최신 행."""
+    target = {}
+    for row in candidates:
+        year, quarter = int(row["fiscal_year"]), int(row["fiscal_quarter"])
+        target[row["code"]] = (year + (quarter == 4), 1 if quarter == 4 else quarter + 1)
+    latest: dict[str, dict] = {}
+    for row in rows:
+        code = str(row.get("code") or "")
+        if row.get("source") != "naver" or target.get(code) != (
+            int(row.get("fiscal_year") or 0), int(row.get("fiscal_quarter") or 0)
+        ):
+            continue
+        if code not in latest or str(row.get("snapshot_at") or "") > str(latest[code].get("snapshot_at") or ""):
             latest[code] = row
     return latest
 
@@ -229,24 +268,40 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
         "code,fiscal_year,fiscal_quarter,revenue,op,revenue_yoy,op_yoy,op_status_label,"
         "opm,opm_yoy_delta,ttm_opm_delta,fcf,cfo",
     )
-    consensus_by_code = latest_annual_consensus(select_all(
-        "consensus_snapshots", CONSENSUS_COLUMNS,
-    ))
+    consensus_rows = select_all("consensus_snapshots", CONSENSUS_COLUMNS)
     announcements = first_announcement_dates(select_all(
         "earnings_disclosures", "code,fiscal_year,fiscal_quarter,disclosed_at",
     ))
-    candidates = growth_candidates(screens, universe, fundamentals)
+    funnel: collections.Counter = collections.Counter()
+    candidates = growth_candidates(screens, universe, fundamentals, funnel)
+    print("추천 펀더멘털 퍼널 · " + " → ".join(
+        f"{label} {funnel[key]}" for key, label in (
+            ("latest", "최신평가"), ("gate", "게이트"), ("company", "2Q 가속+OPM"),
+            ("sector_quarterly", "동종산업 가속"), ("sector_cagr", "3Y CAGR≥15%"),
+        )
+    ))
+    missing_profiles = sorted(
+        ((key.split(":", 1)[1], value) for key, value in funnel.items() if key.startswith("cagr_missing:")),
+        key=lambda item: (-item[1], item[0]),
+    )
+    if missing_profiles:
+        print("CAGR 미측정 상위 · " + " · ".join(f"{sector} {count}" for sector, count in missing_profiles[:8]))
     if not candidates:
-        print("⚠ 펀더멘털 후보 0건 — 조회·분류 파이프라인 확인 필요")
-        _write_summary(summary_path, {"date": datetime.now(KST).date().isoformat(), "status": "scan_failed"})
-        return 1
+        print("조건 충족 후보 0건 — 엄격한 AND 게이트의 정상 결과 · 발송 0건")
+        _write_summary(summary_path, {
+            "date": datetime.now(KST).date().isoformat(), "status": "complete",
+            "funnel": dict(funnel), "matches": 0, "sent": 0,
+        })
+        return 0
+    consensus_by_code = latest_annual_consensus(consensus_rows)
+    next_consensus_by_code = latest_next_quarter_consensus(consensus_rows, candidates)
     now = datetime.now(KST)
     today = now.date()
     begin, end = f"{today.year - 1}{today:%m%d}", f"{today:%Y%m%d}"
     print(f"펀더멘털 후보 {len(candidates)}종목 · 네이버 일봉 {begin}~{end}")
 
     matches: list[dict] = []
-    fetched = failed = empty = missing_anchor = stale = price_pass = sma_pass = macd_pass = rsi_pass = 0
+    fetched = failed = empty = missing_anchor = stale = price_pass = sma_pass = macd_pass = rsi_pass = flow_pass = 0
     for candidate in candidates:
         key = (candidate["code"], int(candidate["fiscal_year"]), int(candidate["fiscal_quarter"]))
         announcement_date = announcements.get(key)
@@ -275,7 +330,18 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
         macd_pass += bool(setup.price_regime and setup.sma_approaching and setup.macd_approaching)
         rsi_pass += bool(setup.strong_recommendation)
         if setup.qualifies:
-            matches.append({**candidate, "technical": setup})
+            try:
+                investor_flow = fetch_recent_investor_streak(
+                    candidate["code"], sessions=TECHNICAL_INVESTOR_BUY_STREAK_DAYS
+                )
+            except Exception as exc:
+                failed += 1
+                print(f"  ⚠ {candidate['name']}({candidate['code']}) 수급: {type(exc).__name__}")
+                continue
+            if investor_flow is None:
+                continue
+            flow_pass += 1
+            matches.append({**candidate, "technical": setup, "investor_flow": investor_flow})
 
     matches.sort(key=lambda row: (
         not row["early_priority"],
@@ -287,11 +353,11 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     ))
     attempted = len(candidates) - missing_anchor
     print(f"일봉 성공 {fetched}/{attempted} · 빈 일봉 {empty} · 기술 신호 {len(matches)} · 실패 {failed}")
-    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 가격+5/20일선 {sma_pass} · 가격+5/20일선+MACD {macd_pass} · RSI 보강 {rsi_pass}")
+    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 가격+5/20일선 {sma_pass} · 가격+5/20일선+MACD {macd_pass} · 3일 연속 수급 {flow_pass} · RSI 보강 {rsi_pass}")
     summary = {
         "date": today.isoformat(), "status": "complete", "candidates": len(candidates),
         "evaluated": fetched, "price": price_pass, "sma": sma_pass, "macd": macd_pass,
-        "rsi": rsi_pass, "matches": len(matches), "sent": 0,
+        "flow": flow_pass, "rsi": rsi_pass, "matches": len(matches), "sent": 0,
     }
     if attempted and fetched / attempted < TECHNICAL_MIN_DAILY_FETCH_RATE:
         print(f"⚠ 일봉 조회 성공률 {fetched / attempted:.1%} — 발송 중단")
@@ -313,15 +379,19 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
             "grade": row.get("grade") or "—",
             "company_growth": _growth_dict(row["company_growth"]),
             "sector_growth": _growth_dict(row["sector_growth"]),
+            "sector_growth_profile": asdict(row["sector_growth_profile"]),
             "products": row.get("products"),
             "industry": row.get("industry"),
             "fundamental": row.get("current_fundamental") or {},
             "investment_score": active_score(row),
             "pri": row.get("pri"),
             "consensus": consensus_by_code.get(row["code"]) or {},
+            "next_consensus": next_consensus_by_code.get(row["code"]) or {},
             "early_priority": row["early_priority"],
             "technical": asdict(setup),
-            "url": f"{base_url}/stock/{row['code']}",
+            "investor_flow": asdict(row["investor_flow"]),
+            "url": f"{base_url}/?gate=all",
+            "heimdallr_url": f"{base_url}/stock/{row['code']}",
             "naver_url": naver_stock_url(row["code"], mobile=True),
         }
         text = technical_setup_message(context)

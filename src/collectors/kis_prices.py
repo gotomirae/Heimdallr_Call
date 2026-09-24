@@ -90,6 +90,14 @@ class ForeignFlow5d:
     sessions: int = 5
 
 
+@dataclass(frozen=True)
+class InvestorFlowStreak:
+    dates: tuple[str, ...]
+    foreign_net: tuple[int, ...]
+    institution_net: tuple[int, ...]
+    buyer: str
+
+
 def _num(text) -> float | None:
     if text in (None, "", "-"):
         return None
@@ -158,25 +166,65 @@ def _signed_int(text: str) -> int | None:
         return None
 
 
-def parse_foreign_flow_rows(html: str) -> dict[str, tuple[int, int]]:
+def parse_investor_flow_rows(html: str) -> dict[str, tuple[int, int, int]]:
+    """NAVER 투자자별 매매동향 → 거래량·기관·외국인 순매수."""
     """NAVER `frgn.naver` 표 → {YYYYMMDD: (거래량, 외국인 순매수량)}."""
     soup = BeautifulSoup(html, "html.parser")
     for table in soup.find_all("table"):
         headers = [cell.get_text(" ", strip=True) for cell in table.find_all("th")]
         if not {"날짜", "거래량", "외국인"}.issubset(headers):
             continue
-        out: dict[str, tuple[int, int]] = {}
+        out: dict[str, tuple[int, int, int]] = {}
         for row in table.find_all("tr"):
             cells = [cell.get_text(" ", strip=True) for cell in row.find_all("td")]
             if len(cells) < 7 or not re.fullmatch(r"\d{4}\.\d{2}\.\d{2}", cells[0]):
                 continue
             volume = _signed_int(cells[4])
+            institution = _signed_int(cells[5])
             foreign = _signed_int(cells[6])
-            if volume is None or volume <= 0 or foreign is None:
+            if volume is None or volume <= 0 or institution is None or foreign is None:
                 continue
-            out[cells[0].replace(".", "")] = (volume, foreign)
+            out[cells[0].replace(".", "")] = (volume, institution, foreign)
         return out
     return {}
+
+
+def parse_foreign_flow_rows(html: str) -> dict[str, tuple[int, int]]:
+    """기존 PRI 계약: 거래량·외국인만 돌려준다."""
+    return {day: (row[0], row[2]) for day, row in parse_investor_flow_rows(html).items()}
+
+
+def investor_buy_streak(
+    rows: dict[str, tuple[int, int, int]], sessions: int = 3
+) -> InvestorFlowStreak | None:
+    """같은 투자주체의 엄격한 연속 순매수 판정 — 순수 함수."""
+    dates = tuple(sorted(rows, reverse=True)[:sessions])
+    if len(dates) != sessions:
+        return None
+    institution = tuple(rows[day][1] for day in dates)
+    foreign = tuple(rows[day][2] for day in dates)
+    buyer = "외국인" if all(value > 0 for value in foreign) else (
+        "기관" if all(value > 0 for value in institution) else ""
+    )
+    return InvestorFlowStreak(dates, foreign, institution, buyer) if buyer else None
+
+
+def fetch_recent_investor_streak(
+    code: str, *, sessions: int = 3, max_pages: int = 2
+) -> InvestorFlowStreak | None:
+    """같은 주체가 최근 N거래일 연속 순매수한 경우만 반환한다."""
+    rows: dict[str, tuple[int, int, int]] = {}
+    for page in range(1, max_pages + 1):
+        response = http_get(
+            NAVER_FOREIGN_URL,
+            params={"code": code, "page": page},
+            headers={"Referer": "https://finance.naver.com/"}, timeout=30.0,
+        )
+        rows.update(parse_investor_flow_rows(decode_html(response)))
+        if len(rows) >= sessions:
+            break
+        time.sleep(0.12)
+    return investor_buy_streak(rows, sessions)
 
 
 def fetch_foreign_flow_5d(

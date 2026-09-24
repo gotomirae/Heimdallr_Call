@@ -961,7 +961,7 @@
     "technical_company_growth_quarters": 2,
     "technical_sector_growth_quarters": 2,
     "technical_sector_min_members": 5,
-    "technical_post_announcement_correction_pct": -10.0,
+    "technical_post_announcement_correction_pct": -20.0,
     "technical_falling_ret_20d_range_pct": [
       -100.0,
       0.0

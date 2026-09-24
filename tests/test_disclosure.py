@@ -7,6 +7,7 @@ import pytest
 
 from src.collectors.dart_disclosure import (
     DOC_PERIODIC,
+    DOC_ORDER_CONTRACT,
     DOC_PL_CHANGE,
     DOC_PROVISIONAL,
     classify,
@@ -33,6 +34,7 @@ from src.collectors.provisional_parser import (
         ("반기보고서 (2026.06)", DOC_PERIODIC),
         ("분기보고서 (2026.03)", DOC_PERIODIC),
         ("[기재정정]사업보고서 (2025.12)", DOC_PERIODIC),
+        ("단일판매ㆍ공급계약체결", DOC_ORDER_CONTRACT),
     ],
 )
 def test_classify_matches(name, expected):

@@ -14,6 +14,7 @@ from src.config.constants import (
     TECHNICAL_COMPANY_GROWTH_QUARTERS,
     TECHNICAL_FALLING_RET_20D_RANGE_PCT,
     TECHNICAL_MACD_GAP_MAX_ABS_PCT,
+    TECHNICAL_MIN_HIGH_DRAWDOWN_PCT,
     TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT,
     TECHNICAL_RSI_STRONG_MAX,
     TECHNICAL_RSI_TREND_DAYS,
@@ -29,6 +30,7 @@ from src.config.constants import (
 class CompanyGrowth:
     revenue_yoy: tuple[float, ...]
     op_yoy: tuple[float | None, ...]
+    opm: tuple[float, ...] = ()
     stage: str = "지속 가속"
     op_status_label: str | None = None
 
@@ -53,6 +55,7 @@ class TechnicalSetup:
     ret_20d_pct: float
     ret_10d_pct: float
     drawdown_50d_pct: float
+    drawdown_52w_pct: float
     range_10d_pct: float
     price_regime: str | None
     announcement_date: str | None
@@ -96,14 +99,20 @@ def company_growth_streak(
         return None
     revenue_values = tuple(float(value) for value in revenue if value is not None)
     op_values = tuple(float(value) for value in op if value is not None)
+    opm = tuple(_number(row or {}, "opm") for row in ordered)
     if not all(left < right for left, right in zip(revenue_values, revenue_values[1:])):
         return None
     if not all(left < right for left, right in zip(op_values, op_values[1:])):
         return None
+    if any(value is None for value in opm):
+        return None
+    opm_values = tuple(float(value) for value in opm if value is not None)
+    if opm_values[-1] <= opm_values[-2]:
+        return None
     current = ordered[-1] or {}
     if (_number(current, "op") or 0) <= 0:
         return None
-    return CompanyGrowth(revenue_values, op_values)
+    return CompanyGrowth(revenue_values, op_values, opm_values)
 
 
 def company_initial_inflection(
@@ -299,15 +308,21 @@ def technical_setup(
     ret_20d, ret_10d = _return(values, 20), _return(values, 10)
     high_50d = max(values[-50:])
     drawdown_50d = (close / high_50d - 1.0) * 100.0
+    high_52w = max(values[-252:])
+    drawdown_52w = (close / high_52w - 1.0) * 100.0
     last_10 = values[-10:]
     range_10d = (max(last_10) / min(last_10) - 1.0) * 100.0
     falling_floor, falling_ceiling = TECHNICAL_FALLING_RET_20D_RANGE_PCT
     below_announcement = (
         announcement_return_pct is not None and announcement_return_pct < 0
     )
-    falling = (below_announcement or post_announcement_corrected) and falling_floor <= ret_20d < falling_ceiling
+    deep_correction = min(
+        drawdown_52w,
+        post_announcement_drawdown_pct if post_announcement_drawdown_pct is not None else 0.0,
+    ) <= TECHNICAL_MIN_HIGH_DRAWDOWN_PCT
+    falling = deep_correction and (below_announcement or post_announcement_corrected) and falling_floor <= ret_20d < falling_ceiling
     sideways = (
-        (below_announcement or post_announcement_corrected)
+        deep_correction and (below_announcement or post_announcement_corrected)
         and abs(ret_10d) <= TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT
         and range_10d <= TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT
     )
@@ -333,7 +348,7 @@ def technical_setup(
     )
     # 5·20일선 상향 접근에는 이미 며칠간 반등한 경우가 많다. 가격이 여전히
     # 실적 발표 직후보다 낮거나 발표 후 고점에서 조정 중이면 회복 구간도 허용한다.
-    price_underreflected = below_announcement or post_announcement_corrected
+    price_underreflected = (below_announcement or post_announcement_corrected) and deep_correction
     regime = (
         "하락 중 반등 접근" if falling else
         "조정 후 횡보" if sideways else
@@ -346,7 +361,8 @@ def technical_setup(
         macd=float(latest_macd), signal=float(latest_signal),
         histogram=recent_hist[-1], histogram_pct=histogram_pct,
         rsi=latest_rsi, ret_20d_pct=ret_20d, ret_10d_pct=ret_10d,
-        drawdown_50d_pct=drawdown_50d, range_10d_pct=range_10d,
+        drawdown_50d_pct=drawdown_50d, drawdown_52w_pct=drawdown_52w,
+        range_10d_pct=range_10d,
         price_regime=regime,
         announcement_date=announcement_date,
         announcement_close=announcement_close,

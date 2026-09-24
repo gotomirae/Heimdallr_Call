@@ -12,7 +12,7 @@ import AnalysisSection from "@/components/AnalysisSection";
 import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { deriveOrderDisclosureSignal, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
+import { deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -479,6 +479,8 @@ export default async function StockPage({ params }: { params: { code: string } }
 
   const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
   const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
+  const orderContracts = orderExcerpts.map(extractOrderContractDisclosure).filter((row) => row != null)
+    .sort((left, right) => String(right.disclosedAt ?? "").localeCompare(String(left.disclosedAt ?? "")));
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
   const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
@@ -922,7 +924,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
-      <Card title="수주잔고·신규수주" note="DART 정기보고서·주요계약 원문 기준">
+      <Card title="수주잔고·신규수주" note="OpenDART 정기보고서와 단일판매·공급계약을 교차 확인">
         {orderSummaries.length > 0 ? <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="text-left text-xs text-slate-300"><tr className="border-b border-slate-700">
@@ -938,7 +940,23 @@ export default async function StockPage({ params }: { params: { code: string } }
             </tr>)}</tbody>
           </table>
         </div> : <div className="rounded border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-100">
-          DART 정기보고서에서 구조화 가능한 수주 수치를 찾지 못했다. 아래 공개 웹 원문에서 계약·공급 이벤트를 보완 확인한다.
+          DART 정기보고서에서 구조화 가능한 수주잔고·신규수주 수치를 찾지 못했다. 수시공시 계약 내역은 아래에서 별도로 확인한다.
+        </div>}
+        {orderContracts.length > 0 && <div className="mt-4 overflow-x-auto rounded-lg border border-emerald-800/60 bg-emerald-950/15 p-3">
+          <h3 className="text-lg font-black text-emerald-200">OpenDART 단일판매·공급계약 공시 내역</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-300">계약금액은 해당 수시공시에서 확인된 신규 계약이며 전체 회사 신규수주가 아닙니다. 위 정기보고서 수주잔고와 기간·범위를 나란히 대조합니다.</p>
+          <table className="mt-3 w-full min-w-[980px] text-xs">
+            <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
+            <tbody>{orderContracts.map((item) => <tr key={item.rceptNo} className="border-b border-slate-800/70 align-top">
+              <td className="py-2 text-slate-300">{item.disclosedAt ?? disclosureDateByReceipt.get(item.rceptNo) ?? DASH}</td>
+              <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}</td>
+              <td className="py-2 text-right tabular-nums text-emerald-200">{item.amountEok == null ? DASH : `${num(item.amountEok, 1)}억원`}</td>
+              <td className="py-2 text-right tabular-nums">{item.salesRatioPct == null ? DASH : `${num(item.salesRatioPct, 1)}%`}</td>
+              <td className="py-2 px-3">{item.counterparty ?? DASH}</td>
+              <td className="py-2">{item.startDate || item.endDate ? `${item.startDate ?? DASH} ~ ${item.endDate ?? DASH}` : DASH}</td>
+              <td className="py-2"><a href={dartReportUrl(item.rceptNo)} target="_blank" rel="noreferrer" className="text-cyan-300 underline">DART 원문</a></td>
+            </tr>)}</tbody>
+          </table>
         </div>}
         {webOrderEvents.length > 0 && <div className="mt-3 rounded-lg border border-cyan-800/60 bg-cyan-950/20 p-3">
           <h3 className="text-base font-black text-cyan-200">웹 검색 보완 · 일자별 수주·계약 공시</h3>
@@ -974,7 +992,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </Note>
           </div>
         )}
-        <Note>수주총액을 신규수주로 바꾸지 않는다. 여러 사업부의 표를 임의 합산하지 않으며, 주요계약 합계는 전체 회사 수주잔고와 구분한다.</Note>
+        <Note>정기보고서 수주잔고와 단일판매·공급계약 수시공시는 범위가 다르다. 수시공시 금액을 회사 전체 수주잔고로 바꾸거나, 여러 사업부 표를 임의 합산하지 않는다.</Note>
       </Card>
 
       {/* 밸류에이션 — 네이버 올해 예상 → 내년 예상. 시간축을 섞지 않는다. */}

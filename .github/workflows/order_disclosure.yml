@@ -28,3 +28,5 @@ jobs:
       - run: pip install -e .
       - name: 전 종목 최신 정기보고서 수주 원문 점진 수집
         run: python -m src.collectors.excerpt_run --all-universe --limit 500 --max-seconds 1800 --save
+      - name: 단일판매·공급계약 수시공시 구조화
+        run: python -m src.collectors.order_contract_run --limit 300 --save

@@ -41,6 +41,50 @@ export interface OrderDisclosureSummary {
   evidence: string | null;
 }
 
+export interface OrderContractDisclosure {
+  rceptNo: string;
+  disclosedAt: string | null;
+  contractName: string | null;
+  amountEok: number | null;
+  salesRatioPct: number | null;
+  counterparty: string | null;
+  contractDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  status: "measured" | "limited";
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown> : null;
+}
+
+/** 단일판매·공급계약은 전체 신규수주가 아닌, 공시된 개별 계약이다. */
+export function extractOrderContractDisclosure(
+  row: Partial<DisclosureExcerptRow>
+): OrderContractDisclosure | null {
+  if (!row.rcept_no || !row.sections) return null;
+  const value = record(row.sections["단일판매·공급계약"]);
+  if (!value) return null;
+  const number = (key: string): number | null =>
+    typeof value[key] === "number" && Number.isFinite(value[key]) ? Number(value[key]) : null;
+  const string = (key: string): string | null =>
+    typeof value[key] === "string" && String(value[key]).trim() ? String(value[key]).trim() : null;
+  const amountKrw = number("amount_krw");
+  return {
+    rceptNo: row.rcept_no,
+    disclosedAt: string("disclosed_at"),
+    contractName: string("contract_name"),
+    amountEok: amountKrw == null ? null : amountKrw / 100_000_000,
+    salesRatioPct: number("sales_ratio_pct"),
+    counterparty: string("counterparty"),
+    contractDate: string("contract_date"),
+    startDate: string("start_date"),
+    endDate: string("end_date"),
+    status: string("disclosure_status") === "limited" ? "limited" : "measured",
+  };
+}
+
 /**
  * DART 정기보고서의 수주 표에서 단위와 명시적인 단일 값이 모두 확인될 때만 쓴다.
  * 수주총액(누적)을 임의로 신규수주로 바꾸거나 단위를 추측하지 않는다.

@@ -564,7 +564,7 @@ def daily_digest(ctx: dict) -> str:
             lines.append(
                 f"📈 오늘의 종목 추천: 가격 {technical.get('price', 0)} → "
                 f"5·20일선 {technical.get('sma', 0)} → MACD {technical.get('macd', 0)} "
-                f"· RSI 보강 {technical.get('rsi', 0)} · "
+                f"→ 3일 수급 {technical.get('flow', 0)} · RSI 보강 {technical.get('rsi', 0)} · "
                 f"{'추천 발송 ' + str(sent) + '건' if sent else '조건 충족 추천 0건'}"
             )
         else:
@@ -613,6 +613,9 @@ def technical_setup_message(ctx: dict) -> str:
     company = ctx.get("company_growth") or {}
     sector = ctx.get("sector_growth") or {}
     technical = ctx.get("technical") or {}
+    profile = ctx.get("sector_growth_profile") or {}
+    flow = ctx.get("investor_flow") or {}
+    next_consensus = ctx.get("next_consensus") or {}
     revenue = company.get("revenue_yoy") or []
     op = company.get("op_yoy") or []
     sector_revenue = sector.get("revenue_yoy") or []
@@ -628,11 +631,26 @@ def technical_setup_message(ctx: dict) -> str:
         f" · {esc(ctx.get('sector'))} · {esc(ctx.get('grade'))}",
         "🔎 초기 흑전·낮은 주가반영도 우선 후보 · 실제 수주 증가는 공시 확인 필요"
         if early else "🔎 지속 가속 후보 · 실제 수주 증가는 공시 확인 필요",
-        f"🏭 산업 {len(sector_revenue)}Q 중앙값  매출 {join_arrow(sector_revenue)} · 영업익 {join_arrow(sector_op)}",
+        "",
+        "🚀 <b>산업 성장률과 성장 스토리</b>",
+        f"🏭 {esc(profile.get('name') or ctx.get('sector'))} · 향후 3년 CAGR <b>{_pct(profile.get('cagr_3y_pct'))}</b>",
+        f"📅 올해 {_pct(profile.get('current_growth_pct'))} → 내년 {_pct(profile.get('next_growth_pct'))}",
+        f"🧭 {esc(profile.get('story'))}",
+        f"📌 성장 이벤트: {esc(' · '.join(profile.get('events') or []) or DASH)}",
+        f"🔗 성장률 출처: <a href=\"{profile.get('source_url')}\">{esc(profile.get('source') or '원문')}</a>"
+        if profile.get("source_url") else "🔗 성장률 출처: —",
+        f"📊 동종 산업 실적 {len(sector_revenue)}Q 중앙값  매출 {join_arrow(sector_revenue)} · 영업익 {join_arrow(sector_op)}",
+        "",
+        "🏢 <b>기업 펀더멘털</b>",
         f"📊 기업 {len(revenue)}Q YoY     매출 {join_arrow(revenue)} · 영업익 "
         f"{'흑전(성장률 계산 금지)' if company.get('op_status_label') == '흑전' else join_arrow(op)}",
-        f"📉 가격 {esc(technical.get('price_regime'))} · 50일 고점 대비 "
-        f"{_pct(technical.get('drawdown_50d_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
+        f"💰 OPM {join_arrow(company.get('opm') or [])} · 직전 분기 대비 상승 확인",
+        f"🤝 수급: <b>{esc(flow.get('buyer'))} 최근 {len(flow.get('dates') or [])}거래일 연속 순매수</b>",
+        "",
+        "📈 <b>현재 주가·기술 위치</b>",
+        f"💵 현재가 {_num(technical.get('close'))}원 · {esc(technical.get('as_of'))} 기준",
+        f"📉 가격 {esc(technical.get('price_regime'))} · 52주 고점 대비 "
+        f"{_pct(technical.get('drawdown_52w_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
         f"🗓 최근 분기 실적 발표 {esc(technical.get('announcement_date'))} · 발표 다음 거래일 종가 대비 "
         f"{_pct(technical.get('announcement_return_pct'))} · 발표 후 고점 대비 "
         f"{_pct(technical.get('post_announcement_drawdown_pct'))}",
@@ -643,15 +661,23 @@ def technical_setup_message(ctx: dict) -> str:
         f"{signed(technical.get('histogram_pct'), 0, 3, '%')} · {macd_state}",
         f"🌡 RSI(14) {_num(technical.get('rsi'), 1)} · {'45 미만 상승 보강' if strong else '보강 조건 미충족(필수 아님)'}",
         *fundamental_investment_idea(ctx),
+        "",
+        "🔭 <b>다음 분기 실적 전망 · 네이버증권</b>",
+        f"🗓 {next_consensus.get('fiscal_year') or DASH}.{next_consensus.get('fiscal_quarter') or DASH}Q · 매출 {_eok(next_consensus.get('revenue_est'))} · 영업이익 {_eok(next_consensus.get('op_est'))}",
+        "",
+        "🎯 <b>향후 6개월 주가 상승 트리거</b>",
+        *[f"✨ {esc(event)}" for event in (profile.get('events') or [])[:3]],
         "⚠️ 매수 확정 신호가 아닙니다. 두 교차의 유지와 저점·실적 근거를 재확인하고, "
         "조정 저점 이탈 또는 교차 실패 시 관찰을 취소합니다.",
     ]
-    if ctx.get("url") or ctx.get("naver_url"):
+    if ctx.get("url") or ctx.get("naver_url") or ctx.get("heimdallr_url"):
         parts = []
         if ctx.get("url"):
             parts.append(f'<a href="{ctx["url"]}">대시보드</a>')
         if ctx.get("naver_url"):
             parts.append(f'<a href="{ctx["naver_url"]}">네이버증권</a>')
+        if ctx.get("heimdallr_url"):
+            parts.append(f'<a href="{ctx["heimdallr_url"]}">Heimdallr Call 종목</a>')
         lines += ["", "🔗 " + " · ".join(parts)]
     return "\n".join(lines)
 

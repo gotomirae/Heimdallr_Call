@@ -75,6 +75,7 @@ jobs:
           end=$(date -u +%Y%m%d)
           python -m src.collectors.replay --begin "$begin" --end "$end" --save
           python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
+          python -m src.collectors.order_contract_run --limit 100 --save
 
       - name: 정기보고서 감지 · 확정 재무 갱신
         if: steps.season.outputs.run == 'true'

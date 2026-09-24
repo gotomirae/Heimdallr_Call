@@ -26,11 +26,13 @@ LIST_URL = f"{DART_BASE_URL}/list.json"
 DOC_PROVISIONAL = "provisional"
 DOC_PL_CHANGE = "pl_change"
 DOC_PERIODIC = "periodic"
+DOC_ORDER_CONTRACT = "order_contract"
 
 #: 공시명 분류 규칙. 부분일치이므로 **더 긴 문자열을 먼저** 검사한다.
 _PROVISIONAL_TOKEN = "영업(잠정)실적"
 _PL_CHANGE_TOKEN = "매출액또는손익구조"
 _PERIODIC_TOKENS = ("분기보고서", "반기보고서", "사업보고서")
+_ORDER_CONTRACT_TOKENS = ("단일판매", "공급계약")
 
 #: 공시 주체의 실적이 아니다 — 버린다.
 _SUBSIDIARY_TOKEN = "자회사의 주요경영사항"
@@ -82,6 +84,11 @@ def classify(report_nm: str) -> tuple[str | None, str | None]:
 
     if any(token in name for token in _PERIODIC_TOKENS):
         return DOC_PERIODIC, None
+
+    if all(token in name for token in _ORDER_CONTRACT_TOKENS):
+        if _SUBSIDIARY_TOKEN in name:
+            return None, "subsidiary"
+        return DOC_ORDER_CONTRACT, None
 
     # "연결재무제표기준영업실적등에대한전망" — 실적이 아니라 전망이다.
     if _FORECAST_TOKEN in name and "영업실적" in name:
