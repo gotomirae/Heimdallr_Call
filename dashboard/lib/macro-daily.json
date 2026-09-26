@@ -1,22 +1,22 @@
 {
   "source": "미국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve",
-  "checkedAt": "2026-09-25 08:59 KST",
-  "marketDate": "2026-09-24",
+  "checkedAt": "2026-09-26 09:09 KST",
+  "marketDate": "2026-09-25",
   "items": [
     {
-      "title": "미국 2026-09-24 전 거래일 종가 · TradingView",
+      "title": "미국 2026-09-25 전 거래일 종가 · TradingView",
       "url": "https://www.tradingview.com/markets/stocks-usa/market-movers-all-stocks/",
-      "publishedAt": "2026-09-24"
+      "publishedAt": "2026-09-25"
     },
     {
       "title": "CBOE VIX · 향후 30일 예상 변동성",
       "url": "https://www.cboe.com/tradable-products/vix",
-      "publishedAt": "2026-09-24"
+      "publishedAt": "2026-09-25"
     },
     {
       "title": "Fear & Greed Index · 시장 심리",
       "url": "https://fearandgreedgraph.com/",
-      "publishedAt": "2026-09-24"
+      "publishedAt": "2026-09-25"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-09-16)",
@@ -80,18 +80,10 @@
   ],
   "markets": {
     "sp500": {
-      "date": "2026-09-24",
-      "close": 7704.13,
-      "changePct": -0.02,
+      "date": "2026-09-25",
+      "close": 7743.41,
+      "changePct": 0.51,
       "history": [
-        {
-          "date": "2026-06-30",
-          "value": 7499.36
-        },
-        {
-          "date": "2026-07-01",
-          "value": 7483.23
-        },
         {
           "date": "2026-07-02",
           "value": 7483.24
@@ -317,28 +309,28 @@
           "value": 7764.7
         },
         {
+          "date": "2026-09-22",
+          "value": 7764.64
+        },
+        {
           "date": "2026-09-23",
           "value": 7706.03
         },
         {
           "date": "2026-09-24",
           "value": 7704.13
+        },
+        {
+          "date": "2026-09-25",
+          "value": 7743.41
         }
       ]
     },
     "nasdaq": {
-      "date": "2026-09-24",
-      "close": 26939.37,
-      "changePct": 0.01,
+      "date": "2026-09-25",
+      "close": 27068.72,
+      "changePct": 0.48,
       "history": [
-        {
-          "date": "2026-06-30",
-          "value": 26213.72
-        },
-        {
-          "date": "2026-07-01",
-          "value": 26040.03
-        },
         {
           "date": "2026-07-02",
           "value": 25832.67
@@ -564,28 +556,28 @@
           "value": 27122.09
         },
         {
+          "date": "2026-09-22",
+          "value": 27244.28
+        },
+        {
           "date": "2026-09-23",
           "value": 26936.04
         },
         {
           "date": "2026-09-24",
           "value": 26939.37
+        },
+        {
+          "date": "2026-09-25",
+          "value": 27068.72
         }
       ]
     },
     "dow": {
-      "date": "2026-09-24",
-      "close": 51349.98,
-      "changePct": -0.31,
+      "date": "2026-09-25",
+      "close": 51828.62,
+      "changePct": 0.93,
       "history": [
-        {
-          "date": "2026-06-30",
-          "value": 52319.2
-        },
-        {
-          "date": "2026-07-01",
-          "value": 52305.24
-        },
         {
           "date": "2026-07-02",
           "value": 52900.07
@@ -811,28 +803,28 @@
           "value": 52048.83
         },
         {
+          "date": "2026-09-22",
+          "value": 51863.69
+        },
+        {
           "date": "2026-09-23",
           "value": 51511.59
         },
         {
           "date": "2026-09-24",
           "value": 51349.98
+        },
+        {
+          "date": "2026-09-25",
+          "value": 51828.62
         }
       ]
     },
     "semiconductor": {
-      "date": "2026-09-24",
-      "close": 12492.54,
-      "changePct": -0.33,
+      "date": "2026-09-25",
+      "close": 12668.93,
+      "changePct": 1.41,
       "history": [
-        {
-          "date": "2026-06-30",
-          "value": 14246.96
-        },
-        {
-          "date": "2026-07-01",
-          "value": 13353.28
-        },
         {
           "date": "2026-07-02",
           "value": 12626.22
@@ -1058,28 +1050,28 @@
           "value": 12433.17
         },
         {
+          "date": "2026-09-22",
+          "value": 12689.82
+        },
+        {
           "date": "2026-09-23",
           "value": 12534.28
         },
         {
           "date": "2026-09-24",
           "value": 12492.54
+        },
+        {
+          "date": "2026-09-25",
+          "value": 12668.93
         }
       ]
     },
     "vix": {
-      "date": "2026-09-24",
-      "close": 15.67,
-      "changePct": 3.23,
+      "date": "2026-09-25",
+      "close": 14.87,
+      "changePct": -5.11,
       "history": [
-        {
-          "date": "2026-07-01",
-          "value": 16.59
-        },
-        {
-          "date": "2026-07-02",
-          "value": 16.15
-        },
         {
           "date": "2026-07-06",
           "value": 15.57
@@ -1305,25 +1297,29 @@
           "value": 14.87
         },
         {
+          "date": "2026-09-22",
+          "value": 14.21
+        },
+        {
           "date": "2026-09-23",
           "value": 15.18
         },
         {
           "date": "2026-09-24",
           "value": 15.67
+        },
+        {
+          "date": "2026-09-25",
+          "value": 14.87
         }
       ]
     }
   },
   "fearGreed": {
-    "date": "2026-09-24",
-    "value": 36.1,
+    "date": "2026-09-25",
+    "value": 37.0,
     "label": "공포",
     "history": [
-      {
-        "date": "2026-07-01",
-        "value": 31.6
-      },
       {
         "date": "2026-07-02",
         "value": 32.5
@@ -1558,7 +1554,11 @@
       },
       {
         "date": "2026-09-24",
-        "value": 36.1
+        "value": 35.7
+      },
+      {
+        "date": "2026-09-25",
+        "value": 37.0
       }
     ],
     "sourceUrl": "https://fearandgreedgraph.com/",
@@ -1662,19 +1662,21 @@
     "industry": true,
     "geopolitics": false
   },
-  "sortMode": "balanced",
+  "sortMode": "earnings_growth",
   "preferredSectors": [
-    "전력인프라",
     "반도체 장비",
     "반도체 소재",
     "반도체 부품",
+    "반도체 DSP",
+    "반도체 OSAT",
     "반도체 IDM",
-    "방산·우주",
-    "조선·해운"
+    "전력인프라",
+    "통신·네트워크",
+    "방산·우주"
   ],
   "summary": {
-    "current": "미국 2026-09-24 장 마감: S&P 500 -0.02%, 나스닥 +0.01%, 다우 -0.31%, 필라델피아 반도체 -0.33%, CBOE VIX 15.67, Fear & Greed 36.1(공포). 혼조·실적 확인 국면으로 해석합니다.",
+    "current": "미국 2026-09-25 장 마감: S&P 500 +0.51%, 나스닥 +0.48%, 다우 +0.93%, 필라델피아 반도체 +1.41%, CBOE VIX 14.87, Fear & Greed 37.0(공포). 미국 반도체 상대강세 국면으로 해석합니다.",
     "forward": "연준 성명(2026-09-16): 연준이 금리를 인상해 정책금리 목표범위를 3.75~4%로 설정했습니다. 경제활동이 견조한 속도로 확장한다고 평가했습니다. 연준은 물가가 여전히 높다고 평가했습니다. 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
-    "recommendedSort": "추천 정렬: 혼조·실적 확인 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 높은 영업이익 YoY → 등급 → 최신 분기"
+    "recommendedSort": "추천 정렬: 미국 반도체 상대강세 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
   }
 }
