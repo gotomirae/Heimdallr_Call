@@ -42,3 +42,18 @@ def test_correction_summary_does_not_concatenate_before_and_after_amounts():
     assert result is not None
     assert result.amount_krw == 248_983_409_818
     assert result.sales_krw == 367_399_208_640
+
+
+def test_contract_termination_is_kept_but_not_misclassified_as_new_order():
+    xml = """<TABLE>
+    <TR><TD>1. 판매ㆍ공급계약 해지내용</TD><TD>완제의약품 판매공급 계약</TD></TR>
+    <TR><TD>해지금액(원)</TD><TD>11,942,752,371</TD></TR>
+    <TR><TD>최근매출액(원)</TD><TD>139,079,924,912</TD></TR>
+    <TR><TD>매출액대비(%)</TD><TD>8.59</TD></TR>
+    <TR><TD>계약상대방</TD><TD>NOVOSCI사</TD></TR>
+    </TABLE>"""
+    result = parse_order_contract(xml)
+    assert result is not None
+    assert result.disclosure_status == "terminated"
+    assert result.amount_krw == 11_942_752_371
+    assert result.contract_name == "완제의약품 판매공급 계약"

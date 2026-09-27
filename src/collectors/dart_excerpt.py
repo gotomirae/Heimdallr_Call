@@ -50,6 +50,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v2 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -186,6 +187,52 @@ def major_contract_backlog(section: str) -> str | None:
     return found[0] if len(found) == 1 else None
 
 
+def explicit_order_metrics(section: str) -> str | None:
+    """회사 전체 표의 명시적 신규수주·수주잔고 합계만 구조화한다.
+
+    열 이름과 단위, 합계행이 모두 있을 때만 읽는다. `수주총액`에서 신규수주를
+    역산하거나 여러 사업부를 임의로 더하지 않는다.
+    """
+    lines = section.splitlines()
+    candidates: list[tuple[str, str, str | None, str | None]] = []
+    backlog_names = {"수주잔고", "기말수주잔고", "수주 잔고", "기말 수주잔고"}
+    new_names = {"신규수주", "당기수주", "신규 수주", "당기 수주"}
+    for index, line in enumerate(lines):
+        headers = [cell.strip() for cell in line.split("|")]
+        backlog_index = next((i for i, cell in enumerate(headers) if cell in backlog_names), None)
+        new_index = next((i for i, cell in enumerate(headers) if cell in new_names), None)
+        if backlog_index is None and new_index is None:
+            continue
+        context = " ".join(lines[max(0, index - 3):index + 1])
+        unit_match = re.search(r"단위\s*[:：]\s*(백만원|억원|천원|원)(?:\s*[,，)]|\s*$)", context)
+        if not unit_match:
+            continue
+        for subsequent in lines[index + 1:]:
+            cells = [cell.strip() for cell in subsequent.split("|")]
+            if not cells:
+                continue
+            if re.fullmatch(r"(?:합\s*계|총\s*계)", cells[0]):
+                if len(cells) != len(headers):
+                    break
+                valid = lambda value: bool(re.fullmatch(r"[\d,]+(?:\.\d+)?", value))
+                backlog = cells[backlog_index] if backlog_index is not None and valid(cells[backlog_index]) else None
+                new_orders = cells[new_index] if new_index is not None and valid(cells[new_index]) else None
+                if backlog is not None or new_orders is not None:
+                    candidates.append((unit_match.group(1), "회사 공시 합계", backlog, new_orders))
+                break
+            if any(cell in backlog_names | new_names for cell in cells):
+                break
+    if len(candidates) != 1:
+        return None
+    unit, scope, backlog, new_orders = candidates[0]
+    rows = [f"범위 | {scope}", f"단위 | {unit}"]
+    if backlog is not None:
+        rows.append(f"수주잔고 | {backlog}")
+    if new_orders is not None:
+        rows.append(f"신규수주 | {new_orders}")
+    return "\n".join(rows)
+
+
 def build_excerpt(
     rcept_no: str,
     xml: str,
@@ -200,7 +247,7 @@ def build_excerpt(
     """
     sections = split_sections(xml)
     picked: dict[str, str] = {}
-    checked_marker = "정기보고서 원문 검사 완료"
+    checked_marker = ORDER_METRIC_MARKER
     # 구 발췌를 한 번만 재수집하기 위한 완료 표식이다. DB 컬럼을 추가하지 않고도
     # 새 파서 적용 여부를 구분하며, 이 표식이 있으면 다음 예약 실행은 건너뛴다.
     remaining = max(0, budget_chars - len(checked_marker))
@@ -215,7 +262,9 @@ def build_excerpt(
         picked[name] = clipped
         remaining -= take
     order_section = sections.get("매출 및 수주상황")
-    order_metric = major_contract_backlog(order_section) if order_section else None
+    order_metric = explicit_order_metrics(order_section) if order_section else None
+    if order_metric is None and order_section:
+        order_metric = major_contract_backlog(order_section)
     if order_metric:
         picked["공시 수주지표"] = order_metric
     picked["공시 수주지표 확인"] = checked_marker

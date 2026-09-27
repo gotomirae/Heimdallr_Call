@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -35,6 +35,7 @@ from src.screener.run import (
     build_inputs,
     build_pri_inputs,
     code_index_is_future,
+    computed_at_utc,
     earnings_growth_12m,
     last_reportable_index,
     percentile_by_period,
@@ -57,6 +58,11 @@ def _healthy_gate(**overrides) -> GateInput:
     )
     base.update(overrides)
     return GateInput(**base)
+
+
+def test_screen_recalculation_timestamp_is_explicit_utc_for_upsert():
+    fixed = datetime(2026, 9, 27, 8, 30, tzinfo=timezone.utc)
+    assert computed_at_utc(fixed) == "2026-09-27T08:30:00+00:00"
 
 
 def test_final_input_wires_accounting_quality_without_guessing_missing_values():

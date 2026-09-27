@@ -27,13 +27,17 @@ OUTPUT = ROOT / "dashboard" / "lib" / "macro-daily.json"
 BRIEFINGS = ROOT / "dashboard" / "lib" / "macro-briefings.json"
 FED_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
-SYMBOLS = {"sp500": "%5EGSPC", "nasdaq": "%5EIXIC", "dow": "%5EDJI", "semiconductor": "%5ESOX", "vix": "%5EVIX"}
+SYMBOLS = {
+    "sp500": "%5EGSPC", "nasdaq": "%5EIXIC", "dow": "%5EDJI",
+    "semiconductor": "%5ESOX", "vix": "%5EVIX",
+    "kospi": "%5EKS11", "kosdaq": "%5EKQ11",
+}
 FEAR_GREED_URL = "https://fearandgreedgraph.com/api/fear-greed"
 NEW_YORK = ZoneInfo("America/New_York")
 SEOUL = ZoneInfo("Asia/Seoul")
 
 
-def parse_yahoo_chart(payload: dict, *, now: datetime) -> dict:
+def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW_YORK) -> dict:
     """완료된 최근 두 거래일 종가로 전일 수익률을 계산한다."""
     result = (payload.get("chart") or {}).get("result") or []
     if not result:
@@ -41,13 +45,17 @@ def parse_yahoo_chart(payload: dict, *, now: datetime) -> dict:
     chart = result[0]
     timestamps = chart.get("timestamp") or []
     quotes = ((chart.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
-    ny_now = now.astimezone(NEW_YORK)
-    completed_through = ny_now.date() if ny_now.time() >= time(16, US_MACRO_MARKET_CLOSE_GRACE_MINUTES) else ny_now.date() - timedelta(days=1)
+    local_now = now.astimezone(market_tz)
+    close_time = (
+        time(15, 40) if market_tz.key == SEOUL.key
+        else time(16, US_MACRO_MARKET_CLOSE_GRACE_MINUTES)
+    )
+    completed_through = local_now.date() if local_now.time() >= close_time else local_now.date() - timedelta(days=1)
     measured = [
-        (datetime.fromtimestamp(int(timestamp), NEW_YORK).date().isoformat(), float(close))
+        (datetime.fromtimestamp(int(timestamp), market_tz).date().isoformat(), float(close))
         for timestamp, close in zip(timestamps, quotes)
         if close is not None and float(close) > 0
-        and datetime.fromtimestamp(int(timestamp), NEW_YORK).date() <= completed_through
+        and datetime.fromtimestamp(int(timestamp), market_tz).date() <= completed_through
     ]
     if len(measured) < 2:
         raise ValueError("Yahoo chart 완료 거래일 2일 미만")
@@ -149,15 +157,23 @@ def parse_fed_statement(html: str) -> dict:
 
 
 def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fear_greed: dict | None = None) -> dict:
-    dates = {row["date"] for row in markets.values()}
+    us_keys = ("sp500", "nasdaq", "dow", "semiconductor", "vix")
+    dates = {markets[key]["date"] for key in us_keys}
     if len(dates) != 1:
         raise ValueError(f"미국 시장 지표 거래일 불일치: {sorted(dates)}")
     market_date = dates.pop()
     if (checked_at.astimezone(NEW_YORK).date() - datetime.fromisoformat(market_date).date()).days > US_MACRO_MAX_STALE_CALENDAR_DAYS:
         raise ValueError(f"미국 시장 종가가 오래됐습니다: {market_date}")
     sp, nasdaq, dow, sox, vix = (
-        markets[key] for key in ("sp500", "nasdaq", "dow", "semiconductor", "vix")
+        markets[key] for key in us_keys
     )
+    korea = {key: markets[key] for key in ("kospi", "kosdaq") if key in markets}
+    korea_dates = {row["date"] for row in korea.values()}
+    if len(korea_dates) > 1:
+        raise ValueError(f"한국 시장 지표 거래일 불일치: {sorted(korea_dates)}")
+    korea_market_date = next(iter(korea_dates), None)
+    kospi = korea.get("kospi")
+    kosdaq = korea.get("kosdaq")
     risk_off = vix["close"] >= US_MACRO_VIX_RISK_OFF or (sp["changePct"] <= US_MACRO_EQUITY_DAILY_DROP_PCT and nasdaq["changePct"] <= US_MACRO_EQUITY_DAILY_DROP_PCT)
     ai_lead = sox["changePct"] > sp["changePct"] and sox["changePct"] > 0 and not risk_off
     if risk_off:
@@ -172,6 +188,20 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
         mode = "balanced"
         sectors = ["전력인프라", "반도체 장비", "반도체 소재", "반도체 부품", "반도체 IDM", "방산·우주", "조선·해운"]
         regime = "혼조·실적 확인"
+    korea_mode = "mixed"
+    preferred_boards = ["KOSPI", "KOSDAQ"]
+    korea_summary = "한국 지수 미수집"
+    if kospi and kosdaq:
+        korea_summary = f"KOSPI {kospi['changePct']:+.2f}%, KOSDAQ {kosdaq['changePct']:+.2f}%"
+        if kospi["changePct"] > 0 and kosdaq["changePct"] > 0:
+            korea_mode = "risk_on"
+        elif kospi["changePct"] < 0 and kosdaq["changePct"] < 0:
+            korea_mode = "risk_off"
+        preferred_boards = (
+            ["KOSDAQ", "KOSPI"]
+            if kosdaq["changePct"] > kospi["changePct"] and not risk_off
+            else ["KOSPI", "KOSDAQ"]
+        )
     date_label = datetime.fromisoformat(market_date).strftime("%Y-%m-%d")
     policy_range = fed.get("policyRangePct")
     policy_summary = (
@@ -184,14 +214,31 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
     )
     activity_summary = f"{fed['activity']}한다고 평가했습니다. " if fed.get("activity") else ""
     briefings = json.loads(BRIEFINGS.read_text(encoding="utf-8"))
+    global_text = " ".join(
+        str(item.get(key) or "")
+        for item in briefings
+        for key in ("summary", "keyPoint", "marketImpact")
+    )
+    global_sector_tilts: list[str] = []
+    if re.search(r"인공지능|\bAI\b|설비투자", global_text, re.I):
+        global_sector_tilts += ["반도체 장비", "반도체 부품", "전력인프라", "통신·네트워크", "기계·로봇"]
+    if re.search(r"에너지|공급망|전쟁|분쟁", global_text):
+        global_sector_tilts += ["전력인프라", "방산·우주", "조선·해운"]
+    if re.search(r"민간수요|소비지출", global_text):
+        global_sector_tilts += ["자동차", "유통·소비재"]
+    global_sector_tilts = list(dict.fromkeys(global_sector_tilts))
+    # 미국 장 국면 상위 3개를 유지하면서 IMF·공식 경기지표의 글로벌 기회/위험을
+    # 실제 순위 후보에 삽입한다. 화면 설명에만 쓰고 정렬에는 안 쓰는 상태를 막는다.
+    sectors = list(dict.fromkeys([*sectors[:3], *global_sector_tilts, *sectors[3:]]))
     market_url = "https://www.tradingview.com/markets/stocks-usa/market-movers-all-stocks/"
     start = checked_at.date()
     end = start + timedelta(days=92)
     events = [event for event in MACRO_EVENTS if start <= datetime.fromisoformat(event["date"]).date() <= end]
     return {
-        "source": "미국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve",
+        "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
         "checkedAt": checked_at.astimezone(SEOUL).strftime("%Y-%m-%d %H:%M KST"),
         "marketDate": market_date,
+        "koreaMarketDate": korea_market_date,
         "items": [
             {"title": f"미국 {date_label} 전 거래일 종가 · TradingView", "url": market_url, "publishedAt": market_date},
             {"title": "CBOE VIX · 향후 30일 예상 변동성", "url": "https://www.cboe.com/tradable-products/vix", "publishedAt": market_date},
@@ -200,21 +247,24 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
             *[{key: briefing[key] for key in ("title", "url", "publishedAt")} for briefing in briefings],
         ],
         "briefings": briefings,
-        "markets": {key: markets[key] for key in ("sp500", "nasdaq", "dow", "semiconductor", "vix") if key in markets},
+        "markets": {key: markets[key] for key in (*us_keys, "kospi", "kosdaq") if key in markets},
         "fearGreed": fear_greed,
         "nextEvents": events,
         "flags": {"rates": True, "industry": True, "geopolitics": risk_off},
         "sortMode": mode,
         "preferredSectors": sectors,
+        "globalSectorTilts": global_sector_tilts,
+        "preferredBoards": preferred_boards,
+        "koreaMode": korea_mode,
         "summary": {
-            "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 다우 {dow['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, CBOE VIX {vix['close']:.2f}" + (f", Fear & Greed {fear_greed['value']:.1f}({fear_greed['label']})" if fear_greed else "") + f". {regime} 국면으로 해석합니다.",
+            "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 다우 {dow['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, CBOE VIX {vix['close']:.2f}" + (f", Fear & Greed {fear_greed['value']:.1f}({fear_greed['label']})" if fear_greed else "") + f". 한국 {korea_market_date or '거래일 미확인'}: {korea_summary}. 미국·한국 흐름과 글로벌 공식 전망을 함께 보면 {regime} 국면입니다.",
             "forward": f"연준 성명({fed['publishedAt']}): {policy_summary} {activity_summary}{inflation_summary} 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
             "recommendedSort": "추천 정렬: " + (
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
+                f"미국·글로벌 적합 섹터 → 한국 상대강세 시장({preferred_boards[0]}) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
                 if mode == "earnings_growth" else
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
+                f"미국·글로벌 적합 섹터 → 한국 상대강세 시장({preferred_boards[0]}) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
                 if mode == "quality_price" else
-                f"{regime} 적합 섹터 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 높은 영업이익 YoY → 등급 → 최신 분기"
+                f"미국·글로벌 적합 섹터 → 한국 상대강세 시장({preferred_boards[0]}) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 높은 영업이익 YoY → 등급 → 최신 분기"
             ),
         },
     }
@@ -228,7 +278,10 @@ def collect(now: datetime | None = None) -> dict:
         for key, symbol in SYMBOLS.items():
             response = client.get(YAHOO_CHART.format(symbol=symbol), params={"range": "3mo", "interval": "1d"})
             response.raise_for_status()
-            markets[key] = parse_yahoo_chart(response.json(), now=now)
+            markets[key] = parse_yahoo_chart(
+                response.json(), now=now,
+                market_tz=SEOUL if key in {"kospi", "kosdaq"} else NEW_YORK,
+            )
         fear_greed = None
         try:
             response = client.get(FEAR_GREED_URL)

@@ -3,17 +3,29 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-from src.notify.kairos_requests import direct_company_request, enqueue
+from src.notify.kairos_requests import (
+    AnalysisTarget,
+    FolderConfirmation,
+    answer_drive_folder_confirmation,
+    direct_company_request,
+    direct_industry_request,
+    drive_industry_folder_matches,
+    enqueue,
+    resolve_industry,
+)
 from src.notify import listen
 from src.notify.telegram import TelegramError
 from src.notify.resolve import Match
 
 
 MATCH = Match("005930", "삼성전자", "exact")
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def message(text="삼성전자") -> dict:
@@ -36,6 +48,54 @@ def test_only_direct_private_company_name_is_accepted():
     ):
         assert not direct_company_request(bad, MATCH, {"111"})
     assert not direct_company_request(message(), MATCH, {"222"})
+
+
+def test_industry_requires_exact_direct_name():
+    target = resolve_industry("2차 전지", {"2차전지", "반도체"})
+    assert target == AnalysisTarget("industry", "2차전지")
+    assert direct_industry_request(message("2차 전지"), target, {"111"})
+    assert resolve_industry("반도체 분석해줘", {"반도체"}) is None
+    assert resolve_industry("2차 전지", {"2차 전지", "2차전지"}) == AnalysisTarget(
+        "industry", "2차전지"
+    )
+    assert not direct_industry_request(
+        {**message("2차 전지"), "forward_origin": {"type": "channel"}}, target, {"111"}
+    )
+
+
+def test_drive_industry_folder_match_ignores_only_order_and_separators():
+    assert drive_industry_folder_matches("2차전지", "16. 2차 전지")
+    assert drive_industry_folder_matches("미용 의료기기", "4. 미용_의료기기")
+    assert not drive_industry_folder_matches("엔터", "3. K-엔터")
+    assert not drive_industry_folder_matches("미용기기", "4. 미용_의료기기")
+
+
+def test_industry_enqueue_uses_typed_target_without_fake_stock_code(monkeypatch):
+    query = Mock()
+    client = Mock()
+    client.table.return_value = query
+    monkeypatch.setattr("src.notify.kairos_requests.get_client", lambda: client)
+    assert enqueue(124, message("반도체"), AnalysisTarget("industry", "반도체"))
+    payload = query.insert.call_args.args[0]
+    assert payload["request_kind"] == "industry"
+    assert payload["target_name"] == payload["industry"] == "반도체"
+    assert payload["code"] is None and payload["company_name"] is None
+
+
+def test_database_contract_supports_company_and_industry_targets():
+    schema = (ROOT / "src/db/schema.sql").read_text(encoding="utf-8")
+    migration = (ROOT / "docs/migrations/kairos_requests.sql").read_text(encoding="utf-8")
+    confirmation = (
+        ROOT / "docs/migrations/kairos_drive_confirmation.sql"
+    ).read_text(encoding="utf-8")
+    for source in (schema, migration):
+        assert "request_kind" in source and "target_name" in source
+        assert "'company', 'industry'" in source
+        assert "'failed'" in source and "'awaiting_input'" in source
+        assert "drive_folder_name" in source and "confirmation_message_id" in source
+    assert "ALTER TABLE public.kairos_requests ALTER COLUMN code DROP NOT NULL" in migration
+    assert "DROP CONSTRAINT IF EXISTS kairos_requests_status_check" in confirmation
+    assert "drive_folder_confirmed" in confirmation
 
 
 def test_duplicate_update_does_not_reset_completed_request(monkeypatch):
@@ -86,6 +146,89 @@ def test_telegram_update_sends_progress_receipt_without_short_report(monkeypatch
     assert result[0]["kairos"] == "접수"
     assert "분석 접수" in client.send_message.call_args.args[0]
     assert "30~90분" in client.send_message.call_args.args[0]
+
+
+def test_industry_name_beats_partial_company_matches_and_is_queued(monkeypatch):
+    client = Mock()
+    queued = []
+    monkeypatch.setattr(
+        listen, "enqueue", lambda update_id, msg, target: queued.append(target) or True
+    )
+    monkeypatch.setattr(listen, "receipt_message_id", lambda *a: None)
+    monkeypatch.setattr(listen, "record_receipt", lambda *a: None)
+    client.send_message.return_value = {"result": {"message_id": 88}}
+    outcome = listen.handle_message(
+        client,
+        message("반도체"),
+        {"042700": "한미반도체", "000001": "반도체솔루션"},
+        analyze=False,
+        chats={"111"},
+        industries={"반도체"},
+        update_id=124,
+    )
+    assert outcome["result"] == "분석 접수"
+    assert queued == [AnalysisTarget("industry", "반도체")]
+    assert "반도체 산업 분석 접수" in client.send_message.call_args_list[0].args[0]
+
+
+def test_folder_confirmation_reply_is_consumed_before_new_analysis(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr(
+        listen, "answer_drive_folder_confirmation",
+        lambda *a: FolderConfirmation(124, "confirmed", "3. K-엔터"),
+    )
+    outcome = listen.handle_message(
+        client,
+        {**message("예"), "reply_to_message": {"message_id": 90}},
+        {}, analyze=False, chats={"111"}, industries={"엔터"}, update_id=125,
+    )
+    assert outcome["result"] == "Drive 폴더 선택 확인"
+    assert "같은 분석 작업을 이어서" in client.send_message.call_args.args[0]
+
+
+def test_folder_confirmation_requires_reply_and_persists_yes(monkeypatch):
+    updates = []
+
+    class Query:
+        def __init__(self, mode, payload=None):
+            self.mode, self.payload = mode, payload
+
+        def select(self, *args):
+            self.mode = "select"
+            return self
+
+        def update(self, payload):
+            self.mode, self.payload = "update", payload
+            return self
+
+        def eq(self, *args):
+            return self
+
+        def limit(self, *args):
+            return self
+
+        def execute(self):
+            if self.mode == "select":
+                return SimpleNamespace(data=[{
+                    "update_id": 124, "status": "awaiting_input",
+                    "drive_folder_name": "3. K-엔터",
+                    "drive_folder_confirmed": False, "confirmation_response": None,
+                }])
+            updates.append(self.payload)
+            return SimpleNamespace(data=[{"update_id": 124}])
+
+    class Client:
+        def table(self, *args):
+            return Query("table")
+
+    monkeypatch.setattr("src.notify.kairos_requests.get_client", lambda: Client())
+    assert answer_drive_folder_confirmation(message("예"), {"111"}) is None
+    result = answer_drive_folder_confirmation(
+        {**message("예"), "reply_to_message": {"message_id": 90}}, {"111"}
+    )
+    assert result == FolderConfirmation(124, "confirmed", "3. K-엔터")
+    assert updates[0]["status"] == "working"
+    assert updates[0]["drive_folder_confirmed"] is True
 
 
 def test_receipt_send_failure_keeps_update_for_retry(monkeypatch):

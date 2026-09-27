@@ -53,6 +53,27 @@ def test_market_regime_changes_default_sort_without_mixing_score_and_pri():
     assert defensive["preferredSectors"][0] == "전력인프라"
 
 
+def test_korea_flow_sets_board_priority_without_forcing_same_market_date():
+    now = datetime(2026, 9, 16, 0, 0, tzinfo=timezone.utc)
+    markets = {
+        "sp500": {"date": "2026-09-15", "close": 7000, "changePct": 0.2},
+        "nasdaq": {"date": "2026-09-15", "close": 22000, "changePct": 0.3},
+        "dow": {"date": "2026-09-15", "close": 45000, "changePct": 0.1},
+        "semiconductor": {"date": "2026-09-15", "close": 9000, "changePct": 0.4},
+        "vix": {"date": "2026-09-15", "close": 17, "changePct": -1},
+        "kospi": {"date": "2026-09-16", "close": 3600, "changePct": 0.2},
+        "kosdaq": {"date": "2026-09-16", "close": 980, "changePct": 1.1},
+    }
+    fed = {"title": "FOMC", "url": "https://www.federalreserve.gov/example", "publishedAt": "2026-07-29"}
+    context = build_context(markets, fed, now)
+    assert context["koreaMarketDate"] == "2026-09-16"
+    assert context["koreaMode"] == "risk_on"
+    assert context["preferredBoards"] == ["KOSDAQ", "KOSPI"]
+    assert "미국·글로벌 적합 섹터" in context["summary"]["recommendedSort"]
+    assert "기계·로봇" in context["globalSectorTilts"]
+    assert "기계·로봇" in context["preferredSectors"]
+
+
 def test_fear_greed_deduplicates_latest_day_and_keeps_bounded_history():
     parsed = parse_fear_greed({"dates": ["2026-09-21", "2026-09-22", "2026-09-22"], "values": [28, 34, 35]})
     assert parsed["value"] == 35

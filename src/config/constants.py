@@ -330,6 +330,14 @@ BROKER_REPORT_PRIORITY_CHANNELS = (
     ("선진짱 주식공부방", "https://t.me/s/sunstudy1234"),
     ("소중한추억.", "https://t.me/s/DOC_POOL"),
 )
+# Kairos 원문 조사용 Telegram 채널. 봇 getUpdates가 아니라 읽기 전용 MTProto
+# 사용자 세션으로 실제 게시물·첨부를 조회한다(T44·T169).
+TELEGRAM_RESEARCH_CHANNELS = (
+    ("SungwooInsight", "SungwooInsight", 72),
+    ("DOC_POOL", "DOC_POOL", 24 * 92),
+    ("sunstudy1234", "sunstudy1234", 24 * 92),
+)
+TELEGRAM_ATTACHMENT_FILENAME_MAX_CHARS = 120
 # 3단계에서 지난 4개 분기 정기보고서 발췌를 함께 대조할 총 글자 수.
 # 현재 분기 EXCERPT_MAX_CHARS와 별도다. 네 분기 원문을 전부 싣지 않고 출처별 핵심
 # 앞부분만 균등 배분해 LLM_INPUT_TOKEN_BUDGET 안에서 내러티브 실현 여부를 검증한다.

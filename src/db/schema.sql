@@ -253,21 +253,36 @@ CREATE TABLE IF NOT EXISTS kairos_requests (
   update_id BIGINT PRIMARY KEY,
   chat_id BIGINT NOT NULL,
   user_id BIGINT NOT NULL,
-  code TEXT NOT NULL REFERENCES krx_universe(code),
-  company_name TEXT NOT NULL,
+  request_kind TEXT NOT NULL DEFAULT 'company'
+    CHECK (request_kind IN ('company', 'industry')),
+  target_name TEXT NOT NULL,
+  code TEXT REFERENCES krx_universe(code),
+  company_name TEXT,
   raw_text TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'working', 'rejected', 'sending', 'sent', 'uncertain')),
+    CHECK (status IN ('pending', 'working', 'awaiting_input', 'rejected', 'failed', 'sending', 'sent', 'uncertain')),
   notion_url TEXT,
   industry TEXT,
   telegram_message_id BIGINT,
+  drive_folder_name TEXT,
+  drive_folder_url TEXT,
+  drive_folder_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  confirmation_message_id BIGINT,
+  confirmation_response TEXT,
+  confirmation_responded_at TIMESTAMPTZ,
   error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   claimed_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  CHECK (
+    (request_kind = 'company' AND code IS NOT NULL AND company_name IS NOT NULL)
+    OR (request_kind = 'industry' AND code IS NULL AND industry IS NOT NULL)
+  )
 );
 CREATE INDEX IF NOT EXISTS kairos_requests_status_created_idx
   ON kairos_requests (status, created_at);
+CREATE INDEX IF NOT EXISTS kairos_requests_kind_target_idx
+  ON kairos_requests (request_kind, target_name, created_at DESC);
 
 -- 종목 상세의 사용자가 누른 LLM 분석 요청. 공개 브라우저는 서버 API를 거치며,
 -- 실제 유료 호출은 GitHub Actions worker가 비용 가드 뒤에서 처리한다.

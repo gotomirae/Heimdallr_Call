@@ -372,6 +372,8 @@ export default async function StockPage({ params }: { params: { code: string } }
       : price?.pos_52w ?? null;
   const priceBasisDate = completedQuote?.tradeDate ?? price?.snap_date ?? null;
   const priceBasisLabel = completedQuote ? "네이버 한국시간 16:00 확정 종가" : "마지막 저장 시세";
+  const scoreBasisDate = screen?.computed_at?.slice(0, 10) ?? null;
+  const scoreNeedsRefresh = Boolean(priceBasisDate && scoreBasisDate && priceBasisDate > scoreBasisDate);
   const currentAnnouncementReturn = currentClose != null && price?.announcement_close != null && price.announcement_close > 0
     ? (currentClose / price.announcement_close - 1) * 100
     : null;
@@ -383,17 +385,16 @@ export default async function StockPage({ params }: { params: { code: string } }
   const quarterFundByCode = new Map(quarterFundamentals.map((row) => [row.code, row]));
   const sectorScreens = quarterScreenResult.rows
     .filter((row) => sectorOf(universe.get(row.code)) === stockSector)
-    .filter((row) => row.code === code || productSimilarity(stock.products, universe.get(row.code)?.products) > 0)
     .sort(
       (left, right) => {
-        const similarity = productSimilarity(stock.products, universe.get(right.code)?.products) -
-          productSimilarity(stock.products, universe.get(left.code)?.products);
-        if (Math.abs(similarity) > 1e-9) return similarity;
-        return (right.score_final ?? right.score_flash ?? -Infinity) -
+        const score = (right.score_final ?? right.score_flash ?? -Infinity) -
           (left.score_final ?? left.score_flash ?? -Infinity);
+        if (Math.abs(score) > 1e-9) return score;
+        return productSimilarity(stock.products, universe.get(right.code)?.products) -
+          productSimilarity(stock.products, universe.get(left.code)?.products);
       }
     );
-  const topSectorScreens = sectorScreens.slice(0, 5);
+  const topSectorScreens = sectorScreens.slice(0, 8);
   const currentSectorScreen = sectorScreens.find((row) => row.code === code);
   const displayedSectorScreens =
     currentSectorScreen && !topSectorScreens.some((row) => row.code === code)
@@ -479,15 +480,38 @@ export default async function StockPage({ params }: { params: { code: string } }
 
   const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
   const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
-  const orderContracts = orderExcerpts.map(extractOrderContractDisclosure).filter((row) => row != null)
+  const allOrderContracts = orderExcerpts.map(extractOrderContractDisclosure).filter((row) => row != null)
     .sort((left, right) => String(right.disclosedAt ?? "").localeCompare(String(left.disclosedAt ?? "")));
+  const contractBasis = new Date(`${priceBasisDate ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const contractCutoff = new Date(contractBasis);
+  contractCutoff.setUTCMonth(contractCutoff.getUTCMonth() - 6);
+  const contractCutoffIso = contractCutoff.toISOString().slice(0, 10);
+  const orderContracts = allOrderContracts.filter((item) =>
+    item.disclosedAt != null && item.disclosedAt >= contractCutoffIso &&
+    item.disclosedAt <= contractBasis.toISOString().slice(0, 10)
+  );
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
   const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
+  const disclosedContractByQuarter = new Map<string, number>();
+  for (const item of orderContracts) {
+    // 해지금액을 신규 계약액으로 더하면 수주가 과대 표시된다.
+    if (!item.disclosedAt || item.amountEok == null || item.status === "terminated") continue;
+    const [contractYear, contractMonth] = item.disclosedAt.split("-").map(Number);
+    const key = `${contractYear}-${Math.ceil(contractMonth / 3)}`;
+    disclosedContractByQuarter.set(key, (disclosedContractByQuarter.get(key) ?? 0) + item.amountEok);
+  }
   const actualChartPoints = toChartPoints(funds, CHART_QUARTERS).map((point, index) => {
     const source = funds.slice(-CHART_QUARTERS)[index];
     const metric = source && orderByQuarter.get(`${source.fiscal_year}-${source.fiscal_quarter}`);
-    return metric ? { ...point, orderBacklog: metric.backlogEok, newOrders: metric.newOrdersEok, orderScope: metric.scope } : point;
+    const contractAmount = source && disclosedContractByQuarter.get(`${source.fiscal_year}-${source.fiscal_quarter}`);
+    return {
+      ...point,
+      orderBacklog: metric?.backlogEok ?? null,
+      newOrders: metric?.newOrdersEok ?? null,
+      disclosedContractEok: contractAmount ?? null,
+      orderScope: metric?.scope,
+    };
   });
   const chartPoints = appendNextQuarterConsensus(actualChartPoints, nextConsensus, funds, CHART_QUARTERS);
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
@@ -673,6 +697,12 @@ export default async function StockPage({ params }: { params: { code: string } }
                 </div>
               </div>
             </div>
+            <p className={`rounded border px-3 py-2 text-xs ${scoreNeedsRefresh ? "border-amber-700 bg-amber-950/25 text-amber-100" : "border-emerald-800 bg-emerald-950/20 text-emerald-200"}`}>
+              투자 매력도·주가반영도 계산일 {scoreBasisDate ?? "미확인"} · 확정 종가 기준일 {priceBasisDate ?? "미확인"}.
+              {scoreNeedsRefresh
+                ? " 확정 종가가 계산일보다 새롭습니다. 일일 재계산 배치 완료 전에는 저장 점수를 현재값으로 오인하지 마세요."
+                : " 같은 확정 종가 시점의 저장 결과입니다."}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-slate-300">스크리닝 결과가 없다.</p>
@@ -942,22 +972,23 @@ export default async function StockPage({ params }: { params: { code: string } }
         </div> : <div className="rounded border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-100">
           DART 정기보고서에서 구조화 가능한 수주잔고·신규수주 수치를 찾지 못했다. 수시공시 계약 내역은 아래에서 별도로 확인한다.
         </div>}
-        {orderContracts.length > 0 && <div className="mt-4 overflow-x-auto rounded-lg border border-emerald-800/60 bg-emerald-950/15 p-3">
-          <h3 className="text-lg font-black text-emerald-200">OpenDART 단일판매·공급계약 공시 내역</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-300">계약금액은 해당 수시공시에서 확인된 신규 계약이며 전체 회사 신규수주가 아닙니다. 위 정기보고서 수주잔고와 기간·범위를 나란히 대조합니다.</p>
-          <table className="mt-3 w-full min-w-[980px] text-xs">
-            <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
+        <div className="mt-4 overflow-x-auto rounded-lg border border-emerald-800/60 bg-emerald-950/15 p-3">
+          <h3 className="text-lg font-black text-emerald-200">최근 6개월 OpenDART 단일판매·공급계약</h3>
+          <p className="mt-1 text-[11px] font-semibold text-emerald-300">{contractCutoffIso} ~ {priceBasisDate ?? contractBasis.toISOString().slice(0, 10)} · {orderContracts.length}건</p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">계약금액은 해당 수시공시에서 확인된 개별 계약이며 전체 회사 신규수주가 아닙니다. 해지 공시는 표에는 보이되 분기 신규 계약액 그래프에서는 제외합니다.</p>
+          {orderContracts.length > 0 ? <table className="mt-3 w-full min-w-[980px] text-xs">
+            <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약/해지금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
             <tbody>{orderContracts.map((item) => <tr key={item.rceptNo} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-slate-300">{item.disclosedAt ?? disclosureDateByReceipt.get(item.rceptNo) ?? DASH}</td>
-              <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}</td>
+              <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}{item.status === "terminated" && <span className="ml-2 rounded border border-rose-700 px-1 text-[10px] text-rose-200">계약 해지</span>}</td>
               <td className="py-2 text-right tabular-nums text-emerald-200">{item.amountEok == null ? DASH : `${num(item.amountEok, 1)}억원`}</td>
               <td className="py-2 text-right tabular-nums">{item.salesRatioPct == null ? DASH : `${num(item.salesRatioPct, 1)}%`}</td>
               <td className="py-2 px-3">{item.counterparty ?? DASH}</td>
               <td className="py-2">{item.startDate || item.endDate ? `${item.startDate ?? DASH} ~ ${item.endDate ?? DASH}` : DASH}</td>
               <td className="py-2"><a href={dartReportUrl(item.rceptNo)} target="_blank" rel="noreferrer" className="text-cyan-300 underline">DART 원문</a></td>
             </tr>)}</tbody>
-          </table>
-        </div>}
+          </table> : <p className="mt-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">해당 6개월 구간에 수집된 단일판매·공급계약 공시가 없습니다.</p>}
+        </div>
         {webOrderEvents.length > 0 && <div className="mt-3 rounded-lg border border-cyan-800/60 bg-cyan-950/20 p-3">
           <h3 className="text-base font-black text-cyan-200">웹 검색 보완 · 일자별 수주·계약 공시</h3>
           <ul className="mt-2 space-y-2 text-xs text-slate-100">{webOrderEvents.map((item) => <li key={`${item.date}-${item.url}`} className="rounded border border-slate-800 bg-slate-950/40 p-2">
@@ -1114,7 +1145,7 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       </Card>
 
-      <Card title="섹터 비교" note={stockSector + " · 주요 제품 공통어가 확인된 같은 평가 분기 기업만"}>
+      <Card title="섹터 비교" note={stockSector + " · 동일 섹터·동일 평가 분기 기업"}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1260px] text-right text-sm">
             <thead className="text-xs text-slate-300">
@@ -1174,9 +1205,9 @@ export default async function StockPage({ params }: { params: { code: string } }
         <Note>
           매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. 현재 종목의 PER·F.PER·ROE는
           위 가치 카드와 같은 네이버 올해/내년 예상값이고, 비교 종목도 같은 네이버 연간 표를 우선한다.
-          조회 실패 시 저장된 네이버 값으로만 물러서며 자체 PER을 계산해 끼우지 않는다. 상위 5개만 비교하며 평균 대신 이상치에 덜 흔들리는
-          중앙값을 썼다. 같은 섹터라도 주요 제품 설명에 의미 있는 공통어가 하나도 없으면 비교군에서 제외하고, 유사도 동률이면 투자 매력도가 높은 순으로 고른다.
-          현재 종목이 상위 5개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
+          조회 실패 시 저장된 네이버 값으로만 물러서며 자체 PER을 계산해 끼우지 않는다. 동일 섹터 전체에서 투자 매력도 상위 8개를 비교하며 평균 대신 이상치에 덜 흔들리는
+          중앙값을 썼다. 제품 유사도는 참고 열일 뿐 비교군 제외 조건으로 쓰지 않는다.
+          현재 종목이 상위 8개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
         </Note>
       </Card>
 

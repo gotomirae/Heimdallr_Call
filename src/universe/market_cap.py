@@ -6,13 +6,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from bs4 import BeautifulSoup
-
 from src.config.constants import MARKET_CAP_FLOOR_KRW
 from src.utils.http import http_get
 
 NAVER_MARKET_VALUE_URL = "https://m.stock.naver.com/api/stocks/marketValue/{board}"
-NAVER_ADMIN_ISSUE_URL = "https://finance.naver.com/sise/management.naver"
+NAVER_ADMIN_ISSUE_URL = "https://stock.naver.com/api/domestic/market/stock/default"
 
 _BOARDS = ("KOSPI", "KOSDAQ")
 _PAGE_SIZE = 100
@@ -86,19 +84,35 @@ def fetch_admin_issues() -> set[str]:
       KIND의 investwarn 엔드포인트가 404를 돌려주어(2026-08-13 실측) 무료로 안정적인
       소스를 확보하지 못했다. 있는 척하지 말고 미수집으로 두고 리포트에 밝힌다.
     """
-    resp = http_get(NAVER_ADMIN_ISSUE_URL, timeout=30.0)
-    soup = BeautifulSoup(resp.content.decode("euc-kr", errors="replace"), "html.parser")
-    table = soup.find("table", class_="type_2")
-    if table is None:
-        raise RuntimeError("네이버 관리종목 페이지 구조 변경: table.type_2 없음")
-
     codes: set[str] = set()
-    for tr in table.find_all("tr"):
-        anchor = tr.find("a", href=re.compile(r"code=\d{6}"))
-        if anchor:
-            codes.add(re.search(r"code=(\d{6})", anchor["href"]).group(1))
+    for page in range(_MAX_PAGES):
+        resp = http_get(
+            NAVER_ADMIN_ISSUE_URL,
+            params={
+                "tradeType": "KRX",
+                "marketType": "ALL",
+                "orderType": "statusTag",
+                "startIdx": page,
+                "pageSize": _PAGE_SIZE,
+            },
+            timeout=30.0,
+        )
+        payload = resp.json()
+        stocks = payload if isinstance(payload, list) else payload.get("stocks") or payload.get("items") or []
+        if not isinstance(stocks, list):
+            raise RuntimeError("네이버 관리종목 API 응답 구조 변경: 종목 배열 없음")
+        for stock in stocks:
+            if not isinstance(stock, dict):
+                continue
+            code = str(stock.get("itemcode") or stock.get("itemCode") or "")
+            if re.fullmatch(r"\d{6}", code):
+                codes.add(code)
+        if len(stocks) < _PAGE_SIZE:
+            break
+    else:
+        raise RuntimeError(f"네이버 관리종목 API가 {_MAX_PAGES}페이지에서 끝나지 않음")
 
     if not codes:
-        # 0건은 "관리종목이 없다"가 아니라 파싱이 깨진 것이다. 조용히 통과시키지 않는다.
-        raise RuntimeError("네이버 관리종목 파싱 결과 0건 — 페이지 구조를 확인하라")
+        # 0건은 "관리종목이 없다"가 아니라 API 계약이 깨진 것이다. 조용히 통과시키지 않는다.
+        raise RuntimeError("네이버 관리종목 API 결과 0건 — 응답 구조를 확인하라")
     return codes

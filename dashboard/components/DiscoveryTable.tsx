@@ -74,9 +74,12 @@ function byDefault(
   a: DiscoveryRow,
   b: DiscoveryRow,
   sectorRank: ReadonlyMap<string, number>,
-  sortMode: MacroContext["sortMode"]
+  sortMode: MacroContext["sortMode"],
+  boardRank: ReadonlyMap<string, number>
 ): number {
   let macroOrder = (sectorRank.get(a.sector) ?? 99) - (sectorRank.get(b.sector) ?? 99);
+  // 같은 거시 적합 섹터에서는 당일 한국 시장의 상대강세 보드 흐름을 확인한다.
+  macroOrder ||= (boardRank.get(a.board ?? "") ?? 99) - (boardRank.get(b.board ?? "") ?? 99);
   // 초기 흑전은 같은 매크로 적합 섹터 안에서 먼저 본다. 수주가 늘었다고 추정하지 않는다.
   macroOrder ||= Number(isEarlyInflectionCandidate(b)) - Number(isEarlyInflectionCandidate(a));
   if (sortMode === "quality_price") {
@@ -295,6 +298,7 @@ function buildSectorPriorities(
       (a.macroRank - b.macroRank) ||
       (b.attractiveRate - a.attractiveRate) ||
       (b.underreflectedRate - a.underreflectedRate) ||
+      ((b.medianRet5d ?? -Infinity) - (a.medianRet5d ?? -Infinity)) ||
       ((b.medianScore ?? -Infinity) - (a.medianScore ?? -Infinity)) ||
       (b.positiveOpRate - a.positiveOpRate) ||
       (b.attractive - a.attractive)
@@ -508,6 +512,10 @@ export default function DiscoveryTable({
     () => new Map(sectorPriorities.map((row, index) => [row.sector, index])),
     [sectorPriorities]
   );
+  const boardRank = useMemo(
+    () => new Map((macroContext.preferredBoards ?? ["KOSPI", "KOSDAQ"]).map((board, index) => [board, index])),
+    [macroContext.preferredBoards]
+  );
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -554,9 +562,12 @@ export default function DiscoveryTable({
           const diff = rule.dir === "asc" ? av - bv : bv - av;
           if (diff) return diff;
         }
-        return byDefault(a, b, sectorRank, macroContext.sortMode);
+        return byDefault(
+          a, b, sectorRank, macroContext.sortMode,
+          boardRank
+        );
       });
-  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts, sectorRank, macroContext.sortMode]);
+  }, [rows, favoriteOnly, favorites, query, gate, grades, sectors, cap, consensus, quarter, sorts, sectorRank, macroContext.sortMode, boardRank]);
 
   const shown = filtered.slice(0, visibleLimit);
   const select =
@@ -575,14 +586,15 @@ export default function DiscoveryTable({
               <div className="flex items-center gap-3">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sky-500/40 bg-sky-400/10 text-2xl shadow-inner" aria-hidden="true">🌐</span>
                 <div>
-                  <h2 className="text-lg font-black tracking-tight text-white md:text-xl">미국·글로벌 매크로</h2>
-                  <p className="mt-0.5 text-xs font-semibold tracking-wide text-sky-200">실적 갱신 자동 계산 · 공식 발표 기반</p>
+                  <h2 className="text-lg font-black tracking-tight text-white md:text-xl">미국·글로벌 매크로 · 한국 증시 흐름</h2>
+                  <p className="mt-0.5 text-xs font-semibold tracking-wide text-sky-200">미국·한국 지수와 공식 글로벌 전망을 추천 순서에 반영</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded-full border border-emerald-500/40 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">● 자동 계산 정상</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">📊 실적 {dataAsOf ?? "기준일 미측정"}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 최근 완료 거래일 {macroContext.marketDate}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇰🇷 한국 최근 완료 거래일 {macroContext.koreaMarketDate ?? "미수집"}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🕘 {macroContext.checkedAt}</span>
               </div>
             </div>
@@ -606,6 +618,7 @@ export default function DiscoveryTable({
                   <h3 className="font-extrabold text-violet-200">앞으로 볼 변수</h3>
                 </div>
                 <p className="text-sm leading-6 text-slate-100">{macroContext.summary.forward}</p>
+                {(macroContext.globalSectorTilts ?? []).length > 0 && <p className="mt-2 text-xs leading-5 text-violet-200">글로벌 공식 전망 반영 섹터: {(macroContext.globalSectorTilts ?? []).join(" · ")}</p>}
               </article>
             </div>
 
@@ -636,11 +649,11 @@ export default function DiscoveryTable({
                 <span className="text-[11px] text-slate-400">점수와 가격은 한 숫자로 합산하지 않음</span>
               </div>
               <div className="grid items-stretch gap-2 text-center text-xs font-bold sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
-                <div className="rounded-lg border border-sky-600/50 bg-sky-950/60 px-3 py-3 text-sky-100"><span className="block text-lg">① 📡</span>미국 장·공식 지표 수집</div>
+                <div className="rounded-lg border border-sky-600/50 bg-sky-950/60 px-3 py-3 text-sky-100"><span className="block text-lg">① 📡</span>미국·한국 장·공식 지표 수집</div>
                 <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
                 <div className="rounded-lg border border-cyan-600/50 bg-cyan-950/50 px-3 py-3 text-cyan-100"><span className="block text-lg">② 🧭</span>매크로 국면 판정</div>
                 <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
-                <div className="rounded-lg border border-indigo-600/50 bg-indigo-950/50 px-3 py-3 text-indigo-100"><span className="block text-lg">③ 🏭</span>적합 섹터 우선 배치</div>
+                <div className="rounded-lg border border-indigo-600/50 bg-indigo-950/50 px-3 py-3 text-indigo-100"><span className="block text-lg">③ 🏭</span>적합 섹터·한국 시장 흐름 우선 배치</div>
                 <span className="hidden self-center text-xl text-sky-400 sm:block" aria-hidden="true">→</span>
                 <div className="rounded-lg border border-emerald-600/50 bg-emerald-950/50 px-3 py-3 text-emerald-100"><span className="block text-lg">④ 📈</span>실적·주가반영도·등급 재정렬</div>
               </div>

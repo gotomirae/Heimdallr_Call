@@ -121,7 +121,7 @@ def test_schema_is_strict_compatible():
 
 def test_dashboard_strict_schema_has_no_optional_parameters():
     """Anthropic strict grammar의 선택 필드 폭증을 즉시 분석 계약에서 막는다."""
-    assert set(DASHBOARD_ANALYSIS_SCHEMA["properties"]) == set(ANALYSIS_SCHEMA["required"])
+    assert set(DASHBOARD_ANALYSIS_SCHEMA["properties"]) == {*ANALYSIS_SCHEMA["required"], "value_chain"}
 
     def optional_count(node):
         if isinstance(node, dict):

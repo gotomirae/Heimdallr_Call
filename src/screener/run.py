@@ -14,7 +14,7 @@ import argparse
 import collections
 import statistics
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 
 from src.db.supabase_client import (
     get_client,
@@ -876,6 +876,15 @@ def percentile_by_period(
     return out
 
 
+def computed_at_utc(now: datetime | None = None) -> str:
+    """upsert에도 실제 재계산 시각을 넣는다.
+
+    DB DEFAULT는 INSERT 때만 적용된다. 이 필드를 생략하면 값을 모두
+    재계산해도 기존 행의 시각이 갱신되지 않아 현재 종가 기준을 오판한다.
+    """
+    return (now or datetime.now(timezone.utc)).isoformat()
+
+
 def _save(rows: list, fixed_mode: bool = False) -> int:
     db = get_client()
     existing_rows = select_all(
@@ -893,6 +902,7 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
     percentiles = percentile_by_period(active_scores)
 
     payload = []
+    calculated_at = computed_at_utc()
     for code, _uni, gate, score, pri, grade, index, is_final in rows:
         year, quarter = _yq(index)
         key = (code, year, quarter)
@@ -931,6 +941,7 @@ def _save(rows: list, fixed_mode: bool = False) -> int:
             "pri": pri.pri,
             "pri_detail": pri.detail,
             "grade": grade.grade,
+            "computed_at": calculated_at,
         }
         row.update(score.as_db_row())
         payload.append(row)

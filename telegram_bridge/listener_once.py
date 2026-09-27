@@ -13,7 +13,7 @@ import sys
 # 예약 작업의 시작 디렉터리는 프로젝트 루트가 아니다.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.notify.listen import allowed_chats, load_universe, poll_once
+from src.notify.listen import allowed_chats, load_catalogs, poll_once
 from src.notify.telegram import TelegramClient, bot_id_of
 from telegram_bridge.bridge import HEIMDALLR_BOT_ID
 
@@ -29,14 +29,17 @@ def main(*, check: bool = False) -> int:
         if bot_id_of(client.token) != HEIMDALLR_BOT_ID:
             raise RuntimeError("HEIMDALLR_BOT_ID_MISMATCH")
         chats = allowed_chats()
-        universe = load_universe()
-        if not chats or not universe:
+        universe, industries = load_catalogs()
+        if not chats or not universe or not industries:
             raise RuntimeError("LISTENER_PREFLIGHT_EMPTY")
         if check:
             print(json.dumps({"status": "ready", "bot_id": HEIMDALLR_BOT_ID,
-                              "allowed_chats": len(chats), "universe": len(universe)}))
+                              "allowed_chats": len(chats), "universe": len(universe),
+                              "industries": len(industries)}))
             return 0
-        results = poll_once(client, analyze=False, universe=universe, chats=chats)
+        results = poll_once(
+            client, analyze=False, universe=universe, industries=industries, chats=chats
+        )
         state = {"last_success": now, "count": len(results), "last_error": ""}
         code = 0
     except Exception as exc:

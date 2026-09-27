@@ -11,7 +11,7 @@ KOSPI/KOSDAQ 시가총액 1,000억원 이상 약 1,300종목을 대상으로,
 **분기실적이 실제로 가속되고 있으면서 그 사실이 아직 주가에 반영되지 않은 종목**을
 매 분기 자동 발굴해 텔레그램(🛡️ 표시명 **아이언맨의 Heimdallr** · 봇 ID **8933940541**)과
 전용 대시보드(https://heimdallr-call.vercel.app)로 전달한다.
-종목명을 보내면 심층 분석을 접수하고 진행 상태를 회신한다(`src/notify/listen.py`).
+기업명·6자리 종목코드 또는 산업명을 보내면 심층 분석을 접수하고 진행 상태를 회신한다(`src/notify/listen.py`).
 ※ @Invest_EarningCallBot(8605695587)은 **HermesCall 것이다** — 2026-08-15에 분리했다.
 
 **표기는 `Heimdallr`(m)로 통일한다.** 단, 봇 **username만 `@Heinmdallr_bot`**으로 남아 있다 —
@@ -141,6 +141,16 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **추천 정렬·상세·LLM 운영 복구 (2026-09-27)** — 미국·글로벌·KOSPI/KOSDAQ 흐름 정렬, 수주 v2/6개월 계약·밀착 기술차트·동일섹터 비교와 1분 LLM worker/strict 복구를 반영했다.
+  운영 스크리너 **1,150**·PRI **566**·★/○ **89**, 시세 **1,170/1,170**, 6개월 계약 **60건**, LLM **4완료·2 deferred(10/1 UTC)**. **968 passed·11/11 build**. T200~203.
+- **Kairos Telegram 원소스·페이지 근거 (2026-09-27)** — 세 채널 읽기 전용 MTProto 수집, 개별 게시물·첨부 장부, PDF 페이지 딥링크 검증과 원본 보존 색상 강조 사본을 구현했다.
+  최초 사용자 세션 인증 전 상태는 명시적으로 차단하며 Bot API 과거검색·가짜 `#page` 링크·첨부 경로 이탈을 금지했다. **957 passed·1 skipped·3 deselected**. T197~199·ADR 23.
+- **Kairos 반도체 산업분석 실전 완료 (2026-09-26)** — 승인된 `1. AI 반도체`의 최신 폴더 16개를 같은 요청 893060870에서 재개해 Notion 12개 절·표 10개·그래프 3개를 저장·재조회하고 Telegram `sent`(message 117)까지 완료했다.
+  최종 큐 **0건**, listener·collector 오류 **0**, 지연 원인 trigger와 잘못된 Supabase SQL 프로젝트도 복구했다. 오프라인 **946 passed·1 skipped·3 deselected**. T196.
+- **Kairos 최신 출처·공식 양식 (2026-09-26)** — 산업 최신 폴더 1개, 기업 3개월 발행본, Notion 3개 참고 루트와 기업 `1_1`·산업 `2_2` 공식 양식을 보강했다. 원문 직접 링크, 확인 필요 자료, Peer 네이버증권, SungwooInsight 72시간을 반영했다.
+  오프라인 **945 passed·1 skipped·3 deselected**, 스킬 **2/2 valid**, 로컬 컬럼 **7/7·활성 0건**. 운영은 `kairos_drive_confirmation.sql` 미적용(로그인 필요). T190~191·ADR 21.
+- **Kairos 기업·산업 이중 분석 파이프라인 (2026-09-25)** — Telegram 정확 라우팅, 유형별 Notion 계층, 최근 3개월 Drive·Notion+기존 분석+웹 보완, 7단계 진행률·실패 회신을 반영했다.
+  오프라인 **939 passed·1 skipped·3 deselected**, 스킬 **2/2 valid**, 운영 DB **16/16+typed contract**, 리스너 **1채팅·1,376기업·188산업 ready**, Windows 1분 작업 **2/2 결과 0**. T188~189·ADR 20.
 - **단일판매·공급계약·엄격 추천 게이트 (2026-09-24)** — OpenDART 계약 25/25 구조화·상세 표, 외국인/기관 3일 수급·산업 CAGR≥15%·2Q 가속+OPM·20% 조정·MA/MACD 조건과 새 알림 양식을 반영했다.
   운영 퍼널 **1,151→275→167→103→0**(CAGR 엄격 증거), 최종 0건(정상), 오프라인 **931 passed·1 skipped·3 deselected**·KIND **3 passed**·build **11/11**. T186~187.
 - **매크로 상관·공식 일정·Anthropic 안전 경계 (2026-09-24)** — 최근 미국장 자동갱신, Fear&Greed×나스닥 `r=+0.804`, 공식 직링크·황금별 3개, 섹터 편집을 반영했다. 유료 1회 **$0.107092**의 불완전 출력은 `invalid` 격리하고 compact strict+저장 전 검증으로 재발 차단했다. **925 passed·1 skipped·3 deselected·build 11/11**. T185.
@@ -240,10 +250,3 @@ python -m pytest tests/
 - 신규 함정 **T97 ★★**: **PRD가 적어 둔 5,000토큰 상한을 코드가 검사한 적이 없다.**
   실제 입력은 발췌 전에도 이미 10,300토큰이었다 — 문서와 현실이 2배 어긋난 채 아무도
   몰랐다 → 14,000으로 정정하고 `analyze()`가 실제로 검사한다.
-- 신규 함정 **T92 ★★★**: **`price_snapshots.per`는 직전 사업연도 EPS 기준 후행 PER이다.**
-  실측 대조 — 고영 스냅샷 131.6 = 2025 연간 기준 130.8인데 **실제 TTM은 40.5**. 삼성전자 42.9 vs **10.9**.
-  가속하면 분모가 1년 낡아 2~3배 부풀고, **이 시스템은 정확히 그런 종목만 고른다.**
-  대시보드·텔레그램은 이미 재계산하는데 **LLM 입력만** `price` 딕셔너리를 통째로 덤프해
-  후행 per을 넘겼다 → 본문이 "PER 102배"를 인용. `src/finance/valuation.py`로 통일하고
-  입력에서 후행 per **제거**. 곁다리로 `analysis/run.py`에 **`np` 컬럼 누락**도 드러났다
-  (새 TTM PER이 처음엔 전 종목 '계산 불가'였다 — `ttm_op`와 같은 모양).

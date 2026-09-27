@@ -10,6 +10,7 @@ from __future__ import annotations
 from src.collectors.dart_excerpt import (
     DEFAULT_BUDGET_CHARS,
     build_excerpt,
+    explicit_order_metrics,
     major_contract_backlog,
     split_sections,
     to_text,
@@ -122,3 +123,25 @@ def test_major_contract_backlog_uses_disclosed_scope_and_unit():
     )
     assert major_contract_backlog(body.replace("(단위 : 백만원, %)", "(단위 불명)")) is None
     assert major_contract_backlog(body.replace("합 계", "소 계")) is None
+
+
+def test_explicit_order_metrics_reads_company_total_new_orders_and_backlog():
+    body = """수주상황 (단위 : 백만원)
+구분 | 기초수주잔고 | 신규수주 | 매출계상액 | 기말수주잔고
+국내 | 1,000 | 300 | 200 | 1,100
+합 계 | 1,000 | 300 | 200 | 1,100
+"""
+    assert explicit_order_metrics(body) == (
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,100\n신규수주 | 300"
+    )
+
+
+def test_explicit_order_metrics_rejects_ambiguous_multiple_totals():
+    body = """A사업 (단위 : 억원)
+구분 | 신규수주 | 수주잔고
+합 계 | 30 | 100
+B사업 (단위 : 억원)
+구분 | 신규수주 | 수주잔고
+합 계 | 20 | 80
+"""
+    assert explicit_order_metrics(body) is None

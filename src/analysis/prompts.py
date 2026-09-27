@@ -348,7 +348,12 @@ def _dashboard_schema() -> dict:
     요구한다. 의미 설명은 고정 시스템 프롬프트가 담당하므로 grammar에는 싣지 않는다.
     """
     schema = deepcopy(ANALYSIS_SCHEMA)
-    required = set(schema["required"])
+    # 대시보드 심층분석은 성장 엔진의 고객·공급망 웹 근거가 핵심이므로 value_chain도
+    # 필수로 둔다. 리포트 검색 전용 배열은 빼서 검색 도구 입력 크기와 출력 잘림을 줄인다.
+    required = {*schema["required"], "value_chain"}
+    schema["required"] = [*schema["required"], "value_chain"]
+    value_chain = schema["properties"]["value_chain"]
+    value_chain["required"] = [*value_chain["required"], "recent_global_events"]
     schema["properties"] = {
         key: value for key, value in schema["properties"].items() if key in required
     }

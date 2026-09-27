@@ -99,6 +99,27 @@ def main() -> int:
             "— src/db/schema.sql을 Supabase SQL Editor에 붙여넣어 실행하라"
         )
 
+    print("\n[2b] Kairos 기업·산업 요청 컬럼 확인")
+    try:
+        probe = (
+            service.table("kairos_requests")
+            .select(
+                "request_kind,target_name,code,company_name,industry,status,error,"
+                "drive_folder_name,drive_folder_url,drive_folder_confirmed,"
+                "confirmation_message_id,confirmation_response,confirmation_responded_at"
+            )
+            .limit(1).execute().data or []
+        )
+        print(f"    ✓ 기업·산업·Drive 확인 계약 (rows={len(probe)})")
+    except Exception as exc:
+        code = str(getattr(exc, "code", "") or "")
+        hint = _ERROR_HINTS.get(code, f"{type(exc).__name__}: {exc}")
+        print(f"    ✗ {hint}")
+        failures.append(
+            "Kairos Drive 확인 컬럼 없음 — "
+            "docs/migrations/kairos_drive_confirmation.sql 적용 필요"
+        )
+
     print(f"\n[3] anon(publishable) SELECT 확인 — {len(ANON_READABLE)}개")
     anon = get_anon_client()
     for table in ANON_READABLE:

@@ -300,7 +300,7 @@ export default function AnalysisSection({
       {(analysis.growthEngine.drivers.length > 0 || analysis.growthEngine.evidence) && (
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black tracking-tight text-slate-100">성장 엔진</span>
+            <span className="text-lg font-black tracking-tight text-slate-100">성장 엔진 상세</span>
             {analysis.growthEngine.nature && (
               <span
                 className={`rounded border px-1.5 py-0.5 text-[11px] ${
@@ -330,6 +330,7 @@ export default function AnalysisSection({
           {analysis.growthEngine.evidence && (
             <Prose text={analysis.growthEngine.evidence} />
           )}
+          <p className="mt-2 text-[11px] leading-5 text-slate-400">제품·기술·CAPA·가동률·가격/물량/믹스·신규 고객·수주·전방 수요·동일 섹터 경쟁과 산업 사이클을 공시와 최신 공개 원문으로 교차 확인한다. 공개되지 않은 고객·계약은 확정 사실로 바꾸지 않는다.</p>
         </div>
       )}
 

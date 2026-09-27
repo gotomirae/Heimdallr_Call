@@ -60,7 +60,7 @@ export interface MacroContext {
   items: MacroItem[];
   briefings?: MacroBriefing[];
   briefingOverdue?: boolean;
-  markets?: Partial<Record<"sp500" | "nasdaq" | "dow" | "semiconductor" | "vix", MacroMarketSeries>>;
+  markets?: Partial<Record<"sp500" | "nasdaq" | "dow" | "semiconductor" | "vix" | "kospi" | "kosdaq", MacroMarketSeries>>;
   fearGreed?: FearGreedSnapshot | null;
   nextEvents?: MacroEvent[];
   flags: {
@@ -71,6 +71,10 @@ export interface MacroContext {
   /** PRI와 투자 점수를 합산하지 않고, 현재 거시국면에 맞춰 비교 순서만 바꾼다. */
   sortMode: "quality_price" | "earnings_growth" | "balanced";
   preferredSectors: string[];
+  globalSectorTilts?: string[];
+  preferredBoards?: string[];
+  koreaMarketDate?: string | null;
+  koreaMode?: "risk_on" | "risk_off" | "mixed";
   summary: {
     current: string;
     forward: string;
@@ -101,6 +105,7 @@ export async function getMacroContext(): Promise<MacroContext> {
     briefings: [...briefings],
     items: [...context.items],
     preferredSectors: [...context.preferredSectors],
+    globalSectorTilts: [...(context.globalSectorTilts ?? [])],
     nextEvents: [...(context.nextEvents ?? [])],
     markets: context.markets ? { ...context.markets } : {},
     fearGreed: context.fearGreed ? { ...context.fearGreed, history: [...context.fearGreed.history] } : null,

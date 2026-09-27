@@ -25,6 +25,7 @@ const SCREEN_COLUMNS = [
   "pctile_in_quarter",
   "score_a", "score_b", "score_c", "score_d", "has_consensus",
   "pri", "pri_detail", "grade",
+  "computed_at",
   "raw_a1", "raw_a2", "raw_a3", "raw_a4",
   "raw_b1", "raw_b2", "raw_b3", "raw_b4",
   "raw_c1", "raw_c2",
@@ -68,6 +69,7 @@ const DISCOVERY_SCREEN_COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter", "gate_passed", "gate_detail",
   "base_effect_warning", "turnaround", "score_flash", "score_final",
   "has_consensus", "pri", "grade",
+  "computed_at",
 ];
 const DISCOVERY_PRICE_COLUMNS = ["code", "snap_date", "market_cap_krw", "ret_5d"];
 const DISCOVERY_CONSENSUS_COLUMNS = [

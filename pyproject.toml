@@ -23,6 +23,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "anthropic>=0.40",
     "openai>=3.5,<4",
+    "telethon>=1.40,<2",  # 지정 Telegram 채널 원문을 읽는 MTProto 사용자 세션(발송 금지)
+    "pymupdf>=1.24,<2",   # PDF 페이지 근거의 비파괴 강조 사본·미리보기 생성
     "tzdata>=2024.1",       # Windows에 IANA tz DB가 없어 ZoneInfo("Asia/Seoul")가 죽는다
 ]
 

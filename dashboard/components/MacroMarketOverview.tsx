@@ -99,12 +99,18 @@ export default function MacroMarketOverview({ context }: { context: MacroContext
   const correlationDirection = correlation == null ? "" : correlation >= 0 ? "동행" : "역행";
   const vixMood = vix?.close == null ? null : Math.max(0, Math.min(100, 100 - (vix.close - 10) * 4));
   return <div className="space-y-4">
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
       <IndexCard label="S&P 500" row={markets.sp500} />
       <IndexCard label="나스닥 종합" row={markets.nasdaq} />
       <IndexCard label="다우 지수" row={markets.dow} />
       <IndexCard label="SOX 반도체" row={markets.semiconductor} />
+      <IndexCard label="KOSPI" row={markets.kospi} />
+      <IndexCard label="KOSDAQ" row={markets.kosdaq} />
     </div>
+    <p className="rounded-lg border border-emerald-800/60 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-100">
+      한국 시장 상대강세 우선순위: <strong>{(context.preferredBoards ?? ["KOSPI", "KOSDAQ"]).join(" → ")}</strong>
+      {context.koreaMarketDate ? ` · ${context.koreaMarketDate} 완료 거래일` : " · 한국 지수 미수집"}. 같은 미국·글로벌 적합 섹터 안에서 이 순서와 섹터 최근 5일 흐름을 확인한다.
+    </p>
 
     <div className="grid gap-3 xl:grid-cols-2">
       <article className="rounded-xl border border-slate-700 bg-slate-950/55 p-4">

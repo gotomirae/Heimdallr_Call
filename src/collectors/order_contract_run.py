@@ -94,15 +94,22 @@ def _date(value: str | None) -> str | None:
 def parse_order_contract(xml: str) -> OrderContract | None:
     """명시된 값만 읽는다. 금액 단위가 원으로 명시되지 않으면 추측하지 않는다."""
     rows = table_rows(xml)
+    terminated = any(
+        "판매·공급계약해지" in re.sub(r"\s+", "", cell).replace("ㆍ", "·")
+        or "해지금액(원)" in re.sub(r"\s+", "", cell)
+        for cells in rows for cell in cells
+    )
     has_won_amount = any(
-        "계약금액" in re.sub(r"\s+", "", cell) and "(원)" in re.sub(r"\s+", "", cell)
+        any(label in re.sub(r"\s+", "", cell) for label in ("계약금액", "해지금액"))
+        and "(원)" in re.sub(r"\s+", "", cell)
         for cells in rows for cell in cells
     )
     amount = _integer(_value(rows, (
-        "계약금액총액(원)", "확정계약금액", "계약금액(원)"
+        "계약금액총액(원)", "확정계약금액", "계약금액(원)", "해지금액(원)"
     ), exact=True)) if has_won_amount else None
     contract_name = _value(rows, (
         "체결계약명", "계약내용", "판매·공급계약내용", "판매ㆍ공급계약내용"
+        , "판매·공급계약해지내용", "판매ㆍ공급계약해지내용"
     ))
     if contract_name and "계약금액" in contract_name:
         contract_name = None
@@ -119,7 +126,7 @@ def parse_order_contract(xml: str) -> OrderContract | None:
         contract_date=_date(_value(rows, ("계약(수주)일자", "계약체결일", "계약일"))),
         start_date=_date(_value(rows, ("계약기간시작일", "시작일"))),
         end_date=_date(_value(rows, ("계약기간종료일", "종료일"))),
-        disclosure_status="limited" if limited else "measured",
+        disclosure_status="terminated" if terminated else ("limited" if limited else "measured"),
     )
     return contract if contract.contract_name or contract.amount_krw is not None or limited else None
 

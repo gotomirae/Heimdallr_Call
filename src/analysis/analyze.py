@@ -427,6 +427,19 @@ def build_user_message(data: AnalysisInput) -> str:
                 "대조하라. 발췌에 없는 경영진 의도는 추정하지 말고, 숫자로 드러나지 않으면 판정불가로 남겨라.",
                 json.dumps(data.narrative_history, ensure_ascii=False),
             ]
+    if data.analysis_stage == "dashboard_on_demand":
+        parts += [
+            "",
+            "## 4-3. 대시보드 심층분석 웹검색 지시",
+            "web_search를 최대 3회 사용해 성장 엔진을 다방면으로 검증하라.",
+            "① 제품·기술·CAPA·가동률·신제품, ② 고객·수주·전방수요, "
+            "③ 동일 섹터 경쟁사·산업 사이클·정책/원재료를 각각 확인한다.",
+            "DART·기업 IR·거래소·정부기관 등 1차 출처를 우선한다. 뉴스는 원문으로 "
+            "교차검증하고, 확인되지 않은 고객이나 계약은 추정이라고 명시한다.",
+            "growth_engine.evidence에는 가격/물량/믹스/고객/CAPA/산업 사이클 중 확인된 "
+            "축과 확인되지 않은 축을 함께 적고, value_chain에는 상류→회사→직접 고객→최종 "
+            "수요의 전달 경로를 구분한다. 최근 3개월 사건은 직접 URL이 확인된 것만 남긴다.",
+        ]
     # ★★ 후행 PER은 **넘기지 않는다.** `price_snapshots.per`는 직전 사업연도 EPS
     #   기준이라 실적이 급가속하면 2~3배 과대평가된다(실측: 고영 131.6 vs 실제 40.5).
     #   이 시스템은 정확히 그런 종목만 고르므로 왜곡이 항상 최악으로 걸린다.
@@ -480,7 +493,7 @@ def build_llm_request(
         schema_name=ANALYSIS_TOOL_NAME,
         schema=(
             DASHBOARD_ANALYSIS_SCHEMA
-            if data.analysis_stage == "dashboard_on_demand" and not web_search
+            if data.analysis_stage == "dashboard_on_demand"
             else ANALYSIS_SCHEMA
         ),
         max_output_tokens=max_output_tokens,

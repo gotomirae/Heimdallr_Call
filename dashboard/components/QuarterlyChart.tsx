@@ -157,14 +157,16 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
 }
 
 function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
-  const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null);
+  const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주</strong><span className="text-xs text-slate-400">억원</span></div>
     {!measured ? <div className="flex h-40 items-center justify-center text-xs text-slate-400">공개 자료의 구조화 수치 미수집</div> : <div className="h-40"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><YAxis width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar dataKey="newOrders" name="신규수주" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar dataKey="disclosedContractEok" name="단일판매·공급계약 공시액(일부)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </ComposedChart></ResponsiveContainer></div>}
+    <p className="mt-1 text-[10px] leading-4 text-slate-400">청록 막대는 해당 분기 수시공시 합계로, 회사 전체 신규수주가 아니라 공개된 계약의 하한 참고치다.</p>
     <Explanation items={[meaning]} />
   </div>;
 }

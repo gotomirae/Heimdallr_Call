@@ -149,7 +149,8 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 / 신규 수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 13
+    assert QUARTER_CHART.count("<LabelList") == 14
+    assert "단일판매·공급계약 공시액(일부)" in QUARTER_CHART
     assert "영업이익 / OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")

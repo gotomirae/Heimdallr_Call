@@ -1,5 +1,5 @@
 # PRD Ref: §8 · traps.md T13 · ADR 3(선별에 LLM을 쓰지 않는다), ADR 6
-"""텔레그램 수신 — 인증된 기업명은 Kairos 분석으로 접수하고 상태를 회신한다.
+"""텔레그램 수신 — 인증된 기업명·산업명은 Kairos 분석으로 접수하고 상태를 회신한다.
 
     python -m src.notify.listen --once          # 대기 중인 메시지 1회 처리
     python -m src.notify.listen --watch         # 롱폴링 루프
@@ -15,7 +15,7 @@
 ★★ **허용된 chat만 응답한다.** 봇 주소를 아는 누구나 말을 걸 수 있고,
    분석은 건당 실제 비용이 든다. 모르는 chat은 조용히 무시한다.
 
-★ 종목 요약 LLM은 이 수신 경로에서 호출하지 않는다. 분석은 인증된 회사명 요청을 claim한 Codex가 수행한다.
+★ 종목 요약 LLM은 이 수신 경로에서 호출하지 않는다. 분석은 인증된 대상을 claim한 Codex가 수행한다.
 """
 
 from __future__ import annotations
@@ -26,7 +26,15 @@ import time
 
 from src.db.supabase_client import select_all
 from src.notify.kairos_requests import (
-    direct_company_request, enqueue, receipt_message_id, record_receipt,
+    SUPPORTED_INDUSTRIES,
+    AnalysisTarget,
+    answer_drive_folder_confirmation,
+    direct_company_request,
+    direct_industry_request,
+    enqueue,
+    receipt_message_id,
+    record_receipt,
+    resolve_industry,
 )
 from src.notify.resolve import Match, resolve
 from src.notify.telegram import (
@@ -58,12 +66,23 @@ def allowed_chats() -> set[str]:
     return chats
 
 
+def load_catalogs() -> tuple[dict[str, str], set[str]]:
+    """한 번의 페이징 조회로 기업과 산업 입력 카탈로그를 만든다."""
+    rows = select_all("krx_universe", "code,name,industry,sector")
+    universe = {u["code"]: u["name"] for u in rows if u.get("name")}
+    industries = set(SUPPORTED_INDUSTRIES)
+    for row in rows:
+        industries.update(
+            str(value).strip()
+            for value in (row.get("industry"), row.get("sector"))
+            if value and str(value).strip() != "기타"
+        )
+    return universe, industries
+
+
 def load_universe() -> dict[str, str]:
-    return {
-        u["code"]: u["name"]
-        for u in select_all("krx_universe", "code,name")
-        if u.get("name")
-    }
+    """기존 호출부 호환용 기업 카탈로그."""
+    return load_catalogs()[0]
 
 
 def latest_analysis_status(chat_id: str) -> str:
@@ -71,18 +90,31 @@ def latest_analysis_status(chat_id: str) -> str:
     from src.db.supabase_client import get_client
     from telegram_bridge import bridge
 
-    rows = (
-        get_client().table("kairos_requests")
-        .select("update_id,company_name,code,status,created_at")
-        .eq("chat_id", int(chat_id)).order("created_at", desc=True).limit(1)
-        .execute().data or []
-    )
+    query = get_client().table("kairos_requests")
+    try:
+        rows = (
+            query.select(
+                "update_id,request_kind,target_name,company_name,industry,code,"
+                "status,error,created_at,drive_folder_name,drive_folder_confirmed"
+            ).eq("chat_id", int(chat_id)).order("created_at", desc=True).limit(1)
+            .execute().data or []
+        )
+    except Exception as exc:
+        if str(getattr(exc, "code", "")) != "42703":
+            raise
+        rows = (
+            get_client().table("kairos_requests")
+            .select("update_id,company_name,code,status,error,created_at")
+            .eq("chat_id", int(chat_id)).order("created_at", desc=True).limit(1)
+            .execute().data or []
+        )
     if not rows:
-        return "분석 요청이 없습니다. 기업명이나 6자리 코드를 입력해 주세요."
+        return "분석 요청이 없습니다. 기업명·6자리 코드 또는 산업명을 입력해 주세요."
     item = rows[0]
     labels = {"pending": "시작 대기", "working": "분석 진행 중",
+              "awaiting_input": "Drive 폴더 선택 확인 대기",
               "sending": "완료 링크 전송 중", "sent": "완료", "uncertain": "전달 확인 필요",
-              "rejected": "요청 제외"}
+              "rejected": "요청 제외", "failed": "분석 실패"}
     stage = ""
     if bridge.STATE.exists():
         db = bridge.connect()
@@ -103,9 +135,20 @@ def latest_analysis_status(chat_id: str) -> str:
                 stage = f"\nCodex 시작 요청: {local['wake_sent_at']} (UTC)"
         finally:
             db.close()
+    kind = item.get("request_kind") or "company"
+    name = item.get("target_name") or item.get("company_name") or item.get("industry")
+    identity = f"{name} ({item['code']})" if kind == "company" and item.get("code") else str(name)
+    error = (
+        f"\n원인: {item['error']}"
+        if item.get("error") and item["status"] in {"failed", "rejected"} else ""
+    )
+    folder = (
+        f"\n확인 후보: {item['drive_folder_name']}"
+        if item.get("drive_folder_name") and item["status"] == "awaiting_input" else ""
+    )
     return (
-        f"📊 {item['company_name']} ({item['code']})\n"
-        f"상태: {labels.get(item['status'], item['status'])}{stage}\n"
+        f"📊 {identity} · {'기업' if kind == 'company' else '산업'} 분석\n"
+        f"상태: {labels.get(item['status'], item['status'])}{folder}{stage}{error}\n"
         "접수·분석은 컴퓨터와 Codex가 켜져 있을 때 진행됩니다."
     )
 
@@ -144,9 +187,10 @@ def format_candidates(matches: list[Match]) -> str:
 def format_not_found(text: str) -> str:
     # ★ 사용자 텍스트를 그대로 되돌리지 않는다(에코 회피). 길이만 알린다.
     return (
-        "🛡️ 유니버스에서 그 종목을 찾지 못했다.\n\n"
-        "· 정식 종목명 또는 6자리 종목코드를 보내라 (예: 삼성전자 / 005930)\n"
-        "· 시가총액 1,000억원 미만이거나 은행·보험 등 제외 업종이면 대상이 아니다."
+        "🛡️ 기업 또는 산업을 찾지 못했다.\n\n"
+        "· 정식 종목명·6자리 종목코드 또는 산업명만 보내 주세요.\n"
+        "· 예: 삼성전자 / 005930 / 반도체 / 전력인프라\n"
+        "· 기업이 유니버스 밖이거나 산업명이 너무 넓거나 모호하면 접수하지 않습니다."
     )
 
 
@@ -218,6 +262,7 @@ def handle_message(
     *,
     analyze: bool,
     chats: set[str],
+    industries: set[str] | None = None,
     update_id: int | None = None,
     direct: bool = True,
 ) -> dict:
@@ -234,6 +279,29 @@ def handle_message(
         outcome["result"] = "무시(텍스트 없음)"
         return outcome
 
+    confirmation = answer_drive_folder_confirmation(message, chats)
+    if confirmation is not None:
+        if confirmation.decision == "confirmed":
+            client.send_message(
+                f"✅ Drive 폴더 '{confirmation.folder_name}' 선택을 확인했습니다.\n"
+                "같은 분석 작업을 이어서 진행합니다.", parse_mode=None,
+            )
+            outcome["result"] = "Drive 폴더 선택 확인"
+        elif confirmation.decision == "declined":
+            client.send_message(
+                f"🚫 Drive 폴더 '{confirmation.folder_name}'를 사용하지 않습니다.\n"
+                "원하는 산업명을 폴더와 구분되게 다시 입력해 주세요.",
+                parse_mode=None,
+            )
+            outcome["result"] = "Drive 폴더 선택 거절"
+        else:
+            client.send_message(
+                "폴더 선택 확인 메시지에 '예' 또는 '아니오'로 답장해 주세요.",
+                parse_mode=None,
+            )
+            outcome["result"] = "Drive 폴더 응답 재요청"
+        return outcome
+
     if text.lower() == "/status":
         client.send_message(latest_analysis_status(chat_id), parse_mode=None)
         outcome["result"] = "상태 조회"
@@ -242,40 +310,77 @@ def handle_message(
     if text.split()[0].lower() in {"/start", "/help"}:
         client.send_message(
             "🛡️ Heimdallr Call\n\n"
-            "기업명·종목명이나 6자리 종목코드만 보내면 심층 분석을 접수합니다.\n"
+            "기업명·종목명·6자리 종목코드 또는 산업명만 보내면 심층 분석을 접수합니다.\n"
             "접수·조사·작성·검증 상태를 같은 메시지에 표시하고, 완료 후 Notion 링크를 보냅니다.\n\n"
-            "예: 삼성전자 / 005930\n"
+            "예: 삼성전자 / 005930 / 반도체 / 전력인프라\n"
             "진행 확인: /status"
         )
         outcome["result"] = "도움말"
         return outcome
 
     matches = resolve(text, universe)
-    if not matches:
+    confident_company = (
+        matches[0]
+        if len(matches) == 1 and matches[0].how in {"code", "exact", "normalized"}
+        else None
+    )
+    industry_target = resolve_industry(text, industries or set(SUPPORTED_INDUSTRIES))
+
+    if confident_company is None and industry_target is None and not matches:
         client.send_message(format_not_found(text))
         outcome["result"] = "못 찾음"
         return outcome
 
     # 확신도가 낮고(부분 일치) 후보가 여럿이면 고르게 한다 — 단정하지 않는다.
-    if len(matches) > 1 and matches[0].how in {"contains", "partial"}:
+    if industry_target is None and len(matches) > 1:
         client.send_message(format_candidates(matches))
         outcome["result"] = f"후보 {len(matches)}건 제시"
         return outcome
 
-    match = matches[0]
-    outcome["matched"] = f"{match.name}({match.code}) via {match.how}"
-    if update_id is not None and direct and direct_company_request(message, match, chats):
+    target: AnalysisTarget | None = None
+    if confident_company is not None:
+        target = AnalysisTarget("company", confident_company.name, confident_company.code)
+        outcome["matched"] = (
+            f"{confident_company.name}({confident_company.code}) via {confident_company.how}"
+        )
+    elif industry_target is not None:
+        target = industry_target
+        outcome["matched"] = f"산업 {target.name} via exact"
+
+    is_direct = bool(
+        target
+        and (
+            direct_company_request(message, confident_company, chats)
+            if target.kind == "company" and confident_company is not None
+            else direct_industry_request(message, target, chats)
+        )
+    )
+    if update_id is not None and direct and target is not None and is_direct:
         try:
-            is_new = enqueue(update_id, message, match)
+            is_new = enqueue(update_id, message, target)
         except Exception as exc:
             outcome["kairos"] = f"접수 실패({type(exc).__name__})"
-            client.send_message("⚠️ 분석 접수에 실패했습니다. 잠시 뒤 기업명을 다시 보내 주세요.")
+            if str(exc) == "KAIROS_INDUSTRY_SCHEMA_REQUIRED":
+                feedback = (
+                    "⚠️ 산업 분석 저장 구조가 아직 적용되지 않았습니다. "
+                    "운영자가 DB 마이그레이션을 적용한 뒤 다시 입력해 주세요."
+                )
+            else:
+                feedback = (
+                    "⚠️ 분석 접수에 실패했습니다. 저장소 또는 연결 상태를 확인한 뒤 "
+                    "같은 이름을 다시 보내 주세요."
+                )
+            client.send_message(feedback, parse_mode=None)
             outcome["result"] = "접수 실패"
             return outcome
         outcome["kairos"] = "접수" if is_new else "기존 요청"
         if is_new or receipt_message_id(update_id) is None:
+            identity = (
+                f"{target.name} ({target.code}) 기업"
+                if target.kind == "company" else f"{target.name} 산업"
+            )
             receipt = client.send_message(
-                f"⏳ {match.name} ({match.code}) 기업 분석 접수\n"
+                f"⏳ {identity} 분석 접수\n"
                 "상태: 분석 시작 대기\n"
                 "시작 예상: 컴퓨터와 Codex가 켜져 있으면 보통 1~3분\n"
                 "완료 예상: 자료량에 따라 대략 30~90분 이상\n"
@@ -288,17 +393,20 @@ def handle_message(
                 outcome["receipt_tracking_error"] = type(exc).__name__
         outcome["result"] = "분석 접수"
         return outcome
-    client.send_message("기업명 또는 6자리 종목코드만 단독으로 입력해 주세요.")
-    outcome["result"] = "기업명 단독 입력 아님"
+    client.send_message("기업명·6자리 종목코드 또는 산업명만 단독으로 입력해 주세요.")
+    outcome["result"] = "분석 대상 단독 입력 아님"
     return outcome
 
 
 def poll_once(
     client: TelegramClient, *, analyze: bool, timeout: int = 0,
     universe: dict[str, str] | None = None, chats: set[str] | None = None,
+    industries: set[str] | None = None,
 ) -> list[dict]:
     if universe is None:
         universe = load_universe()
+    if industries is None:
+        industries = set(SUPPORTED_INDUSTRIES)
     if chats is None:
         chats = allowed_chats()
 
@@ -319,7 +427,7 @@ def poll_once(
             results.append(
                 handle_message(
                     client, msg, universe, analyze=analyze, chats=chats,
-                    update_id=upd["update_id"], direct=direct,
+                    update_id=upd["update_id"], direct=direct, industries=industries,
                 )
             )
         except TelegramError as exc:
@@ -335,7 +443,7 @@ def poll_once(
 
 def main() -> int:
     enable_utf8_stdout()
-    parser = argparse.ArgumentParser(description="텔레그램 수신 — 종목 조회")
+    parser = argparse.ArgumentParser(description="텔레그램 수신 — 기업·산업 분석 접수")
     parser.add_argument("--once", action="store_true", help="대기 중인 것만 1회 처리")
     parser.add_argument("--watch", action="store_true", help="롱폴링 루프")
     parser.add_argument("--analyze", action="store_true",
@@ -344,6 +452,7 @@ def main() -> int:
 
     line = "═" * 72
     print(line)
+    universe, industries = load_catalogs()
     client = TelegramClient()
     from src.notify.telegram import bot_id_of
 
@@ -375,7 +484,10 @@ def main() -> int:
         backoff = 5
         while True:
             try:
-                results = poll_once(client, analyze=args.analyze, timeout=LONG_POLL_SEC)
+                results = poll_once(
+                    client, analyze=args.analyze, timeout=LONG_POLL_SEC,
+                    universe=universe, industries=industries,
+                )
                 for r in results:
                     say(f"  {r}")
                 last_error = None  # 한 번 성공하면 다음 오류는 다시 알린다
@@ -405,7 +517,10 @@ def main() -> int:
                 time.sleep(backoff)
         return 0
 
-    results = poll_once(client, analyze=args.analyze, timeout=0)
+    results = poll_once(
+        client, analyze=args.analyze, timeout=0,
+        universe=universe, industries=industries,
+    )
     print(f"처리 {len(results)}건")
     for r in results:
         print(f"  {r}")

@@ -107,6 +107,7 @@ export interface ScreenRow {
   raw_c1?: number | null; raw_c2?: number | null;
   raw_d1?: number | null; raw_d2?: number | null;
   raw_d3?: number | null; raw_d4?: number | null;
+  computed_at?: string | null;
 }
 
 export interface PriDetail {

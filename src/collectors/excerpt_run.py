@@ -21,7 +21,12 @@ from __future__ import annotations
 import argparse
 import time
 
-from src.collectors.dart_excerpt import ExcerptError, build_excerpt, fetch_report_xml
+from src.collectors.dart_excerpt import (
+    ORDER_METRIC_MARKER,
+    ExcerptError,
+    build_excerpt,
+    fetch_report_xml,
+)
 from src.db.supabase_client import get_client, select_all
 from src.utils.console import enable_utf8_stdout
 
@@ -61,7 +66,7 @@ def targets(
             "disclosure_excerpts", "rcept_no,sections"
         )
         if isinstance(r.get("sections"), dict)
-        and "공시 수주지표 확인" in r["sections"]
+        and r["sections"].get("공시 수주지표 확인") == ORDER_METRIC_MARKER
     }
 
     if codes:

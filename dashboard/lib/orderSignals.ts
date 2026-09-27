@@ -51,7 +51,7 @@ export interface OrderContractDisclosure {
   contractDate: string | null;
   startDate: string | null;
   endDate: string | null;
-  status: "measured" | "limited";
+  status: "measured" | "limited" | "terminated";
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -81,7 +81,9 @@ export function extractOrderContractDisclosure(
     contractDate: string("contract_date"),
     startDate: string("start_date"),
     endDate: string("end_date"),
-    status: string("disclosure_status") === "limited" ? "limited" : "measured",
+    status: string("disclosure_status") === "terminated"
+      ? "terminated"
+      : string("disclosure_status") === "limited" ? "limited" : "measured",
   };
 }
 

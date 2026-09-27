@@ -171,7 +171,8 @@ def test_collector_fetches_correction_once_then_stops(monkeypatch):
     monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
     monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
     assert excerpt_run.targets(10, ["000001"]) == [new]
-    tables["disclosure_excerpts"].append({**new, "sections": {"공시 수주지표 확인": "정기보고서 원문 검사 완료"}})
+    from src.collectors.dart_excerpt import ORDER_METRIC_MARKER
+    tables["disclosure_excerpts"].append({**new, "sections": {"공시 수주지표 확인": ORDER_METRIC_MARKER}})
     assert excerpt_run.targets(10, ["000001"]) == []
 
 

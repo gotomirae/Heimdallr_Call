@@ -21,6 +21,8 @@ export interface ChartPoint {
   /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
   orderBacklog: number | null;
   newOrders: number | null;
+  /** 해당 분기에 공시된 단일판매·공급계약 합계. 전체 신규수주가 아닌 하한 참고치. */
+  disclosedContractEok: number | null;
   /** 공시 합계의 범위. 주요계약은 전체 회사 수주잔고가 아니다. */
   orderScope?: string;
   /** 부호 전환 구간 라벨('흑전'·'적전'…). %가 없을 때 대신 보여준다. */
@@ -80,6 +82,7 @@ export function toChartPoints(
     gpm: r.gpm,
     orderBacklog: null,
     newOrders: null,
+    disclosedContractEok: null,
     opStatusLabel: r.op_status_label,
     ttmRevenue: r.ttm_revenue == null ? null : r.ttm_revenue / 1e8,
     isEstimate: Boolean(r.is_estimate),
@@ -125,6 +128,7 @@ export function appendNextQuarterConsensus(
     gpm: null,
     orderBacklog: null,
     newOrders: null,
+    disclosedContractEok: null,
     opStatusLabel: opTransition(op, yearAgo?.op ?? null),
     ttmRevenue: null,
     isEstimate: true,
