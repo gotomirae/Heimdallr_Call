@@ -20,6 +20,7 @@ from pathlib import Path
 from src.config import constants
 from src.universe.sector_map import (
     INDUSTRY_ONLY_KEYWORDS,
+    SECTOR_ALIASES,
     SECTOR_EXCLUDES,
     SECTOR_ETF_THEMES,
     SECTOR_RULES,
@@ -60,6 +61,7 @@ def build() -> dict:
         # ★ 제외어·업종전용 키워드도 같이 내보낸다. 이 둘이 없으면 대시보드만
         #   옛 방식으로 분류해 **같은 종목이 화면과 DB에서 다른 섹터로 보인다.**
         "sector_excludes": {k: list(v) for k, v in SECTOR_EXCLUDES.items()},
+        "sector_aliases": dict(SECTOR_ALIASES),
         "sector_industry_only": sorted(INDUSTRY_ONLY_KEYWORDS),
         "semiconductor_context": list(SEMICONDUCTOR_CONTEXT),
         "semiconductor_front_process_keywords": list(SEMICONDUCTOR_FRONT_PROCESS_KEYWORDS),

@@ -13,8 +13,10 @@ from src.universe.sector_map import (
     ALL_SECTORS,
     INDUSTRY_ONLY_KEYWORDS,
     SECTOR_EXCLUDES,
+    SECTOR_ALIASES,
     SECTOR_RULES,
     UNKNOWN_SECTOR,
+    canonical_sector_name,
     classify_semiconductor_process,
     classify_sector,
 )
@@ -34,12 +36,12 @@ REAL_CASES = [
     ("한국전력공사", "전기업", "전력자원개발,발전,송전,전력용기자재확보", "전력인프라"),
     ("한화시스템", "전자부품 제조업",
      "정밀기기(육해공군관련전자제어시스템,열영상감시장비,탐지추적장치,전투지휘체계시스템) 제조",
-     "방산·우주"),
+     "우주방산"),
     ("이수페타시스", "전자부품 제조업", "P.C.B(인쇄회로기판),M.L.B 제조", "전자부품"),
     ("동성화인텍", "기초 화학물질 제조업", "초저온 보냉재", "조선·해운"),
     ("현대건설", "토목 건설업", "공사수입,주택분양,건설산업부문 설계,감리 등 엔지니어링서비스", "건설"),
     ("SK아이이테크놀로지", "일차전지 및 이차전지 제조업",
-     "2차전지용 습식 분리막 및 폴더블 커버 윈도우", "2차전지"),
+     "2차전지용 습식 분리막 및 폴더블 커버 윈도우", "배터리"),
 ]
 
 
@@ -57,7 +59,7 @@ def test_products_beat_industry():
     machine = "특수 목적용 기계 제조업"
     assert classify_sector("A", machine, "반도체 후공정장비") == "반도체 장비"
     assert classify_sector("B", machine, "TFT-LCD검사장비") == "디스플레이"
-    assert classify_sector("C", machine, None) == "기계·로봇"
+    assert classify_sector("C", machine, None) == "로봇기계"
 
 
 def test_unknown_when_nothing_matches():
@@ -71,7 +73,7 @@ def test_rule_order_puts_narrow_first():
     order = [name for name, _ in SECTOR_RULES]
     assert order.index("원전") < order.index("전력인프라")
     assert order.index("반도체 장비") < order.index("반도체 IDM")
-    assert order.index("반도체 장비") < order.index("기계·로봇")
+    assert order.index("반도체 장비") < order.index("로봇기계")
     assert order.index("전력인프라") < order.index("조선·해운"), (
         "두산에너빌리티의 '터어빈'이 '선박용엔진'보다 먼저 걸려야 한다"
     )
@@ -80,6 +82,28 @@ def test_rule_order_puts_narrow_first():
 def test_all_sectors_includes_unknown_and_is_unique():
     assert UNKNOWN_SECTOR in ALL_SECTORS
     assert len(ALL_SECTORS) == len(set(ALL_SECTORS)), "섹터명이 중복됐다"
+
+
+def test_requested_sectors_and_aliases_are_canonical():
+    assert {"AI", "화장품_미용기기", "여행", "양자컴퓨터"} <= set(ALL_SECTORS)
+    assert {"배터리", "우주방산", "음식료", "로봇기계"} <= set(ALL_SECTORS)
+    assert not ({"2차전지", "방산·우주", "식음료", "기계·로봇"} & set(ALL_SECTORS))
+    assert canonical_sector_name("2차전지") == "배터리"
+    assert canonical_sector_name("방산우주") == "우주방산"
+    assert canonical_sector_name("식음료") == "음식료"
+    assert canonical_sector_name("기계로봇") == "로봇기계"
+    assert canonical_sector_name("사용자직접입력") == "사용자직접입력"
+    assert set(SECTOR_ALIASES.values()) <= set(ALL_SECTORS)
+
+
+@pytest.mark.parametrize(("products", "expected"), [
+    ("기업용 생성형 AI 솔루션", "AI"),
+    ("화장품 및 피부미용기기", "화장품_미용기기"),
+    ("국내외 여행알선 및 항공권 판매", "여행"),
+    ("양자컴퓨팅 및 양자암호 솔루션", "양자컴퓨터"),
+])
+def test_new_sector_rules(products, expected):
+    assert classify_sector(None, None, products) == expected
 
 
 def test_semiconductor_uses_exactly_six_investment_cycles():

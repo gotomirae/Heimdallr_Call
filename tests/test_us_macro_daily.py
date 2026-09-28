@@ -70,8 +70,9 @@ def test_korea_flow_sets_board_priority_without_forcing_same_market_date():
     assert context["koreaMode"] == "risk_on"
     assert context["preferredBoards"] == ["KOSDAQ", "KOSPI"]
     assert "미국·글로벌 적합 섹터" in context["summary"]["recommendedSort"]
-    assert "기계·로봇" in context["globalSectorTilts"]
-    assert "기계·로봇" in context["preferredSectors"]
+    assert "AI" in context["globalSectorTilts"]
+    assert "로봇기계" in context["globalSectorTilts"]
+    assert "로봇기계" in context["preferredSectors"]
 
 
 def test_fear_greed_deduplicates_latest_day_and_keeps_bounded_history():

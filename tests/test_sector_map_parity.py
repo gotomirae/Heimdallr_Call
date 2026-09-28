@@ -82,7 +82,7 @@ def test_parity_harness_actually_detects_a_mismatch():
     ts_results = _run_typescript([(None, "반도체 후공정장비"), (None, "협동로봇")])
     assert ts_results == [
         {"sector": "반도체 장비", "process": "후"},
-        {"sector": "기계·로봇", "process": None},
+        {"sector": "로봇기계", "process": None},
     ], (
         f"대조기가 엉뚱한 값을 준다 — 이 상태의 통과는 의미가 없다: {ts_results}"
     )

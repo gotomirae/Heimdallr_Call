@@ -257,7 +257,7 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "등급 → 최신 분기" in snapshot
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
-    for offset in ('left-0', 'left-[112px]', 'left-[156px]'):
+    for offset in ('left-0', 'left-[152px]', 'left-[196px]'):
         assert offset in DISCOVERY
     assert 'sticky left-[268px]' not in DISCOVERY and 'sticky left-[316px]' not in DISCOVERY
     assert "w-[268px]" in DISCOVERY and "종목 정보" in DISCOVERY
@@ -319,10 +319,11 @@ def test_macro_sentiment_compares_nasdaq_and_events_open_official_documents():
 
 def test_sector_filter_and_browser_overrides_are_visible_and_persistent():
     assert '<MultiSelect label="섹터"' in DISCOVERY
-    assert "섹터 선택·추가·종목별 수정" in DISCOVERY
+    assert "섹터 선택·추가·종목별 수정" not in DISCOVERY
     assert "SECTOR_OVERRIDES_KEY" in DISCOVERY and "window.localStorage.setItem" in DISCOVERY
-    assert "기존 섹터 선택 또는 새 섹터 입력" in DISCOVERY
-    assert '<details open className=' in DISCOVERY
+    assert 'list="heimdallr-sector-list"' in DISCOVERY
+    assert "섹터 직접 수정" in DISCOVERY and "원래 섹터 복원" in DISCOVERY
+    assert "canonicalSectorName" in DISCOVERY and "canonicalizeSectorFilters" in DISCOVERY
 
 
 def test_outcome_uses_next_quarter_naver_consensus_and_narrative_sources_are_visible():

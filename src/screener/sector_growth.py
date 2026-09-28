@@ -35,14 +35,14 @@ _PROFILES: tuple[tuple[tuple[str, ...], tuple[str, ...], SectorGrowthProfile], .
          "AI 가속기당 메모리 탑재량 증가와 HBM 세대 전환이 장비·소재·후공정 수요를 함께 끌어올리는 구간",
          ("차세대 HBM 양산·고객 인증", "AI 데이터센터 CAPEX 갱신"),
          "SK hynix 2026 HBM market outlook", "https://news.skhynix.com/en/2026-market-outlook-focus-on-the-hbm-led-memory-supercycle/", "2026-09")),
-    (("소프트웨어·IT", "인터넷·플랫폼"),
+    (("AI", "소프트웨어·IT", "인터넷·플랫폼"),
      ("인공지능", "ai", "클라우드", "데이터센터", "data center"),
      SectorGrowthProfile(
          "AI 소프트웨어·클라우드", 15.7, None, None,
          "기업용 생성형 AI가 실험 단계에서 유료 워크로드와 추론 인프라 지출로 이동하는 구간",
          ("기업 AI 예산 확정", "신규 클라우드·AI 서비스 상용화"),
          "Gartner direct AI services outlook", "https://www.gartner.com/en/documents/8318253", "2026-09")),
-    (("전력인프라", "신재생에너지", "2차전지"),
+    (("전력인프라", "신재생에너지", "배터리"),
      ("ess", "에너지저장", "전력망", "변압기", "송전", "배전", "데이터센터"),
      SectorGrowthProfile(
          "전력망·에너지저장", 27.0, None, None,

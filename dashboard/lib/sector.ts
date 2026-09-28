@@ -21,6 +21,14 @@ const RULES: Rule[] = (constants.sector_rules ?? []) as Rule[];
 export const UNKNOWN_SECTOR: string = constants.sector_unknown ?? "기타";
 const ETF_THEMES: Record<string, string> =
   (constants.sector_etf_themes ?? {}) as Record<string, string>;
+const SECTOR_ALIASES: Record<string, string> =
+  (constants.sector_aliases ?? {}) as Record<string, string>;
+
+/** 과거 DB·브라우저 저장값을 현재 표준명으로 바꾼다. 직접 입력한 새 이름은 보존한다. */
+export function canonicalSectorName(value: string | null | undefined): string {
+  const normalized = (value ?? "").trim();
+  return SECTOR_ALIASES[normalized] ?? normalized;
+}
 
 /** 규칙별 제외어. 이 말이 있으면 그 규칙은 건너뛴다. */
 const EXCLUDES: Record<string, string[]> =
@@ -203,9 +211,10 @@ export function sectorInfoOf(u: UniverseRow | undefined): SectorInfo {
     const productSector = firstHit(haystack(u.products), false);
     // 저장된 예전 분류가 전자부품이어도 최신 주요제품이 반도체를 명시하면 제품 기준이 이긴다.
     // 전자부품은 반도체와 무관한 제품을 만드는 경우에만 유지한다.
-    const resolvedSector = u.sector === "전자부품" && productSector?.startsWith("반도체")
+    const storedSector = canonicalSectorName(u.sector);
+    const resolvedSector = storedSector === "전자부품" && productSector?.startsWith("반도체")
       ? productSector
-      : u.sector;
+      : storedSector;
     const industrySector = firstHit(haystack(u.industry), true);
     const basis: SectorBasis = productSector === resolvedSector
       ? "주요제품"

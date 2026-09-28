@@ -63,6 +63,14 @@ def test_industry_requires_exact_direct_name():
     )
 
 
+@pytest.mark.parametrize("name", [
+    "AI", "화장품_미용기기", "여행", "양자컴퓨터",
+    "배터리", "우주방산", "음식료", "로봇기계",
+])
+def test_industry_accepts_current_sector_names(name):
+    assert resolve_industry(name, set()) == AnalysisTarget("industry", name)
+
+
 def test_drive_industry_folder_match_ignores_only_order_and_separators():
     assert drive_industry_folder_matches("2차전지", "16. 2차 전지")
     assert drive_industry_folder_matches("미용 의료기기", "4. 미용_의료기기")

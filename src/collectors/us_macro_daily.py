@@ -178,15 +178,15 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
     ai_lead = sox["changePct"] > sp["changePct"] and sox["changePct"] > 0 and not risk_off
     if risk_off:
         mode = "quality_price"
-        sectors = ["전력인프라", "방산·우주", "조선·해운", "반도체 장비", "반도체 소재", "반도체 부품", "반도체 IDM"]
+        sectors = ["전력인프라", "우주방산", "조선·해운", "반도체 장비", "반도체 소재", "반도체 부품", "반도체 IDM"]
         regime = "변동성 확대·위험 회피"
     elif ai_lead:
         mode = "earnings_growth"
-        sectors = ["반도체 장비", "반도체 소재", "반도체 부품", "반도체 DSP", "반도체 OSAT", "반도체 IDM", "전력인프라", "통신·네트워크", "방산·우주"]
+        sectors = ["반도체 장비", "반도체 소재", "반도체 부품", "반도체 DSP", "반도체 OSAT", "반도체 IDM", "AI", "전력인프라", "통신·네트워크", "우주방산"]
         regime = "미국 반도체 상대강세"
     else:
         mode = "balanced"
-        sectors = ["전력인프라", "반도체 장비", "반도체 소재", "반도체 부품", "반도체 IDM", "방산·우주", "조선·해운"]
+        sectors = ["전력인프라", "반도체 장비", "반도체 소재", "반도체 부품", "반도체 IDM", "우주방산", "조선·해운"]
         regime = "혼조·실적 확인"
     korea_mode = "mixed"
     preferred_boards = ["KOSPI", "KOSDAQ"]
@@ -221,9 +221,9 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
     )
     global_sector_tilts: list[str] = []
     if re.search(r"인공지능|\bAI\b|설비투자", global_text, re.I):
-        global_sector_tilts += ["반도체 장비", "반도체 부품", "전력인프라", "통신·네트워크", "기계·로봇"]
+        global_sector_tilts += ["AI", "반도체 장비", "반도체 부품", "전력인프라", "통신·네트워크", "로봇기계"]
     if re.search(r"에너지|공급망|전쟁|분쟁", global_text):
-        global_sector_tilts += ["전력인프라", "방산·우주", "조선·해운"]
+        global_sector_tilts += ["전력인프라", "우주방산", "조선·해운"]
     if re.search(r"민간수요|소비지출", global_text):
         global_sector_tilts += ["자동차", "유통·소비재"]
     global_sector_tilts = list(dict.fromkeys(global_sector_tilts))

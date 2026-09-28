@@ -15,6 +15,7 @@ import constants from "@/lib/constants.json";
 import { GRADE_COLOR, GRADE_MEANING, type Grade } from "@/lib/types";
 import type { MacroContext } from "@/lib/macroContext";
 import { HORIZONS, horizonLabel } from "@/lib/outcome";
+import { ALL_SECTORS, canonicalSectorName } from "@/lib/sector";
 import {
   unpackDiscoveryRow,
   type DiscoveryRow,
@@ -357,10 +358,17 @@ function loadSectorOverrides(): Record<string, string> {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     return Object.fromEntries(Object.entries(parsed).filter(([code, sector]) =>
       /^[0-9A-Z]{6}$/.test(code) && typeof sector === "string" && sector.trim().length > 0 && sector.trim().length <= 40
-    ).map(([code, sector]) => [code, String(sector).trim()]));
+    ).map(([code, sector]) => [code, canonicalSectorName(String(sector))]));
   } catch {
     return {};
   }
+}
+
+function canonicalizeSectorFilters(filters: DiscoveryFilters): DiscoveryFilters {
+  return {
+    ...filters,
+    sectors: [...new Set(filters.sectors.map(canonicalSectorName))],
+  };
 }
 
 export default function DiscoveryTable({
@@ -383,8 +391,6 @@ export default function DiscoveryTable({
   const [favoritesRestored, setFavoritesRestored] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_ROWS);
   const [sectorOverrides, setSectorOverrides] = useState<Record<string, string>>({});
-  const [sectorEditCode, setSectorEditCode] = useState("");
-  const [sectorEditValue, setSectorEditValue] = useState("");
   // ★★ **ref가 아니라 state여야 한다.** ref로 두면 복원 effect가 `true`로 바꾼 값을
   //   같은 커밋의 저장 effect가 곧바로 읽어, 아직 **기본값인** filters를 저장해
   //   방금 복원한 값을 덮어쓴다. 실측: 결과 추적 탭에 갔다 돌아오면 필터가 초기화됐다.
@@ -398,13 +404,13 @@ export default function DiscoveryTable({
   //   덮어쓰면 **링크가 조용히 무시된다** — 누른 사람은 그 섹터를 봤다고 믿는다.
   useEffect(() => {
     const { filters: fromUrl, hadAny } = fromQuery(window.location.search);
-    setFilters(
+    setFilters(canonicalizeSectorFilters(
       hadAny
         ? fromUrl
         : favoriteOnly
           ? { ...DEFAULT_FILTERS, gate: "all" }
           : loadStored() ?? DEFAULT_FILTERS
-    );
+    ));
     setRestored(true);
     setFavorites(loadFavorites());
     setFavoritesRestored(true);
@@ -437,26 +443,25 @@ export default function DiscoveryTable({
     });
   }
 
-  function saveSectorOverride() {
-    const value = sectorEditValue.trim();
-    if (!/^[0-9A-Z]{6}$/.test(sectorEditCode) || !value || value.length > 40) return;
+  function saveSectorOverride(code: string, rawValue: string, originalSector: string) {
+    const value = canonicalSectorName(rawValue);
+    if (!/^[0-9A-Z]{6}$/.test(code) || !value || value.length > 40) return;
     setSectorOverrides((current) => {
-      const next = { ...current, [sectorEditCode]: value };
+      const next = { ...current };
+      if (value === canonicalSectorName(originalSector)) delete next[code];
+      else next[code] = value;
       window.localStorage.setItem(SECTOR_OVERRIDES_KEY, JSON.stringify(next));
       return next;
     });
   }
 
-  function removeSectorOverride() {
-    if (!sectorEditCode) return;
+  function removeSectorOverride(code: string) {
     setSectorOverrides((current) => {
       const next = { ...current };
-      delete next[sectorEditCode];
+      delete next[code];
       window.localStorage.setItem(SECTOR_OVERRIDES_KEY, JSON.stringify(next));
       return next;
     });
-    const original = baseRows.find((row) => row.code === sectorEditCode);
-    setSectorEditValue(original?.sector ?? "");
   }
 
   function patch(next: Partial<DiscoveryFilters>) {
@@ -488,6 +493,10 @@ export default function DiscoveryTable({
       .sort((a, b) => a[0].localeCompare(b[0], "ko"))
       .map(([value, n]) => ({ value, hint: String(n) }));
   }, [rows]);
+  const sectorEditorOptions = useMemo(() => Array.from(new Set([
+    ...ALL_SECTORS,
+    ...rows.map((row) => row.sector),
+  ])).sort((a, b) => a.localeCompare(b, "ko")), [rows]);
 
   const gradeOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -745,29 +754,9 @@ export default function DiscoveryTable({
         {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
       </div>
 
-      <details open className="rounded-xl border border-slate-700 bg-slate-950/55 px-3 py-2">
-        <summary className="cursor-pointer text-sm font-bold text-sky-200">섹터 선택·추가·종목별 수정</summary>
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <label className="text-xs text-slate-300">종목
-            <select value={sectorEditCode} onChange={(event) => {
-              const nextCode = event.target.value;
-              setSectorEditCode(nextCode);
-              const selected = baseRows.find((row) => row.code === nextCode);
-              setSectorEditValue(sectorOverrides[nextCode] ?? selected?.sector ?? "");
-            }} className={`${select} mt-1 block w-56`}>
-              <option value="">수정할 종목 선택</option>
-              {[...baseRows].sort((a, b) => a.name.localeCompare(b.name, "ko")).map((row) => <option key={row.code} value={row.code}>{row.name} · {row.code}</option>)}
-            </select>
-          </label>
-          <label className="text-xs text-slate-300">섹터
-            <input value={sectorEditValue} onChange={(event) => setSectorEditValue(event.target.value)} list="heimdallr-sector-list" maxLength={40} placeholder="기존 섹터 선택 또는 새 섹터 입력" className={`${select} mt-1 block w-64`} />
-            <datalist id="heimdallr-sector-list">{sectorOptions.map((option) => <option key={option.value} value={option.value} />)}</datalist>
-          </label>
-          <button type="button" onClick={saveSectorOverride} disabled={!sectorEditCode || !sectorEditValue.trim()} className="rounded bg-sky-500 px-3 py-1.5 text-sm font-bold text-white disabled:bg-slate-700">저장</button>
-          <button type="button" onClick={removeSectorOverride} disabled={!sectorEditCode || !sectorOverrides[sectorEditCode]} className="rounded border border-slate-600 px-3 py-1.5 text-sm font-bold text-slate-200 disabled:opacity-40">원래 분류 복원</button>
-        </div>
-        <p className="mt-2 text-[11px] leading-5 text-slate-400">새 섹터명도 직접 입력할 수 있으며 이 브라우저에 저장됩니다. 저장 즉시 섹터 필터·정렬·표시에 반영되고, 서버의 공용 분류는 바꾸지 않습니다.</p>
-      </details>
+      <datalist id="heimdallr-sector-list">
+        {sectorEditorOptions.map((sector) => <option key={sector} value={sector} />)}
+      </datalist>
 
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
@@ -848,12 +837,12 @@ export default function DiscoveryTable({
               </th>
             </tr>
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
-                  title="주요 제품을 우선 분류하고, 제품 정보가 없을 때 ETF와 비교 가능한 투자 테마를 사용한다">
-                섹터
+              <th scope="col" className="sticky left-0 z-40 w-[152px] min-w-[152px] max-w-[152px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
+                  title="각 종목의 섹터를 목록에서 선택하거나 직접 입력한다">
+                섹터 <span className="text-[9px] font-normal text-sky-300">직접 수정</span>
               </th>
-              <th scope="col" className="sticky left-[112px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
-              <th scope="col" className="sticky left-[156px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
+              <th scope="col" className="sticky left-[152px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="sticky left-[196px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
               <th scope="col" className="w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2.5 text-center font-semibold">등급</th>
               <th scope="col" className="w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold">분기</th>
               <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
@@ -911,18 +900,51 @@ export default function DiscoveryTable({
           <tbody>
             {shown.map((r) => (
               <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="sticky left-0 z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 text-slate-200 group-hover:bg-slate-900"
+                <td className="sticky left-0 z-10 w-[152px] min-w-[152px] max-w-[152px] whitespace-nowrap bg-slate-950 px-1.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
-                  {r.sector}
-                  {sectorOverrides[r.code] && <sup className="ml-1 text-[9px] font-black text-sky-300" title="이 브라우저에서 수정한 사용자 섹터">편집</sup>}
-                  {r.sectorProcess && (
+                  <div className="flex items-center gap-1">
+                    <input
+                      key={`${r.code}:${r.sector}`}
+                      defaultValue={r.sector}
+                      list="heimdallr-sector-list"
+                      maxLength={40}
+                      aria-label={`${r.name} 섹터 직접 수정`}
+                      title="목록에서 선택하거나 새 섹터명을 직접 입력한 뒤 Enter 또는 바깥을 클릭하세요"
+                      className={`min-w-0 flex-1 rounded border px-1.5 py-1 text-[11px] font-semibold outline-none ${sectorOverrides[r.code] ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                        if (event.key === "Escape") {
+                          event.currentTarget.value = r.sector;
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      onBlur={(event) => {
+                        const original = baseRows.find((row) => row.code === r.code)?.sector ?? r.sector;
+                        const value = event.currentTarget.value.trim();
+                        if (!value) {
+                          removeSectorOverride(r.code);
+                          event.currentTarget.value = original;
+                          return;
+                        }
+                        saveSectorOverride(r.code, value, original);
+                        event.currentTarget.value = canonicalSectorName(value);
+                      }}
+                    />
+                    {sectorOverrides[r.code] && (
+                      <button type="button" onClick={() => removeSectorOverride(r.code)}
+                        className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
+                        aria-label={`${r.name} 원래 섹터 복원`} title="원래 분류 복원">↺</button>
+                    )}
+                  </div>
+                  {r.sectorProcess && r.sector.startsWith("반도체") && (
                     <sup className="ml-1 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
                          title={`${r.sectorProcess}공정`}>
                       {r.sectorProcess}
                     </sup>
                   )}
                 </td>
-                <td className="sticky left-[112px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
+                <td className="sticky left-[152px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(r.code)}
@@ -936,7 +958,7 @@ export default function DiscoveryTable({
                   </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
-                <td className="sticky left-[156px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
+                <td className="sticky left-[196px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
                   <Link
                     href={`/stock/${r.code}`}
                     prefetch={false}

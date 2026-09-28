@@ -1,6 +1,7 @@
 // PRD Ref: §9, §10 — 매일 07:00 KST 갱신하는 미국·글로벌 매크로 스냅샷.
 // 외부 API는 별도 배치가 조회한다. 대시보드 렌더는 네트워크 요청을 하지 않는다(T159).
 import snapshot from "./macro-daily.json";
+import { canonicalSectorName } from "./sector";
 
 function expectedUsSession(now: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -104,8 +105,8 @@ export async function getMacroContext(): Promise<MacroContext> {
     briefingOverdue,
     briefings: [...briefings],
     items: [...context.items],
-    preferredSectors: [...context.preferredSectors],
-    globalSectorTilts: [...(context.globalSectorTilts ?? [])],
+    preferredSectors: [...new Set(context.preferredSectors.map(canonicalSectorName))],
+    globalSectorTilts: [...new Set((context.globalSectorTilts ?? []).map(canonicalSectorName))],
     nextEvents: [...(context.nextEvents ?? [])],
     markets: context.markets ? { ...context.markets } : {},
     fearGreed: context.fearGreed ? { ...context.fearGreed, history: [...context.fearGreed.history] } : null,
