@@ -371,6 +371,100 @@ function canonicalizeSectorFilters(filters: DiscoveryFilters): DiscoveryFilters 
   };
 }
 
+const CUSTOM_SECTOR_VALUE = "__custom_sector__";
+
+function SectorEditor({
+  code,
+  name,
+  sector,
+  originalSector,
+  overridden,
+  options,
+  onSave,
+  onReset,
+}: {
+  code: string;
+  name: string;
+  sector: string;
+  originalSector: string;
+  overridden: boolean;
+  options: string[];
+  onSave: (code: string, value: string, originalSector: string) => void;
+  onReset: (code: string) => void;
+}) {
+  const [editingCustom, setEditingCustom] = useState(false);
+  const [draft, setDraft] = useState(sector);
+
+  useEffect(() => {
+    setDraft(sector);
+  }, [sector]);
+
+  function saveCustom() {
+    const value = draft.trim();
+    if (!value) return;
+    onSave(code, value, originalSector);
+    setEditingCustom(false);
+  }
+
+  if (editingCustom) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          value={draft}
+          maxLength={40}
+          autoFocus
+          aria-label={`${name} 새 섹터명`}
+          className="min-w-0 flex-1 rounded border border-sky-500/70 bg-sky-950/60 px-1.5 py-1 text-[11px] font-semibold text-sky-100 outline-none focus:ring-1 focus:ring-sky-400"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") saveCustom();
+            if (event.key === "Escape") {
+              setDraft(sector);
+              setEditingCustom(false);
+            }
+          }}
+        />
+        <button type="button" onClick={saveCustom} disabled={!draft.trim()}
+          className="rounded bg-sky-500 px-1.5 py-1 text-[10px] font-black text-white disabled:opacity-40"
+          aria-label={`${name} 새 섹터 저장`} title="새 섹터 저장">✓</button>
+        <button type="button" onClick={() => { setDraft(sector); setEditingCustom(false); }}
+          className="rounded px-1 py-1 text-[10px] font-bold text-slate-300 hover:bg-slate-800"
+          aria-label={`${name} 섹터 수정 취소`} title="취소">×</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={sector}
+        aria-label={`${name} 섹터 선택`}
+        title="섹터를 선택하면 즉시 저장됩니다"
+        className={`min-w-0 flex-1 rounded border px-1 py-1 text-[11px] font-semibold outline-none ${overridden ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
+        onChange={(event) => {
+          if (event.target.value === CUSTOM_SECTOR_VALUE) {
+            setDraft("");
+            setEditingCustom(true);
+            return;
+          }
+          onSave(code, event.target.value, originalSector);
+        }}
+      >
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        <option value={CUSTOM_SECTOR_VALUE}>＋ 직접 입력…</option>
+      </select>
+      <button type="button" onClick={() => { setDraft(sector); setEditingCustom(true); }}
+        className="shrink-0 rounded px-1 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
+        aria-label={`${name} 섹터명 직접 수정`} title="섹터명 직접 입력">✎</button>
+      {overridden && (
+        <button type="button" onClick={() => onReset(code)}
+          className="shrink-0 rounded px-1 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
+          aria-label={`${name} 원래 섹터 복원`} title="원래 분류 복원">↺</button>
+      )}
+    </div>
+  );
+}
+
 export default function DiscoveryTable({
   wireRows,
   favoriteOnly = false,
@@ -383,6 +477,10 @@ export default function DiscoveryTable({
   macroContext: MacroContext;
 }) {
   const baseRows = useMemo(() => wireRows.map(unpackDiscoveryRow), [wireRows]);
+  const baseSectorByCode = useMemo(
+    () => new Map(baseRows.map((row) => [row.code, row.sector])),
+    [baseRows]
+  );
   // ★ 첫 렌더는 **반드시 기본값**이어야 한다. sessionStorage를 렌더 중에 읽으면
   //   서버가 그린 HTML과 달라져 하이드레이션이 깨진다(화면이 통째로 다시 그려진다).
   //   복원은 마운트 후 effect에서 한다.
@@ -754,10 +852,6 @@ export default function DiscoveryTable({
         {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
       </div>
 
-      <datalist id="heimdallr-sector-list">
-        {sectorEditorOptions.map((sector) => <option key={sector} value={sector} />)}
-      </datalist>
-
       <p className="text-sm text-slate-100">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
         <span className="text-slate-300">
@@ -822,11 +916,11 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1840px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[1880px] border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
               <th colSpan={3}
-                  className="sticky left-0 z-40 w-[268px] min-w-[268px] max-w-[268px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
+                  className="sticky left-0 z-40 w-[336px] min-w-[336px] max-w-[336px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
                 종목 정보
               </th>
               <th colSpan={2} className="bg-slate-900 px-2 py-1.5 text-center">판정</th>
@@ -837,12 +931,12 @@ export default function DiscoveryTable({
               </th>
             </tr>
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-[152px] min-w-[152px] max-w-[152px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
-                  title="각 종목의 섹터를 목록에서 선택하거나 직접 입력한다">
-                섹터 <span className="text-[9px] font-normal text-sky-300">직접 수정</span>
+              <th scope="col" className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
+                  title="각 종목의 섹터를 선택하거나 새 섹터명을 직접 입력한다">
+                섹터 <span className="text-[9px] font-normal text-sky-300">선택 · 수정</span>
               </th>
-              <th scope="col" className="sticky left-[152px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
-              <th scope="col" className="sticky left-[196px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
+              <th scope="col" className="sticky left-[180px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="sticky left-[224px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
               <th scope="col" className="w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2.5 text-center font-semibold">등급</th>
               <th scope="col" className="w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold">분기</th>
               <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
@@ -900,43 +994,18 @@ export default function DiscoveryTable({
           <tbody>
             {shown.map((r) => (
               <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="sticky left-0 z-10 w-[152px] min-w-[152px] max-w-[152px] whitespace-nowrap bg-slate-950 px-1.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
+                <td className="sticky left-0 z-10 w-[180px] min-w-[180px] max-w-[180px] whitespace-nowrap bg-slate-950 px-1.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
-                  <div className="flex items-center gap-1">
-                    <input
-                      key={`${r.code}:${r.sector}`}
-                      defaultValue={r.sector}
-                      list="heimdallr-sector-list"
-                      maxLength={40}
-                      aria-label={`${r.name} 섹터 직접 수정`}
-                      title="목록에서 선택하거나 새 섹터명을 직접 입력한 뒤 Enter 또는 바깥을 클릭하세요"
-                      className={`min-w-0 flex-1 rounded border px-1.5 py-1 text-[11px] font-semibold outline-none ${sectorOverrides[r.code] ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
-                      onFocus={(event) => event.currentTarget.select()}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") event.currentTarget.blur();
-                        if (event.key === "Escape") {
-                          event.currentTarget.value = r.sector;
-                          event.currentTarget.blur();
-                        }
-                      }}
-                      onBlur={(event) => {
-                        const original = baseRows.find((row) => row.code === r.code)?.sector ?? r.sector;
-                        const value = event.currentTarget.value.trim();
-                        if (!value) {
-                          removeSectorOverride(r.code);
-                          event.currentTarget.value = original;
-                          return;
-                        }
-                        saveSectorOverride(r.code, value, original);
-                        event.currentTarget.value = canonicalSectorName(value);
-                      }}
-                    />
-                    {sectorOverrides[r.code] && (
-                      <button type="button" onClick={() => removeSectorOverride(r.code)}
-                        className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
-                        aria-label={`${r.name} 원래 섹터 복원`} title="원래 분류 복원">↺</button>
-                    )}
-                  </div>
+                  <SectorEditor
+                    code={r.code}
+                    name={r.name}
+                    sector={r.sector}
+                    originalSector={baseSectorByCode.get(r.code) ?? r.sector}
+                    overridden={Boolean(sectorOverrides[r.code])}
+                    options={sectorEditorOptions}
+                    onSave={saveSectorOverride}
+                    onReset={removeSectorOverride}
+                  />
                   {r.sectorProcess && r.sector.startsWith("반도체") && (
                     <sup className="ml-1 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
                          title={`${r.sectorProcess}공정`}>
@@ -944,7 +1013,7 @@ export default function DiscoveryTable({
                     </sup>
                   )}
                 </td>
-                <td className="sticky left-[152px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
+                <td className="sticky left-[180px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(r.code)}
@@ -958,7 +1027,7 @@ export default function DiscoveryTable({
                   </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
-                <td className="sticky left-[196px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
+                <td className="sticky left-[224px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
                   <Link
                     href={`/stock/${r.code}`}
                     prefetch={false}

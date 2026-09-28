@@ -257,10 +257,10 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "등급 → 최신 분기" in snapshot
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
-    for offset in ('left-0', 'left-[152px]', 'left-[196px]'):
+    for offset in ('left-0', 'left-[180px]', 'left-[224px]'):
         assert offset in DISCOVERY
     assert 'sticky left-[268px]' not in DISCOVERY and 'sticky left-[316px]' not in DISCOVERY
-    assert "w-[268px]" in DISCOVERY and "종목 정보" in DISCOVERY
+    assert "w-[336px]" in DISCOVERY and "종목 정보" in DISCOVERY
     assert "sectorProcess: sectorInfo.process" in page
     assert '<sup className="ml-1' in DISCOVERY
     assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
@@ -283,7 +283,7 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert "오늘의 시장 온도" in DISCOVERY and "앞으로 볼 변수" in DISCOVERY
     assert "공식 발표 핵심 요약" in DISCOVERY and "매크로 적합 섹터 TOP" in DISCOVERY
     assert DISCOVERY.count("추천 정렬") == 1
-    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1840px]')
+    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1880px]')
     assert 'text-[#f7c948]' in DISCOVERY and "text-2xl font-black" in DISCOVERY
     assert "macroContext.summary.current" in DISCOVERY
     assert "macroContext.summary.forward" in DISCOVERY
@@ -321,8 +321,9 @@ def test_sector_filter_and_browser_overrides_are_visible_and_persistent():
     assert '<MultiSelect label="섹터"' in DISCOVERY
     assert "섹터 선택·추가·종목별 수정" not in DISCOVERY
     assert "SECTOR_OVERRIDES_KEY" in DISCOVERY and "window.localStorage.setItem" in DISCOVERY
-    assert 'list="heimdallr-sector-list"' in DISCOVERY
-    assert "섹터 직접 수정" in DISCOVERY and "원래 섹터 복원" in DISCOVERY
+    assert "<SectorEditor" in DISCOVERY and "CUSTOM_SECTOR_VALUE" in DISCOVERY
+    assert "＋ 직접 입력…" in DISCOVERY and "새 섹터 저장" in DISCOVERY
+    assert "섹터 선택" in DISCOVERY and "원래 섹터 복원" in DISCOVERY
     assert "canonicalSectorName" in DISCOVERY and "canonicalizeSectorFilters" in DISCOVERY
 
 
