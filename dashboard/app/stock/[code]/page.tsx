@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
-import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -491,29 +491,51 @@ export default async function StockPage({ params }: { params: { code: string } }
     item.disclosedAt <= contractBasis.toISOString().slice(0, 10)
   );
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
+  const latestPeriodicReportDate = disclosures
+    .filter((row) => row.doc_type === "periodic" && row.disclosed_at)
+    .map((row) => String(row.disclosed_at).slice(0, 10))
+    .sort()
+    .at(-1) ?? null;
+  const postReportContracts = latestPeriodicReportDate
+    ? orderContracts.filter((item) => item.disclosedAt != null && item.disclosedAt > latestPeriodicReportDate)
+    : [];
+  const postReportAmountEok = postReportContracts.reduce(
+    (sum, item) => sum + (item.status === "terminated" ? 0 : item.amountEok ?? 0), 0
+  );
   const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
-  const disclosedContractByQuarter = new Map<string, number>();
+  const disclosedContractByQuarter = new Map<string, { throughReportEok: number; postReportEok: number }>();
   for (const item of orderContracts) {
     // 해지금액을 신규 계약액으로 더하면 수주가 과대 표시된다.
     if (!item.disclosedAt || item.amountEok == null || item.status === "terminated") continue;
     const [contractYear, contractMonth] = item.disclosedAt.split("-").map(Number);
     const key = `${contractYear}-${Math.ceil(contractMonth / 3)}`;
-    disclosedContractByQuarter.set(key, (disclosedContractByQuarter.get(key) ?? 0) + item.amountEok);
+    const values = disclosedContractByQuarter.get(key) ?? { throughReportEok: 0, postReportEok: 0 };
+    if (latestPeriodicReportDate && item.disclosedAt > latestPeriodicReportDate) values.postReportEok += item.amountEok;
+    else values.throughReportEok += item.amountEok;
+    disclosedContractByQuarter.set(key, values);
   }
   const actualChartPoints = toChartPoints(funds, CHART_QUARTERS).map((point, index) => {
     const source = funds.slice(-CHART_QUARTERS)[index];
     const metric = source && orderByQuarter.get(`${source.fiscal_year}-${source.fiscal_quarter}`);
-    const contractAmount = source && disclosedContractByQuarter.get(`${source.fiscal_year}-${source.fiscal_quarter}`);
     return {
       ...point,
       orderBacklog: metric?.backlogEok ?? null,
       newOrders: metric?.newOrdersEok ?? null,
-      disclosedContractEok: contractAmount ?? null,
       orderScope: metric?.scope,
     };
   });
-  const chartPoints = appendNextQuarterConsensus(actualChartPoints, nextConsensus, funds, CHART_QUARTERS);
+  const chartPoints = attachContractDisclosures(
+    appendNextQuarterConsensus(actualChartPoints, nextConsensus, funds, CHART_QUARTERS),
+    [...disclosedContractByQuarter.entries()].map(([key, values]) => {
+      const [contractYear, contractQuarter] = key.split("-").map(Number);
+      return {
+        year: contractYear, quarter: contractQuarter,
+        throughReportEok: values.throughReportEok || null,
+        postReportEok: values.postReportEok || null,
+      };
+    }),
+  );
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
   const dailyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
@@ -955,6 +977,20 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
       <Card title="수주잔고·신규수주" note="OpenDART 정기보고서와 단일판매·공급계약을 교차 확인">
+        <div className="mb-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded border border-slate-700 bg-slate-950/40 p-3 text-xs">
+            <span className="text-slate-400">최근 정기보고서</span>
+            <strong className="mt-1 block text-sm text-white">{latestPeriodicReportDate ?? "공시일 미확인"}</strong>
+          </div>
+          <div className="rounded border border-orange-700/60 bg-orange-950/20 p-3 text-xs">
+            <span className="text-orange-200">보고서 이후 공개 계약</span>
+            <strong className="mt-1 block text-sm text-orange-100">{postReportContracts.length}건</strong>
+          </div>
+          <div className="rounded border border-orange-700/60 bg-orange-950/20 p-3 text-xs">
+            <span className="text-orange-200">보고서 이후 공시액 합계</span>
+            <strong className="mt-1 block text-sm text-orange-100">{postReportContracts.some((item) => item.amountEok != null && item.status !== "terminated") ? `${num(postReportAmountEok, 1)}억원` : DASH}</strong>
+          </div>
+        </div>
         {orderSummaries.length > 0 ? <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="text-left text-xs text-slate-300"><tr className="border-b border-slate-700">
@@ -980,7 +1016,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약/해지금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
             <tbody>{orderContracts.map((item) => <tr key={item.rceptNo} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-slate-300">{item.disclosedAt ?? disclosureDateByReceipt.get(item.rceptNo) ?? DASH}</td>
-              <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}{item.status === "terminated" && <span className="ml-2 rounded border border-rose-700 px-1 text-[10px] text-rose-200">계약 해지</span>}</td>
+              <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{latestPeriodicReportDate && item.disclosedAt && item.disclosedAt > latestPeriodicReportDate && <span className="ml-2 rounded border border-orange-600 px-1 text-[10px] text-orange-200">최근 보고서 이후</span>}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}{item.status === "terminated" && <span className="ml-2 rounded border border-rose-700 px-1 text-[10px] text-rose-200">계약 해지</span>}</td>
               <td className="py-2 text-right tabular-nums text-emerald-200">{item.amountEok == null ? DASH : `${num(item.amountEok, 1)}억원`}</td>
               <td className="py-2 text-right tabular-nums">{item.salesRatioPct == null ? DASH : `${num(item.salesRatioPct, 1)}%`}</td>
               <td className="py-2 px-3">{item.counterparty ?? DASH}</td>

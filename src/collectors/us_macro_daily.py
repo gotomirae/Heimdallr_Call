@@ -1,4 +1,4 @@
-# PRD Ref: §9, §10 — 미국 장 마감 후 07:00 KST 매크로 스냅샷
+# PRD Ref: §9, §10 — 미국 07:00·한국 16:00 완료 거래일 매크로 스냅샷
 """대시보드 렌더와 분리된 매크로 수집기. 네트워크 실패 시 이전 스냅샷을 보존한다."""
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from src.config.constants import (
+    KOREA_MARKET_COMPLETED_HOUR_KST,
     US_MACRO_EQUITY_DAILY_DROP_PCT,
     US_MACRO_MARKET_CLOSE_GRACE_MINUTES,
     US_MACRO_MAX_STALE_CALENDAR_DAYS,
@@ -47,7 +48,7 @@ def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW
     quotes = ((chart.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
     local_now = now.astimezone(market_tz)
     close_time = (
-        time(15, 40) if market_tz.key == SEOUL.key
+        time(KOREA_MARKET_COMPLETED_HOUR_KST, 0) if market_tz.key == SEOUL.key
         else time(16, US_MACRO_MARKET_CLOSE_GRACE_MINUTES)
     )
     completed_through = local_now.date() if local_now.time() >= close_time else local_now.date() - timedelta(days=1)
@@ -302,7 +303,7 @@ def collect(now: datetime | None = None) -> dict:
 
 
 def should_write_snapshot(previous: dict, context: dict, *, force: bool = False) -> bool:
-    """같은 거래일 사전 예열본도 07시 이후 첫 확인 시점에는 다시 기록한다."""
+    """미국 07시 확인 또는 한국 16시 확정 거래일이 바뀌면 다시 기록한다."""
     previous_at = previous.get("checkedAt", "")
     current_at = context["checkedAt"]
     prewarm_needs_seven_oclock = (
@@ -311,8 +312,8 @@ def should_write_snapshot(previous: dict, context: dict, *, force: bool = False)
     )
     return bool(
         force or prewarm_needs_seven_oclock
-        or (previous_at[:10], previous.get("marketDate"))
-        != (current_at[:10], context["marketDate"])
+        or (previous_at[:10], previous.get("marketDate"), previous.get("koreaMarketDate"))
+        != (current_at[:10], context["marketDate"], context.get("koreaMarketDate"))
     )
 
 

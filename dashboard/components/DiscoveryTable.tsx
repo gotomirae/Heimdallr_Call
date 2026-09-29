@@ -916,11 +916,11 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1880px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[1856px] border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
               <th colSpan={3}
-                  className="sticky left-0 z-40 w-[336px] min-w-[336px] max-w-[336px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
+                  className="sticky left-0 z-40 w-[312px] min-w-[312px] max-w-[312px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
                 종목 정보
               </th>
               <th colSpan={2} className="bg-slate-900 px-2 py-1.5 text-center">판정</th>
@@ -931,12 +931,12 @@ export default function DiscoveryTable({
               </th>
             </tr>
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-slate-950 px-2 py-2.5 text-left font-semibold"
+              <th scope="col" className="sticky left-0 z-40 w-[156px] min-w-[156px] max-w-[156px] bg-slate-950 px-1 py-2.5 text-left font-semibold"
                   title="각 종목의 섹터를 선택하거나 새 섹터명을 직접 입력한다">
                 섹터 <span className="text-[9px] font-normal text-sky-300">선택 · 수정</span>
               </th>
-              <th scope="col" className="sticky left-[180px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
-              <th scope="col" className="sticky left-[224px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
+              <th scope="col" className="sticky left-[156px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="sticky left-[200px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
               <th scope="col" className="w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2.5 text-center font-semibold">등급</th>
               <th scope="col" className="w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold">분기</th>
               <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
@@ -994,7 +994,7 @@ export default function DiscoveryTable({
           <tbody>
             {shown.map((r) => (
               <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="sticky left-0 z-10 w-[180px] min-w-[180px] max-w-[180px] whitespace-nowrap bg-slate-950 px-1.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
+                <td className="sticky left-0 z-10 w-[156px] min-w-[156px] max-w-[156px] whitespace-nowrap bg-slate-950 px-1 py-1.5 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   <SectorEditor
                     code={r.code}
@@ -1013,7 +1013,7 @@ export default function DiscoveryTable({
                     </sup>
                   )}
                 </td>
-                <td className="sticky left-[180px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
+                <td className="sticky left-[156px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(r.code)}
@@ -1027,7 +1027,7 @@ export default function DiscoveryTable({
                   </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
-                <td className="sticky left-[224px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
+                <td className="sticky left-[200px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
                   <Link
                     href={`/stock/${r.code}`}
                     prefetch={false}

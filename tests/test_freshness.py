@@ -201,6 +201,22 @@ def test_all_universe_excerpt_scope_includes_gate_failures(monkeypatch):
     assert excerpt_run.targets(10, None, all_universe=True) == [filing]
 
 
+def test_order_history_backfill_round_robins_period_depth(monkeypatch):
+    rows = [
+        {"code": code, "fiscal_year": 2026, "fiscal_quarter": quarter,
+         "rcept_no": f"2026{quarter}{code}", "report_nm": "분기보고서", "disclosed_at": f"2026-0{quarter + 3}-15"}
+        for code in ("000001", "000002") for quarter in (1, 2)
+    ]
+    latest_done = {"rcept_no": "20262000001", "sections": {"공시 수주지표 확인": "정기보고서 수주지표 파서 v2 완료"}}
+    tables = {"earnings_disclosures": rows, "disclosure_excerpts": [latest_done], "screen_results": []}
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {"000001": 90, "000002": 80})
+    found = excerpt_run.targets(10, None, all_universe=True, history_quarters=2)
+    assert [(row["code"], row["fiscal_quarter"]) for row in found] == [
+        ("000002", 2), ("000001", 1), ("000002", 1),
+    ]
+
+
 def test_analysis_refreshes_changed_facts_once(monkeypatch):
     q = {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2, "revenue": 100, "is_estimate": False}
     a = {**q, "payload": {"_heimdallr": {"analysis_stage": "final", "facts_hash": facts_hash([q], None)}}}

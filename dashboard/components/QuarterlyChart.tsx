@@ -59,9 +59,10 @@ function Explanation({ items }: { items: MetricMeaning[] }) {
 
 /** 마지막 확정점부터 다음 분기 예상점까지의 구간만 점선으로 그린다. */
 function chartSeries(points: ChartPoint[]) {
-  const forecastIndex = points.findIndex((point) => point.isCurrentQuarter && point.isEstimate);
+  const chartable = points.filter((point) => !point.isContractEvent);
+  const forecastIndex = chartable.findIndex((point) => point.isCurrentQuarter && point.isEstimate);
   const priorIndex = forecastIndex > 0 ? forecastIndex - 1 : -1;
-  return points.map((point, index) => {
+  return chartable.map((point, index) => {
     const forecast = index === forecastIndex;
     const connector = forecast || index === priorIndex;
     return {
@@ -119,14 +120,16 @@ function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: M
 }
 
 function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
-  const data = chartSeries(points);
-  const revenueMeasured = points.filter((point) => !point.isCurrentQuarter && point.revenueYoy != null).length;
-  const opMeasured = points.filter((point) => !point.isCurrentQuarter && point.opYoy != null).length;
+  const growthPoints = points.filter((point) => !point.isContractEvent);
+  const data = chartSeries(growthPoints);
+  const revenueMeasured = growthPoints.filter((point) => !point.isCurrentQuarter && point.revenueYoy != null).length;
+  const opMeasured = growthPoints.filter((point) => !point.isCurrentQuarter && point.opYoy != null).length;
+  const reportedCount = growthPoints.filter((point) => !point.isCurrentQuarter).length;
   const measured = revenueMeasured + opMeasured;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
       <strong className="text-lg font-black text-white">매출액 YoY / 영업이익 YoY</strong>
-      <span className="text-slate-400">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{points.filter((point) => !point.isCurrentQuarter).length} · 영업이익 {opMeasured}/{points.filter((point) => !point.isCurrentQuarter).length}</span>
+      <span className="text-slate-400">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{reportedCount} · 영업이익 {opMeasured}/{reportedCount}</span>
     </div>
     {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
@@ -144,10 +147,10 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
     </LineChart></ResponsiveContainer></div>}
     <div className="mt-2 overflow-x-auto">
       <table className="w-full min-w-[760px] text-center text-[10px] text-slate-300">
-        <thead><tr><th className="py-1 text-left">원값</th>{points.map((point) => <th key={point.label}>{point.label}</th>)}</tr></thead>
+        <thead><tr><th className="py-1 text-left">원값</th>{growthPoints.map((point) => <th key={point.label}>{point.label}</th>)}</tr></thead>
         <tbody>
-          <tr className="border-t border-slate-800"><th className="py-1 text-left text-emerald-300">매출 YoY</th>{points.map((point) => <td key={point.label}>{fmt(point.revenueYoy, "%")}</td>)}</tr>
-          <tr className="border-t border-slate-800"><th className="py-1 text-left text-amber-300">영업익 YoY</th>{points.map((point) => <td key={point.label}>{point.opYoy == null && point.opStatusLabel ? point.opStatusLabel : fmt(point.opYoy, "%")}</td>)}</tr>
+          <tr className="border-t border-slate-800"><th className="py-1 text-left text-emerald-300">매출 YoY</th>{growthPoints.map((point) => <td key={point.label}>{fmt(point.revenueYoy, "%")}</td>)}</tr>
+          <tr className="border-t border-slate-800"><th className="py-1 text-left text-amber-300">영업익 YoY</th>{growthPoints.map((point) => <td key={point.label}>{point.opYoy == null && point.opStatusLabel ? point.opStatusLabel : fmt(point.opYoy, "%")}</td>)}</tr>
         </tbody>
       </table>
     </div>
@@ -157,16 +160,17 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
 }
 
 function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
-  const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null);
+  const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null || p.postReportContractEok != null);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주</strong><span className="text-xs text-slate-400">억원</span></div>
     {!measured ? <div className="flex h-40 items-center justify-center text-xs text-slate-400">공개 자료의 구조화 수치 미수집</div> : <div className="h-40"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><YAxis width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar dataKey="newOrders" name="신규수주" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar dataKey="disclosedContractEok" name="단일판매·공급계약 공시액(일부)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar dataKey="disclosedContractEok" name="최근 보고서일까지 수시공시액(일부)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar dataKey="postReportContractEok" name="최근 보고서 이후 수시공시액(일부)" fill="#fb923c" isAnimationActive={false}><LabelList dataKey="postReportContractEok" position="top" fill="#fed7aa" fontSize={9} formatter={valueLabel("억")} /></Bar>
     </ComposedChart></ResponsiveContainer></div>}
-    <p className="mt-1 text-[10px] leading-4 text-slate-400">청록 막대는 해당 분기 수시공시 합계로, 회사 전체 신규수주가 아니라 공개된 계약의 하한 참고치다.</p>
+    <p className="mt-1 text-[10px] leading-4 text-slate-400">청록 막대는 최근 정기보고서 발표일까지, 주황 막대는 그 이후의 수시공시 계약 합계다. 둘 다 회사 전체 신규수주가 아니라 공개된 계약의 하한 참고치다.</p>
     <Explanation items={[meaning]} />
   </div>;
 }

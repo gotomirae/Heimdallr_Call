@@ -148,6 +148,12 @@ US_MACRO_VIX_RISK_OFF = 25.0
 US_MACRO_EQUITY_DAILY_DROP_PCT = -1.0
 US_MACRO_MARKET_CLOSE_GRACE_MINUTES = 30
 US_MACRO_MAX_STALE_CALENDAR_DAYS = 5
+# 한국 종가는 정규장 종료 뒤 공급자 지연까지 감안해 16:00 KST부터만 완료로 인정한다.
+KOREA_MARKET_COMPLETED_HOUR_KST = 16
+
+# §9.1 — 분기 수주 그래프를 위해 보존할 정기보고서 깊이와 일일 DART 목록 탐색량.
+ORDER_HISTORY_QUARTERS = 10
+ORDER_HISTORY_DISCOVERY_CODES_PER_RUN = 20
 
 # ═══ 정규화 분모 (PRD §4.2 — 이 프로젝트에서 가장 중요한 계산 규칙) ═══
 # 측정 불가능한 축은 0점 처리하지 않고 분모에서 제외한다.

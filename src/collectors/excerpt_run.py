@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import time
 
+from src.config.constants import ORDER_HISTORY_QUARTERS
 from src.collectors.dart_excerpt import (
     ORDER_METRIC_MARKER,
     ExcerptError,
@@ -49,8 +50,9 @@ def targets(
     *,
     refresh_orders: bool = False,
     all_universe: bool = False,
+    history_quarters: int = 1,
 ) -> list[dict]:
-    """받을 공시 목록. 게이트 통과 종목 · 최신 정기보고서 우선."""
+    """받을 공시 목록. 깊이별로 돌며 종목당 최근 N개 정기보고서를 채운다."""
     disclosures = [
         d for d in select_all(
             "earnings_disclosures",
@@ -58,8 +60,7 @@ def targets(
         )
         if is_periodic(d.get("report_nm"))
     ]
-    # 먼저 최신 보고서를 고른 뒤 접수번호로 완료 여부를 검사한다.
-    # 종목·분기만으로 막으면 정정공시를 영구히 놓친다.
+    # 완료 표식은 접수번호별로 본다. 같은 분기의 정정공시는 새 접수번호라 다시 받는다.
     have = {
         r["rcept_no"]
         for r in select_all(
@@ -80,12 +81,26 @@ def targets(
         }
         disclosures = [d for d in disclosures if d["code"] in passed]
 
-    # 종목당 **가장 최근 것 하나**만. 같은 종목의 옛 보고서를 받아 봐야 쓰이지 않는다.
-    newest: dict[str, dict] = {}
+    # 종목·분기별 최신 정정본만 남긴다. 동일 분기의 구 접수본을 다시 받아 그래프에서
+    # 두 점으로 보이는 것을 막되, 정정 접수번호 자체는 놓치지 않는다.
+    newest_period: dict[tuple[str, int, int], dict] = {}
     for d in disclosures:
-        prev = newest.get(d["code"])
-        if prev is None or (d.get("fiscal_year") or 0, d.get("fiscal_quarter") or 0, d["rcept_no"]) > (prev.get("fiscal_year") or 0, prev.get("fiscal_quarter") or 0, prev["rcept_no"]):
-            newest[d["code"]] = d
+        key = (d["code"], d.get("fiscal_year") or 0, d.get("fiscal_quarter") or 0)
+        prev = newest_period.get(key)
+        if prev is None or d["rcept_no"] > prev["rcept_no"]:
+            newest_period[key] = d
+
+    by_code: dict[str, list[dict]] = {}
+    for d in newest_period.values():
+        by_code.setdefault(d["code"], []).append(d)
+    candidates: list[tuple[int, dict]] = []
+    for filings in by_code.values():
+        ordered_filings = sorted(
+            filings,
+            key=lambda row: (row.get("fiscal_year") or 0, row.get("fiscal_quarter") or 0, row["rcept_no"]),
+            reverse=True,
+        )[:max(1, history_quarters)]
+        candidates.extend((depth, row) for depth, row in enumerate(ordered_filings))
 
     # ★★ **분석과 같은 순서로 받는다**(매력도 순).
     #   실측(2026-08-23): 공시일 순으로 받았더니 매력도 상위 80종목 중 **40종목만**
@@ -93,11 +108,16 @@ def targets(
     #   수집이 중간에 끊겨도(시간 예산) **중요한 종목이 먼저** 채워져야 한다.
     rank = attractiveness_rank()
     ordered = sorted(
-        [d for d in newest.values() if refresh_orders or d["rcept_no"] not in have],
-        # 매력도가 없는 종목(스크린 행 없음)은 뒤로. 그 안에서는 최신 공시 순.
-        key=lambda d: (-(rank.get(d["code"], float("-inf"))), d.get("disclosed_at") or ""),
+        ((depth, d) for depth, d in candidates if refresh_orders or d["rcept_no"] not in have),
+        # 전 종목의 최신 미수집분을 먼저 채운 뒤 직전 분기로 내려간다. 한 종목 10개를
+        # 몰아서 받으면 상위 몇 종목만 그래프가 생기는 편향이 발생한다.
+        key=lambda item: (
+            item[0],
+            -(rank.get(item[1]["code"], float("-inf"))),
+            str(item[1].get("disclosed_at") or ""),
+        ),
     )
-    return ordered[:limit]
+    return [row for _depth, row in ordered[:limit]]
 
 
 def attractiveness_rank() -> dict[str, float]:
@@ -127,6 +147,8 @@ def main() -> int:
         action="store_true",
         help="전 유니버스 최신 정기보고서를 점진 수집(수주 대시보드 전용 예약 작업)",
     )
+    parser.add_argument("--history-quarters", type=int,
+                        help="종목당 최근 정기보고서 수(기본: 전 종목 수주 작업은 설정값, 그 외 1)")
     # ★ 건수가 아니라 **시간**으로 끊는다. 원문 크기가 종목마다 3~6MB로 달라
     #   건수만으로는 워크플로가 얼마나 걸릴지 예측할 수 없다.
     parser.add_argument("--max-seconds", type=float, default=0,
@@ -141,6 +163,7 @@ def main() -> int:
         codes,
         refresh_orders=args.refresh_orders,
         all_universe=args.all_universe,
+        history_quarters=args.history_quarters or (ORDER_HISTORY_QUARTERS if args.all_universe else 1),
     )
     print(f"발췌 대상 {len(rows)}건 (이미 받은 건은 제외했다)")
     if not rows:

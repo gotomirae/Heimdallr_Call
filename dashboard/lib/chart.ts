@@ -8,6 +8,8 @@ import type { ConsensusRow, FundamentalRow } from "./types";
 
 export interface ChartPoint {
   label: string;
+  fiscalYear: number;
+  fiscalQuarter: number;
   revenue: number | null;
   op: number | null;
   /** ★ 이 화면의 주인공. 매출 성장률(YoY, %). */
@@ -23,6 +25,8 @@ export interface ChartPoint {
   newOrders: number | null;
   /** 해당 분기에 공시된 단일판매·공급계약 합계. 전체 신규수주가 아닌 하한 참고치. */
   disclosedContractEok: number | null;
+  /** 최신 정기보고서 공시일 뒤 발생한 공개 계약. 보고서 신규수주와 섞지 않는다. */
+  postReportContractEok: number | null;
   /** 공시 합계의 범위. 주요계약은 전체 회사 수주잔고가 아니다. */
   orderScope?: string;
   /** 부호 전환 구간 라벨('흑전'·'적전'…). %가 없을 때 대신 보여준다. */
@@ -31,6 +35,8 @@ export interface ChartPoint {
   isEstimate: boolean;
   /** 아직 실적이 발표되지 않은 진행 중 분기. */
   isCurrentQuarter: boolean;
+  /** 재무·컨센서스가 없고 수시공시 계약만 있는 분기점. */
+  isContractEvent?: boolean;
 }
 
 /** 상세화면 차트·히스토리의 기본 분기 수. 사용자 요청으로 정확히 10개를 고정한다. */
@@ -72,6 +78,8 @@ export function toChartPoints(
 ): ChartPoint[] {
   const points: ChartPoint[] = rows.slice(-count).map((r) => ({
     label: qLabel(r.fiscal_year, r.fiscal_quarter),
+    fiscalYear: r.fiscal_year,
+    fiscalQuarter: r.fiscal_quarter,
     // 억원 단위로 그린다. 원 단위 그대로면 축 라벨이 읽히지 않는다.
     revenue: r.revenue == null ? null : r.revenue / 1e8,
     op: r.op == null ? null : r.op / 1e8,
@@ -83,6 +91,7 @@ export function toChartPoints(
     orderBacklog: null,
     newOrders: null,
     disclosedContractEok: null,
+    postReportContractEok: null,
     opStatusLabel: r.op_status_label,
     ttmRevenue: r.ttm_revenue == null ? null : r.ttm_revenue / 1e8,
     isEstimate: Boolean(r.is_estimate),
@@ -120,6 +129,8 @@ export function appendNextQuarterConsensus(
   const op = consensus.op_est;
   const row: ChartPoint = {
     label: `${qLabel(consensus.fiscal_year, consensus.fiscal_quarter)}(E)`,
+    fiscalYear: consensus.fiscal_year,
+    fiscalQuarter: consensus.fiscal_quarter,
     revenue: revenue == null ? null : revenue / 1e8,
     op: op == null ? null : op / 1e8,
     revenueYoy: growth(revenue, yearAgo?.revenue ?? null),
@@ -129,12 +140,63 @@ export function appendNextQuarterConsensus(
     orderBacklog: null,
     newOrders: null,
     disclosedContractEok: null,
+    postReportContractEok: null,
     opStatusLabel: opTransition(op, yearAgo?.op ?? null),
     ttmRevenue: null,
     isEstimate: true,
     isCurrentQuarter: true,
   };
   return [...points, row].slice(-count);
+}
+
+export interface ContractDisclosureQuarter {
+  year: number;
+  quarter: number;
+  throughReportEok: number | null;
+  postReportEok: number | null;
+}
+
+/**
+ * 수시공시는 최근 실적 분기 뒤에도 나온다. 재무 분기에만 금액을 붙이면 최신 계약이
+ * 다음 정기보고서 전까지 그래프에서 조용히 사라지므로 계약 전용 분기점을 허용한다.
+ */
+export function attachContractDisclosures(
+  points: ChartPoint[],
+  contracts: ContractDisclosureQuarter[],
+): ChartPoint[] {
+  const byQuarter = new Map(contracts.map((row) => [`${row.year}-${row.quarter}`, row]));
+  const found = new Set<string>();
+  const merged = points.map((point) => {
+    const key = `${point.fiscalYear}-${point.fiscalQuarter}`;
+    const contract = byQuarter.get(key);
+    if (!contract) return point;
+    found.add(key);
+    return {
+      ...point,
+      disclosedContractEok: contract.throughReportEok,
+      postReportContractEok: contract.postReportEok,
+    };
+  });
+  for (const contract of contracts) {
+    const key = `${contract.year}-${contract.quarter}`;
+    if (found.has(key)) continue;
+    merged.push({
+      label: `${qLabel(contract.year, contract.quarter)}(계약)`,
+      fiscalYear: contract.year,
+      fiscalQuarter: contract.quarter,
+      revenue: null, op: null, revenueYoy: null, opYoy: null, opm: null, gpm: null,
+      orderBacklog: null, newOrders: null,
+      disclosedContractEok: contract.throughReportEok,
+      postReportContractEok: contract.postReportEok,
+      opStatusLabel: null, ttmRevenue: null, isEstimate: false,
+      isCurrentQuarter: true, isContractEvent: true,
+    });
+  }
+  return merged.sort((left, right) =>
+    (left.fiscalYear - right.fiscalYear) ||
+    (left.fiscalQuarter - right.fiscalQuarter) ||
+    Number(Boolean(left.isContractEvent)) - Number(Boolean(right.isContractEvent))
+  );
 }
 
 /**

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from src.collectors.us_macro_daily import MACRO_EVENTS, build_context, parse_fear_greed, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
 
@@ -15,6 +16,26 @@ def test_premarket_vix_cannot_mix_with_previous_completed_us_session():
     result = parse_yahoo_chart(payload, now=now)
     assert result["date"] == "2026-09-15"
     assert result["changePct"] == -2.0
+
+
+def test_korea_market_accepts_today_only_from_1600_kst():
+    seoul = ZoneInfo("Asia/Seoul")
+    payload = {"chart": {"result": [{
+        "timestamp": [
+            int(datetime(2026, 9, 25, 9, tzinfo=seoul).timestamp()),
+            int(datetime(2026, 9, 28, 9, tzinfo=seoul).timestamp()),
+            int(datetime(2026, 9, 29, 9, tzinfo=seoul).timestamp()),
+        ],
+        "indicators": {"quote": [{"close": [3380, 3400, 3434]}]},
+    }]}}
+    before = parse_yahoo_chart(
+        payload, now=datetime(2026, 9, 29, 15, 59, tzinfo=seoul), market_tz=seoul
+    )
+    after = parse_yahoo_chart(
+        payload, now=datetime(2026, 9, 29, 16, 0, tzinfo=seoul), market_tz=seoul
+    )
+    assert before["date"] == "2026-09-28"
+    assert after["date"] == "2026-09-29"
 
 
 def test_fed_rss_prefers_latest_fomc_statement_over_discount_minutes():
@@ -86,11 +107,14 @@ def test_fear_greed_deduplicates_latest_day_and_keeps_bounded_history():
 
 
 def test_seven_oclock_snapshot_replaces_early_prewarm_but_not_repeated_run():
-    prior = {"checkedAt": "2026-09-18 06:45 KST", "marketDate": "2026-09-17"}
-    at_seven = {"checkedAt": "2026-09-18 07:00 KST", "marketDate": "2026-09-17"}
+    prior = {"checkedAt": "2026-09-18 06:45 KST", "marketDate": "2026-09-17", "koreaMarketDate": "2026-09-17"}
+    at_seven = {"checkedAt": "2026-09-18 07:00 KST", "marketDate": "2026-09-17", "koreaMarketDate": "2026-09-17"}
     assert should_write_snapshot(prior, at_seven)
     assert not should_write_snapshot(at_seven, {**at_seven, "checkedAt": "2026-09-18 07:30 KST"})
     assert should_write_snapshot(at_seven, {**at_seven, "marketDate": "2026-09-18"})
+    assert should_write_snapshot(at_seven, {
+        **at_seven, "checkedAt": "2026-09-18 16:10 KST", "koreaMarketDate": "2026-09-18"
+    })
 
 
 def test_official_events_have_direct_sources_and_at_most_three_gold_stars():

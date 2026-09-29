@@ -149,8 +149,10 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 / 신규 수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 14
-    assert "단일판매·공급계약 공시액(일부)" in QUARTER_CHART
+    assert QUARTER_CHART.count("<LabelList") == 15
+    assert "최근 보고서일까지 수시공시액(일부)" in QUARTER_CHART
+    assert "최근 보고서 이후 수시공시액(일부)" in QUARTER_CHART
+    assert "attachContractDisclosures" in STOCK
     assert "영업이익 / OPM" in QUARTER_CHART
     assert (
         QUARTER_CHART.index("<RevenuePanel")
@@ -257,10 +259,10 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "등급 → 최신 분기" in snapshot
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
-    for offset in ('left-0', 'left-[180px]', 'left-[224px]'):
+    for offset in ('left-0', 'left-[156px]', 'left-[200px]'):
         assert offset in DISCOVERY
     assert 'sticky left-[268px]' not in DISCOVERY and 'sticky left-[316px]' not in DISCOVERY
-    assert "w-[336px]" in DISCOVERY and "종목 정보" in DISCOVERY
+    assert "w-[312px]" in DISCOVERY and "종목 정보" in DISCOVERY
     assert "sectorProcess: sectorInfo.process" in page
     assert '<sup className="ml-1' in DISCOVERY
     assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
@@ -283,7 +285,7 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert "오늘의 시장 온도" in DISCOVERY and "앞으로 볼 변수" in DISCOVERY
     assert "공식 발표 핵심 요약" in DISCOVERY and "매크로 적합 섹터 TOP" in DISCOVERY
     assert DISCOVERY.count("추천 정렬") == 1
-    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1880px]')
+    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1856px]')
     assert 'text-[#f7c948]' in DISCOVERY and "text-2xl font-black" in DISCOVERY
     assert "macroContext.summary.current" in DISCOVERY
     assert "macroContext.summary.forward" in DISCOVERY

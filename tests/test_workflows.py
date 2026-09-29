@@ -297,6 +297,12 @@ def test_periodic_disclosure_refreshes_final_analysis_automatically():
     assert "collectors.excerpt_run" in body
 
 
+def test_order_disclosure_backfills_ten_quarters():
+    body = _text(WORKFLOWS / "order_disclosure.yml")
+    assert "collectors.order_history_run --save" in body
+    assert "collectors.excerpt_run --all-universe" in body
+
+
 def test_quarterly_backfill_has_manual_code_refresh():
     body = _text(WORKFLOWS / "quarterly_backfill.yml")
     assert "codes:" in body
