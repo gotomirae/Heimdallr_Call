@@ -23,6 +23,8 @@ export interface ChartPoint {
   /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
   orderBacklog: number | null;
   newOrders: number | null;
+  /** 같은 공시 범위·연속 분기의 수주잔고 QoQ(%). 범위가 다르거나 0 기준이면 null. */
+  orderBacklogQoq: number | null;
   /** 해당 분기에 공시된 단일판매·공급계약 합계. 전체 신규수주가 아닌 하한 참고치. */
   disclosedContractEok: number | null;
   /** 최신 정기보고서 공시일 뒤 발생한 공개 계약. 보고서 신규수주와 섞지 않는다. */
@@ -90,6 +92,7 @@ export function toChartPoints(
     gpm: r.gpm,
     orderBacklog: null,
     newOrders: null,
+    orderBacklogQoq: null,
     disclosedContractEok: null,
     postReportContractEok: null,
     opStatusLabel: r.op_status_label,
@@ -119,7 +122,7 @@ export function appendNextQuarterConsensus(
   points: ChartPoint[],
   consensus: ConsensusRow | null,
   fundamentals: FundamentalRow[],
-  count = CHART_QUARTERS
+  _count = CHART_QUARTERS
 ): ChartPoint[] {
   if (!consensus || (consensus.revenue_est == null && consensus.op_est == null)) return points;
   const yearAgo = fundamentals.find(
@@ -139,6 +142,7 @@ export function appendNextQuarterConsensus(
     gpm: null,
     orderBacklog: null,
     newOrders: null,
+    orderBacklogQoq: null,
     disclosedContractEok: null,
     postReportContractEok: null,
     opStatusLabel: opTransition(op, yearAgo?.op ?? null),
@@ -146,7 +150,9 @@ export function appendNextQuarterConsensus(
     isEstimate: true,
     isCurrentQuarter: true,
   };
-  return [...points, row].slice(-count);
+  // `points`가 이미 최근 `count`개 실제 분기다. 여기서 다시 자르면 예상 한 점 때문에
+  // 가장 오래된 실제 분기가 사라져 수주 그래프가 9분기로 줄어든다.
+  return [...points, row];
 }
 
 export interface ContractDisclosureQuarter {
@@ -186,6 +192,7 @@ export function attachContractDisclosures(
       fiscalQuarter: contract.quarter,
       revenue: null, op: null, revenueYoy: null, opYoy: null, opm: null, gpm: null,
       orderBacklog: null, newOrders: null,
+      orderBacklogQoq: null,
       disclosedContractEok: contract.throughReportEok,
       postReportContractEok: contract.postReportEok,
       opStatusLabel: null, ttmRevenue: null, isEstimate: false,
@@ -197,6 +204,31 @@ export function attachContractDisclosures(
     (left.fiscalQuarter - right.fiscalQuarter) ||
     Number(Boolean(left.isContractEvent)) - Number(Boolean(right.isContractEvent))
   );
+}
+
+/**
+ * 수주잔고 QoQ는 같은 범위의 연속 분기끼리만 계산한다.
+ * 주요계약 합계와 회사 전체 합계를 이어 붙이거나, 빠진 분기를 건너뛰면 그럴듯한
+ * 가짜 증가율이 되므로 해당 점을 결측으로 둔다.
+ */
+export function withOrderBacklogQoq(points: ChartPoint[]): ChartPoint[] {
+  let previous: ChartPoint | null = null;
+  return points.map((point) => {
+    let orderBacklogQoq: number | null = null;
+    if (point.orderBacklog != null) {
+      const currentIndex = point.fiscalYear * 4 + point.fiscalQuarter;
+      const previousIndex = previous == null ? null : previous.fiscalYear * 4 + previous.fiscalQuarter;
+      if (
+        previous?.orderBacklog != null && previous.orderBacklog > 0 &&
+        previousIndex != null && currentIndex - previousIndex === 1 &&
+        Boolean(point.orderScope) && point.orderScope === previous.orderScope
+      ) {
+        orderBacklogQoq = (point.orderBacklog / previous.orderBacklog - 1) * 100;
+      }
+      previous = point;
+    }
+    return { ...point, orderBacklogQoq };
+  });
 }
 
 /**

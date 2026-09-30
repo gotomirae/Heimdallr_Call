@@ -149,9 +149,9 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "실적 가속 종목" not in HOME
     assert "매출액 YoY" in QUARTER_CHART and "영업이익 YoY" in QUARTER_CHART
     assert "수주잔고 / 신규 수주" in QUARTER_CHART
-    assert QUARTER_CHART.count("<LabelList") == 15
-    assert "최근 보고서일까지 수시공시액(일부)" in QUARTER_CHART
-    assert "최근 보고서 이후 수시공시액(일부)" in QUARTER_CHART
+    assert QUARTER_CHART.count("<LabelList") == 16
+    assert "공시 신규계약(하한·보고서일까지)" in QUARTER_CHART
+    assert "공시 신규계약(하한·보고서 이후)" in QUARTER_CHART
     assert "attachContractDisclosures" in STOCK
     assert "영업이익 / OPM" in QUARTER_CHART
     assert (
@@ -165,16 +165,26 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert 'name="매출액 YoY 확정·잠정"' in QUARTER_CHART
     assert 'name="영업이익 YoY 전망"' in QUARTER_CHART
     assert 'strokeDasharray="5 4"' in QUARTER_CHART
-    assert QUARTER_CHART.count("<YAxis") == 7, "매출·GPM과 영업이익·OPM은 금액/마진 축을 분리하고 YoY 두 선은 한 축을 공유해야 한다"
+    assert QUARTER_CHART.count("<YAxis") == 8, "매출·GPM, 영업이익·OPM, 수주금액·수주잔고 QoQ는 금액/비율 축을 분리하고 YoY 두 선은 한 축을 공유해야 한다"
     assert "원값" in QUARTER_CHART and "connectNulls={false}" in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART
+    assert 'name="신규수주(정기보고서 명시)"' in QUARTER_CHART
+    assert "공시 신규계약(하한·보고서 이후)" in QUARTER_CHART
+    assert 'dataKey="orderBacklogQoq"' in QUARTER_CHART
+    assert 'name="수주잔고 QoQ"' in QUARTER_CHART
+    assert "withOrderBacklogQoq" in QUARTER_CHART
+    assert "잔고 QoQ" in MEANING
     assert "분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교" in STOCK
     assert "각 항목은 독립 축" not in STOCK
+    assert "가장 최근 공시" in STOCK
+    assert "{disclosures.map" not in STOCK
 
 
 def test_ten_quarters_and_every_chart_metric_has_deterministic_meaning():
-    assert "CHART_QUARTERS = 10" in (ROOT / "dashboard/lib/chart.ts").read_text(encoding="utf-8")
+    chart = (ROOT / "dashboard/lib/chart.ts").read_text(encoding="utf-8")
+    assert "CHART_QUARTERS = 10" in chart
+    assert "return [...points, row];" in chart, "다음 분기 예상점 때문에 10개 실제 분기의 첫 수주 막대를 버리면 안 된다"
     assert ".slice(0, CHART_QUARTERS)" in STOCK
     for label in (
         "매출액", "영업이익", "OPM", "매출액 YoY", "영업이익 YoY",
@@ -259,13 +269,13 @@ def test_discovery_defaults_to_current_investment_value_and_freezes_identity_col
     assert "등급 → 최신 분기" in snapshot
     assert "sectorRank.get(a.sector)" in DISCOVERY
     assert "((a.pri ?? Infinity) - (b.pri ?? Infinity))" in DISCOVERY
-    for offset in ('left-0', 'left-[156px]', 'left-[200px]'):
+    for offset in ('left-0', 'left-[120px]', 'left-[164px]'):
         assert offset in DISCOVERY
     assert 'sticky left-[268px]' not in DISCOVERY and 'sticky left-[316px]' not in DISCOVERY
-    assert "w-[312px]" in DISCOVERY and "종목 정보" in DISCOVERY
+    assert "w-[276px]" in DISCOVERY and "w-[120px]" in DISCOVERY and "종목 정보" in DISCOVERY
     assert "sectorProcess: sectorInfo.process" in page
-    assert '<sup className="ml-1' in DISCOVERY
-    assert 'text-[9px]' in DISCOVERY and "{r.sectorProcess}" in DISCOVERY
+    assert 'process={r.sectorProcess}' in DISCOVERY
+    assert 'text-[9px]' in DISCOVERY and "{process}" in DISCOVERY
 
 
 def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
@@ -285,7 +295,7 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert "오늘의 시장 온도" in DISCOVERY and "앞으로 볼 변수" in DISCOVERY
     assert "공식 발표 핵심 요약" in DISCOVERY and "매크로 적합 섹터 TOP" in DISCOVERY
     assert DISCOVERY.count("추천 정렬") == 1
-    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1856px]')
+    assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1820px]')
     assert 'text-[#f7c948]' in DISCOVERY and "text-2xl font-black" in DISCOVERY
     assert "macroContext.summary.current" in DISCOVERY
     assert "macroContext.summary.forward" in DISCOVERY

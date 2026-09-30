@@ -100,12 +100,13 @@ function orderMeaning(points: ChartPoint[]): MetricMeaning {
     meaning: "0이 아니라 측정 불가다. 현재 매출 뒤의 파이프라인 지속성을 숫자로 확인할 수 없는 상태다.",
     watch: "다음 정기보고서의 동일 단위 수주잔고·신규수주",
   };
+  const qoq = finite(latest.orderBacklogQoq) ? latest.orderBacklogQoq : null;
   return {
     label: "수주잔고 · 신규수주",
-    value: `${latest.label} ${latest.orderScope?.includes("주요계약") ? "주요계약 잔고" : "잔고"} ${finite(latest.orderBacklog) ? `${latest.orderBacklog.toFixed(0)}억` : "—"} · 신규 ${finite(latest.newOrders) ? `${latest.newOrders.toFixed(0)}억` : "—"}`,
+    value: `${latest.label} ${latest.orderScope?.includes("주요계약") ? "주요계약 잔고" : "잔고"} ${finite(latest.orderBacklog) ? `${latest.orderBacklog.toFixed(0)}억` : "—"} · 신규 ${finite(latest.newOrders) ? `${latest.newOrders.toFixed(0)}억` : "—"}${qoq == null ? "" : ` · 잔고 QoQ ${signed(qoq, "%")}`}`,
     meaning: latest.orderScope?.includes("주요계약")
       ? "공시에서 일정 규모 이상 주요계약의 잔고만 합산한 값이다. 전체 회사 수주잔고나 분기 신규수주로 해석하지 않는다."
-      : "신규수주는 새로 들어오는 속도, 수주잔고는 앞으로 매출로 전환될 일감이다. 같은 범위의 다음 공시와 비교한다.",
+      : `신규수주는 새로 들어오는 속도, 수주잔고는 앞으로 매출로 전환될 일감이다.${qoq == null ? " 같은 범위의 연속 분기가 없어 증가율은 판단하지 않는다." : " 표시된 QoQ는 같은 공시 범위의 바로 전 분기와 비교한 값이다."}`,
     watch: "같은 단위·범위로 다음 분기와 비교 가능한지",
   };
 }

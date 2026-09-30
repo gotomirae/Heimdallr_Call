@@ -153,7 +153,9 @@ KOREA_MARKET_COMPLETED_HOUR_KST = 16
 
 # §9.1 — 분기 수주 그래프를 위해 보존할 정기보고서 깊이와 일일 DART 목록 탐색량.
 ORDER_HISTORY_QUARTERS = 10
-ORDER_HISTORY_DISCOVERY_CODES_PER_RUN = 20
+# 1,300종목을 20개씩 보면 약 13주가 걸려 상세 그래프가 장기간 비어 보인다.
+# 작은 list.json 조회는 100종목씩, 대용량 원문은 별도 30분 예산으로 나눠 호출한다.
+ORDER_HISTORY_DISCOVERY_CODES_PER_RUN = 100
 
 # ═══ 정규화 분모 (PRD §4.2 — 이 프로젝트에서 가장 중요한 계산 규칙) ═══
 # 측정 불가능한 축은 0점 처리하지 않고 분모에서 제외한다.

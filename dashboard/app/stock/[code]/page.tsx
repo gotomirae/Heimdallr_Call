@@ -1342,26 +1342,22 @@ export default async function StockPage({ params }: { params: { code: string } }
         ) : <span className="text-slate-400">DART 원문 접수번호 미수집</span>}
       </div>
 
-      {disclosures.length > 0 && (
+      {latestDisclosure && (
         <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-100">최근 공시</h2>
-          <ul className="space-y-1 text-sm">
-            {disclosures.map((d) => (
-              <li key={d.rcept_no} className="flex flex-wrap gap-2">
-                <span className="w-24 shrink-0 text-xs text-slate-300">
-                  {d.disclosed_at?.slice(0, 10) ?? DASH}
-                </span>
-                <a
-                  href={dartReportUrl(d.rcept_no)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sky-300 hover:underline"
-                >
-                  {d.report_nm ?? d.rcept_no}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <h2 className="mb-2 text-sm font-semibold text-slate-100">가장 최근 공시</h2>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <span className="w-24 shrink-0 text-xs text-slate-300">
+              {latestDisclosure.disclosed_at?.slice(0, 10) ?? DASH}
+            </span>
+            <a
+              href={dartReportUrl(latestDisclosure.rcept_no)}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-300 hover:underline"
+            >
+              {latestDisclosure.report_nm ?? latestDisclosure.rcept_no}
+            </a>
+          </div>
           <Note>
             DART 원문으로 바로 연결된다. 회사명으로 DART를 검색하는 주소는 화면이 뜨긴 해도
             검색이 실행되지 않아 빈 목록이 나오므로 쓰지 않는다.

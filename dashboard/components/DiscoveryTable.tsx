@@ -377,6 +377,7 @@ function SectorEditor({
   code,
   name,
   sector,
+  process,
   originalSector,
   overridden,
   options,
@@ -386,6 +387,7 @@ function SectorEditor({
   code: string;
   name: string;
   sector: string;
+  process: "전" | "후" | null;
   originalSector: string;
   overridden: boolean;
   options: string[];
@@ -435,12 +437,13 @@ function SectorEditor({
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       <select
         value={sector}
         aria-label={`${name} 섹터 선택`}
         title="섹터를 선택하면 즉시 저장됩니다"
-        className={`min-w-0 flex-1 rounded border px-1 py-1 text-[11px] font-semibold outline-none ${overridden ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
+        style={{ width: `${Math.min(9.5, Math.max(5.5, Array.from(sector).length + 1))}em` }}
+        className={`min-w-0 shrink rounded border px-0.5 py-1 text-[10px] font-semibold outline-none ${overridden ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
         onChange={(event) => {
           if (event.target.value === CUSTOM_SECTOR_VALUE) {
             setDraft("");
@@ -453,12 +456,18 @@ function SectorEditor({
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
         <option value={CUSTOM_SECTOR_VALUE}>＋ 직접 입력…</option>
       </select>
+      {process && sector.startsWith("반도체") && (
+        <sup className="shrink-0 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
+             title={`${process}공정`}>
+          {process}
+        </sup>
+      )}
       <button type="button" onClick={() => { setDraft(sector); setEditingCustom(true); }}
-        className="shrink-0 rounded px-1 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
+        className="shrink-0 rounded px-0.5 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
         aria-label={`${name} 섹터명 직접 수정`} title="섹터명 직접 입력">✎</button>
       {overridden && (
         <button type="button" onClick={() => onReset(code)}
-          className="shrink-0 rounded px-1 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
+          className="shrink-0 rounded px-0.5 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
           aria-label={`${name} 원래 섹터 복원`} title="원래 분류 복원">↺</button>
       )}
     </div>
@@ -916,11 +925,11 @@ export default function DiscoveryTable({
 
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[1856px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[1820px] border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
             <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
               <th colSpan={3}
-                  className="sticky left-0 z-40 w-[312px] min-w-[312px] max-w-[312px] bg-slate-900 px-2 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
+                  className="sticky left-0 z-40 w-[276px] min-w-[276px] max-w-[276px] bg-slate-900 px-1 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
                 종목 정보
               </th>
               <th colSpan={2} className="bg-slate-900 px-2 py-1.5 text-center">판정</th>
@@ -931,12 +940,12 @@ export default function DiscoveryTable({
               </th>
             </tr>
             <tr>
-              <th scope="col" className="sticky left-0 z-40 w-[156px] min-w-[156px] max-w-[156px] bg-slate-950 px-1 py-2.5 text-left font-semibold"
+              <th scope="col" className="sticky left-0 z-40 w-[120px] min-w-[120px] max-w-[120px] bg-slate-950 px-0.5 py-2.5 text-left font-semibold"
                   title="각 종목의 섹터를 선택하거나 새 섹터명을 직접 입력한다">
-                섹터 <span className="text-[9px] font-normal text-sky-300">선택 · 수정</span>
+                섹터
               </th>
-              <th scope="col" className="sticky left-[156px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
-              <th scope="col" className="sticky left-[200px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
+              <th scope="col" className="sticky left-[120px] z-40 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2.5 text-center font-semibold">관심</th>
+              <th scope="col" className="sticky left-[164px] z-40 w-[112px] min-w-[112px] max-w-[112px] bg-slate-950 px-2 py-2.5 text-left font-semibold shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">종목명</th>
               <th scope="col" className="w-[48px] min-w-[48px] max-w-[48px] bg-slate-950 px-1 py-2.5 text-center font-semibold">등급</th>
               <th scope="col" className="w-[70px] min-w-[70px] max-w-[70px] bg-slate-950 px-2 py-2.5 text-left font-semibold">분기</th>
               <SortableTh label="투자 매력도" sortKey="score" {...sortState("score")}
@@ -994,26 +1003,21 @@ export default function DiscoveryTable({
           <tbody>
             {shown.map((r) => (
               <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="sticky left-0 z-10 w-[156px] min-w-[156px] max-w-[156px] whitespace-nowrap bg-slate-950 px-1 py-1.5 text-slate-200 group-hover:bg-slate-900"
+                <td className="sticky left-0 z-10 w-[120px] min-w-[120px] max-w-[120px] whitespace-nowrap bg-slate-950 px-0.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   <SectorEditor
                     code={r.code}
                     name={r.name}
                     sector={r.sector}
+                    process={r.sectorProcess}
                     originalSector={baseSectorByCode.get(r.code) ?? r.sector}
                     overridden={Boolean(sectorOverrides[r.code])}
                     options={sectorEditorOptions}
                     onSave={saveSectorOverride}
                     onReset={removeSectorOverride}
                   />
-                  {r.sectorProcess && r.sector.startsWith("반도체") && (
-                    <sup className="ml-1 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
-                         title={`${r.sectorProcess}공정`}>
-                      {r.sectorProcess}
-                    </sup>
-                  )}
                 </td>
-                <td className="sticky left-[156px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
+                <td className="sticky left-[120px] z-10 w-[44px] min-w-[44px] max-w-[44px] bg-slate-950 px-1 py-2 text-center group-hover:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => toggleFavorite(r.code)}
@@ -1027,7 +1031,7 @@ export default function DiscoveryTable({
                   </button>
                 </td>
                 {/* ★ 종목코드는 표시하지 않는다(사용자 요청). 검색은 코드로도 된다. */}
-                <td className="sticky left-[200px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
+                <td className="sticky left-[164px] z-10 w-[112px] min-w-[112px] max-w-[112px] whitespace-nowrap bg-slate-950 px-2 py-2 shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)] group-hover:bg-slate-900">
                   <Link
                     href={`/stock/${r.code}`}
                     prefetch={false}

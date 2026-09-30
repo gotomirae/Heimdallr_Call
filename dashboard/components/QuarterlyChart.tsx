@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { SERIES_COLOR, type ChartPoint } from "@/lib/chart";
+import { SERIES_COLOR, withOrderBacklogQoq, type ChartPoint } from "@/lib/chart";
 import { fundamentalMetricMeanings, type MetricMeaning } from "@/lib/metricMeaning";
 
 const tooltipStyle = { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 6 };
@@ -160,17 +160,25 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
 }
 
 function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
-  const measured = points.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null || p.postReportContractEok != null);
+  const data = withOrderBacklogQoq(points);
+  const measured = data.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null || p.postReportContractEok != null);
+  const qoqMeasured = data.filter((p) => p.orderBacklogQoq != null).length;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주</strong><span className="text-xs text-slate-400">억원</span></div>
-    {!measured ? <div className="flex h-40 items-center justify-center text-xs text-slate-400">공개 자료의 구조화 수치 미수집</div> : <div className="h-40"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={points} margin={{ top: 24, right: 5, bottom: 0, left: 0 }}>
-      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis /><YAxis width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><Tooltip formatter={(v, name) => [fmt(v, "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
-      <Bar dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar dataKey="newOrders" name="신규수주" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar dataKey="disclosedContractEok" name="최근 보고서일까지 수시공시액(일부)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
-      <Bar dataKey="postReportContractEok" name="최근 보고서 이후 수시공시액(일부)" fill="#fb923c" isAnimationActive={false}><LabelList dataKey="postReportContractEok" position="top" fill="#fed7aa" fontSize={9} formatter={valueLabel("억")} /></Bar>
-    </ComposedChart></ResponsiveContainer></div>}
-    <p className="mt-1 text-[10px] leading-4 text-slate-400">청록 막대는 최근 정기보고서 발표일까지, 주황 막대는 그 이후의 수시공시 계약 합계다. 둘 다 회사 전체 신규수주가 아니라 공개된 계약의 하한 참고치다.</p>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주 / 수주잔고 QoQ</strong><span className="text-xs text-slate-400">억원 · % · QoQ {qoqMeasured}개</span></div>
+    <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 28, right: 8, bottom: 0, left: 0 }}>
+      <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
+      <YAxis yAxisId="amount" width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="percent" orientation="right" width={42} domain={["auto", "auto"]} stroke="#facc15" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+      <ReferenceLine yAxisId="percent" y={0} stroke="#64748b" strokeWidth={1} />
+      <Tooltip formatter={(v, name) => [fmt(v, String(name).includes("QoQ") ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <Bar yAxisId="amount" dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="newOrders" name="신규수주(정기보고서 명시)" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="disclosedContractEok" name="공시 신규계약(하한·보고서일까지)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Bar yAxisId="amount" dataKey="postReportContractEok" name="공시 신규계약(하한·보고서 이후)" fill="#fb923c" isAnimationActive={false}><LabelList dataKey="postReportContractEok" position="top" fill="#fed7aa" fontSize={9} formatter={valueLabel("억")} /></Bar>
+      <Line yAxisId="percent" type="linear" dataKey="orderBacklogQoq" name="수주잔고 QoQ" stroke="#facc15" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="orderBacklogQoq" content={(p) => lineLabel("#fde047", "%", -12)({ ...p })} /></Line>
+    </ComposedChart></ResponsiveContainer></div>
+    {!measured && <p className="mt-1 rounded border border-amber-800/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">막대 축은 유지하되 공개 자료의 구조화 수치가 없어 값을 그리지 않았다. 0원이 아니다.</p>}
+    <p className="mt-1 text-[10px] leading-4 text-slate-400">보라·분홍 막대는 정기보고서가 각각 명시한 수주잔고·신규수주다. 노란 선은 같은 공시 범위의 연속 분기 수주잔고만 비교한 QoQ이며, 범위가 바뀌거나 분기가 빠지면 선을 잇지 않는다. 정기보고서가 신규수주 합계를 공개하지 않은 종목은 단일판매·공급계약 공시액을 청록·주황 막대의 공개 신규계약 하한으로 따로 표시하며, 이를 회사 전체 신규수주로 바꾸지 않는다.</p>
     <Explanation items={[meaning]} />
   </div>;
 }
@@ -178,7 +186,9 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
 export default function QuarterlyChart({ points }: { points: ChartPoint[] }) {
   if (!points.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
   // 현재 위치 해설은 발표된 분기만 본다. 점선 컨센서스를 현재 실적으로 오인하지 않는다.
-  const meanings = fundamentalMetricMeanings(points.filter((point) => !point.isCurrentQuarter));
+  const meanings = fundamentalMetricMeanings(withOrderBacklogQoq(
+    points.filter((point) => !point.isCurrentQuarter)
+  ));
   return <div className="grid gap-3 md:grid-cols-2">
     <RevenuePanel points={points} meaning={meanings[0]} />
     <EarningsPanel points={points} meanings={meanings.slice(1, 3)} />

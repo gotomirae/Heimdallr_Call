@@ -161,3 +161,19 @@ def test_single_sales_contract_is_kept_separate_from_total_new_orders():
     assert contract["amountEok"] == 123.4
     assert contract["contractName"] == "HBM 검사장비 공급"
     assert periodic is None  # 수시공시 금액을 정기보고서 신규수주로 둔갑시키지 않는다.
+
+
+def test_order_backlog_qoq_requires_consecutive_quarters_and_same_scope():
+    [points] = _run([{"chartQoq": True, "points": [
+        {"fiscalYear": 2025, "fiscalQuarter": 1, "orderBacklog": 100, "orderScope": "회사 공시 합계"},
+        {"fiscalYear": 2025, "fiscalQuarter": 2, "orderBacklog": 125, "orderScope": "회사 공시 합계"},
+        {"fiscalYear": 2025, "fiscalQuarter": 3, "orderBacklog": 150, "orderScope": "주요계약(전체 아님)"},
+        {"fiscalYear": 2025, "fiscalQuarter": 4, "orderBacklog": None, "orderScope": None},
+        {"fiscalYear": 2026, "fiscalQuarter": 1, "orderBacklog": 180, "orderScope": "주요계약(전체 아님)"},
+        {"fiscalYear": 2026, "fiscalQuarter": 2, "orderBacklog": 198, "orderScope": "주요계약(전체 아님)"},
+    ]}])
+    values = [row["orderBacklogQoq"] for row in points]
+    assert values[:1] == [None]
+    assert values[1] == pytest.approx(25)
+    assert values[2:5] == [None, None, None]
+    assert values[5] == pytest.approx(10)
