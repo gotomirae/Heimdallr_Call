@@ -7,11 +7,16 @@
 
 from __future__ import annotations
 
+import io
+import zipfile
+
 from src.collectors.dart_excerpt import (
     DEFAULT_BUDGET_CHARS,
     build_excerpt,
     explicit_order_metrics,
+    fetch_report_xml,
     major_contract_backlog,
+    structured_order_metrics,
     split_sections,
     to_text,
 )
@@ -145,3 +150,81 @@ B사업 (단위 : 억원)
 합 계 | 20 | 80
 """
     assert explicit_order_metrics(body) is None
+
+
+def test_structured_order_metrics_reads_real_two_level_dart_header():
+    """실제 반기보고서 형식: 수주총액/기납품액/잔고 아래 수량·금액이 한 줄 더 있다."""
+    xml = """<SECTION>
+<P>(단위 : 백만원)</P>
+<TABLE>
+<TR><TH ROWSPAN="2">품목</TH><TH ROWSPAN="2">수주일자</TH><TH ROWSPAN="2">납기</TH>
+<TH COLSPAN="2">수주총액</TH><TH COLSPAN="2">기납품액</TH><TH COLSPAN="2">수주잔고</TH></TR>
+<TR><TH>수량</TH><TH>금액</TH><TH>수량</TH><TH>금액</TH><TH>수량</TH><TH>금액</TH></TR>
+<TR><TD>콘덴서</TD><TD>2026.01.01~06.30</TD><TD>-</TD><TD>14,199</TD><TD>157,552</TD><TD>14,068</TD><TD>155,700</TD><TD>132</TD><TD>1,852</TD></TR>
+<TR><TD>합 계</TD><TD COLSPAN="2"></TD><TD>14,199</TD><TD>157,552</TD><TD>14,068</TD><TD>155,700</TD><TD>132</TD><TD>1,852</TD></TR>
+</TABLE></SECTION>"""
+    assert structured_order_metrics(xml) == (
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,852"
+    )
+
+
+def test_structured_order_metrics_reads_single_company_row_without_total():
+    """기가비스(420770) 반기보고서처럼 단일 품목 수주표는 그 행 자체를 읽는다."""
+    xml = """<SECTION><P>(단위 : 백만원)</P><TABLE>
+<TR><TH>품목</TH><TH>당기수주</TH><TH>납품액</TH><TH>수주잔고</TH></TR>
+<TR><TD>반도체 기판 검사 및 수리장비</TD><TD>76,122</TD><TD>10,856</TD><TD>65,266</TD></TR>
+</TABLE></SECTION>"""
+    assert structured_order_metrics(xml) == (
+        "범위 | 회사 공시 단일행\n단위 | 백만원\n수주잔고 | 65,266\n"
+        "신규수주 | 76,122\n신규수주 기간 | 보고기간 누적"
+    )
+
+
+def test_structured_order_metrics_does_not_add_multiple_company_tables():
+    """연결 자회사별 표를 임의 합산하면 중복 가능성이 있으므로 단일 분기값으로 만들지 않는다."""
+    xml = """<SECTION><P>(단위 : 백만원)</P>
+<TABLE><TR><TH>품목</TH><TH>당기수주</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>30</TD><TD>100</TD></TR></TABLE>
+<TABLE><TR><TH>품목</TH><TH>당기수주</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>20</TD><TD>80</TD></TR></TABLE>
+</SECTION>"""
+    assert structured_order_metrics(xml) is None
+
+
+def test_report_zip_selects_receipt_main_document_not_first_audit_attachment(monkeypatch):
+    """경동나비엔 2025 사업보고서 실제 ZIP 순서 재생: 감사첨부가 먼저 온다."""
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w") as archive:
+        archive.writestr("20260312000931_00760.xml", "감사 첨부")
+        archive.writestr("20260312000931.xml", SAMPLE)
+    class Response:
+        content = payload.getvalue()
+    monkeypatch.setattr("src.collectors.dart_excerpt.http_get", lambda *a, **k: Response())
+    monkeypatch.setattr("src.collectors.dart_excerpt.require_env", lambda *a: "fixture")
+    assert fetch_report_xml("20260312000931") == SAMPLE
+
+
+def test_empty_document_has_no_completed_marker():
+    assert build_excerpt("X", "<DOCUMENT><P>첨부 감사보고서</P></DOCUMENT>").sections == {}
+
+
+def test_missing_order_table_unit_does_not_inherit_sales_unit():
+    xml = """<P>(단위: 백만원)</P>
+<TABLE><TR><TH>매출</TH></TR><TR><TD>123</TD></TR></TABLE>
+<P>수주상황</P><TABLE><TR><TH>품목</TH><TH>신규수주</TH><TH>수주잔고</TH></TR>
+<TR><TD>합계</TD><TD>100</TD><TD>200</TD></TR></TABLE>"""
+    assert structured_order_metrics(xml) is None
+
+
+def test_order_metric_preserves_subsidiary_scope():
+    xml = """<P>[종속회사 : 동성화인텍]</P><P>(단위 : 백만원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>2,041,085</TD></TR></TABLE>"""
+    metric = structured_order_metrics(xml)
+    assert metric is not None
+    assert "종속회사 : 동성화인텍" in metric
+
+
+def test_structured_rejection_is_not_bypassed_by_flat_fallback():
+    xml = """<DOCUMENT><TITLE>4. 매출 및 수주상황</TITLE><P>아래 두 자회사 수주표를 각각 공개합니다.</P>
+<P>(단위 : 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>100</TD></TR></TABLE>
+<P>(단위 : 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>80</TD></TR></TABLE>
+<TITLE>5. 원재료 및 생산설비</TITLE><P>원재료 조달에 관한 설명을 기재합니다.</P></DOCUMENT>"""
+    assert "공시 수주지표" not in build_excerpt("X", xml).sections

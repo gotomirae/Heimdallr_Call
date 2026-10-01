@@ -401,15 +401,21 @@ export async function getDisclosureExcerpt(
 /** 최근 정기보고서 수주 표 + 단일판매·공급계약 수시공시. */
 export async function getOrderDisclosureExcerpts(code: string): Promise<DisclosureExcerptRow[]> {
   try {
-    const { data, error } = await supabase
-      .from("disclosure_excerpts")
-      .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
-      .eq("code", code)
-      .order("fetched_at", { ascending: false })
-      .limit(96);
-    if (error) return [];
+    const allRows: DisclosureExcerptRow[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase
+        .from("disclosure_excerpts")
+        .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
+        .eq("code", code)
+        .order("rcept_no", { ascending: false })
+        .range(offset, offset + 999);
+      if (error) return [];
+      const rows = (data as unknown as DisclosureExcerptRow[]) ?? [];
+      allRows.push(...rows);
+      if (rows.length < 1000) break;
+    }
     const seen = new Set<string>();
-    return ((data as unknown as DisclosureExcerptRow[]) ?? []).filter((row) => {
+    return allRows.filter((row) => {
       if (row.sections && typeof row.sections === "object" &&
           !Array.isArray(row.sections) && "단일판매·공급계약" in row.sections) return true;
       const key = `${row.fiscal_year}-${row.fiscal_quarter}`;
@@ -438,7 +444,7 @@ export async function getAnnualConsensus(
       .eq("code", code)
       .eq("fiscal_quarter", 0)
       .eq("source", "naver")
-      .gte("fiscal_year", fromYear)
+      .eq("fiscal_year", Math.max(fromYear, Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date()))))
       .order("fiscal_year", { ascending: true })
       .order("snapshot_at", { ascending: false })
       .limit(1)

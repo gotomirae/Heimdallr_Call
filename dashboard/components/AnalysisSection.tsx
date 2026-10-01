@@ -19,10 +19,13 @@ import { DASH } from "@/lib/format";
 /** 네이버 기준 투자지표. 화면이 확인해 넘긴다 — LLM 문장의 숫자를 믿지 않는다. */
 export interface ValuationView {
   perCurrent: number | null;
+  perCurrentYear: number | null;
   perForward: number | null;
+  perForwardYear: number | null;
   forwardBasis: string | null;
   roeCurrent: number | null;
   roeNext: number | null;
+  sourceUrl: string;
 }
 
 /**
@@ -148,16 +151,13 @@ export default function AnalysisSection({
   /** ★ 화면이 네이버 연간 표에서 확인한 배수. LLM 문장에 적힌 PER은 믿지 않는다. */
   valuation: ValuationView;
 }) {
-  if (analysis.isEmpty) {
-    return (
-      <p className="text-sm text-slate-300">
-        아직 분석하지 않았다. 성장 가속 종목은 순차적으로 전부 분석한다.
-      </p>
-    );
-  }
-
   return (
     <div className="space-y-4 text-sm">
+      {analysis.isEmpty && (
+        <p className="text-sm text-slate-300">
+          아직 LLM 분석하지 않았다. 아래 주가 위치 수치는 LLM과 무관하게 네이버 원표에서 표시한다.
+        </p>
+      )}
       {analysis.thesis && (
         <p className="text-base font-medium text-slate-100">💡 {analysis.thesis}</p>
       )}
@@ -460,10 +460,7 @@ export default function AnalysisSection({
       )}
 
       {/* 주가가 이미 아는 것 / 아직 모르는 것 — PRI 숫자의 말풀이다. */}
-      {(analysis.pricePosition.pricedIn.length > 0 ||
-        analysis.pricePosition.notPricedIn.length > 0 ||
-        analysis.pricePosition.reason) && (
-        <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
+      <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-lg font-black tracking-tight text-slate-100">주가 위치</span>
             {analysis.pricePosition.verdict && (
@@ -473,37 +470,42 @@ export default function AnalysisSection({
             )}
           </div>
           {/* PER·F.PER·ROE는 화면에서 다시 계산하지 않고 네이버 연간 표의 값을 보여준다. */}
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">① 네이버 올해 PER(E)</div>
+              <div className="text-[11px] text-slate-300">① 네이버 {valuation.perCurrentYear ?? "올해"} PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-white">
-                {valuation.perCurrent != null ? `${valuation.perCurrent.toFixed(1)}배` : DASH}
+                {valuation.perCurrent != null ? `${valuation.perCurrent.toFixed(2)}배` : DASH}
               </div>
               <div className="text-[11px] text-slate-300">
                 {valuation.perCurrent != null ? "네이버 기업실적분석 연간 예상값" : "네이버 예상값 없음"}
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">② 네이버 내년 F.PER(E)</div>
+              <div className="text-[11px] text-slate-300">② 네이버 {valuation.perForwardYear ?? "내년"} F.PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-amber-200">
-                {valuation.perForward != null ? `${valuation.perForward.toFixed(1)}배` : DASH}
+                {valuation.perForward != null ? `${valuation.perForward.toFixed(2)}배` : DASH}
               </div>
               <div className="text-[11px] text-slate-300">
                 {valuation.forwardBasis ?? "연간 컨센서스 없음"}
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">올해 ROE → 내년 F.ROE</div>
+              <div className="text-[11px] text-slate-300">③ {valuation.perCurrentYear ?? "올해"} ROE(E)</div>
               <div className="mt-0.5 text-xl font-bold text-white">
-                {valuation.roeCurrent != null ? `${valuation.roeCurrent.toFixed(1)}%` : DASH}
-                <span className="mx-1 text-sm text-slate-400">→</span>
-                {valuation.roeNext != null ? `${valuation.roeNext.toFixed(1)}%` : DASH}
+                {valuation.roeCurrent != null ? `${valuation.roeCurrent.toFixed(2)}%` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">네이버 연간 예상 ROE</div>
+              <div className="text-[11px] text-slate-300">네이버 올해 연간 예상 ROE</div>
+            </div>
+            <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
+              <div className="text-[11px] text-slate-300">④ {valuation.perForwardYear ?? "내년"} F.ROE(E)</div>
+              <div className="mt-0.5 text-xl font-bold text-amber-200">
+                {valuation.roeNext != null ? `${valuation.roeNext.toFixed(2)}%` : DASH}
+              </div>
+              <div className="text-[11px] text-slate-300">네이버 내년 연간 예상 ROE</div>
             </div>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-300">
-            위 세 숫자는 <strong className="text-slate-200">네이버 증권 연간 기업실적분석 값</strong>이다.
+            위 네 숫자는 <a href={valuation.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-300 underline">네이버 증권 연간 기업실적분석 원표</a> 값이다.
             화면에서 PER·F.PER·ROE를 다시 계산하지 않는다. 아래 LLM 본문과 다르면{" "}
             <strong className="text-amber-300">위 원자료를 기준</strong>으로 판단한다.
           </p>
@@ -543,8 +545,7 @@ export default function AnalysisSection({
               </ul>
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
       {analysis.risks.length > 0 && (
         <div>

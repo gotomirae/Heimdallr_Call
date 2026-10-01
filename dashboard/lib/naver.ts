@@ -61,6 +61,10 @@ function dateOf(value: unknown): string | null {
   return raw.length >= 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : null;
 }
 
+function currentKstYear(now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(now));
+}
+
 /** 네이버의 `1조 8,654억` 표시를 원 단위로 바꾼다. 단위를 못 읽으면 추측하지 않는다. */
 function marketCapOf(value: unknown): number | null {
   if (typeof value !== "string") return null;
@@ -134,8 +138,9 @@ function parseAnnual(body: UnknownRecord) {
     const cell = column && columns ? record(columns[column.key]) : null;
     return numberOf(cell?.value);
   };
-  const metricAt = (title: string, index: number) => {
-    const estimate = estimates[index];
+  const basisYear = currentKstYear();
+  const metricAt = (title: string, year: number) => {
+    const estimate = estimates.find((row) => row.year === year);
     return {
       year: estimate?.year ?? null,
       value: metricFor(title, estimate),
@@ -145,8 +150,8 @@ function parseAnnual(body: UnknownRecord) {
     .map((column) => ({ year: column.year, per: metricFor("PER", column) }))
     .filter((row): row is { year: number; per: number } => row.per != null && row.per > 0);
   return {
-    current: { year: estimates[0]?.year ?? null, per: metricAt("PER", 0).value, roe: metricAt("ROE", 0).value, fcf: metricAt("FCF", 0).value, eps: metricAt("EPS", 0).value },
-    next: { year: estimates[1]?.year ?? null, per: metricAt("PER", 1).value, roe: metricAt("ROE", 1).value, fcf: metricAt("FCF", 1).value, eps: metricAt("EPS", 1).value },
+    current: { year: estimates.some((row) => row.year === basisYear) ? basisYear : null, per: metricAt("PER", basisYear).value, roe: metricAt("ROE", basisYear).value, fcf: metricAt("FCF", basisYear).value, eps: metricAt("EPS", basisYear).value },
+    next: { year: estimates.some((row) => row.year === basisYear + 1) ? basisYear + 1 : null, per: metricAt("PER", basisYear + 1).value, roe: metricAt("ROE", basisYear + 1).value, fcf: metricAt("FCF", basisYear + 1).value, eps: metricAt("EPS", basisYear + 1).value },
     history,
   };
 }
@@ -176,9 +181,10 @@ function parseWiseAnnual(html: string) {
   }
   estimates.sort((left, right) => left.year - right.year);
   actuals.sort((left, right) => left.year - right.year);
+  const basisYear = currentKstYear();
   return {
-    current: estimates[0] ?? { year: null, per: null, roe: null, eps: null },
-    next: estimates[1] ?? { year: null, per: null, roe: null, eps: null },
+    current: estimates.find((row) => row.year === basisYear) ?? { year: null, per: null, roe: null, eps: null },
+    next: estimates.find((row) => row.year === basisYear + 1) ?? { year: null, per: null, roe: null, eps: null },
     history: actuals.slice(-3).filter((row): row is { year: number; per: number } => row.per != null && row.per > 0),
   };
 }

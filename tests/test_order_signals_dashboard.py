@@ -36,6 +36,18 @@ def _run(cases: list[dict]) -> list[dict | None]:
     return json.loads(proc.stdout)
 
 
+def test_order_reports_are_plotted_without_fundamental_rows():
+    # 손계산: 재무 0행이어도 100→150의 같은 범위 연속 잔고 QoQ는 +50%다.
+    rows = _run([{"orderReportPoints": True, "points": [], "reports": [
+        {"year": 2026, "quarter": 1, "backlogEok": 100, "newOrdersEok": 30, "scope": "별도 합계"},
+        {"year": 2026, "quarter": 2, "backlogEok": 150, "newOrdersEok": 80, "scope": "별도 합계"},
+    ]}])[0]
+    assert len(rows) == 2
+    assert rows[0]["revenue"] is None
+    assert rows[1]["newOrders"] == 80
+    assert rows[1]["orderBacklogQoq"] == 50
+
+
 def test_order_signal_requires_same_quarter_and_actual_order_language():
     cases = [
         {
@@ -96,7 +108,7 @@ def test_structured_disclosure_backlog_preserves_major_contract_scope():
     ])
     assert actual == {"year": 2026, "quarter": 2, "rceptNo": "20260814004047",
                       "backlogEok": 105618.64, "newOrdersEok": None,
-                      "scope": "공시 주요계약 수주잔고(전체 아님)"}
+                      "scope": "주요계약(전체 회사 아님)", "newOrdersPeriod": None}
     assert ambiguous is None
 
 
@@ -177,3 +189,31 @@ def test_order_backlog_qoq_requires_consecutive_quarters_and_same_scope():
     assert values[1] == pytest.approx(25)
     assert values[2:5] == [None, None, None]
     assert values[5] == pytest.approx(10)
+
+
+def test_company_total_scope_and_reported_new_order_period_are_preserved():
+    body = ("범위 | 회사 공시 단일행\n단위 | 백만원\n수주잔고 | 65,266\n"
+            "신규수주 | 76,122\n신규수주 기간 | 보고기간 누적")
+    [metric] = _run([{"metric": True, "row": {
+        "rcept_no": "20260814003218", "fiscal_year": 2026, "fiscal_quarter": 2,
+        "sections": {"공시 수주지표": body},
+    }}])
+    assert metric["scope"] == "회사 공시 단일행"
+    assert metric["backlogEok"] == 652.66
+    assert metric["newOrdersEok"] == 761.22
+    assert metric["newOrdersPeriod"] == "보고기간 누적"
+
+
+def test_contract_window_is_six_months_post_report_and_current_quarter():
+    rows = [
+        {"rceptNo": "1", "disclosedAt": "2026-07-02"},
+        {"rceptNo": "2", "disclosedAt": "2026-08-13"},
+        {"rceptNo": "3", "disclosedAt": "2026-08-14"},
+        {"rceptNo": "4", "disclosedAt": "2026-09-30"},
+        {"rceptNo": "5", "disclosedAt": "2026-10-01"},
+    ]
+    [filtered] = _run([{
+        "contractWindow": True, "rows": rows, "basisDate": "2026-09-30",
+        "latestPeriodicReportDate": "2026-08-13",
+    }])
+    assert [row["rceptNo"] for row in filtered] == ["3", "4"]

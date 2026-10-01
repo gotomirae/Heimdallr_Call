@@ -139,6 +139,21 @@ def test_missing_next_year_roe_is_not_invented(monkeypatch):
     assert annual["fwd_per"] is None
 
 
+def test_stale_estimate_year_is_not_mislabeled_as_this_year(monkeypatch):
+    """첫 (E)를 무조건 올해로 쓰면 오래된 표에서 PER·F.PER 연도가 한 칸 밀린다."""
+    rows = [list(row) for row in ANNUAL_ROWS]
+    rows[3][0] = "2025(E)"
+    rows[4][0] = "2027(E)"
+    monkeypatch.setattr(
+        "src.collectors.consensus.http_get", lambda *a, **kw: _FakeResponse(_annual_html(rows))
+    )
+    annual = fetch_annual_estimate("005930")
+    assert annual is not None
+    assert annual["fiscal_year"] == 2026
+    assert annual["per"] is None and annual["roe_est"] is None
+    assert annual["fwd_per"] == 6.22 and annual["roe_next_est"] == 13.40
+
+
 # 실측 변형: 헤더 앞에 **빈 칸**이 있고 연간 컬럼이 **3개**인 종목이 있다
 # (한화비전 489790 · SK이터닉스 475150). 이 변형에서 열이 한 칸 밀리면
 # **연간 추정치가 4Q 분기 컨센서스로 저장된다** — 실측 4배 오차(20,334억 vs 5,012억).

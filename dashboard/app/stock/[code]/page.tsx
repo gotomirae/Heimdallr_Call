@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuarterlyChart from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
-import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, attachOrderReportPoints, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -12,7 +12,7 @@ import AnalysisSection from "@/components/AnalysisSection";
 import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
+import { currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -437,14 +437,14 @@ export default async function StockPage({ params }: { params: { code: string } }
         revenue: peerFund?.revenue ?? null,
         op: peerFund?.op ?? null,
         opm: peerFund?.opm ?? null,
-        roeCurrent: isCurrent ? naverLive?.roe ?? peerAnnual?.roe_est ?? null : peerAnnual?.roe_est ?? null,
-        roeNext: isCurrent ? naverLive?.roeNext ?? peerAnnual?.roe_next_est ?? null : peerAnnual?.roe_next_est ?? null,
+        roeCurrent: isCurrent && liveAnnual ? naverLive?.roe ?? null : peerAnnual?.roe_est ?? null,
+        roeNext: isCurrent && liveAnnual ? naverLive?.roeNext ?? null : peerAnnual?.roe_next_est ?? null,
         roeNextYear: isCurrent ? naverLive?.roeNextYear ?? peerAnnual?.roe_next_year ?? null : peerAnnual?.roe_next_year ?? null,
-        per4q: isCurrent
-          ? naverLive?.per4q ?? peerAnnual?.per ?? null
+        per4q: isCurrent && liveAnnual
+          ? naverLive?.per4q ?? null
           : peerAnnual?.per ?? null,
-        forwardPer: isCurrent
-          ? naverLive?.fwdPer ?? peerAnnual?.fwd_per ?? null
+        forwardPer: isCurrent && liveAnnual
+          ? naverLive?.fwdPer ?? null
           : peerAnnual?.fwd_per ?? null,
       };
     })
@@ -463,14 +463,14 @@ export default async function StockPage({ params }: { params: { code: string } }
   // ── 밸류에이션 ──────────────────────────────────────────────
   // 투자지표의 주 원천은 네이버다. 실시간 integration이 실패하면 저장된
   // 네이버 연간 스냅샷으로 물러서고, 다른 출처의 PER을 섞지 않는다.
-  const per4q = naverLive?.per4q ?? annualConsensus?.per ?? null;
-  const forwardPerValue = naverLive?.fwdPer ?? annualConsensus?.fwd_per ?? null;
-  const perYear = naverLive?.perYear ?? annualConsensus?.fiscal_year ?? null;
-  const forwardPerYear = naverLive?.fwdPerYear ?? annualConsensus?.roe_next_year ?? null;
-  const currentRoe = naverLive?.roe ?? annualConsensus?.roe_est ?? null;
-  const currentRoeYear = naverLive?.roeYear ?? annualConsensus?.fiscal_year ?? null;
-  const nextRoe = naverLive?.roeNext ?? annualConsensus?.roe_next_est ?? null;
-  const nextRoeYear = naverLive?.roeNextYear ?? annualConsensus?.roe_next_year ?? null;
+  const per4q = liveAnnual ? naverLive?.per4q ?? null : annualConsensus?.per ?? null;
+  const forwardPerValue = liveAnnual ? naverLive?.fwdPer ?? null : annualConsensus?.fwd_per ?? null;
+  const perYear = liveAnnual ? naverLive?.perYear ?? null : annualConsensus?.fiscal_year ?? null;
+  const forwardPerYear = liveAnnual ? naverLive?.fwdPerYear ?? null : annualConsensus?.roe_next_year ?? null;
+  const currentRoe = liveAnnual ? naverLive?.roe ?? null : annualConsensus?.roe_est ?? null;
+  const currentRoeYear = liveAnnual ? naverLive?.roeYear ?? null : annualConsensus?.fiscal_year ?? null;
+  const nextRoe = liveAnnual ? naverLive?.roeNext ?? null : annualConsensus?.roe_next_est ?? null;
+  const nextRoeYear = liveAnnual ? naverLive?.roeNextYear ?? null : annualConsensus?.roe_next_year ?? null;
   const storedAnnualBasisDate = annualConsensus?.snapshot_at?.slice(0, 10) ?? null;
   const currentAnnualBasisDate = liveCurrentAnnual ? priceBasisDate : storedAnnualBasisDate;
   const nextAnnualBasisDate = liveNextAnnual ? priceBasisDate : storedAnnualBasisDate;
@@ -482,23 +482,22 @@ export default async function StockPage({ params }: { params: { code: string } }
   const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
   const allOrderContracts = orderExcerpts.map(extractOrderContractDisclosure).filter((row) => row != null)
     .sort((left, right) => String(right.disclosedAt ?? "").localeCompare(String(left.disclosedAt ?? "")));
-  const contractBasis = new Date(`${priceBasisDate ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
-  const contractCutoff = new Date(contractBasis);
-  contractCutoff.setUTCMonth(contractCutoff.getUTCMonth() - 6);
-  const contractCutoffIso = contractCutoff.toISOString().slice(0, 10);
-  const orderContracts = allOrderContracts.filter((item) =>
-    item.disclosedAt != null && item.disclosedAt >= contractCutoffIso &&
-    item.disclosedAt <= contractBasis.toISOString().slice(0, 10)
-  );
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
-  const latestPeriodicReportDate = disclosures
+  const latestPeriodicReportDate = [...disclosures
     .filter((row) => row.doc_type === "periodic" && row.disclosed_at)
-    .map((row) => String(row.disclosed_at).slice(0, 10))
+    .map((row) => String(row.disclosed_at).slice(0, 10)),
+    // 최근 공시 40건 밖으로 밀린 정기보고서도 원문 장부에서 접수일을 확인한다.
+    ...orderExcerpts.filter((row) => row.sections?.["공시 수주지표 확인"] || row.sections?.["매출 및 수주상황"])
+      .map((row) => /^\d{14}$/.test(row.rcept_no)
+        ? `${row.rcept_no.slice(0, 4)}-${row.rcept_no.slice(4, 6)}-${row.rcept_no.slice(6, 8)}` : "")
+      .filter(Boolean)]
     .sort()
     .at(-1) ?? null;
-  const postReportContracts = latestPeriodicReportDate
-    ? orderContracts.filter((item) => item.disclosedAt != null && item.disclosedAt > latestPeriodicReportDate)
-    : [];
+  const contractBasisIso = priceBasisDate ?? new Date().toISOString().slice(0, 10);
+  const orderContracts = currentQuarterPostReportContracts(
+    allOrderContracts, contractBasisIso, latestPeriodicReportDate,
+  );
+  const postReportContracts = orderContracts;
   const postReportAmountEok = postReportContracts.reduce(
     (sum, item) => sum + (item.status === "terminated" ? 0 : item.amountEok ?? 0), 0
   );
@@ -537,6 +536,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     }),
   );
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
+  const ordersChartPoints = attachOrderReportPoints(chartPoints, orderMetrics);
   const dailyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
     : undefined;
@@ -737,7 +737,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
         note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교"
       >
-        <QuarterlyChart points={chartPoints} />
+        <QuarterlyChart points={chartPoints} orderPoints={ordersChartPoints} />
         <p className="mt-2 text-xs text-slate-300">수주 수치는 DART 정기보고서 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공시가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
         {orderMetrics.length > 0 && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-sky-300">
           {orderMetrics.map((metric) => <a key={metric.rceptNo} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
@@ -964,10 +964,13 @@ export default async function StockPage({ params }: { params: { code: string } }
           /* 네이버 연간 표의 값을 넘긴다 — LLM 본문의 PER은 믿지 않는다. */
           valuation={{
             perCurrent: per4q,
+            perCurrentYear: perYear,
             perForward: forwardPerValue,
+            perForwardYear: forwardPerYear,
             forwardBasis: liveNextAnnual ? "네이버 증권 내년 예상 PER" : "저장된 네이버 연간 컨센서스",
             roeCurrent: currentRoe,
             roeNext: nextRoe,
+            sourceUrl: naverStockUrl(code),
           }}
         />
         {!isGrowthAcceleration && analysis.isEmpty && <p className="text-sm text-slate-300">
@@ -1001,7 +1004,7 @@ export default async function StockPage({ params }: { params: { code: string } }
               <td className="py-2 text-slate-100">{quarterLabel(row.year, row.quarter)}</td>
               <td className="py-2 tabular-nums">{row.backlogEok == null ? DASH : `${num(row.backlogEok, 1)}억원`}</td>
               <td className="py-2 tabular-nums">{row.newOrdersEok == null ? DASH : `${num(row.newOrdersEok, 1)}억원`}</td>
-              <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-slate-300">{row.scope}</span>}</td>
+              <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-slate-300">{row.scope}</span>}{row.newOrdersPeriod && <span className="mt-0.5 block text-[11px] text-amber-200">신규수주: {row.newOrdersPeriod}</span>}</td>
               <td className="py-2"><a href={dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">DART 원문</a></td>
             </tr>)}</tbody>
           </table>
@@ -1009,9 +1012,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           DART 정기보고서에서 구조화 가능한 수주잔고·신규수주 수치를 찾지 못했다. 수시공시 계약 내역은 아래에서 별도로 확인한다.
         </div>}
         <div className="mt-4 overflow-x-auto rounded-lg border border-emerald-800/60 bg-emerald-950/15 p-3">
-          <h3 className="text-lg font-black text-emerald-200">최근 6개월 OpenDART 단일판매·공급계약</h3>
-          <p className="mt-1 text-[11px] font-semibold text-emerald-300">{contractCutoffIso} ~ {priceBasisDate ?? contractBasis.toISOString().slice(0, 10)} · {orderContracts.length}건</p>
-          <p className="mt-1 text-xs leading-5 text-slate-300">계약금액은 해당 수시공시에서 확인된 개별 계약이며 전체 회사 신규수주가 아닙니다. 해지 공시는 표에는 보이되 분기 신규 계약액 그래프에서는 제외합니다.</p>
+          <h3 className="text-lg font-black text-emerald-200">최근 실적 발표 이후·이번 분기 OpenDART 단일판매·공급계약</h3>
+          <p className="mt-1 text-[11px] font-semibold text-emerald-300">{latestPeriodicReportDate ? `${latestPeriodicReportDate} 이후` : "최근 정기보고서 미확인"} ~ {contractBasisIso} · 최근 6개월 범위 내 {orderContracts.length}건</p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">가장 최근 정기보고서 공시일보다 늦고 현재 분기에 속하는 계약만 표시합니다. 계약금액은 해당 수시공시에서 확인된 개별 계약이며 전체 회사 신규수주가 아닙니다. 해지 공시는 표에는 보이되 분기 신규 계약액 그래프에서는 제외합니다.</p>
           {orderContracts.length > 0 ? <table className="mt-3 w-full min-w-[980px] text-xs">
             <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약/해지금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
             <tbody>{orderContracts.map((item) => <tr key={item.rceptNo} className="border-b border-slate-800/70 align-top">
@@ -1023,7 +1026,7 @@ export default async function StockPage({ params }: { params: { code: string } }
               <td className="py-2">{item.startDate || item.endDate ? `${item.startDate ?? DASH} ~ ${item.endDate ?? DASH}` : DASH}</td>
               <td className="py-2"><a href={dartReportUrl(item.rceptNo)} target="_blank" rel="noreferrer" className="text-cyan-300 underline">DART 원문</a></td>
             </tr>)}</tbody>
-          </table> : <p className="mt-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">해당 6개월 구간에 수집된 단일판매·공급계약 공시가 없습니다.</p>}
+          </table> : <p className="mt-3 rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">최근 정기보고서 이후부터 현재 분기 기준일까지 수집된 단일판매·공급계약 공시가 없습니다.</p>}
         </div>
         {webOrderEvents.length > 0 && <div className="mt-3 rounded-lg border border-cyan-800/60 bg-cyan-950/20 p-3">
           <h3 className="text-base font-black text-cyan-200">웹 검색 보완 · 일자별 수주·계약 공시</h3>
@@ -1100,7 +1103,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               출처: <strong>네이버 증권 {forwardPerYear ?? "내년"}년 PER(E)</strong>({nextAnnualBasisDate ?? "조회일 기준"}).
-              네이버 연간 기업실적분석의 두 번째 예상 연도 값을 변형하지 않았다.
+              네이버 연간 기업실적분석에서 내년 연도와 정확히 일치하는 예상값이다.
               {forwardPerValue == null ? (
                 <> <strong className="text-slate-200">내년 연간 컨센서스가 없어 계산하지 않았다.</strong></>
               ) : null}
@@ -1116,7 +1119,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               네이버 증권 연간 재무표의 {currentRoeYear ?? "올해"}(E)와 {nextRoeYear ?? "내년"}(E).
               비교군 중앙값은 {pct(sectorMedians.roeCurrent)} → {pct(sectorMedians.roeNext)}다.
-              네이버에 두 번째 추정 연도가 없으면 다른 원천으로 채우지 않고 빈칸으로 둔다.
+              해당 연도의 추정치가 없으면 다른 연도나 원천으로 채우지 않고 빈칸으로 둔다.
             </p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950/40 p-3">

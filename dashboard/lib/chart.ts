@@ -162,6 +162,30 @@ export interface ContractDisclosureQuarter {
   postReportEok: number | null;
 }
 
+/** 수주 원문은 재무 수집 여부와 독립적이다. 재무가 없는 과거 분기도 수주축에 남긴다. */
+export function attachOrderReportPoints(
+  points: ChartPoint[],
+  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string }[],
+): ChartPoint[] {
+  const merged = new Map(points.map((point) => [`${point.fiscalYear}-${point.fiscalQuarter}`, { ...point }]));
+  for (const report of reports) {
+    const key = `${report.year}-${report.quarter}`;
+    const existing = merged.get(key);
+    const point: ChartPoint = existing ?? {
+      label: qLabel(report.year, report.quarter), fiscalYear: report.year, fiscalQuarter: report.quarter,
+      revenue: null, op: null, revenueYoy: null, opYoy: null, opm: null, gpm: null,
+      orderBacklog: null, newOrders: null, orderBacklogQoq: null,
+      disclosedContractEok: null, postReportContractEok: null,
+      opStatusLabel: null, ttmRevenue: null, isEstimate: false, isCurrentQuarter: false,
+    };
+    merged.set(key, { ...point, orderBacklog: report.backlogEok, newOrders: report.newOrdersEok, orderScope: report.scope });
+  }
+  const ordered = [...merged.values()].sort((left, right) =>
+    left.fiscalYear - right.fiscalYear || left.fiscalQuarter - right.fiscalQuarter);
+  return [...ordered.filter((point) => !point.isCurrentQuarter).slice(-CHART_QUARTERS),
+    ...ordered.filter((point) => point.isCurrentQuarter)];
+}
+
 /**
  * 수시공시는 최근 실적 분기 뒤에도 나온다. 재무 분기에만 금액을 붙이면 최신 계약이
  * 다음 정기보고서 전까지 그래프에서 조용히 사라지므로 계약 전용 분기점을 허용한다.

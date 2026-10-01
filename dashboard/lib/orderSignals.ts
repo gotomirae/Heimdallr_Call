@@ -27,6 +27,7 @@ export interface OrderDisclosureMetric {
   backlogEok: number | null;
   newOrdersEok: number | null;
   scope: string;
+  newOrdersPeriod: string | null;
 }
 
 export interface OrderDisclosureSummary {
@@ -36,6 +37,7 @@ export interface OrderDisclosureSummary {
   backlogEok: number | null;
   newOrdersEok: number | null;
   scope: string | null;
+  newOrdersPeriod: string | null;
   status: "measured" | "private" | "not_applicable" | "mentioned" | "truncated" | "unmentioned";
   statusLabel: string;
   evidence: string | null;
@@ -113,9 +115,38 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
   const backlogEok = exactValue(/^수주\s*잔고$/);
   const newOrdersEok = exactValue(/^신규\s*수주$/);
   if (backlogEok == null && newOrdersEok == null) return null;
+  const exactText = (label: RegExp): string | null => {
+    const values = section.split("\n").flatMap((line) => {
+      const cells = line.split("|").map((cell) => cell.trim());
+      return cells.length === 2 && label.test(cells[0]) && cells[1] ? [cells[1]] : [];
+    });
+    return values.length === 1 ? values[0] : null;
+  };
+  const disclosedScope = exactText(/^범위$/);
   return { year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
     backlogEok, newOrdersEok,
-    scope: typeof explicitMetric === "string" ? "공시 주요계약 수주잔고(전체 아님)" : "공시 명시 수치" };
+    scope: disclosedScope ?? "공시 명시 수치",
+    newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
+  };
+}
+
+/** 최근 6개월 중 최근 정기보고서 이후이면서 현재 분기에 속한 계약만 남긴다. */
+export function currentQuarterPostReportContracts(
+  rows: OrderContractDisclosure[],
+  basisDate: string,
+  latestPeriodicReportDate: string | null,
+): OrderContractDisclosure[] {
+  if (!latestPeriodicReportDate || !/^\d{4}-\d{2}-\d{2}$/.test(basisDate)) return [];
+  const basis = new Date(`${basisDate}T00:00:00Z`);
+  if (Number.isNaN(basis.getTime())) return [];
+  const sixMonthsAgo = new Date(basis);
+  sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
+  const quarterMonth = Math.floor(basis.getUTCMonth() / 3) * 3;
+  const quarterStart = `${basis.getUTCFullYear()}-${String(quarterMonth + 1).padStart(2, "0")}-01`;
+  const sixMonthsAgoIso = sixMonthsAgo.toISOString().slice(0, 10);
+  return rows.filter((row) => row.disclosedAt != null &&
+    row.disclosedAt >= sixMonthsAgoIso && row.disclosedAt >= quarterStart &&
+    row.disclosedAt > latestPeriodicReportDate && row.disclosedAt <= basisDate);
 }
 
 const ORDER_TERMS = [
@@ -183,32 +214,33 @@ export function summarizeOrderDisclosure(row: DisclosureExcerptRow): OrderDisclo
   if (metric) return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
     backlogEok: metric.backlogEok, newOrdersEok: metric.newOrdersEok, scope: metric.scope,
+    newOrdersPeriod: metric.newOrdersPeriod,
     status: "measured", statusLabel: "공시 수치 확인", evidence: signal?.evidence ?? null,
   };
   const evidence = signal?.evidence ?? null;
   if (signal?.status === "limited" && evidence && /해당사항\s*없음|수주산업.{0,12}아니/.test(evidence)) {
     return { year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
-      backlogEok: null, newOrdersEok: null, scope: null, status: "not_applicable",
+      backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "not_applicable",
       statusLabel: "해당 없음", evidence };
   }
   if (signal?.status === "limited") return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
-    backlogEok: null, newOrdersEok: null, scope: null, status: "private",
+    backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "private",
     statusLabel: "비공개·기재 생략", evidence,
   };
   if (signal?.truncated) return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
-    backlogEok: null, newOrdersEok: null, scope: null, status: "truncated",
+    backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "truncated",
     statusLabel: "발췌 범위 밖·원문 확인 필요", evidence,
   };
   if (signal) return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
-    backlogEok: null, newOrdersEok: null, scope: null, status: "mentioned",
+    backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "mentioned",
     statusLabel: "수주 언급·단일 수치 미확인", evidence,
   };
   return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
-    backlogEok: null, newOrdersEok: null, scope: null, status: "unmentioned",
+    backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "unmentioned",
     statusLabel: "정기보고서에서 수주 수치 미확인", evidence: null,
   };
 }

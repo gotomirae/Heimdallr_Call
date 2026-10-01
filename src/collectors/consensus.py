@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
 
@@ -219,8 +221,8 @@ def fetch_annual_estimate(code: str) -> dict | None:
     실제로 호출하는 읽기 전용 표다. 기본 화면에는 가장 가까운 연간 (E) 한 열만
     보이지만 이 표에는 최근 3년 실적과 향후 2년 추정치가 함께 있다.
 
-    ★ 가장 가까운 (E)는 올해 PER·ROE, 그 다음 (E)는 내년도 F.PER·F.ROE로 쓴다.
-      두 번째 추정 행이 없으면 내년도 값을 추측하지 않고 ``None``이다.
+    ★ KST 현재 연도와 다음 연도의 (E) 행을 각각 선택한다.
+      해당 연도 추정 행이 없으면 다른 연도를 당겨 채우지 않고 ``None``이다.
     ★ 열 위치는 실측 표 계약이다. 매출 다음 YoY 한 칸만 별도이고 이후는
       영업이익·순이익·EPS·PER·PBR·ROE 순이다. 행 길이가 다르면 건너뛴다.
     """
@@ -254,8 +256,16 @@ def fetch_annual_estimate(code: str) -> dict | None:
         estimates.sort(key=lambda row: row["fiscal_year"])
         if not estimates:
             return None
-        current = estimates[0]
-        following = estimates[1] if len(estimates) > 1 else None
+        # 첫 (E)를 올해로 간주하지 않는다. 오래된 표가 남은 종목에서는 그 순간
+        # PER·F.PER·ROE의 연도축이 한 칸씩 밀리면서도 숫자는 그럴듯하다(T210).
+        current_year = datetime.now(ZoneInfo("Asia/Seoul")).year
+        by_year = {row["fiscal_year"]: row for row in estimates}
+        current = by_year.get(current_year) or {
+            "fiscal_year": current_year,
+            "revenue_est": None, "op_est": None, "np_est": None,
+            "eps_est": None, "per": None, "roe": None,
+        }
+        following = by_year.get(current_year + 1)
         out = {
             "fiscal_year": current["fiscal_year"],
             "revenue_est": (
