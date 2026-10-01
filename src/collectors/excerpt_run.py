@@ -40,8 +40,11 @@ SLEEP_SECONDS = 1.0
 
 
 def is_periodic(report_nm: str | None) -> bool:
-    """정기보고서인가. **정정공시도 포함한다** — `[기재정정]반기보고서`도 원문이 있다."""
-    return bool(report_nm) and any(k in report_nm for k in PERIODIC_KEYWORDS)
+    """정기보고서 본문인가. 기재정정은 포함하고 첨부만 바꾼 정정은 제외한다."""
+    if not report_nm or "[첨부정정]" in "".join(report_nm.split()):
+        return False
+    # 첨부추가는 최초 본문의 접수번호에 붙기도 하므로 배제하지 않는다.
+    return any(k in report_nm for k in PERIODIC_KEYWORDS)
 
 
 def targets(

@@ -63,6 +63,11 @@ function record(value: unknown): Record<string, unknown> | null {
     ? value as Record<string, unknown> : null;
 }
 
+/** 첨부만 바꾼 정정을 새 실적 본문 발표일로 쓰면 계약 창이 잘못 잘린다. */
+export function isAttachmentOnlyCorrection(reportName: string | null | undefined): boolean {
+  return /\[\s*첨부\s*정정\s*\]/.test(reportName ?? "");
+}
+
 /** 단일판매·공급계약은 전체 신규수주가 아닌, 공시된 개별 계약이다. */
 export function extractOrderContractDisclosure(
   row: Partial<DisclosureExcerptRow>

@@ -12,7 +12,7 @@ import AnalysisSection from "@/components/AnalysisSection";
 import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, summarizeOrderDisclosure } from "@/lib/orderSignals";
+import { currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, isAttachmentOnlyCorrection, summarizeOrderDisclosure } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -298,7 +298,7 @@ export default async function StockPage({ params }: { params: { code: string } }
   const periodicDisclosureDate = disclosures
     .filter((row) =>
       row.fiscal_year === analysisYear && row.fiscal_quarter === analysisQuarter &&
-      row.doc_type === "periodic"
+      row.doc_type === "periodic" && !isAttachmentOnlyCorrection(row.report_nm)
     )
     .map((row) => row.disclosed_at?.slice(0, 10) ?? "")
     .filter(Boolean)
@@ -484,7 +484,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     .sort((left, right) => String(right.disclosedAt ?? "").localeCompare(String(left.disclosedAt ?? "")));
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
   const latestPeriodicReportDate = [...disclosures
-    .filter((row) => row.doc_type === "periodic" && row.disclosed_at)
+    .filter((row) => row.doc_type === "periodic" && row.disclosed_at && !isAttachmentOnlyCorrection(row.report_nm))
     .map((row) => String(row.disclosed_at).slice(0, 10)),
     // 최근 공시 40건 밖으로 밀린 정기보고서도 원문 장부에서 접수일을 확인한다.
     ...orderExcerpts.filter((row) => row.sections?.["공시 수주지표 확인"] || row.sections?.["매출 및 수주상황"])
