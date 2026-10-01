@@ -48,6 +48,20 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_old_contract_correction_is_not_a_new_contract_amount():
+    # 실제 399720 10/1 정정공시: 계약 체결일은 2025/12/24, 정정 총액은 증가분이 아니다.
+    row = {"rcept_no": "20261001900382", "sections": {"단일판매·공급계약": {
+        "report_name": "[기재정정]단일판매ㆍ공급계약체결",
+        "contract_date": "2025-12-24", "disclosed_at": "2026-10-01",
+        "amount_krw": 17880400000,
+    }}}
+    result = _run([{"contract": True, "row": row}])[0]
+    assert result["isCorrection"] is True
+    assert result["amountEok"] == 178.804
+    source = (DASHBOARD / "app" / "stock" / "[code]" / "page.tsx").read_text(encoding="utf-8")
+    assert 'item.status === "terminated" || item.isCorrection' in source
+
+
 def test_order_signal_requires_same_quarter_and_actual_order_language():
     cases = [
         {

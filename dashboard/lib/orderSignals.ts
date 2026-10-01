@@ -54,6 +54,8 @@ export interface OrderContractDisclosure {
   startDate: string | null;
   endDate: string | null;
   status: "measured" | "limited" | "terminated";
+  /** 정정 총액은 증가분이 아니므로 신규 계약 막대에 다시 더하지 않는다. */
+  isCorrection?: boolean;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -86,6 +88,7 @@ export function extractOrderContractDisclosure(
     status: string("disclosure_status") === "terminated"
       ? "terminated"
       : string("disclosure_status") === "limited" ? "limited" : "measured",
+    ...(/정정/.test(string("report_name") ?? "") ? { isCorrection: true } : {}),
   };
 }
 

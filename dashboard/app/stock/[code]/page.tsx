@@ -499,14 +499,14 @@ export default async function StockPage({ params }: { params: { code: string } }
   );
   const postReportContracts = orderContracts;
   const postReportAmountEok = postReportContracts.reduce(
-    (sum, item) => sum + (item.status === "terminated" ? 0 : item.amountEok ?? 0), 0
+    (sum, item) => sum + (item.status === "terminated" || item.isCorrection ? 0 : item.amountEok ?? 0), 0
   );
   const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
   const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
   const disclosedContractByQuarter = new Map<string, { throughReportEok: number; postReportEok: number }>();
   for (const item of orderContracts) {
     // 해지금액을 신규 계약액으로 더하면 수주가 과대 표시된다.
-    if (!item.disclosedAt || item.amountEok == null || item.status === "terminated") continue;
+    if (!item.disclosedAt || item.amountEok == null || item.status === "terminated" || item.isCorrection) continue;
     const [contractYear, contractMonth] = item.disclosedAt.split("-").map(Number);
     const key = `${contractYear}-${Math.ceil(contractMonth / 3)}`;
     const values = disclosedContractByQuarter.get(key) ?? { throughReportEok: 0, postReportEok: 0 };
@@ -991,7 +991,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           </div>
           <div className="rounded border border-orange-700/60 bg-orange-950/20 p-3 text-xs">
             <span className="text-orange-200">보고서 이후 공시액 합계</span>
-            <strong className="mt-1 block text-sm text-orange-100">{postReportContracts.some((item) => item.amountEok != null && item.status !== "terminated") ? `${num(postReportAmountEok, 1)}억원` : DASH}</strong>
+            <strong className="mt-1 block text-sm text-orange-100">{postReportContracts.some((item) => item.amountEok != null && item.status !== "terminated" && !item.isCorrection) ? `${num(postReportAmountEok, 1)}억원` : DASH}</strong>
           </div>
         </div>
         {orderSummaries.length > 0 ? <div className="overflow-x-auto">
@@ -1014,13 +1014,13 @@ export default async function StockPage({ params }: { params: { code: string } }
         <div className="mt-4 overflow-x-auto rounded-lg border border-emerald-800/60 bg-emerald-950/15 p-3">
           <h3 className="text-lg font-black text-emerald-200">최근 실적 발표 이후·이번 분기 OpenDART 단일판매·공급계약</h3>
           <p className="mt-1 text-[11px] font-semibold text-emerald-300">{latestPeriodicReportDate ? `${latestPeriodicReportDate} 이후` : "최근 정기보고서 미확인"} ~ {contractBasisIso} · 최근 6개월 범위 내 {orderContracts.length}건</p>
-          <p className="mt-1 text-xs leading-5 text-slate-300">가장 최근 정기보고서 공시일보다 늦고 현재 분기에 속하는 계약만 표시합니다. 계약금액은 해당 수시공시에서 확인된 개별 계약이며 전체 회사 신규수주가 아닙니다. 해지 공시는 표에는 보이되 분기 신규 계약액 그래프에서는 제외합니다.</p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">가장 최근 정기보고서 공시일보다 늦고 현재 분기에 속하는 계약만 표시합니다. 계약금액은 해당 수시공시에서 확인된 개별 계약이며 전체 회사 신규수주가 아닙니다. 해지·정정 공시는 표에는 보이되 신규 계약액 합계와 그래프에서는 제외합니다. 정정 총액은 새로 수주한 증가분이 아닙니다.</p>
           {orderContracts.length > 0 ? <table className="mt-3 w-full min-w-[980px] text-xs">
             <thead className="text-left text-slate-300"><tr className="border-b border-slate-700"><th className="py-2">공시일</th><th>계약 내용</th><th className="text-right">계약/해지금액</th><th className="text-right">최근 매출 대비</th><th>상대방</th><th>계약기간</th><th>원문</th></tr></thead>
             <tbody>{orderContracts.map((item) => <tr key={item.rceptNo} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-slate-300">{item.disclosedAt ?? disclosureDateByReceipt.get(item.rceptNo) ?? DASH}</td>
               <td className="max-w-[300px] py-2 pr-3 font-medium text-slate-100">{item.contractName ?? "계약 내용 비공개"}{latestPeriodicReportDate && item.disclosedAt && item.disclosedAt > latestPeriodicReportDate && <span className="ml-2 rounded border border-orange-600 px-1 text-[10px] text-orange-200">최근 보고서 이후</span>}{item.status === "limited" && <span className="ml-2 rounded border border-amber-700 px-1 text-[10px] text-amber-200">기재 제한</span>}{item.status === "terminated" && <span className="ml-2 rounded border border-rose-700 px-1 text-[10px] text-rose-200">계약 해지</span>}</td>
-              <td className="py-2 text-right tabular-nums text-emerald-200">{item.amountEok == null ? DASH : `${num(item.amountEok, 1)}억원`}</td>
+              <td className="py-2 text-right tabular-nums text-emerald-200">{item.amountEok == null ? DASH : `${num(item.amountEok, 1)}억원`}{item.isCorrection && <span className="mt-1 block text-[10px] text-amber-200">정정 총액 · 신규 합계 제외</span>}</td>
               <td className="py-2 text-right tabular-nums">{item.salesRatioPct == null ? DASH : `${num(item.salesRatioPct, 1)}%`}</td>
               <td className="py-2 px-3">{item.counterparty ?? DASH}</td>
               <td className="py-2">{item.startDate || item.endDate ? `${item.startDate ?? DASH} ~ ${item.endDate ?? DASH}` : DASH}</td>
