@@ -20,6 +20,7 @@ from pathlib import Path
 from src.config import constants
 from src.universe.sector_map import (
     DISTRIBUTION_INDUSTRY_WORDS,
+    DISTRIBUTION_OVERRIDE_EXCLUDED,
     DISTRIBUTION_SECTOR,
     INDUSTRY_ONLY_KEYWORDS,
     SECTOR_ALIASES,
@@ -69,6 +70,7 @@ def build() -> dict:
         "sector_distribution": {
             "sector": DISTRIBUTION_SECTOR,
             "industry_words": list(DISTRIBUTION_INDUSTRY_WORDS),
+            "excluded_sectors": list(DISTRIBUTION_OVERRIDE_EXCLUDED),
         },
         "semiconductor_context": list(SEMICONDUCTOR_CONTEXT),
         "semiconductor_front_process_keywords": list(SEMICONDUCTOR_FRONT_PROCESS_KEYWORDS),

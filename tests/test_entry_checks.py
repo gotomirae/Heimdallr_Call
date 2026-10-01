@@ -402,3 +402,20 @@ def test_thresholds_match_jarvis_entry_core():
     assert rules["tech_display"]["high_lookback_days"] == C.ENTRY_HIGH_LOOKBACK_SESSIONS
     invalidation_rule = rules["entry_gate"]["invalidation"]
     assert (invalidation_rule["PB"], invalidation_rule["SW"]) == ("low_10d", "low_20d")
+
+
+def test_annual_consensus_rows_with_quarter_zero_are_kept():
+    """T222 — 연간 행의 fiscal_quarter=0은 falsy다. `or -1`로 쓰면 전부 사라진다."""
+    from src.notify.entry_checks_run import annual_consensus_by_code
+
+    rows = [
+        {"code": "097230", "fiscal_year": 2026, "fiscal_quarter": 0, "revenue_est": 2, "op_est": 1,
+         "source": "naver", "snapshot_at": "2026-09-09"},
+        {"code": "097230", "fiscal_year": 2026, "fiscal_quarter": 0, "revenue_est": 3, "op_est": 1,
+         "source": "naver", "snapshot_at": "2026-09-27"},
+        {"code": "097230", "fiscal_year": 2026, "fiscal_quarter": 3, "revenue_est": 9, "op_est": 9,
+         "source": "naver", "snapshot_at": "2026-09-28"},
+        {"code": "000001", "fiscal_year": 2025, "fiscal_quarter": 0, "source": "naver", "snapshot_at": "x"},
+    ]
+    picked = annual_consensus_by_code(rows, 2026)
+    assert set(picked) == {"097230"} and picked["097230"]["revenue_est"] == 3

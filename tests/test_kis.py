@@ -523,3 +523,22 @@ def test_upsert_reraises_unrelated_errors():
 def test_missing_column_of_ignores_other_codes():
     assert missing_column_of(_FakeAPIError("PGRST204", "Could not find the 'x' column")) == "x"
     assert missing_column_of(_FakeAPIError("42703", "Could not find the 'x' column")) is None
+
+
+def test_naver_mobile_trend_rows_keep_frgn_shape():
+    """T224 — PC frgn.naver가 표 없는 페이지가 되어 모바일 trend API로 바꿨다.
+    반환 모양은 기존 파서와 같은 {날짜: (거래량, 기관, 외국인)}이다(2026-10-02 실호출 형태)."""
+    from src.collectors.kis_prices import investor_buy_streak, parse_investor_trend_rows
+
+    body = [
+        {"bizdate": "20261001", "foreignerPureBuyQuant": "+30,699", "organPureBuyQuant": "+2,657",
+         "accumulatedTradingVolume": "154,752"},
+        {"bizdate": "20260930", "foreignerPureBuyQuant": "+64,519", "organPureBuyQuant": "-483",
+         "accumulatedTradingVolume": "201,000"},
+        {"bizdate": "20260929", "foreignerPureBuyQuant": "+1", "organPureBuyQuant": "-1",
+         "accumulatedTradingVolume": "0"},
+    ]
+    rows = parse_investor_trend_rows(body)
+    assert rows == {"20261001": (154_752, 2_657, 30_699), "20260930": (201_000, -483, 64_519)}
+    assert investor_buy_streak(rows, sessions=2).buyer == "외국인"
+    assert parse_investor_trend_rows({"error": "x"}) == {}

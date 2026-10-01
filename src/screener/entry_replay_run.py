@@ -47,7 +47,6 @@ KST = ZoneInfo("Asia/Seoul")
 SEASON_MIN_ANNOUNCEMENTS = 50
 #: 시즌 첫 공시일부터 볼 거래일 수(다음 시즌 시작 전까지로 다시 자른다).
 SEASON_TRADING_DAYS = 60
-NAVER_FLOW_ROWS_PER_PAGE = 20
 
 
 def _qi(year: int, quarter: int) -> int:
@@ -92,7 +91,7 @@ def main() -> int:
     parser.add_argument("--write", help="결과 표를 이 마크다운 파일 끝에 덧붙인다")
     args = parser.parse_args()
 
-    from src.collectors.kis_prices import fetch_index_closes, fetch_investor_daily_naver
+    from src.collectors.kis_prices import NAVER_TREND_PAGE_SIZE, fetch_index_closes, fetch_investor_daily_naver
     from src.collectors.quarter_prices import fetch_daily_ohlcv_naver
     from src.db.supabase_client import select_all
 
@@ -173,7 +172,7 @@ def main() -> int:
 
     bars_by_code: dict[str, list] = {}
     flows_by_code: dict[str, list[tuple[str, int, int]]] = {}
-    pages = max(1, math.ceil(sum(1 for day in calendar if day >= windows[0][1][0]) / NAVER_FLOW_ROWS_PER_PAGE) + 1) if windows[0][1] else 1
+    pages = max(1, math.ceil(sum(1 for day in calendar if day >= windows[0][1][0]) / NAVER_TREND_PAGE_SIZE) + 1) if windows[0][1] else 1
     for number, code in enumerate(ordered, 1):
         try:
             bars_by_code[code] = to_bars(fetch_daily_ohlcv_naver(code, begin, now.strftime("%Y%m%d")))

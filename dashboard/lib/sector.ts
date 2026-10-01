@@ -52,9 +52,10 @@ const SEMICONDUCTOR_BACK_PROCESS_OVERRIDES: string[] =
   (constants.semiconductor_back_process_overrides ?? []) as string[];
 const SEMICONDUCTOR_SECTORS = new Set([...SEMICONDUCTOR_SPECIFIC_ORDER, "반도체 IDM"]);
 /** B-13 — 제품의 '도매·유통'이 본업을 덮을 때 KSIC 업종으로 교정한다(sector_map.py와 같은 규칙). */
-const DISTRIBUTION = (constants.sector_distribution ?? { sector: "", industry_words: [] }) as {
+const DISTRIBUTION = (constants.sector_distribution ?? { sector: "", industry_words: [], excluded_sectors: [] }) as {
   sector: string;
   industry_words: string[];
+  excluded_sectors: string[];
 };
 
 /** 화면 필터에 쓸 전체 목록. 규칙 순서 + 기타. */
@@ -202,6 +203,7 @@ export function classifySector(
       industryHit !== null &&
       industryHit !== DISTRIBUTION.sector &&
       industryHit !== UNKNOWN_SECTOR &&
+      !DISTRIBUTION.excluded_sectors.includes(industryHit) &&
       !DISTRIBUTION.industry_words.some((word) => industryText.includes(word))
     ) {
       return industryHit;

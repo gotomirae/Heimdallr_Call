@@ -238,6 +238,7 @@ INDUSTRY_ONLY_KEYWORDS: frozenset[str] = frozenset({
     "비금속 광물",
     "통신업",
     "방송업",
+    "비료",
 })
 
 #: 제품 칸에서 `유통·소비재`가 걸려도 **판매 경로 단어일 수 있다.** 제조사가
@@ -247,6 +248,9 @@ INDUSTRY_ONLY_KEYWORDS: frozenset[str] = frozenset({
 #: 업종을 따른다. 업종에 아래 말이 있으면 진짜 유통사이므로 그대로 둔다.
 DISTRIBUTION_SECTOR = "유통·소비재"
 DISTRIBUTION_INDUSTRY_WORDS: tuple[str, ...] = ("도매", "소매", "판매", "유통", "중개", "무역")
+#: 업종이 이 섹터를 가리키면 교정하지 않는다. 지주회사의 KSIC는 `기타 금융업`이라
+#: 법적 형태일 뿐 본업이 아니다(콜마홀딩스·영원무역홀딩스·현대지에프홀딩스가 금융이 됐다).
+DISTRIBUTION_OVERRIDE_EXCLUDED: tuple[str, ...] = ("금융", "지주·기타서비스")
 
 #: 분류하지 못한 종목. **억지로 끼워 맞추지 않는다.**
 UNKNOWN_SECTOR = "기타"
@@ -515,7 +519,7 @@ def classify_sector(
         industry_text = _haystack(industry)
         industry_hit = _first_hit(industry_text, allow_industry_words=True)
         if (
-            industry_hit not in (None, DISTRIBUTION_SECTOR, UNKNOWN_SECTOR)
+            industry_hit not in (None, DISTRIBUTION_SECTOR, UNKNOWN_SECTOR, *DISTRIBUTION_OVERRIDE_EXCLUDED)
             and not any(word in industry_text for word in DISTRIBUTION_INDUSTRY_WORDS)
         ):
             return industry_hit

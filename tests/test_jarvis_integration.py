@@ -53,9 +53,17 @@ def test_unknown_static_codes_are_reported():
     ("비료, 농약 및 살균, 살충제 제조업", "비료 도매", "화학·소재"),
     ("전기 통신업", "이동통신, 유선통신, 단말기 도매", "통신·네트워크"),
     ("텔레비전 방송업", "홈쇼핑, 방송, 영화", "엔터·미디어"),
+    ("의약품 제조업", "양약(부루펜,액티피드,포리부틴) 제조,도매", "바이오·제약"),
 ])
 def test_distribution_word_in_products_yields_to_ksic_industry(industry, products, expected):
     assert classify_sector(None, industry, products) == expected
+
+
+def test_fertilizer_word_in_products_does_not_move_lime_maker():
+    """'석회비료'의 비료는 업종 칸에서만 본다 — 생석회 제조사는 건자재로 남는다(실측 태경비케이)."""
+    assert classify_sector(
+        None, "시멘트, 석회, 플라스터 및 그 제품 제조업", "생석회,소석회,석회비료 제조,판매"
+    ) == "건자재"
 
 
 @pytest.mark.parametrize(("industry", "products"), [
@@ -64,6 +72,9 @@ def test_distribution_word_in_products_yields_to_ksic_industry(industry, product
     ("봉제의복 제조업", "의류 도매"),
     ("자동차 신품 판매업", "수입차 도매"),
     (None, "생활용품 도매"),
+    # 실측 2026-10-02 — 지주사의 KSIC `기타 금융업`은 본업이 아니다.
+    ("기타 금융업", "스포츠의류(등산복,운동복,스키복) 도소매,수출,섬유봉제"),
+    ("기타 금융업", "백화점,여행알선,숙박,음식점/부동산 임대"),
 ])
 def test_real_distributors_stay_consumer(industry, products):
     assert classify_sector(None, industry, products) == "유통·소비재"
@@ -137,6 +148,29 @@ def test_distribution_override_matches_typescript():
         ("텔레비전 방송업", "홈쇼핑, 방송, 영화"),
         ("백화점", "의류 소매"),
         ("자동차 신품 판매업", "수입차 도매"),
+        ("기타 금융업", "백화점,여행알선,숙박,음식점/부동산 임대"),
     ]
     typescript = [row["sector"] for row in _run_typescript(cases)]
     assert typescript == [classify_sector(None, industry, products) for industry, products in cases]
+
+
+def test_orphan_particle_after_removed_token_is_dropped():
+    """실측 000660 — 토큰만 빼면 'OPM 라는 호황'처럼 조사가 고아로 남았다."""
+    from src.analysis.numeric_grounding import strip_legacy_redaction_markers
+
+    assert strip_legacy_redaction_markers(f"OPM {LEGACY_REDACTION_MARKER}라는 호황이다") == "OPM 호황이다"
+    assert unwrap_leftover_fact_markers("매출 405억(YoY +21.4%, [[F 333→405억]])") == "매출 405억(YoY +21.4%)"
+
+
+def test_emptied_required_reports_empty_arrays():
+    from src.analysis.clean_stored_run import emptied_required
+
+    assert any("risks" in problem for problem in emptied_required({"risks": []}))
+
+
+def test_scalar_placeholders_are_blanked_and_reported():
+    from src.analysis.clean_stored_run import scalar_placeholders
+
+    payload = {"earnings_change": {"cause": "...", "effect": "실제 효과"}, "_heimdallr": {}}
+    assert scalar_placeholders(payload) == ["$.earnings_change.cause"]
+    assert clean_payload(payload)["earnings_change"] == {"cause": "", "effect": "실제 효과"}

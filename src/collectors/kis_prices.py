@@ -45,7 +45,9 @@ CHART_PATH = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
 INVESTOR_PATH = "/uapi/domestic-stock/v1/quotations/inquire-investor"
 NAVER_INDEX_URL = "https://api.finance.naver.com/siseJson.naver"
 NAVER_PRICE_URL = "https://m.stock.naver.com/api/stock/{code}/integration"
-NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"
+NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"  # 2026-10 개편 후 표 없음(T224)
+NAVER_TREND_URL = "https://m.stock.naver.com/api/stock/{code}/trend"
+NAVER_TREND_PAGE_SIZE = 60
 
 _EOK = 100_000_000  # 억원 → 원
 
@@ -211,22 +213,62 @@ def investor_buy_streak(
     return InvestorFlowStreak(dates, foreign, institution, buyer) if buyer else None
 
 
+def parse_investor_trend_rows(body) -> dict[str, tuple[int, int, int]]:
+    """네이버 모바일 `api/stock/{code}/trend` → {YYYYMMDD: (거래량, 기관, 외국인)}.
+
+    `parse_investor_flow_rows`와 **같은 모양**이라 호출부가 그대로 쓴다.
+    값은 '+30,699'처럼 부호·쉼표가 붙은 문자열이다. 2026-10-02 실호출로 HJ중공업 10/1
+    외국인 +30,699 · 기관 +2,657이 KIS `inquire-investor`와 정확히 일치했다.
+    """
+    out: dict[str, tuple[int, int, int]] = {}
+    for row in body if isinstance(body, list) else []:
+        day = str(row.get("bizdate") or "")
+        volume = _signed_int(str(row.get("accumulatedTradingVolume") or ""))
+        institution = _signed_int(str(row.get("organPureBuyQuant") or ""))
+        foreign = _signed_int(str(row.get("foreignerPureBuyQuant") or ""))
+        if len(day) != 8 or volume is None or volume <= 0 or institution is None or foreign is None:
+            continue
+        out[day] = (volume, institution, foreign)
+    return out
+
+
+def fetch_investor_rows_naver(
+    code: str, *, pages: int = 1, page_size: int = NAVER_TREND_PAGE_SIZE,
+) -> dict[str, tuple[int, int, int]]:
+    """최근부터 과거로 `pages`쪽 · {YYYYMMDD: (거래량, 기관, 외국인)}.
+
+    ★ PC `frgn.naver`는 2026-10 확인 시점에 표 없는 Next.js 페이지가 되어 기존 파서가
+      **에러 없이 0행**을 냈다(T224). 같은 데이터를 주는 모바일 API로 바꿨다.
+      다음 쪽은 직전 쪽의 가장 오래된 날짜를 `bizdate`로 넘긴다.
+    """
+    rows: dict[str, tuple[int, int, int]] = {}
+    bizdate: str | None = None
+    for page in range(pages):
+        params: dict = {"pageSize": page_size}
+        if bizdate:
+            params["bizdate"] = bizdate
+        response = http_get(
+            NAVER_TREND_URL.format(code=code), params=params,
+            headers={"Referer": "https://m.stock.naver.com/"}, timeout=30.0,
+        )
+        parsed = parse_investor_trend_rows(response.json())
+        new = {day: row for day, row in parsed.items() if day not in rows}
+        if not new:
+            break
+        rows.update(new)
+        bizdate = min(new)
+        if len(parsed) < page_size:
+            break
+        if page + 1 < pages:
+            time.sleep(0.12)
+    return rows
+
+
 def fetch_recent_investor_streak(
-    code: str, *, sessions: int = 3, max_pages: int = 2
+    code: str, *, sessions: int = 3, max_pages: int = 1
 ) -> InvestorFlowStreak | None:
     """같은 주체가 최근 N거래일 연속 순매수한 경우만 반환한다."""
-    rows: dict[str, tuple[int, int, int]] = {}
-    for page in range(1, max_pages + 1):
-        response = http_get(
-            NAVER_FOREIGN_URL,
-            params={"code": code, "page": page},
-            headers={"Referer": "https://finance.naver.com/"}, timeout=30.0,
-        )
-        rows.update(parse_investor_flow_rows(decode_html(response)))
-        if len(rows) >= sessions:
-            break
-        time.sleep(0.12)
-    return investor_buy_streak(rows, sessions)
+    return investor_buy_streak(fetch_investor_rows_naver(code, pages=max_pages), sessions)
 
 
 def parse_kis_investor_rows(body: dict) -> list[tuple[str, int, int]]:
@@ -265,17 +307,8 @@ def fetch_investor_daily_kis(client: KisClient, code: str) -> list[tuple[str, in
 
 
 def fetch_investor_daily_naver(code: str, *, max_pages: int = 1) -> list[tuple[str, int, int]]:
-    """KIS 장애 시 폴백. 네이버 `frgn.naver` 표의 외국인·기관 순매수량."""
-    rows: dict[str, tuple[int, int, int]] = {}
-    for page in range(1, max_pages + 1):
-        response = http_get(
-            NAVER_FOREIGN_URL,
-            params={"code": code, "page": page},
-            headers={"Referer": "https://finance.naver.com/"}, timeout=30.0,
-        )
-        rows.update(parse_investor_flow_rows(decode_html(response)))
-        if page < max_pages:
-            time.sleep(0.12)
+    """KIS 장애 시 폴백·replay용. [(YYYYMMDD, 외국인 순매수량, 기관 순매수량)] 최신순."""
+    rows = fetch_investor_rows_naver(code, pages=max_pages)
     return sorted(((day, row[2], row[1]) for day, row in rows.items()), reverse=True)
 
 
@@ -293,26 +326,19 @@ def fetch_foreign_flow_5d(
     if not announcement_date:
         return None
     target = announcement_date.replace("-", "")
-    rows: dict[str, tuple[int, int]] = {}
-    for page in range(1, max_pages + 1):
-        response = http_get(
-            NAVER_FOREIGN_URL,
-            params={"code": code, "page": page},
-            headers={"Referer": "https://finance.naver.com/"},
-            timeout=30.0,
-        )
-        rows.update(parse_foreign_flow_rows(decode_html(response)))
-        chosen = sorted(day for day in rows if day >= target)[:5]
-        if len(chosen) == 5:
-            volume = sum(rows[day][0] for day in chosen)
-            net_qty = sum(rows[day][1] for day in chosen)
-            if volume <= 0:
-                return None
-            return ForeignFlow5d(net_qty, volume, net_qty / volume * 100)
-        if rows and min(rows) < target:
-            break
-        time.sleep(0.12)
-    return None
+    # 60거래일 한 쪽이면 대부분의 발표일을 덮는다. 더 오래된 발표만 다음 쪽을 부른다.
+    full = fetch_investor_rows_naver(code, pages=1)
+    if full and min(full) > target:
+        full = fetch_investor_rows_naver(code, pages=max_pages)
+    rows = {day: (row[0], row[2]) for day, row in full.items()}
+    chosen = sorted(day for day in rows if day >= target)[:5]
+    if len(chosen) != 5:
+        return None
+    volume = sum(rows[day][0] for day in chosen)
+    net_qty = sum(rows[day][1] for day in chosen)
+    if volume <= 0:
+        return None
+    return ForeignFlow5d(net_qty, volume, net_qty / volume * 100)
 
 
 def fetch_quote_kis(client: KisClient, code: str) -> Quote:

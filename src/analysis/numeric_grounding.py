@@ -511,7 +511,7 @@ def tidy_text(text: str) -> str:
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\s+([,.)!?。])", r"\1", text)
     text = re.sub(r"\(\s+", "(", text)
-    text = re.sub(r",\s*(?=[,.。])", "", text)
+    text = re.sub(r",\s*(?=[,.。)])", "", text)
     return text.strip()
 
 
@@ -538,7 +538,10 @@ def remove_spans_as_sentences(text: str, spans: list[tuple[int, int]]) -> str:
         kept = [text[start:end] for index, (start, end) in enumerate(bounds) if index not in bad_sentences]
         return tidy_text(" ".join(kept))
     for start, end in sorted(spans, reverse=True):
-        text = text[:start] + text[end:]
+        # 토큰에 바로 붙은 조사·어미('라는'·'대를'·'이다')까지 함께 뺀다 —
+        # 남기면 'OPM 라는 호황'처럼 주어 없는 조사가 고아로 남는다(실측 000660).
+        suffix = re.match(r"[가-힣]+", text[end:])
+        text = text[:start] + text[end + (suffix.end() if suffix else 0):]
     return tidy_text(text)
 
 
