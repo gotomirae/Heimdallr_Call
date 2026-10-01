@@ -8,7 +8,29 @@ from typing import Any
 from src.analysis.prompts import ANALYSIS_SCHEMA
 
 
-_PLACEHOLDER_LITERALS = frozenset({"placeholder"})
+_PLACEHOLDER_LITERALS = frozenset({"placeholder", "...", "…", "....", "……", "tbd", "n/a"})
+
+
+def is_placeholder(value: Any) -> bool:
+    return isinstance(value, str) and value.strip().casefold() in _PLACEHOLDER_LITERALS
+
+
+def prune_placeholder_items(value: Any) -> Any:
+    """배열 안에서 **문자열 값이 하나라도 자리표시**인 객체 항목을 뺀다(재귀 · B-14).
+
+    실측(제이아이테크 2026Q2): `risks`에 `{"risk":"...","watch_metric":"..."}`가 저장돼
+    JARVIS 화면에 그대로 떴다. `"..."`는 None도 빈 문자열도 아니라 검증을 통과했다.
+    항목 하나 때문에 이미 결제한 분석 전체를 버리지 않도록 그 항목만 뺀다.
+    """
+    if isinstance(value, dict):
+        return {key: prune_placeholder_items(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [
+            prune_placeholder_items(item) for item in value
+            if not (isinstance(item, dict) and any(is_placeholder(v) for v in item.values()))
+            and not is_placeholder(item)
+        ]
+    return value
 
 
 def _resolve_ref(schema: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]:
@@ -46,7 +68,7 @@ def schema_problems(
         return [f"{path}: expected {expected}, got {type(value).__name__}"]
 
     problems: list[str] = []
-    if isinstance(value, str) and value.strip().casefold() in _PLACEHOLDER_LITERALS:
+    if is_placeholder(value):
         problems.append(f"placeholder:{path}")
     if "enum" in schema and value not in schema["enum"]:
         problems.append(f"{path}: {value!r} not in enum")

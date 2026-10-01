@@ -68,6 +68,15 @@ jobs:
       - name: 투자 섹터 분류
         run: python -m src.universe.sector_map --save
 
+      # JARVIS 노션 L1 매핑(B-10). API를 못 읽으면 PRD 부록 A.5 정적표로 저장한다.
+      # 컬럼 마이그레이션 전에는 실패로 표시만 하고 시세·스크리닝은 계속 돈다.
+      - name: JARVIS L1 매핑
+        continue-on-error: true
+        env:
+          JARVIS_BASE_URL: ${{ vars.JARVIS_BASE_URL }}
+          JARVIS_PUBLIC_TOKEN: ${{ secrets.JARVIS_PUBLIC_TOKEN }}
+        run: python -m src.universe.industry_l1 --save
+
       - name: 시세 · 지수 스냅샷
         run: python -m src.collectors.price_run --save
 

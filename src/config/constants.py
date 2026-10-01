@@ -142,6 +142,50 @@ TECHNICAL_RSI_STRONG_MAX = 45.0
 TECHNICAL_RSI_TREND_DAYS = 5
 TECHNICAL_PRICE_MAX_AGE_CALENDAR_DAYS = 5
 TECHNICAL_MIN_DAILY_FETCH_RATE = 0.80
+# JARVIS 병행 운영 스위치(INTEGRATION_TASKS B-8). False면 `technical_setup`·
+# `earnings_breakout`은 notifications에 **기록만** 하고 텔레그램은 보내지 않는다.
+# ⚡ 실적 알림·일일 요약은 이 값과 무관하게 유지된다.
+TECHNICAL_TELEGRAM_ENABLED = True
+
+# ═══ JARVIS 진입 필수 조건 M1·M2·M5 (`entry_checks`) ═══
+# ★★ JARVIS `config/rules.yaml > entry_core`와 **같은 값**이어야 한다(PRD §8.8).
+#   한쪽만 바꾸면 JARVIS 🟢 판정과 이 테이블이 에러 없이 어긋난다(T215).
+#   `tests/test_entry_checks.py`가 JARVIS 저장소가 있으면 두 값을 대조한다.
+# M1 — 실적 지속·가속 + 주가 미반영
+ENTRY_M1_CONSECUTIVE_YOY_QUARTERS = 2
+ENTRY_M1_TTM_REVENUE_GROWTH_MIN_PCT = 0.0
+ENTRY_M1_TTM_OP_GROWTH_MIN_PCT = 0.0
+ENTRY_M1_POST_EARNINGS_DRAWDOWN_MAX_PCT = -10.0
+ENTRY_M1_HIGH_52W_DRAWDOWN_MAX_PCT = -15.0
+ENTRY_M1_RANGE_20D_MAX_PCT = 12.0
+ENTRY_M1_ABS_RETURN_20D_MAX_PCT = 5.0
+ENTRY_M1_PRI_MAX = 50
+# JARVIS `tech_display.high_lookback_days`와 같은 52주 = 250거래일 종가 고점.
+ENTRY_HIGH_LOOKBACK_SESSIONS = 250
+ENTRY_SIDEWAYS_SESSIONS = 20
+# M2 — MACD(12,26,9) 상향 교차 직전
+ENTRY_M2_MACD_PARAMS = (12, 26, 9)
+ENTRY_M2_HIST_RISING_BARS_MIN = 2
+ENTRY_M2_NEAR_CROSS_GAP_PCT_OF_CLOSE_MAX = 0.30
+ENTRY_M2_PROJECTED_BARS_TO_CROSS_MAX = 3
+ENTRY_M2_ALLOW_CROSS_TODAY = True
+# M5 — 외국인·기관·합산 중 하나가 2거래일 연속 순매수
+ENTRY_M5_STREAK_DAYS = 2
+# 무효화선(JARVIS entry_gate.invalidation) — PB=10일 저가, SW=20일 저가
+ENTRY_INVALIDATION_PB_SESSIONS = 10
+ENTRY_INVALIDATION_SW_SESSIONS = 20
+# 일봉 요청 기간. MACD 워밍업(26+9)과 52주 고점(250거래일)을 함께 덮는다.
+ENTRY_DAILY_LOOKBACK_CALENDAR_DAYS = 400
+
+# ═══ 🔵 K1 실적 돌파 관찰 (진입 아님 · JARVIS breakout_watch.K1_kr) ═══
+K1_GRADES = ("★", "○")
+K1_GAP_OPEN_MIN_PCT = 3.0
+K1_CLOSE_RETURN_MIN_PCT = 5.0
+K1_VOLUME_MULT_MIN = 2.5
+K1_VOLUME_AVG_SESSIONS = 20
+K1_CLOSE_LOCATION_MIN = 0.7
+# D0가 이보다 오래된 잠정실적은 다시 보지 않는다. 예약 실행 지연·휴장을 덮는 여유다.
+K1_LOOKBACK_TRADING_DAYS = 5
 
 # §9 — 미국 장마감 매크로 스냅샷의 국면 분류 (투자 점수와 합산하지 않음)
 US_MACRO_VIX_RISK_OFF = 25.0
@@ -422,10 +466,14 @@ KIS_RATE_LIMIT_PER_SEC = 8
 KIS_TOKEN_CACHE_PATH = ".cache/kis_token.json"
 KIS_TR_PRICE = "FHKST01010100"
 KIS_TR_DAILY_CHART = "FHKST03010100"
+# 주식현재가 투자자(외국인·기관·개인 일별 순매수). M5 판정 원천이다(JARVIS PRD §7.3).
+# `quotations` 시세 조회 경로라 주문 API 방어선의 성격을 바꾸지 않는다.
+KIS_TR_INVESTOR = "FHKST01010900"
 KIS_ALLOWED_PATHS = (  # ★ 주문 API 호출 금지 — 클라이언트 내부에서 강제 차단
     "/oauth2/tokenP",
     "/uapi/domestic-stock/v1/quotations/inquire-price",
     "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+    "/uapi/domestic-stock/v1/quotations/inquire-investor",
 )
 
 # ═══ 운영 ═══

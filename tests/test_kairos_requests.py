@@ -52,11 +52,12 @@ def test_only_direct_private_company_name_is_accepted():
 
 def test_industry_requires_exact_direct_name():
     target = resolve_industry("2차 전지", {"2차전지", "반도체"})
-    assert target == AnalysisTarget("industry", "2차전지")
+    assert target == AnalysisTarget("industry", "2차 전지")
     assert direct_industry_request(message("2차 전지"), target, {"111"})
+    assert direct_industry_request(message("2차전지"), target, {"111"})
     assert resolve_industry("반도체 분석해줘", {"반도체"}) is None
     assert resolve_industry("2차 전지", {"2차 전지", "2차전지"}) == AnalysisTarget(
-        "industry", "2차전지"
+        "industry", "2차 전지"
     )
     assert not direct_industry_request(
         {**message("2차 전지"), "forward_origin": {"type": "channel"}}, target, {"111"}
@@ -64,11 +65,28 @@ def test_industry_requires_exact_direct_name():
 
 
 @pytest.mark.parametrize("name", [
-    "AI", "화장품_미용기기", "여행", "양자컴퓨터",
-    "배터리", "우주방산", "음식료", "로봇기계",
+    "AI", "화장품_미용기기", "여행", "양자컴퓨터", "자율주행차", "금융", "Robot", "2차 전지",
 ])
-def test_industry_accepts_current_sector_names(name):
+def test_industry_accepts_notion_l1_names(name):
     assert resolve_industry(name, set()) == AnalysisTarget("industry", name)
+
+
+@pytest.mark.parametrize(("alias", "l1"), [
+    ("배터리", "2차 전지"), ("2차전지", "2차 전지"), ("우주방산", "우주항공방산"),
+    ("음식료", "소비재"), ("로봇기계", "Robot"), ("로봇", "Robot"), ("OLED", "IT"),
+])
+def test_old_industry_names_are_aliases_of_notion_l1(alias, l1):
+    """B-9 · JARVIS PRD 부록 A.4 — 기존 이름은 별칭으로 받고 L1 이름으로 접수한다."""
+    target = resolve_industry(alias, set())
+    assert target == AnalysisTarget("industry", l1)
+    assert direct_industry_request(message(alias), target, {"111"})
+
+
+def test_kairos_l1_list_matches_jarvis_notion_eighteen():
+    from src.notify.kairos_requests import KAIROS_L1_INDUSTRIES
+
+    assert len(KAIROS_L1_INDUSTRIES) == len(set(KAIROS_L1_INDUSTRIES)) == 18
+    assert {"AI 반도체", "ETF"} <= set(resolve_industry(name, set()).name for name in ("AI 반도체", "ETF"))
 
 
 def test_drive_industry_folder_match_ignores_only_order_and_separators():

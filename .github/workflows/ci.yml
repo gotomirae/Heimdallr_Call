@@ -46,6 +46,8 @@ jobs:
           for m in universe.build universe.sector_map collectors.replay collectors.price_run \
                    collectors.quarter_prices analysis.batch \
                    finance.enrich finance.backfill screener.run \
-                   notify.batch notify.run notify.listen; do
+                   notify.batch notify.run notify.listen \
+                   notify.entry_checks_run screener.entry_replay_run universe.industry_l1 \
+                   analysis.clean_stored_run db.check_anon; do
             python -c "import src.$m" || exit 1
           done

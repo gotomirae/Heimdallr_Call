@@ -37,12 +37,13 @@ from src.analysis.prompts import (
     FACT_REFERENCE_INSTRUCTIONS,
     SYSTEM_PROMPT,
 )
-from src.analysis.schema_validation import schema_problems
+from src.analysis.schema_validation import prune_placeholder_items, schema_problems
 from src.analysis.numeric_grounding import (
     annotate_factual_numbers,
     redact_unsupported_factual_numbers,
     resolve_factual_references,
     unsupported_factual_numbers,
+    unwrap_leftover_fact_markers,
 )
 from src.finance.narrative_changes import (
     AmountChange,
@@ -620,6 +621,9 @@ def analysis_result_from_response(
     # ★ 저장 전에 태그 누출을 걷어낸다(T61). 스키마 검증은 이걸 못 잡는다 —
     #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
     payload = sanitize_payload(payload)
+    # B-14 — `{"risk":"...","watch_metric":"..."}` 같은 자리표시 항목은 배열에서 뺀다.
+    #   배열이 비면 아래 스키마 검증이 `empty`로 잡는다(전부 자리표시면 저장하지 않는다).
+    payload = prune_placeholder_items(payload)
 
     # 웹검색 결과 URL로 확인된 항목만 보존한다. 모델이 출처 링크를 만들어내도
     # 스키마는 문자열이라 통과하므로 Provider의 실제 검색 결과와 교차한다.
@@ -679,6 +683,9 @@ def analysis_result_from_response(
         )
     except ValueError as exc:
         raise AnalysisError(f"{data.code}: {exc} — 저장하지 않는다") from exc
+    # B-14 — id 없이 만든 `[[F 218.8억]]` 같은 표식은 위 복원에 안 걸린다.
+    #   값으로 풀어 아래 동일 단위 근거 검사를 다시 받게 하고, 단위 없는 원시값은 지운다.
+    payload = unwrap_leftover_fact_markers(payload)
 
     unsupported = unsupported_factual_numbers(
         data,

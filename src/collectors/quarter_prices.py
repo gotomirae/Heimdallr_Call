@@ -72,6 +72,47 @@ def fetch_daily_closes_naver(code: str, begin: str, end: str) -> dict[str, float
     return out
 
 
+def parse_daily_ohlcv(text: str) -> list[tuple[str, float, float, float, float, float]]:
+    """네이버 siseJson 본문 → [(YYYYMMDD, 시가, 고가, 저가, 종가, 거래량)] 날짜순.
+
+    종가가 0 이하이거나 숫자가 아닌 행은 버린다. 시가·고가·저가가 0인 행(거래정지
+    등)은 종가로 대신하지 않고 0 그대로 남긴다 — 판정 함수가 결측으로 다룬다.
+    """
+    try:
+        rows = json.loads(text.strip().replace("'", '"'))
+    except json.JSONDecodeError:
+        return []
+    out: list[tuple[str, float, float, float, float, float]] = []
+    for row in rows[1:]:  # 첫 행은 헤더
+        if len(row) < 6 or not isinstance(row[0], str) or len(row[0]) != 8:
+            continue
+        try:
+            values = tuple(float(row[index]) for index in range(1, 6))
+        except (TypeError, ValueError):
+            continue
+        if values[3] > 0:
+            out.append((row[0], *values))
+    return sorted(out)
+
+
+def fetch_daily_ohlcv_naver(code: str, begin: str, end: str) -> list[tuple[str, float, float, float, float, float]]:
+    """거래소 확정 일봉(시가·고가·저가·종가·거래량). JARVIS가 공식 종가로 쓰는 원천이다.
+
+    ★ 장중에 부르면 오늘 봉이 '현재가'로 들어온다. 확정 종가만 쓰려면 호출부가
+      `entry_checks.confirmed_bars`로 걸러야 한다(T216).
+    """
+    resp = http_get(
+        NAVER_DAILY_URL,
+        params={
+            "symbol": code, "requestType": 1,
+            "startTime": begin, "endTime": end, "timeframe": "day",
+        },
+        headers={"Referer": "https://finance.naver.com/"},
+        timeout=30.0,
+    )
+    return parse_daily_ohlcv(resp.text)
+
+
 def quarter_end_closes(closes: dict[str, float]) -> dict[tuple[int, int], tuple[str, float]]:
     """일별 종가 → {(연, 분기): (거래일, 종가)}. **분기의 마지막 거래일**을 고른다.
 

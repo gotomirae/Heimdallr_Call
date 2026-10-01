@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup
 from src.collectors.kis_client import KisClient, KisError
 from src.config.constants import (
     KIS_TR_DAILY_CHART,
+    KIS_TR_INVESTOR,
     KIS_TR_PRICE,
     RETURN_WINDOW_START_TOLERANCE_DAYS,
 )
@@ -41,6 +42,7 @@ from src.utils.http import decode_html, http_get
 
 PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-price"
 CHART_PATH = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+INVESTOR_PATH = "/uapi/domestic-stock/v1/quotations/inquire-investor"
 NAVER_INDEX_URL = "https://api.finance.naver.com/siseJson.naver"
 NAVER_PRICE_URL = "https://m.stock.naver.com/api/stock/{code}/integration"
 NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"
@@ -225,6 +227,56 @@ def fetch_recent_investor_streak(
             break
         time.sleep(0.12)
     return investor_buy_streak(rows, sessions)
+
+
+def parse_kis_investor_rows(body: dict) -> list[tuple[str, int, int]]:
+    """KIS `inquire-investor`(FHKST01010900) → [(YYYYMMDD, 외국인 순매수량, 기관 순매수량)].
+
+    필드: `stck_bsop_date` · `frgn_ntby_qty`(외국인) · `orgn_ntby_qty`(기관계) ·
+    `prsn_ntby_qty`(개인). ★ KIS 문서 기준이며 PRD §5.4 규칙대로
+    `python -m src.notify.entry_checks_run --probe-kis 005930`으로 실호출 대조한다.
+
+    ★ 당일 집계가 아직 공개되지 않은 행은 세 주체가 모두 0(또는 빈 값)으로 온다.
+      그 행을 '순매수 0'으로 읽으면 어제까지의 연속 순매수가 **오늘 끊긴 것처럼**
+      보인다 — 공개 전 행은 버리고 `as_of`로 기준일을 드러낸다(T218).
+    """
+    out: list[tuple[str, int, int]] = []
+    for row in body.get("output") or []:
+        day = str(row.get("stck_bsop_date") or "")
+        foreign = _num(row.get("frgn_ntby_qty"))
+        institution = _num(row.get("orgn_ntby_qty"))
+        person = _num(row.get("prsn_ntby_qty"))
+        if len(day) != 8 or foreign is None or institution is None:
+            continue
+        if foreign == 0 and institution == 0 and not person:
+            continue
+        out.append((day, int(foreign), int(institution)))
+    return sorted(out, reverse=True)
+
+
+def fetch_investor_daily_kis(client: KisClient, code: str) -> list[tuple[str, int, int]]:
+    """최근 약 30거래일 외국인·기관 일별 순매수량(KIS · 시세 조회 경로)."""
+    body = client.get(
+        INVESTOR_PATH,
+        tr_id=KIS_TR_INVESTOR,
+        params={"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": code},
+    )
+    return parse_kis_investor_rows(body)
+
+
+def fetch_investor_daily_naver(code: str, *, max_pages: int = 1) -> list[tuple[str, int, int]]:
+    """KIS 장애 시 폴백. 네이버 `frgn.naver` 표의 외국인·기관 순매수량."""
+    rows: dict[str, tuple[int, int, int]] = {}
+    for page in range(1, max_pages + 1):
+        response = http_get(
+            NAVER_FOREIGN_URL,
+            params={"code": code, "page": page},
+            headers={"Referer": "https://finance.naver.com/"}, timeout=30.0,
+        )
+        rows.update(parse_investor_flow_rows(decode_html(response)))
+        if page < max_pages:
+            time.sleep(0.12)
+    return sorted(((day, row[2], row[1]) for day, row in rows.items()), reverse=True)
 
 
 def fetch_foreign_flow_5d(

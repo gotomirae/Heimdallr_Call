@@ -19,6 +19,8 @@ from pathlib import Path
 
 from src.config import constants
 from src.universe.sector_map import (
+    DISTRIBUTION_INDUSTRY_WORDS,
+    DISTRIBUTION_SECTOR,
     INDUSTRY_ONLY_KEYWORDS,
     SECTOR_ALIASES,
     SECTOR_EXCLUDES,
@@ -63,6 +65,11 @@ def build() -> dict:
         "sector_excludes": {k: list(v) for k, v in SECTOR_EXCLUDES.items()},
         "sector_aliases": dict(SECTOR_ALIASES),
         "sector_industry_only": sorted(INDUSTRY_ONLY_KEYWORDS),
+        # B-13 — 제품의 '도매·유통'이 본업을 덮지 않게 업종으로 교정하는 규칙.
+        "sector_distribution": {
+            "sector": DISTRIBUTION_SECTOR,
+            "industry_words": list(DISTRIBUTION_INDUSTRY_WORDS),
+        },
         "semiconductor_context": list(SEMICONDUCTOR_CONTEXT),
         "semiconductor_front_process_keywords": list(SEMICONDUCTOR_FRONT_PROCESS_KEYWORDS),
         "semiconductor_back_process_keywords": list(SEMICONDUCTOR_BACK_PROCESS_KEYWORDS),

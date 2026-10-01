@@ -27,10 +27,11 @@ from src.config.constants import (
     TECHNICAL_INVESTOR_BUY_STREAK_DAYS,
     TECHNICAL_MIN_DAILY_FETCH_RATE,
     TECHNICAL_PRICE_MAX_AGE_CALENDAR_DAYS,
+    TECHNICAL_TELEGRAM_ENABLED,
 )
 from src.db.supabase_client import get_client, select_all
 from src.notify.links import naver_stock_url
-from src.notify.telegram import TelegramClient, already_sent, send_once
+from src.notify.telegram import TelegramClient, already_sent, record_notification, send_once
 from src.notify.templates import technical_setup_message
 from src.screener.score import active_score
 from src.screener.sector_growth import sector_growth_profile
@@ -370,7 +371,8 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     send_rows, duplicates = (
         unsent_matches(matches, remaining) if send and remaining else (matches[:remaining], 0) if not send else ([], 0)
     )
-    client = TelegramClient() if send else None
+    # JARVIS 병행 종료 후(B-8) 스위치가 꺼지면 같은 중복키로 DB에만 남긴다.
+    client = TelegramClient() if send and TECHNICAL_TELEGRAM_ENABLED else None
     sent = 0
     for row in send_rows:
         setup = row["technical"]
@@ -397,6 +399,13 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
         text = technical_setup_message(context)
         print(f"\n{'[발송 후보]' if not send else '[발송]'} {row['name']}({row['code']})")
         print(text)
+        payload = {
+            "as_of": setup.as_of,
+            "grade": row.get("grade"),
+            "sector": row["sector"],
+            "early_priority": row["early_priority"],
+            "technical": asdict(setup),
+        }
         if client is not None:
             sent += send_once(
                 client,
@@ -405,14 +414,14 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
                 fiscal_quarter=int(row["fiscal_quarter"]),
                 kind=KIND_TECHNICAL,
                 text=text,
-                payload={
-                    "as_of": setup.as_of,
-                    "grade": row.get("grade"),
-                    "sector": row["sector"],
-                    "early_priority": row["early_priority"],
-                    "technical": asdict(setup),
-                },
+                payload=payload,
             )
+        elif send:
+            record_notification(
+                row["code"], int(row["fiscal_year"]), int(row["fiscal_quarter"]),
+                KIND_TECHNICAL, {**payload, "telegram": False},
+            )
+            sent += 1
     if not send:
         print("\n(--send 미지정 — 발송·DB 쓰기 0건)")
     else:
