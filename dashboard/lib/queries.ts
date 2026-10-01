@@ -444,7 +444,7 @@ export async function getAnnualConsensus(
       .eq("code", code)
       .eq("fiscal_quarter", 0)
       .eq("source", "naver")
-      .eq("fiscal_year", Math.max(fromYear, Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date()))))
+      .eq("fiscal_year", Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date())))
       .order("fiscal_year", { ascending: true })
       .order("snapshot_at", { ascending: false })
       .limit(1)
@@ -458,6 +458,7 @@ export async function getAllLatestAnnualConsensus(): Promise<Map<string, Consens
     "consensus_snapshots",
     CONSENSUS_COLUMNS.join(","),
     (q) => q.eq("fiscal_quarter", 0).eq("source", "naver")
+      .eq("fiscal_year", Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date())))
   );
   const latest = new Map<string, ConsensusRow>();
   for (const row of rows) {
@@ -476,6 +477,7 @@ export async function getAllLatestDiscoveryConsensus(): Promise<Map<string, Cons
     "consensus_snapshots",
     DISCOVERY_CONSENSUS_COLUMNS.join(","),
     (q) => q.eq("fiscal_quarter", 0).eq("source", "naver")
+      .eq("fiscal_year", Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date())))
   );
   const latest = new Map<string, ConsensusRow>();
   for (const row of rows) {
