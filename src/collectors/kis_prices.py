@@ -45,7 +45,7 @@ CHART_PATH = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
 INVESTOR_PATH = "/uapi/domestic-stock/v1/quotations/inquire-investor"
 NAVER_INDEX_URL = "https://api.finance.naver.com/siseJson.naver"
 NAVER_PRICE_URL = "https://m.stock.naver.com/api/stock/{code}/integration"
-NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"  # 2026-10 개편 후 표 없음(T224)
+NAVER_FOREIGN_URL = "https://finance.naver.com/item/frgn.naver"  # 2026-10 개편 후 표 없음(T225)
 NAVER_TREND_URL = "https://m.stock.naver.com/api/stock/{code}/trend"
 NAVER_TREND_PAGE_SIZE = 60
 
@@ -238,7 +238,7 @@ def fetch_investor_rows_naver(
     """최근부터 과거로 `pages`쪽 · {YYYYMMDD: (거래량, 기관, 외국인)}.
 
     ★ PC `frgn.naver`는 2026-10 확인 시점에 표 없는 Next.js 페이지가 되어 기존 파서가
-      **에러 없이 0행**을 냈다(T224). 같은 데이터를 주는 모바일 API로 바꿨다.
+      **에러 없이 0행**을 냈다(T225). 같은 데이터를 주는 모바일 API로 바꿨다.
       다음 쪽은 직전 쪽의 가장 오래된 날짜를 `bizdate`로 넘긴다.
     """
     rows: dict[str, tuple[int, int, int]] = {}
@@ -280,7 +280,7 @@ def parse_kis_investor_rows(body: dict) -> list[tuple[str, int, int]]:
 
     ★ 당일 집계가 아직 공개되지 않은 행은 세 주체가 모두 0(또는 빈 값)으로 온다.
       그 행을 '순매수 0'으로 읽으면 어제까지의 연속 순매수가 **오늘 끊긴 것처럼**
-      보인다 — 공개 전 행은 버리고 `as_of`로 기준일을 드러낸다(T218).
+      보인다 — 공개 전 행은 버리고 `as_of`로 기준일을 드러낸다(T219).
     """
     out: list[tuple[str, int, int]] = []
     for row in body.get("output") or []:

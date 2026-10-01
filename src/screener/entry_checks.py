@@ -2,7 +2,7 @@
 """JARVIS가 읽는 `entry_checks` 판정 — **순수 함수. 외부 I/O 금지.**
 
 임계값은 전부 `src/config/constants.py`의 `ENTRY_*`·`K1_*`이며 JARVIS
-`rules.yaml > entry_core`·`breakout_watch.K1_kr`와 같은 값이다(T215).
+`rules.yaml > entry_core`·`breakout_watch.K1_kr`와 같은 값이다(T216).
 
 판정값은 세 가지다. **`False`와 `None`을 구분한다**(CLAUDE.md 컨벤션).
   True  — 조건을 모두 확인했고 충족
@@ -10,7 +10,7 @@
   None  — 불충족은 없지만 측정하지 못한 조건이 있다(데이터 없음)
 
 가격 조건은 **확정 종가 일봉**으로만 계산한다. `price_snapshots.close`는 수집
-시각에 따라 장중가일 수 있어 쓰지 않는다(T216).
+시각에 따라 장중가일 수 있어 쓰지 않는다(T217).
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def confirmed_bars(bars: Sequence[Bar], now_kst: datetime) -> list[Bar]:
     """장 마감 전 오늘 봉과 미래 봉을 버린다 — 확정 종가만 남긴다.
 
     네이버·KIS 일봉은 장중에도 오늘 봉을 '현재가'로 채워 준다. 그대로 쓰면
-    20일 범위·MACD가 장중가로 계산돼 **실행 시각마다 다른 답**이 나온다(T216).
+    20일 범위·MACD가 장중가로 계산돼 **실행 시각마다 다른 답**이 나온다(T217).
     """
     today = kst_date_key(now_kst)
     completed = now_kst.hour >= KOREA_MARKET_COMPLETED_HOUR_KST
@@ -462,7 +462,7 @@ def first_session_after(
     """공시 후 첫 정규장(D0). `disclosed_on`='YYYYMMDD', `sessions`=거래일 목록.
 
     DART 목록은 접수 **날짜**만 준다. 접수 시각을 모르는 채 당일을 D0로 잡으면
-    장 마감 후 공시의 '반응 전' 봉을 돌파일로 읽는다(T217). 그래서 폴링이 공시를
+    장 마감 후 공시의 '반응 전' 봉을 돌파일로 읽는다(T218). 그래서 폴링이 공시를
     **당일 09:00 전**에 감지했다는 증거가 있을 때만 당일을 D0로 인정하고, 나머지는
     다음 거래일이다.
     """

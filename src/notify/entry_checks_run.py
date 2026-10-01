@@ -97,7 +97,7 @@ def annual_consensus_by_code(rows: list[dict], year: int) -> dict[str, dict]:
     """올해(KST) 네이버 연간 전망의 최신 스냅샷. `fiscal_quarter=0`이 연간이다."""
     latest: dict[str, dict] = {}
     for row in rows:
-        # ★ `int(q or -1)`로 쓰면 연간 행의 0이 falsy라 -1이 되어 **전부 걸러진다**(T222 —
+        # ★ `int(q or -1)`로 쓰면 연간 행의 0이 falsy라 -1이 되어 **전부 걸러진다**(T223 —
         #   첫 운영 계산 1,152행의 annual_consensus_ok가 전부 null이었다).
         quarter = row.get("fiscal_quarter")
         if row.get("source") != "naver" or quarter is None or int(quarter) != 0:

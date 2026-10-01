@@ -99,7 +99,7 @@ def fetch_daily_ohlcv_naver(code: str, begin: str, end: str) -> list[tuple[str, 
     """거래소 확정 일봉(시가·고가·저가·종가·거래량). JARVIS가 공식 종가로 쓰는 원천이다.
 
     ★ 장중에 부르면 오늘 봉이 '현재가'로 들어온다. 확정 종가만 쓰려면 호출부가
-      `entry_checks.confirmed_bars`로 걸러야 한다(T216).
+      `entry_checks.confirmed_bars`로 걸러야 한다(T217).
     """
     resp = http_get(
         NAVER_DAILY_URL,

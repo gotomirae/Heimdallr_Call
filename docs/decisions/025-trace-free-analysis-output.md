@@ -2,7 +2,7 @@
 
 - 상태: 채택 (ADR 12의 "치환 문구" 부분만 대체)
 - 날짜: 2026-10-01
-- 관련: ADR 12, JARVIS INTEGRATION_TASKS B-14, traps.md T221
+- 관련: ADR 12, JARVIS INTEGRATION_TASKS B-14, traps.md T222
 
 ## 결정
 
@@ -18,7 +18,7 @@
 4. 기존 저장분은 `python -m src.analysis.clean_stored_run --save`로 LLM 호출 없이 같은 규칙을 적용한다.
    단일 문자열 자리표시(`earnings_change.cause = "placeholder"` 등)는 빈 값으로 바꾸고, 정리로 **새로**
    비워진 칸을 `_heimdallr.b14_emptied`에 남긴다. 분석 전체를 숨기지는 않는다 — '몇 칸 이상이면
-   숨김' 기준은 자의적이고, 한 칸 때문에 유효한 해석까지 잃는다(T223).
+   숨김' 기준은 자의적이고, 한 칸 때문에 유효한 해석까지 잃는다(T224).
    2026-10-02 실행: 399건 중 34건 정리 · 숨긴 분석 0 · anon 재조회 `[[` 0 · 흔적 0 · 자리표시 0.
    토큰 제거 시 바로 붙은 조사('라는'·'대를')도 함께 빼 고아 조사를 남기지 않는다.
 

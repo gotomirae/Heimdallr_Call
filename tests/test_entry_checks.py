@@ -360,7 +360,7 @@ def test_first_announcements_accepts_dart_yyyymmdd():
     assert first_announcements(rows) == {("000001", 2026, 2): "2026-08-01"}
 
 
-# ═══ JARVIS rules.yaml 대조 (T215) ════════════════════════════════
+# ═══ JARVIS rules.yaml 대조 (T216) ════════════════════════════════
 def _jarvis_rules() -> Path | None:
     from src.utils.env import optional_env
 
@@ -405,7 +405,7 @@ def test_thresholds_match_jarvis_entry_core():
 
 
 def test_annual_consensus_rows_with_quarter_zero_are_kept():
-    """T222 — 연간 행의 fiscal_quarter=0은 falsy다. `or -1`로 쓰면 전부 사라진다."""
+    """T223 — 연간 행의 fiscal_quarter=0은 falsy다. `or -1`로 쓰면 전부 사라진다."""
     from src.notify.entry_checks_run import annual_consensus_by_code
 
     rows = [

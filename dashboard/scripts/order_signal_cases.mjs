@@ -7,7 +7,7 @@ import jitiPkg from "jiti";
 const here = dirname(fileURLToPath(import.meta.url));
 const createJiti = jitiPkg.createJiti ?? jitiPkg;
 const jiti = createJiti(fileURLToPath(import.meta.url), { interopDefault: true });
-const { currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, summarizeOrderDisclosure } = jiti(resolve(here, "..", "lib", "orderSignals.ts"));
+const { currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, isAttachmentOnlyCorrection, summarizeOrderDisclosure } = jiti(resolve(here, "..", "lib", "orderSignals.ts"));
 const { withOrderBacklogQoq, attachOrderReportPoints } = jiti(resolve(here, "..", "lib", "chart.ts"));
 
 const input = await new Promise((done) => {
@@ -18,7 +18,9 @@ const input = await new Promise((done) => {
 });
 
 const cases = JSON.parse(input);
-process.stdout.write(JSON.stringify(cases.map((c) => c.orderReportPoints
+process.stdout.write(JSON.stringify(cases.map((c) => c.attachmentCorrection
+  ? isAttachmentOnlyCorrection(c.reportName)
+  : c.orderReportPoints
   ? withOrderBacklogQoq(attachOrderReportPoints(c.points, c.reports))
   : c.contractWindow
   ? currentQuarterPostReportContracts(c.rows, c.basisDate, c.latestPeriodicReportDate)

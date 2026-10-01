@@ -176,6 +176,22 @@ def test_collector_fetches_correction_once_then_stops(monkeypatch):
     assert excerpt_run.targets(10, ["000001"]) == []
 
 
+def test_attachment_correction_does_not_replace_periodic_business_body(monkeypatch):
+    # 140670 실측: 9/29 첨부정정은 document.xml status 014, 8/14 본문은 존재한다.
+    original = {"code": "140670", "fiscal_year": 2026, "fiscal_quarter": 2,
+                "rcept_no": "20260814002367", "report_nm": "[첨부추가]반기보고서 (2026.06)"}
+    attachment = {**original, "rcept_no": "20260929000169",
+                  "report_nm": "[첨부정정]반기보고서 (2026.06)"}
+    tables = {"earnings_disclosures": [original, attachment], "disclosure_excerpts": []}
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    assert excerpt_run.targets(10, ["140670"]) == [original]
+    tables["disclosure_excerpts"] = [{**original, "sections": {
+        "공시 수주지표 확인": excerpt_run.ORDER_METRIC_MARKER,
+    }}]
+    assert excerpt_run.targets(10, ["140670"]) == []
+
+
 def test_legacy_excerpt_without_order_check_is_backfilled_once(monkeypatch):
     filing = {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2,
               "rcept_no": "20260814001", "report_nm": "반기보고서"}

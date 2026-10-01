@@ -149,7 +149,7 @@ TECHNICAL_TELEGRAM_ENABLED = True
 
 # ═══ JARVIS 진입 필수 조건 M1·M2·M5 (`entry_checks`) ═══
 # ★★ JARVIS `config/rules.yaml > entry_core`와 **같은 값**이어야 한다(PRD §8.8).
-#   한쪽만 바꾸면 JARVIS 🟢 판정과 이 테이블이 에러 없이 어긋난다(T215).
+#   한쪽만 바꾸면 JARVIS 🟢 판정과 이 테이블이 에러 없이 어긋난다(T216).
 #   `tests/test_entry_checks.py`가 JARVIS 저장소가 있으면 두 값을 대조한다.
 # M1 — 실적 지속·가속 + 주가 미반영
 ENTRY_M1_CONSECUTIVE_YOY_QUARTERS = 2

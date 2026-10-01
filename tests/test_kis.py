@@ -526,7 +526,7 @@ def test_missing_column_of_ignores_other_codes():
 
 
 def test_naver_mobile_trend_rows_keep_frgn_shape():
-    """T224 — PC frgn.naver가 표 없는 페이지가 되어 모바일 trend API로 바꿨다.
+    """T225 — PC frgn.naver가 표 없는 페이지가 되어 모바일 trend API로 바꿨다.
     반환 모양은 기존 파서와 같은 {날짜: (거래량, 기관, 외국인)}이다(2026-10-02 실호출 형태)."""
     from src.collectors.kis_prices import investor_buy_streak, parse_investor_trend_rows
 

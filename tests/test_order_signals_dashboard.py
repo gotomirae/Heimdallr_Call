@@ -62,6 +62,13 @@ def test_old_contract_correction_is_not_a_new_contract_amount():
     assert 'item.status === "terminated" || item.isCorrection' in source
 
 
+def test_only_attachment_correction_is_excluded_from_business_report_date():
+    assert _run([{"attachmentCorrection": True, "reportName": name} for name in (
+        "[첨부정정]반기보고서 (2026.06)", "[기재정정]반기보고서 (2026.06)",
+        "[첨부추가]반기보고서 (2026.06)", "반기보고서 (2026.06)", None,
+    )]) == [True, False, False, False, False]
+
+
 def test_order_signal_requires_same_quarter_and_actual_order_language():
     cases = [
         {
