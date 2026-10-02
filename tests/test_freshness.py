@@ -211,6 +211,21 @@ def test_order_backfill_shards_are_disjoint_and_complete(monkeypatch):
         excerpt_run.targets(100, None, all_universe=True, shard_index=4, shard_count=4)
 
 
+def test_non_calendar_reports_keep_distinct_end_dates(monkeypatch):
+    rows = [{"code": "004310", "fiscal_year": None, "fiscal_quarter": None,
+             "rcept_no": receipt, "report_nm": name} for receipt, name in (
+                 ("20260715000001", "반기보고서 (2026.05)"),
+                 ("20260415000001", "분기보고서 (2026.02)"),
+                 ("20260228000001", "사업보고서 (2025.11)"),
+             )]
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k:
+                        rows if table == "earnings_disclosures" else [])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    found = excerpt_run.targets(10, ["004310"], history_quarters=10)
+    assert [r["_order_period"]["end"] for r in found] == ["2026-05-31", "2026-02-28", "2025-11-30"]
+    assert [r["_order_period"]["fiscalQuarter"] for r in found] == [2, 1, 4]
+
+
 def test_legacy_excerpt_without_order_check_is_backfilled_once(monkeypatch):
     filing = {"code": "000001", "fiscal_year": 2026, "fiscal_quarter": 2,
               "rcept_no": "20260814001", "report_nm": "반기보고서"}

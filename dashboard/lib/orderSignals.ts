@@ -28,6 +28,9 @@ export interface OrderDisclosureMetric {
   newOrdersEok: number | null;
   scope: string;
   newOrdersPeriod: string | null;
+  periodEnd?: string;
+  periodLabel?: string;
+  closingMonth?: number;
 }
 
 export interface OrderDisclosureSummary {
@@ -41,6 +44,8 @@ export interface OrderDisclosureSummary {
   status: "measured" | "private" | "not_applicable" | "mentioned" | "truncated" | "unmentioned";
   statusLabel: string;
   evidence: string | null;
+  periodEnd?: string;
+  periodLabel?: string;
 }
 
 export interface OrderContractDisclosure {
@@ -61,6 +66,24 @@ export interface OrderContractDisclosure {
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown> : null;
+}
+
+/** 결산월은 실제 사업보고서에서 검증했다. 달력분기 데이터와 합치지 않는다. */
+export function readOrderReportPeriod(row: Partial<DisclosureExcerptRow>) {
+  const p = record(row.sections?.["공시 보고기간"]);
+  if (!p || typeof p.end !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(p.end) ||
+      !Number.isInteger(p.closingMonth) || !Number.isInteger(p.fiscalYear) || !Number.isInteger(p.fiscalQuarter)) return null;
+  const closing = Number(p.closingMonth), year = Number(p.end.slice(0, 4)), month = Number(p.end.slice(5, 7));
+  const distance = (month - closing + 12) % 12;
+  const q = distance / 3 || 4;
+  const kind = p.reportKind;
+  const endDate = new Date(`${p.end}T00:00:00Z`);
+  if (closing < 1 || closing > 12 || month < 1 || month > 12 || distance % 3 ||
+      p.fiscalYear !== year + Number(month > closing) || p.fiscalQuarter !== q ||
+      !(kind === "사업보고서" && q === 4 || kind === "반기보고서" && q === 2 || kind === "분기보고서" && (q === 1 || q === 3)) ||
+      Number.isNaN(endDate.getTime()) || endDate.toISOString().slice(0, 10) !== p.end) return null;
+  return { end: p.end, year: Number(p.fiscalYear), quarter: Number(p.fiscalQuarter), closingMonth: closing,
+    label: `${p.end.slice(2, 7)}(${String(kind).replace("보고서", "")})` };
 }
 
 /** 첨부만 바꾼 정정을 새 실적 본문 발표일로 쓰면 계약 창이 잘못 잘린다. */
@@ -102,7 +125,8 @@ export function extractOrderContractDisclosure(
  * 수주총액(누적)을 임의로 신규수주로 바꾸거나 단위를 추측하지 않는다.
  */
 export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>): OrderDisclosureMetric | null {
-  if (!row.rcept_no || !row.fiscal_year || !row.fiscal_quarter ||
+  const period = readOrderReportPeriod(row);
+  if (!row.rcept_no || !(period?.year ?? row.fiscal_year) || !(period?.quarter ?? row.fiscal_quarter) ||
       !row.sections || typeof row.sections !== "object" || Array.isArray(row.sections)) return null;
   const explicitMetric = row.sections["공시 수주지표"];
   const section = typeof explicitMetric === "string" ? explicitMetric : row.sections["매출 및 수주상황"];
@@ -131,10 +155,11 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     return values.length === 1 ? values[0] : null;
   };
   const disclosedScope = exactText(/^범위$/);
-  return { year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
+  return { year: period?.year ?? row.fiscal_year!, quarter: period?.quarter ?? row.fiscal_quarter!, rceptNo: row.rcept_no,
     backlogEok, newOrdersEok,
     scope: disclosedScope ?? "공시 명시 수치",
     newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
+    ...(period ? { periodEnd: period.end, periodLabel: period.label, closingMonth: period.closingMonth } : {}),
   };
 }
 
@@ -216,6 +241,14 @@ export function deriveOrderDisclosureSignal(
 
 /** 모든 종목·분기의 수주 표시 계약. 값이 없어도 왜 없는지 숨기지 않는다. */
 export function summarizeOrderDisclosure(row: DisclosureExcerptRow): OrderDisclosureSummary | null {
+  const summary = summarizeOrderDisclosureBase(row);
+  const period = readOrderReportPeriod(row);
+  return summary && period ? { ...summary, periodEnd: period.end, periodLabel: period.label } : summary;
+}
+
+function summarizeOrderDisclosureBase(row: DisclosureExcerptRow): OrderDisclosureSummary | null {
+  const period = readOrderReportPeriod(row);
+  if (period) row = { ...row, fiscal_year: period.year, fiscal_quarter: period.quarter };
   if (row.fiscal_year == null || row.fiscal_quarter == null || !row.rcept_no) return null;
   const metric = extractOrderDisclosureMetric(row);
   const signal = deriveOrderDisclosureSignal(row, row.fiscal_year, row.fiscal_quarter);

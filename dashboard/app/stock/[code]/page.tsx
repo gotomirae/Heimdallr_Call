@@ -502,7 +502,7 @@ export default async function StockPage({ params }: { params: { code: string } }
     (sum, item) => sum + (item.status === "terminated" || item.isCorrection ? 0 : item.amountEok ?? 0), 0
   );
   const webOrderEvents = analysis.valueChain.recentGlobalEvents.filter((item) => /수주|계약|공급|협업/.test(item.event));
-  const orderByQuarter = new Map(orderMetrics.map((row) => [`${row.year}-${row.quarter}`, row]));
+  const orderByQuarter = new Map(orderMetrics.filter((row) => !row.periodEnd).map((row) => [`${row.year}-${row.quarter}`, row]));
   const disclosedContractByQuarter = new Map<string, { throughReportEok: number; postReportEok: number }>();
   for (const item of orderContracts) {
     // 해지금액을 신규 계약액으로 더하면 수주가 과대 표시된다.
@@ -1001,7 +1001,7 @@ export default async function StockPage({ params }: { params: { code: string } }
             </tr></thead>
             <tbody>{orderSummaries.map((row) => <tr key={row.rceptNo} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-slate-300">{disclosureDateByReceipt.get(row.rceptNo) ?? DASH}</td>
-              <td className="py-2 text-slate-100">{quarterLabel(row.year, row.quarter)}</td>
+              <td className="py-2 text-slate-100">{row.periodLabel ?? quarterLabel(row.year, row.quarter)}</td>
               <td className="py-2 tabular-nums">{row.backlogEok == null ? DASH : `${num(row.backlogEok, 1)}억원`}</td>
               <td className="py-2 tabular-nums">{row.newOrdersEok == null ? DASH : `${num(row.newOrdersEok, 1)}억원`}</td>
               <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-slate-300">{row.scope}</span>}{row.newOrdersPeriod && <span className="mt-0.5 block text-[11px] text-amber-200">신규수주: {row.newOrdersPeriod}</span>}</td>

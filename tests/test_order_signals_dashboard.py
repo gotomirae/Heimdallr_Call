@@ -69,6 +69,25 @@ def test_only_attachment_correction_is_excluded_from_business_report_date():
     )]) == [True, False, False, False, False]
 
 
+def test_non_calendar_order_metric_and_charts_keep_actual_period_end():
+    period = {"end": "2026-05-31", "closingMonth": 11, "fiscalYear": 2026,
+              "fiscalQuarter": 2, "reportKind": "반기보고서"}
+    row = {"rcept_no": "20260715000001", "fiscal_year": None, "fiscal_quarter": None,
+           "sections": {"공시 보고기간": period, "공시 수주지표": "단위 | 억원\n범위 | 회사 전체\n수주잔고 | 120"}}
+    metric = _run([{"metric": True, "row": row}])[0]
+    assert metric["periodEnd"] == "2026-05-31"
+    assert metric["periodLabel"] == "26-05(반기)"
+    assert _run([{"summary": True, "row": row}])[0]["periodLabel"] == "26-05(반기)"
+    reports = [{**metric, "backlogEok": 100, "quarter": 1, "periodEnd": "2026-02-28", "periodLabel": "26-02(분기)"}, metric]
+    points = _run([{"orderReportPoints": True, "points": [], "reports": reports}])[0]
+    assert len(points) == 2
+    assert points[1]["orderBacklogQoq"] == pytest.approx(20)
+    changed = [{**reports[0], "closingMonth": 12}, reports[1]]
+    assert _run([{"orderReportPoints": True, "points": [], "reports": changed}])[0][1]["orderBacklogQoq"] is None
+    malformed = {**row, "sections": {**row["sections"], "공시 보고기간": {**period, "end": "2026-05-99"}}}
+    assert _run([{"metric": True, "row": malformed}]) == [None]
+
+
 def test_order_signal_requires_same_quarter_and_actual_order_language():
     cases = [
         {

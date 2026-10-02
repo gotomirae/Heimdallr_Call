@@ -30,6 +30,7 @@ from src.collectors.dart_excerpt import (
     fetch_report_xml,
 )
 from src.db.supabase_client import get_client, select_all
+from src.collectors.order_history_run import report_end, verified_report_period
 from src.utils.console import enable_utf8_stdout
 
 #: 정기보고서만 받는다. 잠정실적 공정공시는 `document.xml`이 안 되고(status 014),
@@ -70,15 +71,28 @@ def targets(
         # 프로세스별로 달라지는 hash() 대신 CRC32로 동일 기업을 같은 작업에 고정한다.
         and zlib.crc32(d["code"].encode("utf-8")) % shard_count == shard_index
     ]
+    annual_by_code: dict[str, list[str]] = {}
+    for row in disclosures:
+        end = report_end(row.get("report_nm"))
+        if end and "사업보고서" in row["report_nm"]:
+            annual_by_code.setdefault(row["code"], []).append(row["report_nm"])
+    for row in disclosures:
+        annuals = annual_by_code.get(row["code"], [])
+        if any(int(report_end(name)[5:7]) != 12 for name in annuals):
+            period = verified_report_period(row["report_nm"], annuals)
+            if period:
+                row["_order_period"] = period
     # 완료 표식은 접수번호별로 본다. 같은 분기의 정정공시는 새 접수번호라 다시 받는다.
-    have = {
-        r["rcept_no"]
+    completed = {
+        r["rcept_no"]: r["sections"]
         for r in select_all(
             "disclosure_excerpts", "rcept_no,sections"
         )
         if isinstance(r.get("sections"), dict)
         and r["sections"].get("공시 수주지표 확인") == ORDER_METRIC_MARKER
     }
+    have = {row["rcept_no"] for row in disclosures if row["rcept_no"] in completed and
+            (not row.get("_order_period") or completed[row["rcept_no"]].get("공시 보고기간") == row["_order_period"])}
 
     if codes:
         wanted = set(codes)
@@ -93,9 +107,10 @@ def targets(
 
     # 종목·분기별 최신 정정본만 남긴다. 동일 분기의 구 접수본을 다시 받아 그래프에서
     # 두 점으로 보이는 것을 막되, 정정 접수번호 자체는 놓치지 않는다.
-    newest_period: dict[tuple[str, int, int], dict] = {}
+    newest_period: dict[tuple[str, str], dict] = {}
     for d in disclosures:
-        key = (d["code"], d.get("fiscal_year") or 0, d.get("fiscal_quarter") or 0)
+        key = (d["code"], report_end(d.get("report_nm")) or
+               f"{d.get('fiscal_year') or 0}-{d.get('fiscal_quarter') or 0}")
         prev = newest_period.get(key)
         if prev is None or d["rcept_no"] > prev["rcept_no"]:
             newest_period[key] = d
@@ -107,7 +122,8 @@ def targets(
     for filings in by_code.values():
         ordered_filings = sorted(
             filings,
-            key=lambda row: (row.get("fiscal_year") or 0, row.get("fiscal_quarter") or 0, row["rcept_no"]),
+            key=lambda row: (report_end(row.get("report_nm")) or
+                             f"{row.get('fiscal_year') or 0:04d}-{(row.get('fiscal_quarter') or 0) * 3:02d}", row["rcept_no"]),
             reverse=True,
         )[:max(1, history_quarters)]
         candidates.extend((depth, row) for depth, row in enumerate(ordered_filings))
@@ -205,7 +221,9 @@ def main() -> int:
             failed += 1
             continue
 
-        chars = sum(len(v) for v in ex.sections.values())
+        if ex.sections and d.get("_order_period"):
+            ex.sections["공시 보고기간"] = d["_order_period"]
+        chars = sum(len(v) for v in ex.sections.values() if isinstance(v, str))
         if not ex.sections:
             # 절을 하나도 못 찾았다. **저장하지 않는다** — 빈 발췌를 넣으면
             # 다음 실행이 '이미 받았다'고 건너뛰어 영영 비어 있게 된다.

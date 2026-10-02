@@ -202,6 +202,9 @@ ORDER_HISTORY_QUARTERS = 10
 # 1,300종목을 20개씩 보면 약 13주가 걸려 상세 그래프가 장기간 비어 보인다.
 # 작은 list.json 조회는 100종목씩, 대용량 원문은 별도 30분 예산으로 나눠 호출한다.
 ORDER_HISTORY_DISCOVERY_CODES_PER_RUN = 100
+# 미발표 분기를 요구하지 않는 보수적 목록 재조회 기준(법적 제출기한 판정 아님).
+ORDER_HISTORY_REPORT_GRACE_DAYS = 45
+ORDER_HISTORY_ANNUAL_GRACE_DAYS = 90
 
 # ═══ 정규화 분모 (PRD §4.2 — 이 프로젝트에서 가장 중요한 계산 규칙) ═══
 # 측정 불가능한 축은 0점 처리하지 않고 분모에서 제외한다.

@@ -31,6 +31,9 @@ export interface ChartPoint {
   postReportContractEok: number | null;
   /** 공시 합계의 범위. 주요계약은 전체 회사 수주잔고가 아니다. */
   orderScope?: string;
+  /** 非12월 결산 수주점의 실제 보고기간 종료일. 재무 달력분기와 합치지 않는다. */
+  orderPeriodEnd?: string;
+  orderClosingMonth?: number;
   /** 부호 전환 구간 라벨('흑전'·'적전'…). %가 없을 때 대신 보여준다. */
   opStatusLabel: string | null;
   ttmRevenue: number | null;
@@ -165,23 +168,29 @@ export interface ContractDisclosureQuarter {
 /** 수주 원문은 재무 수집 여부와 독립적이다. 재무가 없는 과거 분기도 수주축에 남긴다. */
 export function attachOrderReportPoints(
   points: ChartPoint[],
-  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string }[],
+  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string; periodEnd?: string; periodLabel?: string; closingMonth?: number }[],
 ): ChartPoint[] {
   const merged = new Map(points.map((point) => [`${point.fiscalYear}-${point.fiscalQuarter}`, { ...point }]));
   for (const report of reports) {
-    const key = `${report.year}-${report.quarter}`;
+    const key = report.periodEnd ? `report:${report.periodEnd}` : `${report.year}-${report.quarter}`;
     const existing = merged.get(key);
     const point: ChartPoint = existing ?? {
-      label: qLabel(report.year, report.quarter), fiscalYear: report.year, fiscalQuarter: report.quarter,
+      label: report.periodLabel ?? qLabel(report.year, report.quarter), fiscalYear: report.year, fiscalQuarter: report.quarter,
       revenue: null, op: null, revenueYoy: null, opYoy: null, opm: null, gpm: null,
       orderBacklog: null, newOrders: null, orderBacklogQoq: null,
       disclosedContractEok: null, postReportContractEok: null,
       opStatusLabel: null, ttmRevenue: null, isEstimate: false, isCurrentQuarter: false,
     };
-    merged.set(key, { ...point, orderBacklog: report.backlogEok, newOrders: report.newOrdersEok, orderScope: report.scope });
+    merged.set(key, { ...point, orderBacklog: report.backlogEok, newOrders: report.newOrdersEok, orderScope: report.scope,
+      ...(report.periodEnd ? { orderPeriodEnd: report.periodEnd, orderClosingMonth: report.closingMonth } : {}) });
   }
-  const ordered = [...merged.values()].sort((left, right) =>
-    left.fiscalYear - right.fiscalYear || left.fiscalQuarter - right.fiscalQuarter);
+  // 非12월 자료가 있으면 주문 전용 축에서 재무의 가짜 빈 분기점을 제거한다.
+  const values = [...merged.values()].filter((p) => !reports.some((r) => r.periodEnd) ||
+    p.orderPeriodEnd || p.isContractEvent || p.orderBacklog != null || p.newOrders != null);
+  const monthIndex = (p: ChartPoint) => p.orderPeriodEnd
+    ? Number(p.orderPeriodEnd.slice(0, 4)) * 12 + Number(p.orderPeriodEnd.slice(5, 7))
+    : p.fiscalYear * 12 + p.fiscalQuarter * 3;
+  const ordered = values.sort((left, right) => monthIndex(left) - monthIndex(right));
   return [...ordered.filter((point) => !point.isCurrentQuarter).slice(-CHART_QUARTERS),
     ...ordered.filter((point) => point.isCurrentQuarter)];
 }
@@ -240,11 +249,16 @@ export function withOrderBacklogQoq(points: ChartPoint[]): ChartPoint[] {
   return points.map((point) => {
     let orderBacklogQoq: number | null = null;
     if (point.orderBacklog != null) {
-      const currentIndex = point.fiscalYear * 4 + point.fiscalQuarter;
-      const previousIndex = previous == null ? null : previous.fiscalYear * 4 + previous.fiscalQuarter;
+      const monthIndex = (p: ChartPoint) => p.orderPeriodEnd
+        ? Number(p.orderPeriodEnd.slice(0, 4)) * 12 + Number(p.orderPeriodEnd.slice(5, 7))
+        : p.fiscalYear * 12 + p.fiscalQuarter * 3;
+      const currentIndex = monthIndex(point);
+      const previousIndex = previous == null ? null : monthIndex(previous);
       if (
         previous?.orderBacklog != null && previous.orderBacklog > 0 &&
-        previousIndex != null && currentIndex - previousIndex === 1 &&
+        previousIndex != null && currentIndex - previousIndex === 3 &&
+        Boolean(point.orderPeriodEnd) === Boolean(previous.orderPeriodEnd) &&
+        point.orderClosingMonth === previous.orderClosingMonth &&
         Boolean(point.orderScope) && point.orderScope === previous.orderScope
       ) {
         orderBacklogQoq = (point.orderBacklog / previous.orderBacklog - 1) * 100;

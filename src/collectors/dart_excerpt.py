@@ -65,7 +65,7 @@ class ExcerptError(RuntimeError):
 @dataclass
 class ReportExcerpt:
     rcept_no: str
-    sections: dict[str, str] = field(default_factory=dict)
+    sections: dict[str, str | dict] = field(default_factory=dict)
     #: 원문 전체 길이(자). 얼마나 잘랐는지 화면에 밝히기 위해 남긴다.
     full_chars: int = 0
 

@@ -12,6 +12,7 @@ import type {
   UniverseRow,
 } from "./types";
 import type { DisclosureExcerptRow } from "./orderSignals";
+import { readOrderReportPeriod } from "./orderSignals";
 
 // ★ 배열 — `sector`는 마이그레이션 전까지 없어서 통째 조회가 42703으로 죽는다(T18).
 const UNIVERSE_COLUMNS = [
@@ -418,8 +419,9 @@ export async function getOrderDisclosureExcerpts(code: string): Promise<Disclosu
     return allRows.filter((row) => {
       if (row.sections && typeof row.sections === "object" &&
           !Array.isArray(row.sections) && "단일판매·공급계약" in row.sections) return true;
-      const key = `${row.fiscal_year}-${row.fiscal_quarter}`;
-      if (row.fiscal_year == null || row.fiscal_quarter == null || seen.has(key)) return false;
+      const end = readOrderReportPeriod(row)?.end ?? null;
+      const key = end ?? `${row.fiscal_year}-${row.fiscal_quarter}`;
+      if ((end == null && (row.fiscal_year == null || row.fiscal_quarter == null)) || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
