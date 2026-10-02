@@ -4,6 +4,7 @@
     python -m src.notify.batch --flash            # 대상만 출력
     python -m src.notify.batch --flash --send     # 실제 발송
     python -m src.notify.batch --digest --send
+    python -m src.notify.batch --digest-gate --gate-output "$GITHUB_OUTPUT"   # 오늘 몫이 끝났으면 skip=true
     python -m src.notify.batch --suppress         # 억제 대상만 출력
     python -m src.notify.batch --suppress --save  # 이력에만 남기고 발송은 안 함
 
@@ -12,6 +13,8 @@
 
 ★ 중복 발송은 `send_once`가 `notifications` 테이블로 막는다.
   같은 (종목, 분기, 종류)는 두 번 나가지 않는다 — 워크플로가 하루 38회 돌아도 안전하다.
+  ★★ 단, 📊일일 요약은 code가 NULL이라 그 검사를 **건너뛴다**(T228 — UNIQUE도 NULL끼리는
+  서로 다르다). 요약은 `payload.digest_date`(KR 날짜)로 따로 막는다(`find_daily`).
 
 ★★ 억제(`--suppress`)는 그 중복 차단을 **의도적으로 미리 채우는** 장치다.
   이미 발표가 끝난 분기의 backlog가 알림으로 한꺼번에 쏟아지는 것을 막는다.
@@ -24,12 +27,17 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from src.config.constants import DASHBOARD_URL_DEFAULT, FLASH_DAILY_MAX, NOTIFY_GRADES
-from src.db.supabase_client import select_all
+from src.config.constants import (
+    DASHBOARD_URL_DEFAULT,
+    FLASH_DAILY_MAX,
+    KOREA_MARKET_COMPLETED_HOUR_KST,
+    NOTIFY_GRADES,
+)
+from src.db.supabase_client import get_client, select_all
 from src.notify.run import build_flash_context
 from src.notify.telegram import (
     TelegramClient,
@@ -47,6 +55,76 @@ SCREEN_COLUMNS = (
     "code,fiscal_year,fiscal_quarter,gate_passed,grade,score_flash,score_final,pri,"
     "has_consensus,base_effect_warning"
 )
+KST = ZoneInfo("Asia/Seoul")
+
+
+# ═══ 일일 요약 1일 1회 (T228) ══════════════════════════════════════
+def digest_day(now: datetime) -> date:
+    """요약이 속한 KR 날짜 = 확정 종가 시각(16:00 KST)이 가장 최근에 지난 날.
+
+    ★ 실행 시각의 날짜를 쓰면 GitHub 지연으로 자정을 넘긴 실행(10/1분이 00:37 시작)이
+      **다음 날 요약**이 되어 그날 정시 요약까지 막는다. `confirmed_bars`와 같은 16시 경계다.
+    손계산: 10/1 17:37 → 10/1 · 10/2 00:37 → 10/1 · 10/2 15:59 → 10/1 · 10/2 16:00 → 10/2
+    """
+    return (now.astimezone(KST) - timedelta(hours=KOREA_MARKET_COMPLETED_HOUR_KST)).date()
+
+
+def entry_checks_state(summary: dict | None, run_day: str) -> dict:
+    """같은 잡의 entry_checks 요약 → 요약 이력에 남길 상태. 이번 실행 것이 아니면 'missing'."""
+    if not summary or summary.get("date") != run_day:
+        return {"status": "missing"}
+    return {
+        "status": summary.get("status") or "missing",
+        "check_date": summary.get("check_date"),
+        "saved": int(summary.get("saved") or 0),
+    }
+
+
+def day_complete(row: dict | None) -> bool:
+    """오늘 몫(요약 발송 + entry_checks 저장 완료)이 끝났는가. 판정 불가는 False(= 다시 돈다)."""
+    state = ((row or {}).get("payload") or {}).get("entry_checks") or {}
+    return state.get("status") == "complete" and int(state.get("saved") or 0) > 0
+
+
+def find_daily(day: date) -> dict | None:
+    rows = (
+        get_client().table("notifications").select("id,payload,sent_at")
+        .eq("kind", KIND_DAILY).eq("payload->>digest_date", day.isoformat())
+        .order("id").limit(1).execute().data
+        or []
+    )
+    return rows[0] if rows else None
+
+
+def run_digest_gate(output: str | None) -> int:
+    """pg_cron 정시 실행과 예비 schedule이 같은 날 둘 다 돌 때 뒤의 것을 즉시 끝낸다.
+
+    ★ 판정에 실패하면 skip=false(= 그냥 돈다). 중복 발송은 뒤 단계의 키가 막는다 —
+      게이트는 비용 절감이지 중복 방어의 유일한 선이 아니다. 그래서 여기서는 실패를 삼킨다.
+    """
+    day = digest_day(datetime.now(KST))
+    try:
+        row = find_daily(day)
+    except Exception as exc:
+        print(f"⚠ 오늘 요약 이력 조회 실패({type(exc).__name__}) — 게이트 없이 진행")
+        row = None
+    skip = day_complete(row)
+    state = ((row or {}).get("payload") or {}).get("entry_checks")
+    print(f"digest_day {day} · 요약 {'발송됨' if row else '없음'} · entry_checks {state} → skip={str(skip).lower()}")
+    if output:
+        with open(output, "a", encoding="utf-8") as fh:
+            fh.write(f"skip={str(skip).lower()}\n")
+    return 0
+
+
+def _read_summary(env_name: str) -> dict | None:
+    path = optional_env(env_name)
+    if not path:
+        return None
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def _qi(row: dict) -> int:
@@ -187,7 +265,9 @@ def run_suppress(save: bool, reason: str) -> int:
 
 
 def run_digest(send: bool) -> int:
-    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    now = datetime.now(KST)
+    today = now.date()
+    day = digest_day(now)
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     rows = latest_screens()
     targets = notify_targets()
@@ -196,7 +276,7 @@ def run_digest(send: bool) -> int:
         "gate_passed": sum(1 for r in rows if r.get("gate_passed") is True),
         "disclosures": len(
             [d for d in select_all("earnings_disclosures", "rcept_no,disclosed_at")
-             if str(d.get("disclosed_at") or "")[:10] == today.isoformat()]
+             if str(d.get("disclosed_at") or "")[:10] == day.isoformat()]
         ),
     }
     for grade in ("★", "○", "△"):
@@ -204,7 +284,7 @@ def run_digest(send: bool) -> int:
 
     yoy = revenue_yoy_map(targets[:FLASH_DAILY_MAX])
     ctx = {
-        "date": today.isoformat(),
+        "date": day.isoformat(),
         "counts": counts,
         "rows": [
             {
@@ -218,13 +298,12 @@ def run_digest(send: bool) -> int:
         ],
         "url": optional_env("DASHBOARD_BASE_URL", DASHBOARD_URL_DEFAULT),
     }
-    summary_path = optional_env("TECHNICAL_SCAN_SUMMARY_PATH")
-    if summary_path:
-        try:
-            summary = json.loads(Path(summary_path).read_text(encoding="utf-8"))
-            ctx["technical_scan"] = summary if summary.get("date") == today.isoformat() else {"status": "scan_failed"}
-        except (OSError, ValueError):
-            ctx["technical_scan"] = {"status": "scan_failed"}
+    if optional_env("TECHNICAL_SCAN_SUMMARY_PATH"):
+        summary = _read_summary("TECHNICAL_SCAN_SUMMARY_PATH")
+        ctx["technical_scan"] = (
+            summary if summary and summary.get("date") == today.isoformat() else {"status": "scan_failed"}
+        )
+    entry_state = entry_checks_state(_read_summary("ENTRY_CHECKS_SUMMARY_PATH"), today.isoformat())
     text = daily_digest(ctx)
     print(text)
 
@@ -232,10 +311,24 @@ def run_digest(send: bool) -> int:
         print("\n(--send 미지정 — 발송하지 않았다)")
         return 0
 
+    existing = find_daily(day)
+    if existing is not None:
+        # 이미 보냈다. 앞 실행의 entry_checks가 미완이었고 이번에 끝났으면 표식만 고쳐
+        # 다음 재시도·예비 실행이 게이트에서 바로 끝나게 한다(텔레그램은 다시 안 보낸다).
+        if not day_complete(existing) and day_complete({"payload": {"entry_checks": entry_state}}):
+            get_client().table("notifications").update(
+                {"payload": {**(existing.get("payload") or {}), "entry_checks": entry_state}}
+            ).eq("id", existing["id"]).execute()
+            print(f"\n· {day} 요약은 이미 발송됨(id {existing['id']}) — entry_checks 완료 표식만 갱신")
+        else:
+            print(f"\n· {day} 요약은 이미 발송됨(id {existing['id']}) — 재발송하지 않는다")
+        return 0
+
     client = TelegramClient()
     ok = send_once(
         client, code=None, fiscal_year=None, fiscal_quarter=None,
-        kind=KIND_DAILY, text=text, payload=counts,
+        kind=KIND_DAILY, text=text,
+        payload={**counts, "digest_date": day.isoformat(), "entry_checks": entry_state},
     )
     print(f"\n{'✓ 발송' if ok else '✗ 발송 안 됨(중복이거나 실패)'}")
     return 0
@@ -246,6 +339,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="일괄 발송")
     parser.add_argument("--flash", action="store_true", help="★/○ 즉시 알림")
     parser.add_argument("--digest", action="store_true", help="일일 요약")
+    parser.add_argument("--digest-gate", action="store_true",
+                        help="오늘 요약·entry_checks가 이미 끝났으면 skip=true (워크플로 게이트)")
+    parser.add_argument("--gate-output", help="게이트 결과를 덧붙일 파일($GITHUB_OUTPUT)")
     parser.add_argument("--suppress", action="store_true",
                         help="발송하지 않고 이력에만 남긴다(이미 발표된 backlog용)")
     parser.add_argument("--send", action="store_true", help="실제 발송")
@@ -258,7 +354,9 @@ def main() -> int:
 
     line = "═" * 72
     print(line)
-    if args.suppress:
+    if args.digest_gate:
+        result = run_digest_gate(args.gate_output)
+    elif args.suppress:
         result = run_suppress(args.save, args.reason)
     elif args.digest:
         result = run_digest(args.send)

@@ -161,12 +161,16 @@ def test_telegram_cloud_listener_is_disabled_to_keep_single_consumer():
 
 
 def test_daily_recommendation_has_three_staggered_retries():
-    """GitHub cron 지연 한 번이 그날 추천 전체를 없애지 않게 세 번 기회를 둔다."""
+    """정시 3회는 pg_cron(T228), GitHub schedule은 각 30분 뒤 예비 3회다.
+
+    정시 쪽 값과 SQL 대조는 `test_daily_dispatch.py`가 한다.
+    """
     yaml = pytest.importorskip("yaml")
     spec = yaml.safe_load(_text(WORKFLOWS / "daily_digest.yml"))
     schedules = _trigger_map(spec)["schedule"]
     crons = [row["cron"] for row in schedules]
-    assert crons == ["37 8 * * 1-5", "17 9 * * 1-5", "7 10 * * 1-5"]
+    assert crons == ["7 9 * * 1-5", "47 9 * * 1-5", "37 10 * * 1-5"]
+    assert "workflow_dispatch" in _trigger_map(spec)
     body = _text(WORKFLOWS / "daily_digest.yml")
     assert "오늘의 종목 추천 · 최대 2개" in body
 

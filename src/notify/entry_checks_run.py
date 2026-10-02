@@ -13,6 +13,9 @@
        M5 없이도 성립한다 — M5 탈락으로 M2를 비우면 🟡가 구조적으로 사라진다(ADR 24).
 결과는 통과·탈락 모두 저장한다. 1단계 탈락 행은 m2_detail·m5_detail이 null이다.
 멱등: 같은 `check_date`는 upsert로 덮는다. 선별에 LLM을 쓰지 않는다(ADR 3).
+  ★ 단, 이번 실행에서 일봉·수급을 **못 받은** 행은 앞 실행이 이미 저장한 완전한 행을
+    덮지 않는다(`keep_complete_rows`) — pg_cron 정시 실행 뒤 예비 schedule이 원천 장애 중에
+    돌면 멀쩡한 M2·M5가 null로 바뀐다(T228).
 """
 
 from __future__ import annotations
@@ -56,6 +59,8 @@ FUNDAMENTAL_COLUMNS = (
     "ttm_revenue,ttm_op"
 )
 UPSERT_CHUNK = 500
+#: 이 표식이 붙은 행은 '이번 실행이 원천을 못 받았다'는 뜻이다 — 판정이 아니라 결측이다.
+FETCH_FAILED_NOTES = frozenset({"daily_fetch_failed", "flow_fetch_failed"})
 
 
 def _qi(year: int, quarter: int) -> int:
@@ -221,6 +226,25 @@ def compose_row(
         "low_20d": lows["low_20d"],
         "computed_at": computed_at,
     }
+
+
+def _fetch_failed(row: dict) -> bool:
+    return bool(FETCH_FAILED_NOTES & set((row.get("m1_detail") or {}).get("notes") or []))
+
+
+def keep_complete_rows(rows: list[dict], existing: list[dict]) -> tuple[list[dict], int]:
+    """같은 check_date 재실행이 **이미 저장된 완전한 행을 결측 행으로 덮지 않게** 거른다.
+
+    완전한 행 = 일봉 단계까지 갔고(`stage == 'price'`) 원천 실패 표식이 없는 행.
+    새 행도 원천을 다 받았으면 그대로 덮는다(뒤 실행이 더 늦은·완전한 원천을 봤을 수 있다).
+    반환: (저장할 행, 기존 행을 지켜 빼낸 수)
+    """
+    complete = {
+        str(row["code"]) for row in existing
+        if (row.get("m1_detail") or {}).get("stage") == "price" and not _fetch_failed(row)
+    }
+    kept = [row for row in rows if not (_fetch_failed(row) and str(row["code"]) in complete)]
+    return kept, len(rows) - len(kept)
 
 
 def to_bars(rows: list[tuple[str, float, float, float, float, float]]) -> list[Bar]:
@@ -398,14 +422,15 @@ def run(*, save: bool, send: bool, codes: list[str] | None = None, summary_path:
 
     client = _kis_client() if passed else None
     flows: dict[str, dict | None] = {}
-    flow_failed = 0
+    flow_errors: set[str] = set()
     for code in passed:
         try:
             flows[code] = fetch_flow(client, code)
         except Exception as exc:
-            flow_failed += 1
+            flow_errors.add(code)
             flows[code] = None
             print(f"  ⚠ {code} 수급: {type(exc).__name__}")
+    flow_failed = len(flow_errors)
     funnel["m5"] = sum(1 for flow in flows.values() if flow and flow.get("pass"))
     sources = collections.Counter((flow or {}).get("source") for flow in flows.values() if flow)
     print(f"2단계(KIS 수급) {len(passed)}종목 · M5 통과 {funnel['m5']} · 원천 {dict(sources)} · 실패 {flow_failed}")
@@ -437,6 +462,8 @@ def run(*, save: bool, send: bool, codes: list[str] | None = None, summary_path:
         bars = bars_of(code) if fin.get("stage1_pass") else None
         if fin.get("stage1_pass") and not bars:
             notes.append("daily_fetch_failed")
+        if code in flow_errors:
+            notes.append("flow_fetch_failed")
         announcement = announcements.get((code, int(screen["fiscal_year"]), int(screen["fiscal_quarter"])))
         rows.append(compose_row(
             code, check_date, fin, bars=bars, flow=flows.get(code),
@@ -488,6 +515,11 @@ def run(*, save: bool, send: bool, codes: list[str] | None = None, summary_path:
         _write_summary(summary_path, summary)
         return 0 if summary["status"] == "complete" else 1
 
+    if any(_fetch_failed(row) for row in rows):
+        existing = select_all(TABLE, "code,m1_detail", filters={"check_date": _iso(check_date)})
+        rows, protected = keep_complete_rows(rows, existing)
+        if protected:
+            print(f"  · 원천 실패 {protected}행은 앞 실행의 완전한 행을 유지했다(덮지 않음)")
     saved, dropped = upsert_tolerating_missing_columns(
         get_client(), TABLE, rows, on_conflict="code,check_date", chunk=UPSERT_CHUNK,
     )

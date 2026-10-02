@@ -3923,3 +3923,19 @@ HTTP 200이고 파서는 빈 dict를 돌려주므로 아무것도 실패하지 �
 기업 코드의 고정 CRC32 modulo로 분할하며 Python hash()는 프로세스별 seed가 달라 금지한다.
 네 분할의 합집합과 총 건수가 전체와 정확히 같음을 재생 검증한다. 워크플로 전체 concurrency를
 기존 수집과 공유하여 예약·전수 실행이 겹치지 않게 한다. 작업 종료·초록 success는 잔여 0건이 아니다.
+
+## T228. 📊 일일 요약은 **code가 NULL이라 중복키를 통과한다** — "notifications가 막는다"던 요약이 9/22부터 하루 3번 나갔다 `[HD 2026-10-02 notifications id 182~207 실측]`
+
+`send_once`는 `code·fiscal_year·fiscal_quarter`가 **모두 있을 때만** `already_sent`를 본다. 요약은 셋 다
+None이라 검사를 건너뛰고, 테이블의 `UNIQUE(code, fiscal_year, fiscal_quarter, kind)`도 **NULL끼리는 서로
+다른 값**이라 막지 못한다. 워크플로 주석은 "중복은 notifications가 막는다(kind=daily, 날짜 기준)"라고
+적고 있었다 — 그런 코드는 어디에도 없었다. 9/22 GitHub 지연 대비로 17:37·18:17·19:07 세 번 돌게 한 날부터
+매 거래일 요약이 3건씩 발송됐다(10/1: 00:39·01:27·02:00 KST). 에러도 경고도 없다.
+→ 요약은 `payload.digest_date`로 따로 막는다(`batch.find_daily`). 날짜는 **실행 시각이 아니라 16:00 KST
+경계**(`digest_day`)다 — 실행 날짜를 쓰면 자정을 넘긴 지연 실행이 **다음 날 요약**으로 잡혀 그날 정시
+요약까지 막는다. 같은 근본 원인(GitHub schedule 7시간 지연)으로 entry_checks가 JARVIS 19:10 판정에
+늦어 '원천 지연'(JARVIS D50)이 됐다 → 정시 시작은 Supabase pg_cron → `workflow_dispatch`
+(`docs/migrations/cron_dispatch.sql`), schedule은 30분 뒤 예비. 둘 다 도는 날은 첫 스텝 게이트가
+"요약 발송 ∧ entry_checks complete"면 나머지를 건너뛴다. entry_checks 재실행은 upsert이되, 원천을 못 받은
+행(`daily_fetch_failed`·`flow_fetch_failed`)은 앞 실행의 완전한 행을 덮지 않는다(`keep_complete_rows`).
+**code 없는 알림 종류를 새로 만들면 중복 방어를 직접 만들어야 한다** — `send_once`는 막아 주지 않는다.
