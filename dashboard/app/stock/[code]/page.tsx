@@ -741,7 +741,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         <p className="mt-2 text-xs text-slate-300">수주 수치는 DART 정기보고서 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공시가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
         {orderMetrics.length > 0 && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-sky-300">
           {orderMetrics.map((metric) => <a key={metric.rceptNo} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
-            {metric.year}년 {metric.quarter}분기 {metric.scope} · 원문
+            {metric.periodLabel ?? `${metric.year}년 ${metric.quarter}분기`} {metric.scope} · 원문
           </a>)}
         </div>}
         {nextConsensus && (nextConsensus.revenue_est != null || nextConsensus.op_est != null) && (
