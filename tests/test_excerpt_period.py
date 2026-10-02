@@ -195,3 +195,65 @@ def test_order_marker_does_not_hide_missing_saved_period(monkeypatch):
     assert excerpt_run.targets(10, ["079550"]) == [filing]
     saved.update(fiscal_quarter=2)
     assert excerpt_run.targets(10, ["079550"]) == []
+
+
+def test_transport_failure_keeps_pending_and_collects_next_report(monkeypatch, capsys):
+    import sys
+    import httpx
+    from src.collectors import excerpt_run as e
+    from src.collectors.dart_excerpt import ReportExcerpt
+
+    rows = [{"code": "000001", "rcept_no": str(i), "report_nm": "반기보고서 (2026.06)"}
+            for i in range(2)]
+    saved = []
+    class DB:
+        def table(self, name): return self
+        def upsert(self, row, **kw): saved.append(row); return self
+        def execute(self): return None
+    def fetch(receipt):
+        if receipt == "0":
+            raise RuntimeError("HTTP 조회 실패(5회 재시도)") from httpx.ConnectTimeout("timed out")
+        return "xml"
+    monkeypatch.setattr(sys, "argv", ["excerpt_run", "--save"])
+    monkeypatch.setattr(e, "targets", lambda *a, **k: rows)
+    monkeypatch.setattr(e, "get_client", lambda: DB())
+    monkeypatch.setattr(e, "fetch_report_xml", fetch)
+    monkeypatch.setattr(e, "build_excerpt", lambda receipt, xml: ReportExcerpt(receipt, {"사업의 개요": "본문"}, 2))
+    assert e.main() == 0
+    assert [r["rcept_no"] for r in saved] == ["1"]
+    output = capsys.readouterr().out
+    assert "미수집 유지" in output and "rcpNo=0" in output
+    assert "수집 1건 · 실패 1건" in output
+
+
+def test_repeated_transport_failure_stops_without_completion(monkeypatch, capsys):
+    import sys
+    import httpx
+    from src.collectors import excerpt_run as e
+
+    calls = []
+    def fetch(receipt):
+        calls.append(receipt)
+        raise RuntimeError("HTTP 조회 실패") from httpx.ConnectTimeout("timed out")
+    monkeypatch.setattr(sys, "argv", ["excerpt_run"])
+    monkeypatch.setattr(e, "targets", lambda *a, **k: [
+        {"code": "000001", "rcept_no": str(i), "report_nm": "반기보고서 (2026.06)"}
+        for i in range(e.ORDER_EXCERPT_HTTP_FAILURE_LIMIT + 1)])
+    monkeypatch.setattr(e, "fetch_report_xml", fetch)
+    monkeypatch.setattr(e, "build_excerpt", lambda *a: (_ for _ in ()).throw(AssertionError("파싱 금지")))
+    assert e.main() == 0
+    assert len(calls) == e.ORDER_EXCERPT_HTTP_FAILURE_LIMIT
+    assert "남은 1건은 원천 상태 확인 후 재개" in capsys.readouterr().out
+
+
+def test_configuration_error_is_not_swallowed_as_transport_failure(monkeypatch):
+    import sys
+    import pytest
+    from src.collectors import excerpt_run as e
+    from src.utils.env import MissingEnvError
+
+    monkeypatch.setattr(sys, "argv", ["excerpt_run"])
+    monkeypatch.setattr(e, "targets", lambda *a, **k: [{"code": "000001", "rcept_no": "0"}])
+    monkeypatch.setattr(e, "fetch_report_xml", lambda *a: (_ for _ in ()).throw(MissingEnvError("설정 누락")))
+    with pytest.raises(MissingEnvError):
+        e.main()

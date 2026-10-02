@@ -22,7 +22,9 @@ import argparse
 import time
 import zlib
 
-from src.config.constants import ORDER_HISTORY_QUARTERS
+import httpx
+
+from src.config.constants import ORDER_HISTORY_QUARTERS, ORDER_EXCERPT_HTTP_FAILURE_LIMIT
 from src.collectors.dart_excerpt import (
     ORDER_METRIC_MARKER,
     ExcerptError,
@@ -207,6 +209,7 @@ def main() -> int:
 
     db = get_client() if args.save else None
     ok = failed = 0
+    consecutive_http_failures = 0
     started = time.monotonic()
     for i, d in enumerate(rows, 1):
         # ★ 시간이 다 되면 **남았다는 사실을 밝히고** 멈춘다. 조용히 끝내면
@@ -216,8 +219,31 @@ def main() -> int:
                   f"남은 {len(rows) - i + 1}건은 다음 실행으로 넘긴다")
             break
         label = f"{d['code']} {d.get('report_nm')}"
+        source = f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={d['rcept_no']}"
+        print(f"  → {label} · 원문 {source}", flush=True)
         try:
             xml = fetch_report_xml(d["rcept_no"])
+        except RuntimeError as exc:
+            if isinstance(exc, ExcerptError):
+                print(f"  ✗ {label} — {exc}")
+                failed += 1
+                consecutive_http_failures = 0
+                continue
+            # HTTP 헬퍼의 재시도가 끝난 전송 오류만 격리한다. 환경·인증·코드 오류는
+            # 그대로 실패시켜 잘못된 설정을 성공 실행으로 숨기지 않는다.
+            if not isinstance(exc.__cause__, httpx.TransportError):
+                raise
+            failed += 1
+            consecutive_http_failures += 1
+            print(f"  ✗ {label} — 원문 전송 실패 · {type(exc.__cause__).__name__}"
+                  f" · 미수집 유지 · 원문 {source}", flush=True)
+            if consecutive_http_failures >= ORDER_EXCERPT_HTTP_FAILURE_LIMIT:
+                print(f"  ⏸ 연속 전송 실패 {consecutive_http_failures}건 — "
+                      f"남은 {len(rows) - i}건은 원천 상태 확인 후 재개")
+                break
+            continue
+        consecutive_http_failures = 0
+        try:
             ex = build_excerpt(d["rcept_no"], xml)
         except ExcerptError as exc:
             print(f"  ✗ {label} — {exc}")

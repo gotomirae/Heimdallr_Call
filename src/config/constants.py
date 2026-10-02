@@ -199,6 +199,8 @@ KOREA_MARKET_OPEN_HOUR_KST = 9
 
 # §9.1 — 분기 수주 그래프를 위해 보존할 정기보고서 깊이와 일일 DART 목록 탐색량.
 ORDER_HISTORY_QUARTERS = 10
+# OpenDART 전송 재시도 소진이 연속되면 원천 장애로 중단한다(미수집 상태 보존).
+ORDER_EXCERPT_HTTP_FAILURE_LIMIT = 3
 # 1,300종목을 20개씩 보면 약 13주가 걸려 상세 그래프가 장기간 비어 보인다.
 # 작은 list.json 조회는 100종목씩, 대용량 원문은 별도 30분 예산으로 나눠 호출한다.
 ORDER_HISTORY_DISCOVERY_CODES_PER_RUN = 100
