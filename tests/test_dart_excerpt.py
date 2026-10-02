@@ -10,8 +10,11 @@ from __future__ import annotations
 import io
 import zipfile
 
+import pytest
+
 from src.collectors.dart_excerpt import (
     DEFAULT_BUDGET_CHARS,
+    ExcerptError,
     build_excerpt,
     explicit_order_metrics,
     fetch_report_xml,
@@ -204,6 +207,59 @@ def test_report_zip_selects_receipt_main_document_not_first_audit_attachment(mon
 
 def test_empty_document_has_no_completed_marker():
     assert build_excerpt("X", "<DOCUMENT><P>첨부 감사보고서</P></DOCUMENT>").sections == {}
+
+
+def test_api_missing_file_recovers_exact_receipt_viewer_section(monkeypatch):
+    # 한화에어로스페이스 26Q1: API 014지만 공개 뷰어 수주 절은 UTF-8로 정상이다.
+    import httpx
+    receipt = "20260513000860"
+    main = f'''viewDoc("{receipt}", "11376786", "1", "0", "100", "dart4.xsd");
+var node2 = {{}};
+node2['text'] = "4. 매출 및 수주상황";
+node2['rcpNo'] = "{receipt}"; node2['dcmNo'] = "11376786";
+node2['eleId'] = "13"; node2['offset'] = "96492";
+node2['length'] = "30223"; node2['dtd'] = "dart4.xsd";'''
+    body = '''<html><head><title>뷰어</title></head><body><p>4. 매출 및 수주상황</p>
+<p>보고기간의 회사 수주상황과 사업내용입니다. 항공과 방산 및 종속회사의 계약을 원문 범위에 따라 표시하며 수주잔고와 신규계약을 구분하여 기재합니다. 단위를 추측하지 않습니다.</p><p>(단위 : 백만원)</p>
+<table><tr><th>품목</th><th>수주잔고</th></tr>
+<tr><td>합계</td><td>118,127,410</td></tr></table></body></html>'''
+    def get(url, **kwargs):
+        if url.endswith("document.xml"):
+            return httpx.Response(200, text="<result><status>014</status></result>")
+        if url.endswith("main.do"):
+            return httpx.Response(200, text=main)
+        assert kwargs["params"]["rcpNo"] == receipt
+        assert kwargs["params"]["eleId"] == "13"
+        return httpx.Response(200, text=body, headers={"content-type": "text/html; charset=utf-8"})
+    monkeypatch.setattr("src.collectors.dart_excerpt.http_get", get)
+    monkeypatch.setattr("src.collectors.dart_excerpt.require_env", lambda *a: "fixture")
+    excerpt = build_excerpt(receipt, fetch_report_xml(receipt))
+    assert "수주잔고 | 118,127,410" in excerpt.sections["공시 수주지표"]
+    assert "뷰어 절" in excerpt.sections["원문 수집 경로"]
+    assert "eleId=13" in excerpt.sections["원문 수집 경로"]
+
+
+def test_viewer_fallback_rejects_other_receipt(monkeypatch):
+    import httpx
+    monkeypatch.setattr("src.collectors.dart_excerpt.require_env", lambda *a: "fixture")
+    monkeypatch.setattr("src.collectors.dart_excerpt.http_get", lambda url, **k:
+        httpx.Response(200, text="<result><status>014</status></result>" if url.endswith("document.xml")
+                       else 'viewDoc("999999", "123", "1", "0", "1", "dart4.xsd");'))
+    with pytest.raises(ExcerptError):
+        fetch_report_xml("20260513000860")
+
+
+def test_non_missing_api_error_never_falls_back_to_viewer(monkeypatch):
+    import httpx
+    calls = []
+    def get(url, **kwargs):
+        calls.append(url)
+        return httpx.Response(200, text="<result><status>020</status></result>")
+    monkeypatch.setattr("src.collectors.dart_excerpt.require_env", lambda *a: "fixture")
+    monkeypatch.setattr("src.collectors.dart_excerpt.http_get", get)
+    with pytest.raises(ExcerptError):
+        fetch_report_xml("20260513000860")
+    assert len(calls) == 1  # 호출 한도·인증 오류를 우회하는 대체 호출은 하지 않는다.
 
 
 def test_missing_order_table_unit_does_not_inherit_sales_unit():

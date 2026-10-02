@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import time
+import zlib
 
 from src.config.constants import ORDER_HISTORY_QUARTERS
 from src.collectors.dart_excerpt import (
@@ -54,14 +55,20 @@ def targets(
     refresh_orders: bool = False,
     all_universe: bool = False,
     history_quarters: int = 1,
+    shard_index: int = 0,
+    shard_count: int = 1,
 ) -> list[dict]:
     """받을 공시 목록. 깊이별로 돌며 종목당 최근 N개 정기보고서를 채운다."""
+    if shard_count < 1 or not 0 <= shard_index < shard_count:
+        raise ValueError("shard_index는 0 이상 shard_count 미만이어야 한다")
     disclosures = [
         d for d in select_all(
             "earnings_disclosures",
             "rcept_no,code,report_nm,fiscal_year,fiscal_quarter,disclosed_at",
         )
         if is_periodic(d.get("report_nm"))
+        # 프로세스별로 달라지는 hash() 대신 CRC32로 동일 기업을 같은 작업에 고정한다.
+        and zlib.crc32(d["code"].encode("utf-8")) % shard_count == shard_index
     ]
     # 완료 표식은 접수번호별로 본다. 같은 분기의 정정공시는 새 접수번호라 다시 받는다.
     have = {
@@ -152,11 +159,16 @@ def main() -> int:
     )
     parser.add_argument("--history-quarters", type=int,
                         help="종목당 최근 정기보고서 수(기본: 전 종목 수주 작업은 설정값, 그 외 1)")
+    parser.add_argument("--shard-index", type=int, default=0, help="독립 작업 번호(0부터)")
+    parser.add_argument("--shard-count", type=int, default=1, help="중복 없는 기업별 분할 작업 수")
     # ★ 건수가 아니라 **시간**으로 끊는다. 원문 크기가 종목마다 3~6MB로 달라
     #   건수만으로는 워크플로가 얼마나 걸릴지 예측할 수 없다.
     parser.add_argument("--max-seconds", type=float, default=0,
                         help="이 시간을 넘기면 남은 건은 다음 실행으로 넘긴다(0=무제한)")
     args = parser.parse_args()
+
+    if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+        parser.error("--shard-index는 0 이상 --shard-count 미만이어야 한다")
 
     codes = [c.strip() for c in args.codes.split(",")] if args.codes else None
     if args.refresh_orders and not codes:
@@ -167,6 +179,8 @@ def main() -> int:
         refresh_orders=args.refresh_orders,
         all_universe=args.all_universe,
         history_quarters=args.history_quarters or (ORDER_HISTORY_QUARTERS if args.all_universe else 1),
+        shard_index=args.shard_index,
+        shard_count=args.shard_count,
     )
     print(f"발췌 대상 {len(rows)}건 (이미 받은 건은 제외했다)")
     if not rows:

@@ -1,6 +1,8 @@
 # PRD Ref: §7, §9, §10 — 정정 후 갱신·변경 없는 재실행을 함께 검증한다.
 from datetime import date
 
+import pytest
+
 from src.analysis.freshness import (
     facts_hash,
     render_excerpt,
@@ -190,6 +192,23 @@ def test_attachment_correction_does_not_replace_periodic_business_body(monkeypat
         "공시 수주지표 확인": excerpt_run.ORDER_METRIC_MARKER,
     }}]
     assert excerpt_run.targets(10, ["140670"]) == []
+
+
+def test_order_backfill_shards_are_disjoint_and_complete(monkeypatch):
+    filings = [{"code": f"{i:06d}", "fiscal_year": 2026, "fiscal_quarter": 2,
+                "rcept_no": f"20260814{i:06d}", "report_nm": "반기보고서"}
+               for i in range(24)]
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k:
+                        filings if table == "earnings_disclosures" else [])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    shards = [{r["rcept_no"] for r in excerpt_run.targets(
+        100, None, all_universe=True, shard_index=i, shard_count=4,
+    )} for i in range(4)]
+    assert set.union(*shards) == {r["rcept_no"] for r in filings}
+    assert sum(map(len, shards)) == len(filings)
+    assert all(shards)
+    with pytest.raises(ValueError):
+        excerpt_run.targets(100, None, all_universe=True, shard_index=4, shard_count=4)
 
 
 def test_legacy_excerpt_without_order_check_is_backfilled_once(monkeypatch):

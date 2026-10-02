@@ -13,7 +13,8 @@
        정기보고서 → 200 · ZIP · UTF-8 XML 3.5MB          ✓
    그리고 **뷰어(`report/viewer.do`)로 받으면 인코딩이 깨진다** — 헤더는 MS949인데
    본문 선언은 utf-8이고 실제 바이트는 둘 중 어느 쪽으로도 깨끗이 안 풀린다.
-   **정기보고서는 반드시 `document.xml`을 쓴다.**
+   정기보고서는 `document.xml`을 우선한다. 상태 014에 한해서만 동일 접수번호·문서의
+   공식 뷰어 절을 엄격히 검증해 복구하며, 절 수집임과 직접 링크를 장부에 남긴다.
 
 ★ 발췌는 **예산 안에서** 자른다(ADR 4). 원문 전체를 넣으면 캐시가 깨지고 비용이 폭발한다.
 """
@@ -21,15 +22,17 @@
 from __future__ import annotations
 
 import io
+import html
 import re
 import zipfile
 from dataclasses import dataclass, field
+from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 
 from src.config.constants import EXCERPT_BUDGET_CHARS
 from src.utils.env import require_env
-from src.utils.http import http_get
+from src.utils.http import decode_html, http_get
 
 DOCUMENT_URL = "https://opendart.fss.or.kr/api/document.xml"
 
@@ -82,6 +85,8 @@ def fetch_report_xml(rcept_no: str, *, timeout: float = 120.0) -> str:
     if resp.content[:2] != b"PK":
         # DART는 실패도 200 + XML(status/message)로 준다 — 바이트로 갈라야 한다.
         head = resp.content[:300].decode("utf-8", errors="replace")
+        if re.search(r"<status>\s*014\s*</status>", head):
+            return _fetch_viewer_sections(rcept_no, timeout=timeout)
         raise ExcerptError(f"ZIP이 아니다: {head[:160]}")
     try:
         archive = zipfile.ZipFile(io.BytesIO(resp.content))
@@ -96,6 +101,51 @@ def fetch_report_xml(rcept_no: str, *, timeout: float = 120.0) -> str:
         return archive.read(name).decode("utf-8")
     except (zipfile.BadZipFile, IndexError, UnicodeDecodeError) as exc:
         raise ExcerptError(f"원문을 풀지 못했다: {type(exc).__name__}") from exc
+
+
+def _fetch_viewer_sections(rcept_no: str, *, timeout: float) -> str:
+    """API 014 예외만 복구. 접수번호·문서·절 위치·인코딩을 검증하고 표는 보존한다."""
+    main = http_get("https://dart.fss.or.kr/dsaf001/main.do",
+                    params={"rcpNo": rcept_no}, timeout=timeout)
+    text = decode_html(main)
+    default = re.search(r'viewDoc\(\s*"(\d+)"\s*,\s*"(\d+)"', text)
+    if not default or default.group(1) != rcept_no or "\ufffd" in text:
+        raise ExcerptError("API 014 · 뷰어의 동일 접수번호 본문을 검증하지 못했다")
+    blocks = re.findall(r"var (node\d+) = \{\};(.*?)(?=var node\d+ = \{\};|$)", text, re.S)
+    nodes = []
+    for variable, block in blocks:
+        fields = dict(re.findall(
+            re.escape(variable) + r"\['(text|rcpNo|dcmNo|eleId|offset|length|dtd)'\]\s*=\s*\"([^\"]*)\"",
+            block,
+        ))
+        if fields.get("rcpNo") == rcept_no and fields.get("dcmNo") == default.group(2):
+            nodes.append(fields)
+    fragments, links, fetched_chars = [], [], 0
+    for name, pattern in SECTION_PATTERNS:
+        candidates = [node for node in nodes if re.search(pattern, node.get("text", ""))]
+        if len(candidates) != 1:
+            continue  # 모호한 목차는 임의 선택하지 않는다.
+        node = candidates[0]
+        if (not all(node.get(key, "").isdigit() for key in ("eleId", "offset", "length"))
+                or int(node["length"]) <= 0 or not re.fullmatch(r"dart\d+\.xsd", node.get("dtd", ""))):
+            continue
+        params = {key: node[key] for key in ("rcpNo", "dcmNo", "eleId", "offset", "length", "dtd")}
+        response = http_get("https://dart.fss.or.kr/report/viewer.do", params=params, timeout=timeout)
+        raw = decode_html(response)
+        soup = BeautifulSoup(raw, "html.parser")
+        if "\ufffd" in raw or not soup.body or not re.search(pattern, soup.body.get_text(" ", strip=True)):
+            raise ExcerptError(f"API 014 · 뷰어 절 인코딩/제목 검증 실패: {name}")
+        for script in soup.find_all(["script", "style"]):
+            script.decompose()
+        body = soup.body.decode_contents()
+        fragments.append(f"<TITLE>{html.escape(name)}</TITLE>{body}")
+        links.append(f"{name}: https://dart.fss.or.kr/report/viewer.do?{urlencode(params)}")
+        fetched_chars += len(raw)
+    if not fragments:
+        raise ExcerptError("API 014 · 검증 가능한 정기보고서 뷰어 절이 없다")
+    provenance = "공식 DART 뷰어 절 원문 복구(API 014). 전체 보고서가 아닌 수집한 절의 문자수.\n" + "\n".join(links)
+    return (f'<DOCUMENT><SOURCE chars="{fetched_chars}">{html.escape(provenance)}</SOURCE>'
+            + "".join(fragments) + "</DOCUMENT>")
 
 
 # ── 태그 제거 ────────────────────────────────────────────────────────
@@ -483,7 +533,11 @@ def build_excerpt(
     # 절이 없는 첨부·비정상 원문에 완료 표식을 쓰면 영원히 재수집되지 않는다.
     if sections:
         picked["공시 수주지표 확인"] = checked_marker
-    return ReportExcerpt(rcept_no=rcept_no, sections=picked, full_chars=len(xml))
+    source = re.search(r'<SOURCE chars="(\d+)">(.*?)</SOURCE>', xml, re.S)
+    if source and sections:
+        picked["원문 수집 경로"] = html.unescape(source.group(2))
+    return ReportExcerpt(rcept_no=rcept_no, sections=picked,
+                         full_chars=int(source.group(1)) if source else len(xml))
 
 
 def excerpt_for(rcept_no: str, **kwargs) -> ReportExcerpt | None:
