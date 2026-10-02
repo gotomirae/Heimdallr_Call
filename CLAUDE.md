@@ -138,8 +138,8 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
-- ★★ **daily_digest 정시 시작 = Supabase pg_cron → workflow_dispatch (2026-10-02, T228)** — `docs/migrations/cron_dispatch.sql`(17:37·18:17·19:07). schedule은 +30분 예비.
-  ★ 📊요약은 **9/22부터 하루 3번** 나가고 있었다(`send_once`가 code=None을 안 막는다) → `digest_date`(16시 경계)로 1일 1회 · 게이트로 재실행 즉시 종료.
+- ★★ **정시 시작 = Supabase pg_cron → workflow_dispatch (2026-10-02, T228·T229)** — daily_digest 17:37·18:17·19:07 · universe_daily 06:00·16:30(+`job_runs` 게이트). schedule은 +30분 예비.
+  ★ 📊요약 **하루 3건**(code=None 중복키 미작동) → `digest_date` 1일 1회 · universe_daily는 **9/21부터 미완료**(price_run 12초/종목 → 90분 취소) — 장중 겹치는 시작은 게이트가 거부.
 - ★★★ **"LLM 분석이 부실하다" — 모델이 아니라 입력이었다 (2026-08-24, 사용자 지적)**
   분석 행 누락 0건 · 필드 결측 2% · 화면 키 정상인데, **DB에 있으면서 입력에 넣은 적
   없는 것이 셋**이었다(T101): **분기말 종가 13분기**(`price_history`를 쓰라면서 궤적을
