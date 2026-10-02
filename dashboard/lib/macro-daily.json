@@ -1,8 +1,8 @@
 {
   "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
-  "checkedAt": "2026-10-02 11:05 KST",
+  "checkedAt": "2026-10-02 22:48 KST",
   "marketDate": "2026-10-01",
-  "koreaMarketDate": "2026-10-01",
+  "koreaMarketDate": "2026-10-02",
   "items": [
     {
       "title": "미국 2026-10-01 전 거래일 종가 · TradingView",
@@ -17,7 +17,7 @@
     {
       "title": "Fear & Greed Index · 시장 심리",
       "url": "https://fearandgreedgraph.com/",
-      "publishedAt": "2026-10-01"
+      "publishedAt": "2026-10-02"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-09-16)",
@@ -1316,14 +1316,10 @@
       ]
     },
     "kospi": {
-      "date": "2026-10-01",
-      "close": 6971.35,
-      "changePct": 1.95,
+      "date": "2026-10-02",
+      "close": 7003.74,
+      "changePct": 0.46,
       "history": [
-        {
-          "date": "2026-07-06",
-          "value": 8051.33
-        },
         {
           "date": "2026-07-07",
           "value": 7656.31
@@ -1559,18 +1555,18 @@
         {
           "date": "2026-10-01",
           "value": 6971.35
+        },
+        {
+          "date": "2026-10-02",
+          "value": 7003.74
         }
       ]
     },
     "kosdaq": {
-      "date": "2026-10-01",
-      "close": 894.29,
-      "changePct": 4.48,
+      "date": "2026-10-02",
+      "close": 893.29,
+      "changePct": -0.11,
       "history": [
-        {
-          "date": "2026-07-06",
-          "value": 847.07
-        },
         {
           "date": "2026-07-07",
           "value": 831.23
@@ -1806,19 +1802,19 @@
         {
           "date": "2026-10-01",
           "value": 894.29
+        },
+        {
+          "date": "2026-10-02",
+          "value": 893.29
         }
       ]
     }
   },
   "fearGreed": {
-    "date": "2026-10-01",
-    "value": 28.1,
+    "date": "2026-10-02",
+    "value": 28.8,
     "label": "공포",
     "history": [
-      {
-        "date": "2026-07-09",
-        "value": 44.7
-      },
       {
         "date": "2026-07-10",
         "value": 46.8
@@ -2053,7 +2049,11 @@
       },
       {
         "date": "2026-10-01",
-        "value": 28.1
+        "value": 28.8
+      },
+      {
+        "date": "2026-10-02",
+        "value": 28.8
       }
     ],
     "sourceUrl": "https://fearandgreedgraph.com/",
@@ -2179,13 +2179,13 @@
     "유통·소비재"
   ],
   "preferredBoards": [
-    "KOSDAQ",
-    "KOSPI"
+    "KOSPI",
+    "KOSDAQ"
   ],
-  "koreaMode": "risk_on",
+  "koreaMode": "mixed",
   "summary": {
-    "current": "미국 2026-10-01 장 마감: S&P 500 +0.19%, 나스닥 +0.04%, 다우 +0.04%, 필라델피아 반도체 +1.59%, CBOE VIX 16.39, Fear & Greed 28.1(공포). 한국 2026-10-01: KOSPI +1.95%, KOSDAQ +4.48%. 미국·한국 흐름과 글로벌 공식 전망을 함께 보면 미국 반도체 상대강세 국면입니다.",
+    "current": "미국 2026-10-01 장 마감: S&P 500 +0.19%, 나스닥 +0.04%, 다우 +0.04%, 필라델피아 반도체 +1.59%, CBOE VIX 16.39, Fear & Greed 28.8(공포). 한국 2026-10-02: KOSPI +0.46%, KOSDAQ -0.11%. 미국·한국 흐름과 글로벌 공식 전망을 함께 보면 미국 반도체 상대강세 국면입니다.",
     "forward": "연준 성명(2026-09-16): 연준이 금리를 인상해 정책금리 목표범위를 3.75~4%로 설정했습니다. 경제활동이 견조한 속도로 확장한다고 평가했습니다. 연준은 물가가 여전히 높다고 평가했습니다. 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
-    "recommendedSort": "추천 정렬: 미국·글로벌 적합 섹터 → 한국 상대강세 시장(KOSDAQ) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
+    "recommendedSort": "추천 정렬: 미국·글로벌 적합 섹터 → 한국 상대강세 시장(KOSPI) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
   }
 }
