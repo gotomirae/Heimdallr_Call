@@ -174,3 +174,24 @@ def test_writer_and_reader_agree_on_the_same_report_name():
     """
     assert period_of("반기보고서 (2026.06)") == (2026, 2)
     assert period_of("[기재정정]반기보고서 (2026.06)") == (2026, 2)
+
+
+def test_order_marker_does_not_hide_missing_saved_period(monkeypatch):
+    """원문 파싱 완료라도 기간 NULL이면 화면에서 빠진다. 검증된 장부와 일치해야 완료다."""
+    from src.collectors import excerpt_run
+    from src.collectors.dart_excerpt import ORDER_METRIC_MARKER
+
+    filing = {"code": "079550", "rcept_no": "20260825000158",
+              "report_nm": "[기재정정]반기보고서 (2026.06)",
+              "fiscal_year": 2026, "fiscal_quarter": 2}
+    saved = {"rcept_no": filing["rcept_no"], "fiscal_year": None,
+             "fiscal_quarter": None,
+             "sections": {"공시 수주지표 확인": ORDER_METRIC_MARKER}}
+    tables = {"earnings_disclosures": [filing], "disclosure_excerpts": [saved]}
+    monkeypatch.setattr(excerpt_run, "select_all", lambda table, *a, **k: tables[table])
+    monkeypatch.setattr(excerpt_run, "attractiveness_rank", lambda: {})
+    assert excerpt_run.targets(10, ["079550"]) == [filing]
+    saved.update(fiscal_year=2026, fiscal_quarter=1)
+    assert excerpt_run.targets(10, ["079550"]) == [filing]
+    saved.update(fiscal_quarter=2)
+    assert excerpt_run.targets(10, ["079550"]) == []

@@ -55,7 +55,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v4 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v5 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -301,7 +301,9 @@ def structured_order_metrics(section_xml: str) -> str | None:
     신규수주는 원문 열이 `신규수주` 또는 `당기수주`라고 명시한 경우에만 읽는다.
     """
     soup = BeautifulSoup(section_xml, "html.parser")
-    backlog_names = {"수주잔고", "기말수주잔고", "계약잔액", "수주잔액", "기말계약잔액"}
+    backlog_names = {"수주잔고", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
+                     "당분기말수주잔고", "당반기말수주잔고",
+                     "계약잔액", "수주잔액", "기말계약잔액"}
     new_names = {"신규수주", "당기수주", "신규수주액", "당기수주액"}
     numeric = re.compile(r"^-?[\d,]+(?:\.\d+)?$")
     total_label = re.compile(r"^(?:합\s*계|총\s*계)$")
@@ -390,12 +392,19 @@ def structured_order_metrics(section_xml: str) -> str | None:
             scope = "주요계약(전체 회사 아님)"
         # 연결 수주표가 하나라도 종속회사만 공시한 수치일 수 있다.
         # 가장 가까운 회사 범위 표제를 보존해 연결 전체 잔고로 오인하지 않는다.
-        scope_heading = next((
-            tag.get_text(" ", strip=True)
-            for tag in table.find_all_previous(["p", "title"], limit=20)
-            if re.search(r"(?:종속회사|지배회사)\s*[:：]?", tag.get_text(" ", strip=True))
-            and len(tag.get_text(" ", strip=True)) < 160
-        ), None)
+        scope_heading = None
+        for tag in table.find_all_previous(["p", "title"], limit=20):
+            heading = tag.get_text(" ", strip=True)
+            if len(heading) >= 160:
+                continue
+            match = re.search(r"\[[^\]]*(?:사업부|부문|종속회사|지배회사)[^\]]*\]", heading)
+            if match:
+                # 설명·매출 각주의 '종속회사'는 수주 범위 표제가 아니다.
+                scope_heading = heading if re.search(r"종속회사|지배회사", match[0]) else match[0]
+                break
+            if re.match(r"^(?:종속회사|지배회사)\s*[:：]", heading):
+                scope_heading = heading
+                break
         if scope_heading:
             scope = f"{scope_heading} / {scope}"
         candidates.append((unit, scope, backlog, new_orders))
@@ -517,7 +526,9 @@ def build_excerpt(
     order_metric = structured_order_metrics(order_section_xml) if order_section_xml else None
     raw_order_table = bool(order_section_xml and any(
         re.sub(r"\s+", "", cell.get_text(" ", strip=True)) in {
-            "수주잔고", "기말수주잔고", "계약잔액", "수주잔액", "기말계약잔액",
+            "수주잔고", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
+            "당분기말수주잔고", "당반기말수주잔고",
+            "계약잔액", "수주잔액", "기말계약잔액",
             "신규수주", "당기수주", "신규수주액", "당기수주액",
         }
         for table in BeautifulSoup(order_section_xml, "html.parser").find_all("table")

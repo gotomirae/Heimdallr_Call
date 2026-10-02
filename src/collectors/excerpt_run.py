@@ -84,15 +84,18 @@ def targets(
                 row["_order_period"] = period
     # 완료 표식은 접수번호별로 본다. 같은 분기의 정정공시는 새 접수번호라 다시 받는다.
     completed = {
-        r["rcept_no"]: r["sections"]
+        r["rcept_no"]: r
         for r in select_all(
-            "disclosure_excerpts", "rcept_no,sections"
+            "disclosure_excerpts", "rcept_no,sections,fiscal_year,fiscal_quarter"
         )
         if isinstance(r.get("sections"), dict)
         and r["sections"].get("공시 수주지표 확인") == ORDER_METRIC_MARKER
     }
     have = {row["rcept_no"] for row in disclosures if row["rcept_no"] in completed and
-            (not row.get("_order_period") or completed[row["rcept_no"]].get("공시 보고기간") == row["_order_period"])}
+            (completed[row["rcept_no"]]["sections"].get("공시 보고기간") == row["_order_period"]
+             if row.get("_order_period") else
+             all(completed[row["rcept_no"]].get(key) == row.get(key)
+                 for key in ("fiscal_year", "fiscal_quarter")))}
 
     if codes:
         wanted = set(codes)

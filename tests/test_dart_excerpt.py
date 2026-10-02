@@ -278,6 +278,25 @@ def test_order_metric_preserves_subsidiary_scope():
     assert "종속회사 : 동성화인텍" in metric
 
 
+def test_current_end_backlog_does_not_use_previous_end_or_sales_footnote():
+    """HB테크 원문: 당기말 88,651,626천원, 당기수주 68,189,250천원. 전기말은 별도다."""
+    xml = """<P>(*) 금융업부문은 회사의 종속회사인 투자조합에서 발생한 매출액입니다.</P>
+<P>나. 수주상황(연결기준) [장비사업부]보고기간 종료일 현재 수주상황입니다.</P>
+<P>(단위 : 천원)</P><TABLE><TR><TH>품목</TH><TH>전기말 수주잔고</TH>
+<TH>당기수주</TH><TH>기납품액</TH><TH>당기말 수주잔고</TH></TR>
+<TR><TD>합계</TD><TD>92,506,069</TD><TD>68,189,250</TD><TD>72,043,693</TD>
+<TD>88,651,626</TD></TR></TABLE>"""
+    metric = structured_order_metrics(xml)
+    assert metric == ("범위 | [장비사업부] / 회사 공시 합계\n단위 | 천원\n"
+                      "수주잔고 | 88,651,626\n신규수주 | 68,189,250\n신규수주 기간 | 보고기간 누적")
+    for current_label in ("당분기말 수주잔고", "당반기말 수주잔고"):
+        assert structured_order_metrics(xml.replace("당기말 수주잔고", current_label)) == metric
+    # 비교 대상만 기재한 표를 이번 기말 잔고로 바꾸지 않는다.
+    assert structured_order_metrics(xml.replace("당기말 수주잔고", "전기말 수주잔고")) == (
+        "범위 | [장비사업부] / 회사 공시 합계\n단위 | 천원\n"
+        "신규수주 | 68,189,250\n신규수주 기간 | 보고기간 누적")
+
+
 def test_structured_rejection_is_not_bypassed_by_flat_fallback():
     xml = """<DOCUMENT><TITLE>4. 매출 및 수주상황</TITLE><P>아래 두 자회사 수주표를 각각 공개합니다.</P>
 <P>(단위 : 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>100</TD></TR></TABLE>

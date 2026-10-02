@@ -257,7 +257,7 @@ def test_order_history_backfill_round_robins_period_depth(monkeypatch):
          "rcept_no": f"2026{quarter}{code}", "report_nm": "분기보고서", "disclosed_at": f"2026-0{quarter + 3}-15"}
         for code in ("000001", "000002") for quarter in (1, 2)
     ]
-    latest_done = {"rcept_no": "20262000001", "sections": {
+    latest_done = {"rcept_no": "20262000001", "fiscal_year": 2026, "fiscal_quarter": 2, "sections": {
         "공시 수주지표 확인": excerpt_run.ORDER_METRIC_MARKER,
     }}
     tables = {"earnings_disclosures": rows, "disclosure_excerpts": [latest_done], "screen_results": []}
