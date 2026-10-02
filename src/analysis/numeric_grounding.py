@@ -31,6 +31,15 @@ _BARE_NUMBER = re.compile(r"^[+\-−]?\d[\d,]*(?:\.\d+)?$")
 _FACT_SOURCE_RE = re.compile(r"\[\[(F\d{3}):([^\]\r\n]+)\]\]")
 _FACT_OUTPUT_RE = re.compile(r"\[\[(F\d{3})\]\]")
 _ANY_FACT_OUTPUT_RE = re.compile(r"\[\[(F\d+)\]\]")
+#: 정상 참조를 복원한 뒤에도 남은 `[[…]]` 표식(B-14). 모델이 `[[F 218.8억]]`·
+#: `[[F announcement_return_pct -11.375]]`처럼 id 없이 만든 것은 복원 정규식에 안 걸려
+#: 그대로 저장됐다 — JARVIS 화면에 사실 표식이 노출됐다(제이아이테크 2026Q2).
+_LEFTOVER_MARKER_RE = re.compile(r"\[\[([^\[\]\r\n]*)\]\]")
+_MARKER_ID_PREFIX_RE = re.compile(r"^\s*F(?:\d{3})?(?=[\s:])\s*:?\s*")
+_IDENTIFIER_RE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。])\s+")
+#: ADR 12 초판이 본문에 남기던 흔적. 기존 저장분 정리(clean_stored_run)도 이 값을 찾는다.
+LEGACY_REDACTION_MARKER = "[검증 불가 수치 삭제]"
 
 # 시나리오·리스크 감시값은 미래 판단이다. 아래 경로만 과거/현재 사실 주장이다.
 FACTUAL_PATHS = (
@@ -477,9 +486,7 @@ def redact_unsupported_factual_numbers(
             if bad:
                 removed.update(bad)
                 replacements.append((start, end))
-        for start, end in sorted(replacements, reverse=True):
-            text = text[:start] + "[검증 불가 수치 삭제]" + text[end:]
-        return text
+        return remove_spans_as_sentences(text, replacements)
 
     def clean_value(value: Any) -> Any:
         if isinstance(value, str):
@@ -496,3 +503,82 @@ def redact_unsupported_factual_numbers(
         if current is not None:
             _set_path(cleaned, path, clean_value(current))
     return cleaned, [f"{number}{unit}" for number, unit in sorted(removed)]
+
+
+def tidy_text(text: str) -> str:
+    """토큰을 지운 뒤 남는 이중 공백·빈 괄호·구두점 앞 공백을 정리한다."""
+    text = re.sub(r"\(\s*[,·/]?\s*\)", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\s+([,.)!?。])", r"\1", text)
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r",\s*(?=[,.。)])", "", text)
+    return text.strip()
+
+
+def remove_spans_as_sentences(text: str, spans: list[tuple[int, int]]) -> str:
+    """검증할 수 없는 숫자 토큰을 **흔적 없이** 제거한다(ADR 12 개정 · B-14).
+
+    다른 문장이 남는 필드면 그 숫자가 든 **문장째** 뺀다 — 숫자만 빠진 문장은
+    문법이 깨지기 쉽다. 문장이 하나뿐이면 토큰만 지우고 공백·괄호를 정리한다.
+    삭제 사실은 본문이 아니라 `_heimdallr.removed_factual_numbers`에 남는다.
+    """
+    if not spans:
+        return text
+    bounds: list[tuple[int, int]] = []
+    cursor = 0
+    for part in _SENTENCE_SPLIT_RE.split(text):
+        start = text.find(part, cursor)
+        bounds.append((start, start + len(part)))
+        cursor = start + len(part)
+    bad_sentences = {
+        index for index, (start, end) in enumerate(bounds)
+        if any(start <= span_start < end for span_start, _ in spans)
+    }
+    if len(bounds) > 1 and len(bad_sentences) < len(bounds):
+        kept = [text[start:end] for index, (start, end) in enumerate(bounds) if index not in bad_sentences]
+        return tidy_text(" ".join(kept))
+    for start, end in sorted(spans, reverse=True):
+        # 토큰에 바로 붙은 조사·어미('라는'·'대를'·'이다')까지 함께 뺀다 —
+        # 남기면 'OPM 라는 호황'처럼 주어 없는 조사가 고아로 남는다(실측 000660).
+        suffix = re.match(r"[가-힣]+", text[end:])
+        text = text[:start] + text[end + (suffix.end() if suffix else 0):]
+    return tidy_text(text)
+
+
+def unwrap_leftover_fact_markers(value: Any) -> Any:
+    """복원 뒤에도 남은 `[[…]]`을 값으로 풀거나 지운다(재귀 · 모든 문자열).
+
+    단위가 붙은 숫자가 남으면 그 숫자만 본문에 돌려놓는다 — 이어지는 동일 단위
+    근거 검사가 입력에 없는 숫자를 다시 걸러낸다. 단위 없는 원시값
+    (`announcement_return_pct -11.375`)은 표시 단위를 알 수 없어 지운다(T11).
+    """
+    if isinstance(value, str):
+        if "[[" not in value:
+            return value
+
+        def unwrap(match: re.Match[str]) -> str:
+            inner = _MARKER_ID_PREFIX_RE.sub("", match.group(1))
+            inner = re.sub(r"\s+", " ", _IDENTIFIER_RE.sub(" ", inner)).strip(" :")
+            return inner if NUMBER_WITH_UNIT_RE.fullmatch(inner) else ""
+
+        return tidy_text(_LEFTOVER_MARKER_RE.sub(unwrap, value))
+    if isinstance(value, dict):
+        return {key: unwrap_leftover_fact_markers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [unwrap_leftover_fact_markers(item) for item in value]
+    return value
+
+
+def strip_legacy_redaction_markers(value: Any) -> Any:
+    """기존 저장분의 `[검증 불가 수치 삭제]` 흔적을 같은 규칙으로 지운다(재귀)."""
+    if isinstance(value, str):
+        spans = [
+            (match.start(), match.end())
+            for match in re.finditer(re.escape(LEGACY_REDACTION_MARKER), value)
+        ]
+        return remove_spans_as_sentences(value, spans) if spans else value
+    if isinstance(value, dict):
+        return {key: strip_legacy_redaction_markers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [strip_legacy_redaction_markers(item) for item in value]
+    return value

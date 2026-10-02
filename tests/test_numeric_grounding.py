@@ -175,7 +175,8 @@ def test_analysis_result_redacts_unsupported_fact_without_repaying():
         request_user_message="수리선 매출은 26,737백만원이다.",
     )
 
-    assert result.payload["why_now"] == "수리선 매출은 [검증 불가 수치 삭제]이다."
+    # ADR 25 — 흔적 문구 없이 토큰만 뺀다. 삭제 사실은 removed_factual_numbers에 남는다.
+    assert result.payload["why_now"] == "수리선 매출은."
     assert result.removed_factual_numbers == ("267억",)
     assert unsupported_factual_numbers(
         data, result.payload, user_message="수리선 매출은 26,737백만원이다."
@@ -250,7 +251,7 @@ def test_redactor_keeps_supported_numbers_and_removes_only_bad_claims():
         user_message="매출은 100억원이다.",
     )
 
-    assert cleaned["why_now"] == "매출은 100억원이고 근거 없는 목표가 [검증 불가 수치 삭제]이다."
+    assert cleaned["why_now"] == "매출은 100억원이고 근거 없는 목표가."
     assert removed == ["17000원"]
 
 

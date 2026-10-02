@@ -31,12 +31,26 @@ class FolderConfirmation:
 
 # Notion 모니터링 DB와 지정 Drive의 실제 상위 분류를 함께 받는다.
 # 세부 KRX 업종·투자 섹터는 listener가 DB에서 추가한다.
+#: ★ 표준 이름은 JARVIS 노션 L1 18개다(INTEGRATION_TASKS B-9 · JARVIS PRD 부록 A.4).
+#:   정본은 JARVIS `config/taxonomy.yaml > l1`이며 이름을 바꾸면 거기부터 바꾼다.
+KAIROS_L1_INDUSTRIES: tuple[str, ...] = (
+    "AI", "반도체", "전력인프라", "바이오", "화장품_미용기기", "엔터", "우주항공방산",
+    "조선", "2차 전지", "자율주행차", "Robot", "IT", "헬스케어", "소비재", "여행",
+    "금융", "건설", "양자컴퓨터",
+)
+#: 기존 이름은 **입력 별칭**으로 남긴다. 별칭으로 들어와도 L1 이름으로 접수한다.
+KAIROS_INDUSTRY_ALIASES: dict[str, str] = {
+    "2차전지": "2차 전지", "배터리": "2차 전지",
+    "로봇": "Robot", "로봇기계": "Robot",
+    "우주방산": "우주항공방산",
+    "화장품": "화장품_미용기기", "미용기기": "화장품_미용기기",
+    "네트워크": "IT", "OLED": "IT",
+    "음식료": "소비재", "의류": "소비재",
+}
+#: 하나의 L1로 접히지 않는 이름 — AI 반도체(= AI + 반도체), ETF(특수 라벨).
+KAIROS_SPECIAL_INDUSTRIES: tuple[str, ...] = ("AI 반도체", "ETF")
 SUPPORTED_INDUSTRIES = frozenset({
-    "AI", "AI 반도체", "반도체", "전력인프라", "바이오", "화장품", "미용기기",
-    "화장품_미용기기", "엔터", "우주항공방산", "우주방산", "조선", "2차전지",
-    "배터리", "로봇", "로봇기계", "IT", "헬스케어", "여행",
-    "소비재", "양자컴퓨터", "네트워크", "ETF", "OLED", "자율주행차",
-    "음식료", "의류", "건설",
+    *KAIROS_L1_INDUSTRIES, *KAIROS_INDUSTRY_ALIASES, *KAIROS_SPECIAL_INDUSTRIES,
 })
 
 CONFIRMATION_YES = frozenset({"예", "네", "예스", "yes", "y"})
@@ -114,7 +128,7 @@ def resolve_industry(text: str, industries: set[str]) -> AnalysisTarget | None:
         key=lambda name: (len(name), name),
     )
     canonical = preferred[0] if preferred else min(matches, key=lambda name: (len(name), name))
-    return AnalysisTarget(kind="industry", name=canonical)
+    return AnalysisTarget(kind="industry", name=KAIROS_INDUSTRY_ALIASES.get(canonical, canonical))
 
 
 def direct_industry_request(
@@ -124,10 +138,13 @@ def direct_industry_request(
     from src.notify.resolve import normalize
 
     text = _direct_private_text(message, chats)
+    accepted = {target.name} | {
+        alias for alias, name in KAIROS_INDUSTRY_ALIASES.items() if name == target.name
+    }
     return bool(
         text is not None
         and target.kind == "industry"
-        and normalize(text) == normalize(target.name)
+        and normalize(text) in {normalize(name) for name in accepted}
     )
 
 

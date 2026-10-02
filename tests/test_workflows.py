@@ -120,8 +120,8 @@ def test_kis_only_used_where_needed():
         body = _text(path)
         if "KIS_APP_KEY" not in body:
             continue
-        # KIS를 쓰는 건 price_run(universe_daily)과 P11 결과추적뿐이다
-        assert path.name in {"universe_daily.yml", "outcome_update.yml"}, (
+        # KIS를 쓰는 건 price_run(universe_daily)·P11 결과추적·entry_checks M5 수급(daily_digest)뿐이다
+        assert path.name in {"universe_daily.yml", "outcome_update.yml", "daily_digest.yml"}, (
             f"{path.name}이 KIS 시크릿을 받는데 KIS를 쓰지 않는다"
         )
 

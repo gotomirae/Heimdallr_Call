@@ -1,7 +1,9 @@
-# PRD Ref: §8.4, §10
+# PRD Ref: §8.4, §8.8, §10
 #
 # 📊 일일 요약. 장 마감 후 1회.
 # ★ 중복은 `notifications`가 막는다(kind=daily, 날짜 기준).
+# ★ 요약 **앞에** JARVIS `entry_checks`(M1·M2·M5)를 계산한다(INTEGRATION_TASKS B-7).
+#   같은 check_date는 upsert라 세 번 돌아도 멱등이고, K1 기록은 중복키로 1회만 남는다.
 
 name: daily_digest
 
@@ -15,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "기술 신호만 점검 (텔레그램·DB 쓰기 없음)"
+        description: "entry_checks·기술 신호만 점검 (텔레그램·DB 쓰기 없음)"
         type: boolean
         default: false
 
@@ -26,12 +28,15 @@ concurrency:
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20 # entry_checks: 1단계 통과 종목만 KIS 수급 + 네이버 일봉
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
+      # M5 투자자별 매매(KIS 시세 조회 경로 · 주문 API 아님). 없으면 네이버로 폴백한다.
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
       # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
       TECHNICAL_SCAN_SUMMARY_PATH: technical-scan.json
@@ -42,10 +47,26 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      # ★ KIS 토큰 캐시(T15). universe_daily와 같은 키 접두라 그날 발급분을 재사용한다.
+      - name: KIS 토큰 캐시 복원
+        uses: actions/cache@v6
+        with:
+          path: .cache
+          key: kis-token-${{ github.run_id }}
+          restore-keys: kis-token-
       - run: pip install -e .
+      # JARVIS 진입 필수 조건. DB만으로 M1 재무를 거른 뒤 통과 종목만 수급·일봉을 본다.
+      - name: JARVIS entry_checks (M1·M2·M5) · 🔵 K1
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python -m src.notify.entry_checks_run --summary-path entry-checks.json
+          else
+            python -m src.notify.entry_checks_run --save --send --summary-path entry-checks.json
+          fi
       # 펀더멘털 지속 조건을 먼저 통과한 종목만 네이버 일봉으로 기술 신호를 본다.
       # 알림 실패는 워크플로 실패로 드러낸다. 기존 일일 요약은 계속 보낸다.
       - name: 오늘의 종목 추천 · 최대 2개
+        if: success() || failure()
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m src.notify.technical_alert --summary-path technical-scan.json
