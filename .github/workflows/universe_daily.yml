@@ -6,20 +6,67 @@
 #   종목이 실행마다 들락거려 **결과가 재현되지 않는다.**
 # ★ KIS를 쓰는 유일한 워크플로다. 하루 1회라 토큰 재발급이 한도에 안 걸리지만,
 #   수동 재실행이 잦으면 발급 제한(분당 1회)에 걸려 `.cache/`를 보존한다.
+#
+# ★★ 정시 시작 = Supabase pg_cron → workflow_dispatch(docs/migrations/cron_universe_daily.sql · T229).
+#   06:00 KST 정시 + 16:30 KST 보충. GitHub schedule은 06:00 예약이 08:41~09:51에 시작해(9/28~10/2)
+#   장중가가 종가로 저장됐다(T217). 아래 schedule은 pg_cron 장애 대비 30분 뒤 예비다.
+# ★ gate 잡: ① 오늘(KST) `job_runs` 완료면 skip ② 평일에 지금 시작하면 제한시간 안에 장중(09:00~16:00)에
+#   걸리면 skip — 시세 라벨이 시작 시각에 고정돼 장중가가 종가로 저장된다. 16:30 보충이 그날 몫을 메운다.
+#   `--timeout-minutes`는 refresh 제한시간 + 5분(gate 잡 시간 여유)이다.
 
 name: universe_daily
+run-name: universe_daily · ${{ github.event_name == 'workflow_dispatch' && inputs.trigger || format('schedule(예비) {0}', github.event.schedule) }}
 
 on:
   schedule:
-    - cron: "0 21 * * *" # 06:00 KST
+    - cron: "30 21 * * *" # 06:30 KST 예비 (pg_cron 06:00 + 30분)
+    - cron: "0 8 * * *" # 17:00 KST 예비 (pg_cron 16:30 + 30분)
   workflow_dispatch:
+    inputs:
+      trigger:
+        description: "호출 주체 — pg_cron은 'pg_cron 06:00'처럼 넘긴다(실행 이름에만 쓴다)"
+        type: string
+        default: manual
+      force:
+        description: "게이트 무시(오늘 완료·장중 시작이어도 실행) — 장중이면 장중가가 저장된다"
+        type: boolean
+        default: false
 
 concurrency:
   group: universe-daily
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      # ★ 분기는 셸에서 한다 — schedule 경로에는 inputs가 없다(T79). 판정 실패는 skip=false.
+      - name: 오늘 몫이 끝났는가 · 장 시작 전에 끝날 수 있는가
+        id: gate
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            python -m src.db.job_runs gate --job universe_daily --timeout-minutes 95 --gate-output "$GITHUB_OUTPUT" \
+              || echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   refresh:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90 # 시세 1,112종목 + 발표 후 외국인 5거래일 수급 페이지
     env:
@@ -107,3 +154,7 @@ jobs:
       - name: 5거래일 리포트 반영 최종 분석
         continue-on-error: true
         run: python -m src.analysis.batch --send --report-final --notify-only --max-seconds 300
+
+      # 위 필수 스텝이 전부 성공했을 때만 남는다 — 예비·보충 실행이 게이트에서 끝나게 한다.
+      - name: 오늘 완료 표식
+        run: python -m src.db.job_runs done --job universe_daily --run-id ${{ github.run_id }}

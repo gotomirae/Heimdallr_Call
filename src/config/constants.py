@@ -194,6 +194,8 @@ US_MACRO_MARKET_CLOSE_GRACE_MINUTES = 30
 US_MACRO_MAX_STALE_CALENDAR_DAYS = 5
 # 한국 종가는 정규장 종료 뒤 공급자 지연까지 감안해 16:00 KST부터만 완료로 인정한다.
 KOREA_MARKET_COMPLETED_HOUR_KST = 16
+# 정규장 시작. 이 시각 전에 끝나지 못할 실행은 시작하지 않는다(T229 — 장중가가 종가로 저장된다).
+KOREA_MARKET_OPEN_HOUR_KST = 9
 
 # §9.1 — 분기 수주 그래프를 위해 보존할 정기보고서 깊이와 일일 DART 목록 탐색량.
 ORDER_HISTORY_QUARTERS = 10
