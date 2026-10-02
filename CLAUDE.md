@@ -138,6 +138,8 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- ★★ **daily_digest 정시 시작 = Supabase pg_cron → workflow_dispatch (2026-10-02, T228)** — `docs/migrations/cron_dispatch.sql`(17:37·18:17·19:07). schedule은 +30분 예비.
+  ★ 📊요약은 **9/22부터 하루 3번** 나가고 있었다(`send_once`가 code=None을 안 막는다) → `digest_date`(16시 경계)로 1일 1회 · 게이트로 재실행 즉시 종료.
 - ★★★ **"LLM 분석이 부실하다" — 모델이 아니라 입력이었다 (2026-08-24, 사용자 지적)**
   분석 행 누락 0건 · 필드 결측 2% · 화면 키 정상인데, **DB에 있으면서 입력에 넣은 적
   없는 것이 셋**이었다(T101): **분기말 종가 13분기**(`price_history`를 쓰라면서 궤적을
@@ -243,8 +245,6 @@ python -m pytest tests/
   ② **PRD 대조가 `re.search`라 첫 매치만 봤다** → `findall` 전수 대조(T50 뿌리).
 - ★ **실적 가속의 정의** — 매출·영업이익 YoY가 **둘 다 가속** + **OPM 상승**(G4).
   **흑전은 통과 인정**, 결측은 **판정 불가(None)**. 실측 통과 **269** · 발송 **100**.
-- 신규 함정 **T59 ★★**: `force-dynamic`은 **fetch 캐시를 막지 못한다** → `NO_STORE_OPTIONS`.
-- 신규 함정 **T58 ★**: DART 원문 링크는 `dsaf001/main.do?rcpNo=` 뿐이다(`rcept_no` 사용).
 - **투자 섹터 분류** — `sector_map.py` 30섹터. KRX 업종명은 투자에 쓰는 말이 아니다
   ('특수 목적용 기계'에 반도체장비·건설기계가 섞인다). 개별 종목 하드코딩 금지(T68).
   규칙을 고치면 **`python -m src.config.export_constants`를 반드시 돌려라**(안 돌리면 화면만 옛 답).

@@ -141,6 +141,8 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **daily_digest 정시 시작 (2026-10-02)** — Supabase pg_cron → `workflow_dispatch`(`docs/migrations/cron_dispatch.sql` 17:37·18:17·19:07), schedule은 +30분 예비.
+  ★ 📊요약이 **9/22부터 하루 3건**(code=None이라 중복키 미작동) → `digest_date` 1일 1회 · 첫 스텝 게이트 · entry_checks 결측 행 덮어쓰기 금지. T228.
 - **JARVIS 연계 B (2026-10-01~02)** — `entry_checks`(M1·M2·M5, 확정 일봉) 첫 운영 1,152행·M1∧M2∧M5 **5** · replay 2Q **48종목**(일 ~3.5) ·
   K1 · L1 매핑 · 유통·소비재 **20종목** KSIC 교정 · 분석 흔적 34건 정리(ADR 24·25). ★ **네이버 frgn.naver 개편으로 수급 파서가 0행**
   — 기술 알림 9/23 이후 0건이었다 → 모바일 trend API(KIS와 100/100 일치). T216~T225.
