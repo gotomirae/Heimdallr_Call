@@ -15,6 +15,10 @@ from src.utils.env import optional_env, optional_env_float, optional_env_int
 # ═══ 유니버스 ═══
 MARKET_CAP_FLOOR_KRW = 100_000_000_000  # 1,000억원
 MIN_QUARTERS_HISTORY = 5  # 신규 상장 판정 (5개 분기 미만이면 G3 탈락)
+GPM_HISTORY_QUARTERS = 10  # 대시보드 실제 분기 표시 구간
+GPM_HISTORY_BATCH_SIZE = 40  # 예약 작업의 과거 GPM 점진 보충 한도(분기 행)
+GPM_HISTORY_MAX_SECONDS = 1500  # 새 분기 시작 전 확인하는 실행 예산
+GPM_HISTORY_FAILURE_STREAK_LIMIT = 3  # 연속 원천 오류 때 중단, 이미 확인한 행만 저장
 
 # ═══ 게이트 ═══
 # G4 — 영업이익률(OPM)이 **전년 동기보다 올랐는가**. 기준은 `opm_yoy_delta > 0`이다.
@@ -192,6 +196,8 @@ US_MACRO_VIX_RISK_OFF = 25.0
 US_MACRO_EQUITY_DAILY_DROP_PCT = -1.0
 US_MACRO_MARKET_CLOSE_GRACE_MINUTES = 30
 US_MACRO_MAX_STALE_CALENDAR_DAYS = 5
+US_MACRO_ISSUE_LOOKBACK_DAYS = 7
+US_MACRO_RECENT_ISSUE_LIMIT = 6
 # 한국 종가는 정규장 종료 뒤 공급자 지연까지 감안해 16:00 KST부터만 완료로 인정한다.
 KOREA_MARKET_COMPLETED_HOUR_KST = 16
 # 정규장 시작. 이 시각 전에 끝나지 못할 실행은 시작하지 않는다(T229 — 장중가가 종가로 저장된다).

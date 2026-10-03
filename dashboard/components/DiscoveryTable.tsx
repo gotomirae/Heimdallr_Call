@@ -462,9 +462,6 @@ function SectorEditor({
           {process}
         </sup>
       )}
-      <button type="button" onClick={() => { setDraft(sector); setEditingCustom(true); }}
-        className="shrink-0 rounded px-0.5 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
-        aria-label={`${name} 섹터명 직접 수정`} title="섹터명 직접 입력">✎</button>
       {overridden && (
         <button type="button" onClick={() => onReset(code)}
           className="shrink-0 rounded px-0.5 py-1 text-[10px] font-bold text-sky-300 hover:bg-slate-800"
@@ -700,15 +697,10 @@ export default function DiscoveryTable({
           <header className="border-b border-sky-800/60 bg-sky-950/45 px-4 py-4 md:px-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sky-500/40 bg-sky-400/10 text-2xl shadow-inner" aria-hidden="true">🌐</span>
-                <div>
-                  <h2 className="text-lg font-black tracking-tight text-white md:text-xl">미국·글로벌 매크로 · 한국 증시 흐름</h2>
-                  <p className="mt-0.5 text-xs font-semibold tracking-wide text-sky-200">미국·한국 지수와 공식 글로벌 전망을 추천 순서에 반영</p>
-                </div>
+                <h2 className="whitespace-nowrap text-[clamp(12px,3.2vw,20px)] font-black tracking-tight text-white">🌐 미국·글로벌 매크로 · 한국 증시 흐름</h2>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded-full border border-emerald-500/40 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">● 자동 계산 정상</span>
-                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">📊 실적 {dataAsOf ?? "기준일 미측정"}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 최근 완료 거래일 {macroContext.marketDate}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇰🇷 한국 최근 완료 거래일 {macroContext.koreaMarketDate ?? "미수집"}</span>
                 <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🕘 {macroContext.checkedAt}</span>
@@ -720,20 +712,29 @@ export default function DiscoveryTable({
           </header>
 
           <div className="space-y-4 p-4 md:p-5">
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="space-y-3">
               <article className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-xl" aria-hidden="true">🌡️</span>
                   <h3 className="font-extrabold text-emerald-200">오늘의 시장 온도</h3>
                 </div>
-                <p className="text-sm leading-6 text-slate-100">{macroContext.summary.current}</p>
+                <div className="grid gap-2 text-sm leading-6 text-slate-100 lg:grid-cols-2">{macroContext.summary.current.split("\n").filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>
               </article>
               <article className="rounded-xl border border-violet-500/30 bg-violet-950/20 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-xl" aria-hidden="true">🔭</span>
                   <h3 className="font-extrabold text-violet-200">앞으로 볼 변수</h3>
                 </div>
-                <p className="text-sm leading-6 text-slate-100">{macroContext.summary.forward}</p>
+                <p className="mb-3 text-xs leading-5 text-slate-400">{macroContext.recentIssueWindow ? `${macroContext.recentIssueWindow.from} ~ ${macroContext.recentIssueWindow.through} · 지난밤 포함` : "최근 7일 · 최신 자료 갱신 대기"}<br />영향은 조건부 해석입니다. 원문 결과와 시장 반응을 함께 확인하세요.</p>
+                <div className="grid gap-4 lg:grid-cols-2">{(macroContext.recentIssues ?? []).map((item) => <div key={item.url} className="border-l-2 border-violet-500/50 pl-3">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" title={item.title} className="text-sm font-bold text-violet-100 underline">{item.emoji} {item.label}</a>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{item.publishedAt} · {item.source} · 공식 발표 원문</p>
+                  <p className="mt-1 text-xs font-semibold text-sky-200">📌 {item.fact}</p>
+                  <div className="mt-1 space-y-1 text-sm leading-6 text-slate-200">{item.marketImpact.split(/(?<=다\.)\s+/).map((line, index) => <p key={index}>↳ {line}</p>)}</div>
+                  <details className="mt-1 text-[11px] text-slate-400"><summary className="cursor-pointer">원문 제목 확인</summary>{item.title}</details>
+                </div>)}</div>
+                {!(macroContext.recentIssues ?? []).length && <p className="text-sm leading-6 text-slate-300">🔎 최근 7일 내 확인된 공식 발표가 없습니다. 오래된 발표를 이번 주 이슈로 표시하지 않습니다.</p>}
+                {!!macroContext.recentIssueFailures?.length && <p className="mt-2 text-xs text-amber-200">⚠️ 일부 공식 출처를 확인하지 못했습니다. <span className="inline-flex flex-wrap gap-2">{macroContext.recentIssueFailures.map((url) => <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="underline">원문 직접 확인</a>)}</span></p>}
                 {(macroContext.globalSectorTilts ?? []).length > 0 && <p className="mt-2 text-xs leading-5 text-violet-200">글로벌 공식 전망 반영 섹터: {(macroContext.globalSectorTilts ?? []).join(" · ")}</p>}
               </article>
             </div>

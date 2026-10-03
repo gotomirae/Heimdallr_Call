@@ -5,6 +5,55 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from src.collectors.us_macro_daily import MACRO_EVENTS, build_context, parse_fear_greed, parse_fed_rss, parse_fed_statement, parse_yahoo_chart, should_write_snapshot
+from src.collectors.us_macro_daily import SYMBOLS, parse_recent_issue_rss, parse_recent_bea_releases, parse_issue_fact
+
+
+def test_recent_atom_captures_last_night_and_excludes_stale_future_untrusted():
+    now = datetime(2026, 10, 3, 0, 0, tzinfo=timezone.utc)
+    entries = "".join(f'''<entry><title>Employment Situation</title><link href="{url}"/>
+        <published>{day}T12:00:00Z</published><content>Both nonfarm payroll employment (+29,000) and the unemployment rate (4.2 percent) changed little.</content></entry>'''
+        for day, url in [("2026-10-02", "https://www.bls.gov/news.release/archives/empsit_10022026.htm"),
+                         ("2026-09-25", "https://www.bls.gov/old"),
+                         ("2026-10-04", "https://www.bls.gov/future"),
+                         ("2026-10-01", "https://www.bls.gov.evil.test/fake")])
+    results = parse_recent_issue_rss(f'<feed xmlns="http://www.w3.org/2005/Atom">{entries}</feed>', "BLS", now)
+    assert len(results) == 1
+    assert results[0]["publishedAt"] == "2026-10-02"
+    assert results[0]["fact"] == "비농업 고용 변화 +29,000명 · 실업률 4.2%"
+    assert "금리" in results[0]["marketImpact"]
+
+
+def test_recent_rss_and_bea_keep_publication_date_not_observation_period():
+    now = datetime(2026, 10, 3, 0, 0, tzinfo=timezone.utc)
+    rss = '<rss><channel><item><title>Federal Reserve interest rate announcement</title><link>https://www.federalreserve.gov/new</link><pubDate>Wed, 30 Sep 2026 18:00:00 GMT</pubDate></item></channel></rss>'
+    assert len(parse_recent_issue_rss(rss, "Federal Reserve", now)) == 1
+    html = '<table><tr><td><a href="/news/2026/gdp">GDP and State Personal Income, 2nd Quarter 2026</a></td><td>September 30, 2026</td></tr></table>'
+    issue = parse_recent_bea_releases(html, now)[0]
+    assert issue["label"] == "미국 성장·기업 이익 발표"
+    assert issue["publishedAt"] == "2026-09-30"
+    assert parse_issue_fact('No verified figure') is None
+    assert parse_issue_fact('Real gross domestic product decreased at an annual rate of 0.7 percent') == '실질 GDP 전분기 대비 연율 -0.7%'
+    assert parse_issue_fact('From the preceding month, the PCE price index for August increased 0.3 percent. Excluding food and energy, the PCE price index increased 0.2 percent.') == 'PCE 물가 전월 대비 +0.3% · 근원 PCE 전월 대비 +0.2%'
+    assert parse_issue_fact('The number of job openings was little changed at 7.1 million in August.') == '구인 건수 710만 건'
+
+
+def test_nasdaq100_is_separate_source_and_same_day_new_issues_trigger_write():
+    assert SYMBOLS["nasdaq100"] == "%5ENDX"
+    assert SYMBOLS["nasdaq"] == "%5EIXIC"
+    prior = {"checkedAt": "2026-10-03 07:00 KST", "marketDate": "2026-10-02", "recentIssues": []}
+    assert should_write_snapshot(prior, {**prior, "recentIssues": [{"url": "https://www.bls.gov/new"}]})
+
+
+def test_macro_ui_uses_ndx_and_removes_pencil_and_earnings_badge():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    table = (root / 'dashboard/components/DiscoveryTable.tsx').read_text(encoding='utf-8')
+    charts = (root / 'dashboard/components/MacroMarketOverview.tsx').read_text(encoding='utf-8')
+    assert '✎' not in table
+    assert '📊 실적 {dataAsOf' not in table
+    assert '＋ 직접 입력…' in table
+    assert 'const nasdaq = markets.nasdaq100' in charts
+    assert 'Fear & Greed × 나스닥100' in charts
 
 
 def test_premarket_vix_cannot_mix_with_previous_completed_us_session():

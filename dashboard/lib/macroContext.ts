@@ -27,6 +27,13 @@ export interface MacroBriefing extends MacroItem {
   keyPoint?: string;
   marketImpact?: string;
 }
+export interface MacroRecentIssue extends MacroItem {
+  source: string;
+  label: string;
+  emoji: string;
+  marketImpact: string;
+  fact: string;
+}
 
 export interface MacroMarketPoint { date: string; value: number }
 export interface MacroMarketSeries {
@@ -61,7 +68,10 @@ export interface MacroContext {
   items: MacroItem[];
   briefings?: MacroBriefing[];
   briefingOverdue?: boolean;
-  markets?: Partial<Record<"sp500" | "nasdaq" | "dow" | "semiconductor" | "vix" | "kospi" | "kosdaq", MacroMarketSeries>>;
+  markets?: Partial<Record<"sp500" | "nasdaq" | "nasdaq100" | "dow" | "semiconductor" | "vix" | "kospi" | "kosdaq", MacroMarketSeries>>;
+  recentIssues?: MacroRecentIssue[];
+  recentIssueFailures?: string[];
+  recentIssueWindow?: { from: string; through: string };
   fearGreed?: FearGreedSnapshot | null;
   nextEvents?: MacroEvent[];
   flags: {

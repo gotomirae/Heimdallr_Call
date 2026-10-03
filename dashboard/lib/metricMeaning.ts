@@ -11,6 +11,28 @@ export interface MetricMeaning {
   action?: string;
 }
 
+/** 확정/잠정 실적만 비교한다. 숫자 패턴은 원인의 증거가 아니며 예상점은 제외한다. */
+export function quarterlyCharacteristics(points: ChartPoint[]) {
+  const actual = points.filter((p) => !p.isCurrentQuarter && !p.isContractEvent);
+  const byYear = new Map<number, ChartPoint[]>();
+  for (const p of actual) byYear.set(p.fiscalYear, [...(byYear.get(p.fiscalYear) ?? []), p]);
+  const complete = [...byYear.values()].filter((rows) => new Set(rows.filter((p) => p.revenue != null).map((p) => p.fiscalQuarter)).size === 4);
+  const peaks = complete.map((rows) => {
+    const max = Math.max(...rows.map((p) => p.revenue ?? -Infinity));
+    return `${rows[0].fiscalYear}년 ${rows.filter((p) => p.revenue === max).map((p) => `Q${p.fiscalQuarter}`).join('/')} 매출 최고`;
+  });
+  const seasonality = peaks.length ? `${peaks.join(' · ')}. ${complete.length}개 완전 연도의 관측 패턴이며 계절성 확정이 아닙니다. 같은 분기 YoY와 수요/제품믹스 원문을 함께 확인하세요.` : '4개 분기가 모두 있는 연도가 없어 계절성 판단을 보류합니다.';
+  const delta = (value: number | null, prev: number | null | undefined, label: string) => value == null || prev == null ? `${label} 비교 불가` : `${label} ${signed(value - prev, '%p')}`;
+  return { seasonality, rows: actual.map((p, i) => {
+    const prior = actual[i - 1];
+    const consecutive = prior && p.fiscalYear * 4 + p.fiscalQuarter - (prior.fiscalYear * 4 + prior.fiscalQuarter) === 1;
+    return { label: p.label, fiscalYear: p.fiscalYear, fiscalQuarter: p.fiscalQuarter,
+      revenue: p.revenue, op: p.op, gpm: p.gpm, opm: p.opm,
+      characteristic: `매출 YoY ${p.revenueYoy == null ? '비교 불가' : signed(p.revenueYoy, '%')} · 영업이익 YoY ${p.opYoy == null ? p.opStatusLabel ?? '비교 불가' : signed(p.opYoy, '%')} · ${delta(p.gpm, consecutive ? prior.gpm : null, 'GPM')} · ${delta(p.opm, consecutive ? prior.opm : null, 'OPM')}`,
+    };
+  }) };
+}
+
 function finite(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value);
 }

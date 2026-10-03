@@ -48,6 +48,30 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_contract_window_starts_after_actual_period_not_announcement_or_current_quarter():
+    rows = [{"disclosedAt": day} for day in ["2026-06-30", "2026-07-01", "2026-08-01", "2026-10-02", "2026-10-04"]]
+    result = _run([{"periodWindow": True, "rows": rows, "basisDate": "2026-10-03", "periodEnd": "2026-06-30"}])[0]
+    assert [r["disclosedAt"] for r in result] == ["2026-07-01", "2026-08-01", "2026-10-02"]
+    assert _run([{"periodWindow": True, "rows": rows, "basisDate": "2026-10-03", "periodEnd": None}])[0] == []
+    assert _run([{"periodName": True, "reportName": "반기보고서 (2026.06)"},
+                 {"periodName": True, "reportName": "사업보고서 (2026.02)"},
+                 {"periodName": True, "reportName": "[첨부정정]반기보고서 (2026.06)"}]) == ["2026-06-30", "2026-02-28", None]
+
+
+def test_quarter_study_uses_actual_periods_and_breaks_missing_margin_comparisons():
+    # 손계산: GPM 20→25는 +5%p, Q2→Q4 사이 누락은 비교 불가.
+    points = [{"label": f"Q{q}", "fiscalYear": 2026, "fiscalQuarter": q,
+               "revenue": 100, "op": 10, "gpm": gpm, "opm": 10,
+               "revenueYoy": 5, "opYoy": None, "opStatusLabel": "흑전"}
+              for q, gpm in [(1, 20), (2, 25), (4, 30)]]
+    result = _run([{"quarterStudy": True, "points": points + [{**points[-1], "isCurrentQuarter": True}]}])[0]
+    assert len(result["rows"]) == 3
+    assert "GPM +5.0%p" in result["rows"][1]["characteristic"]
+    assert "GPM 비교 불가" in result["rows"][2]["characteristic"]
+    assert "흑전" in result["rows"][1]["characteristic"]
+    assert "계절성 판단을 보류" in result["seasonality"]
+
+
 def test_old_contract_correction_is_not_a_new_contract_amount():
     # 실제 399720 10/1 정정공시: 계약 체결일은 2025/12/24, 정정 총액은 증가분이 아니다.
     row = {"rcept_no": "20261001900382", "sections": {"단일판매·공급계약": {

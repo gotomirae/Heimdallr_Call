@@ -46,7 +46,7 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
         "과거 3개년 평균 PER 대비",
         "PEG (자체 계산)",
         "섹터 비교",
-        "종목별 결과 추적",
+        "분기별 특징 · 계절성 · 분기 체력",
         "네이버 증권",
         "일간 종가",
         "올해 → 내년 ROE",
@@ -57,6 +57,12 @@ def test_stock_detail_renders_prd_evidence_without_inventing_values():
 
     assert 'title="공시 발췌"' not in STOCK
     assert "PBR" not in STOCK
+    assert "종목별 결과 추적" not in STOCK
+    assert "제품 유사도" not in STOCK
+    assert "매출 YoY" in STOCK and "영업이익 YoY" in STOCK
+    # ChartPoint는 이미 억원이다. eok()로 다시 나누면 223억원이 0억으로 보인다.
+    assert "eok(row.revenue)" not in STOCK
+    assert "num(row.revenue, 1)" in STOCK
 
 
 def test_watchlist_replaces_duplicate_all_stocks_route():
@@ -116,7 +122,9 @@ def test_cost_history_pages_and_exposes_forecast_basis():
 def test_sector_comparison_reads_the_exact_evaluated_quarter_with_paging():
     assert "getScreensForQuarter" in QUERIES
     assert "selectAll<ScreenRow>" in QUERIES
-    assert "productSimilarity" in STOCK
+    assert "productSimilarity" not in STOCK
+    assert "peerFund?.revenue_yoy" in STOCK
+    assert "peerFund?.op_yoy" in STOCK
     assert "trailing4qPer" not in STOCK, "PER은 자체 계산하지 않고 네이버 값을 써야 한다"
 
 
@@ -298,7 +306,8 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1820px]')
     assert 'text-[#f7c948]' in DISCOVERY and "text-2xl font-black" in DISCOVERY
     assert "macroContext.summary.current" in DISCOVERY
-    assert "macroContext.summary.forward" in DISCOVERY
+    assert "macroContext.recentIssues" in DISCOVERY
+    assert "macroContext.recentIssueWindow" in DISCOVERY
     assert "cyclePrimarySort(sorts, key)" in DISCOVERY
     assert "return [...sorts, { key, dir: \"asc\" }]" in filters
     assert 'if (sorts[index].dir === "desc") return removeSortRule(sorts, key)' in filters

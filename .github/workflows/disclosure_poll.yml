@@ -97,6 +97,12 @@ jobs:
         if: steps.season.outputs.run == 'true'
         run: python -m src.screener.run --save
 
+      - name: 과거 분기 GPM 점진 보충
+        if: steps.season.outputs.run == 'true'
+        timeout-minutes: 2
+        continue-on-error: true  # 보조 백필 장애가 공시·알림을 막지 않되 실패 로그는 남긴다.
+        run: python -m src.finance.detail --gpm-history --save --limit 4
+
       - name: 확정실적 원인 분석용 정기보고서 근거
         if: steps.season.outputs.run == 'true'
         run: python -m src.collectors.excerpt_run --save --limit 4 --max-seconds 120

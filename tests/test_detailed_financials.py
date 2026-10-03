@@ -32,6 +32,30 @@ def _row(account_id: str, amount: str, **extra) -> dict:
     return row
 
 
+def test_history_gpm_targets_include_non_gate_quarters_and_keep_fixed_scope():
+    rows = [{"code": "A", "fiscal_year": 2024 + i // 4, "fiscal_quarter": i % 4 + 1,
+             "fs_div": "CFS", "is_estimate": False, "gross_profit": None,
+             "gross_profit_checked_at": None} for i in range(12)]
+    rows[5]["gross_profit_checked_at"] = "2026-01-01"
+    rows[6]["gross_profit"] = 100
+    rows[7]["fs_div"] = "OFS"
+    rows += [{**rows[-1], "fiscal_year": 2027, "is_estimate": True}]
+    selected = detail_module.history_gpm_rows(rows)
+    assert len(selected) == 7  # 최근 10개 중 확인 완료 2개·다른 범위 1개 제외
+    assert selected[0]["fiscal_year"] == 2024 and selected[0]["fiscal_quarter"] == 3
+    assert all(r["fs_div"] == "CFS" and r["is_estimate"] is False for r in selected)
+    assert detail_module.history_gpm_rows(rows, set()) == []
+
+
+def test_history_gpm_shards_are_disjoint_and_cover_all_target_rows():
+    rows = [{"code": f"{i:06}", "fiscal_year": 2026, "fiscal_quarter": 2,
+             "fs_div": "CFS", "is_estimate": False} for i in range(100)]
+    shards = [detail_module.history_gpm_rows(rows, shard_index=i, shard_count=4) for i in range(4)]
+    assert sum(map(len, shards)) == 100
+    assert len({r["code"] for shard in shards for r in shard}) == 100
+    assert all(shards)
+
+
 def test_extract_accounts_uses_stable_ids_and_current_bs_values():
     rows = [
         _row(

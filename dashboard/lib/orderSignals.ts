@@ -182,6 +182,31 @@ export function currentQuarterPostReportContracts(
     row.disclosedAt > latestPeriodicReportDate && row.disclosedAt <= basisDate);
 }
 
+/** 실제 정기보고서 제목의 종료월. 비12월 결산도 달력 Q로 환산하지 않는다. */
+export function reportNamePeriodEnd(reportName: string | null): string | null {
+  if (isAttachmentOnlyCorrection(reportName) || !/사업보고서|반기보고서|분기보고서/.test(reportName ?? "")) return null;
+  const match = reportName?.match(/\((\d{4})[.\-/](\d{2})\)/);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
+
+/** 발표일이 아니라 실제 보고기간 종료일 이후의 공개 계약. 정정/해지도 표에는 보존한다. */
+export function postPeriodContracts(rows: OrderContractDisclosure[], basisDate: string, periodEnd: string | null): OrderContractDisclosure[] {
+  const validDate = (value: string | null): value is string => value != null && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime()) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  if (!validDate(basisDate) || !validDate(periodEnd) || periodEnd >= basisDate) return [];
+  const cutoff = new Date(`${basisDate}T00:00:00Z`);
+  const day = cutoff.getUTCDate();
+  cutoff.setUTCDate(1);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - 6);
+  const lastDay = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 1, 0)).getUTCDate();
+  cutoff.setUTCDate(Math.min(day, lastDay));
+  const from = cutoff.toISOString().slice(0, 10);
+  return rows.filter((row) => validDate(row.disclosedAt) && row.disclosedAt > periodEnd && row.disclosedAt >= from && row.disclosedAt <= basisDate);
+}
+
 const ORDER_TERMS = [
   "수주잔고",
   "수주 총액",

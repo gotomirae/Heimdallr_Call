@@ -9,6 +9,7 @@ import re
 from datetime import datetime, time, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 from xml.etree import ElementTree
 from zoneinfo import ZoneInfo
 
@@ -21,7 +22,10 @@ from src.config.constants import (
     US_MACRO_MARKET_CLOSE_GRACE_MINUTES,
     US_MACRO_MAX_STALE_CALENDAR_DAYS,
     US_MACRO_VIX_RISK_OFF,
+    US_MACRO_ISSUE_LOOKBACK_DAYS,
+    US_MACRO_RECENT_ISSUE_LIMIT,
 )
+from src.utils.console import enable_utf8_stdout
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "dashboard" / "lib" / "macro-daily.json"
@@ -30,12 +34,123 @@ FED_RSS = "https://www.federalreserve.gov/feeds/press_monetary.xml"
 YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SYMBOLS = {
     "sp500": "%5EGSPC", "nasdaq": "%5EIXIC", "dow": "%5EDJI",
-    "semiconductor": "%5ESOX", "vix": "%5EVIX",
+    "semiconductor": "%5ESOX", "vix": "%5EVIX", "nasdaq100": "%5ENDX",
     "kospi": "%5EKS11", "kosdaq": "%5EKQ11",
 }
 FEAR_GREED_URL = "https://fearandgreedgraph.com/api/fear-greed"
 NEW_YORK = ZoneInfo("America/New_York")
 SEOUL = ZoneInfo("Asia/Seoul")
+RECENT_ISSUE_FEEDS = (
+    ("BLS", "https://www.bls.gov/feed/empsit.rss"),
+    ("BLS", "https://www.bls.gov/feed/jolts.rss"),
+    ("BLS", "https://www.bls.gov/feed/cpi.rss"),
+    ("Federal Reserve", FED_RSS),
+)
+BEA_RELEASES = "https://www.bea.gov/news/current-releases"
+
+
+def recent_issue(item: dict, now: datetime) -> dict | None:
+    """최근 7일 공식 발표만 사용. 실제 발표 사실과 조건부 영향 해석을 분리한다."""
+    try:
+        published = datetime.fromisoformat(item["publishedAt"]).date()
+    except (ValueError, TypeError, KeyError):
+        return None
+    today = now.astimezone(SEOUL).date()
+    if not today - timedelta(days=US_MACRO_ISSUE_LOOKBACK_DAYS - 1) <= published <= today:
+        return None
+    parsed_url = urlparse(item.get("url", ""))
+    if parsed_url.scheme != "https" or parsed_url.hostname not in {"www.bls.gov", "www.bea.gov", "www.federalreserve.gov"}:
+        return None
+    title = item.get("title", "")
+    topic = title + " " + item.get("url", "")
+    if re.search(r"Employment Situation|Job Openings|payroll|empsit_|jolts_", topic, re.I):
+        label = "미국 구인·이직(JOLTS) 발표" if re.search(r"Job Openings|jolts_", topic, re.I) else "미국 고용·실업률 발표"
+        emoji = "👷"
+        impact = "고용·임금이 강하면 금리 인하 기대 약화와 성장주 밸류 부담으로 이어질 수 있습니다. 완만한 둔화는 금리 부담 완화, 급격한 둔화는 소비·기업 이익 위험으로 구분해 봅니다."
+    elif re.search(r"GDP|Gross Domestic|Corporate Profits", title, re.I):
+        label, emoji = "미국 성장·기업 이익 발표", "🏭"
+        impact = "민간 최종수요·기업 이익 개선이 확인되면 수출·경기민감 업종의 실적 지속성을 점검합니다. 성장 둔화와 물가 상승이 겹치면 마진 및 밸류 부담이 커질 수 있습니다."
+    elif re.search(r"Personal Income|Consumer Price|Inflation|cpi_", topic, re.I):
+        label, emoji = "미국 소비·물가 발표", "🛒"
+        impact = "근원 물가가 재가속하면 장기금리와 고PER 주식 부담을 확인합니다. 물가 둔화와 소비 유지가 함께 나타나면 실적이 뒷받침되는 성장주에 우호적일 수 있습니다."
+    elif re.search(r"FOMC|monetary|discount|interest rate", title, re.I):
+        label, emoji = "연준 정책 관련 발표", "🏦"
+        impact = "새 정책 결정인지 과거 회의 기록인지 원문을 구분합니다. 긴축적인 금리 경로는 기술주 밸류와 원화에 부담, 완화적인 경로는 부담 완화 요인이지만 경기 악화 여부를 함께 확인해야 합니다."
+    else:
+        return None
+    return {**item, "label": label, "emoji": emoji, "marketImpact": impact,
+            "fact": item.get("fact") or "공식 발표 확인 · 세부 결과는 원문에서 확인하세요."}
+
+
+def parse_recent_issue_rss(xml_text: str, source: str, now: datetime) -> list[dict]:
+    items = []
+    root = ElementTree.fromstring(xml_text)
+    atom = "{http://www.w3.org/2005/Atom}"
+    if root.tag not in {"rss", f"{atom}feed"}:
+        raise ValueError("공식 발표 피드의 RSS/Atom 구조를 확인하지 못했습니다")
+    entries = root.findall("./channel/item") + root.findall(f"{atom}entry")
+    for node in entries:
+        try:
+            raw = node.findtext("pubDate")
+            timestamp = (parsedate_to_datetime(raw) if raw else
+                         datetime.fromisoformat((node.findtext(f"{atom}published") or "").replace("Z", "+00:00")))
+            if timestamp > now:
+                continue
+            published = timestamp.astimezone(SEOUL).date().isoformat()
+        except (ValueError, TypeError, AttributeError):
+            continue
+        link = node.find(f"{atom}link")
+        title = (node.findtext("title") or node.findtext(f"{atom}title") or "").strip()
+        body = node.findtext("description") or node.findtext(f"{atom}content") or title
+        url = (node.findtext("link") or (link.get("href") if link is not None else "") or "").strip()
+        item = recent_issue({"title": title, "url": url, "publishedAt": published, "source": source,
+                             "fact": parse_issue_fact(body)}, now)
+        if item:
+            items.append(item)
+    return items
+
+
+def parse_issue_fact(body: str) -> str | None:
+    """출처가 직접 명시한 수치만 짧은 한국어로 변환한다. 미파싱은 추측하지 않는다."""
+    text = BeautifulSoup(body, "html.parser").get_text(" ", strip=True)
+    facts = []
+    payroll = re.search(r"(?:nonfarm )?payroll employment\s*\(([+-]?[\d,]+)\)", text, re.I)
+    unemployment = re.search(r"unemployment rate\s*\(([\d.]+)\s*(?:percent|%)\)", text, re.I)
+    if payroll:
+        facts.append(f"비농업 고용 변화 {payroll[1]}명")
+    if unemployment:
+        facts.append(f"실업률 {unemployment[1]}%")
+    openings = re.search(r"(?:number of )?job openings\b[^.]{0,100}?at ([\d.]+) million", text, re.I)
+    if openings:
+        facts.append(f"구인 건수 {float(openings[1]) * 100:g}만 건")
+    gdp = re.search(r"Real gross domestic product.*?\b(increased|decreased)\b.*?annual rate of ([\d.]+) percent", text, re.I)
+    if gdp:
+        facts.append(f"실질 GDP 전분기 대비 연율 {'+' if gdp[1].lower() == 'increased' else '-'}{gdp[2]}%")
+    monthly = re.search(r"From the preceding month, the PCE price index[^.]{0,80}?\b(increased|decreased) ([\d.]+) percent", text, re.I)
+    core = re.search(r"Excluding food and energy, the PCE price index\s+(increased|decreased) ([\d.]+) percent\s*\.", text, re.I)
+    if monthly:
+        facts.append(f"PCE 물가 전월 대비 {'+' if monthly[1].lower() == 'increased' else '-'}{monthly[2]}%")
+    if core and monthly:
+        facts.append(f"근원 PCE 전월 대비 {'+' if core[1].lower() == 'increased' else '-'}{core[2]}%")
+    return " · ".join(facts) or None
+
+
+def parse_recent_bea_releases(html: str, now: datetime) -> list[dict]:
+    items = []
+    for row in BeautifulSoup(html, "html.parser").select("tr"):
+        link = row.find("a", href=True)
+        match = re.search(r"\b([A-Z][a-z]+ \d{1,2}, \d{4})\b", row.get_text(" ", strip=True))
+        if not link or not match:
+            continue
+        try:
+            published = datetime.strptime(match[1], "%B %d, %Y").date().isoformat()
+        except ValueError:
+            continue
+        item = recent_issue({"title": link.get_text(" ", strip=True), "url": urljoin(BEA_RELEASES, link["href"]),
+                             "publishedAt": published, "source": "BEA"}, now)
+        if item:
+            items.append(item)
+    return items
 
 
 def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW_YORK) -> dict:
@@ -157,12 +272,15 @@ def parse_fed_statement(html: str) -> dict:
     return result
 
 
-def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fear_greed: dict | None = None) -> dict:
+def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fear_greed: dict | None = None,
+                  recent_issues: list[dict] | None = None, issue_failures: list[str] | None = None) -> dict:
     us_keys = ("sp500", "nasdaq", "dow", "semiconductor", "vix")
     dates = {markets[key]["date"] for key in us_keys}
     if len(dates) != 1:
         raise ValueError(f"미국 시장 지표 거래일 불일치: {sorted(dates)}")
     market_date = dates.pop()
+    if markets.get("nasdaq100") and markets["nasdaq100"]["date"] != market_date:
+        raise ValueError("나스닥100 완료 거래일 불일치")
     if (checked_at.astimezone(NEW_YORK).date() - datetime.fromisoformat(market_date).date()).days > US_MACRO_MAX_STALE_CALENDAR_DAYS:
         raise ValueError(f"미국 시장 종가가 오래됐습니다: {market_date}")
     sp, nasdaq, dow, sox, vix = (
@@ -235,6 +353,15 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
     start = checked_at.date()
     end = start + timedelta(days=92)
     events = [event for event in MACRO_EVENTS if start <= datetime.fromisoformat(event["date"]).date() <= end]
+    issues = {item["url"]: item for candidate in (recent_issues or [])
+              if (item := recent_issue(candidate, checked_at)) is not None}
+    issues = sorted(issues.values(), key=lambda item: item["publishedAt"], reverse=True)[:US_MACRO_RECENT_ISSUE_LIMIT]
+    current_lines = [
+        f"🇺🇸 {date_label} 미국 마감 · S&P 500 {sp['changePct']:+.2f}% / 나스닥 {nasdaq['changePct']:+.2f}% / 반도체 {sox['changePct']:+.2f}%",
+        f"🌡️ VIX {vix['close']:.2f}" + (f" · Fear & Greed {fear_greed['value']:.1f} ({fear_greed['label']})" if fear_greed else " · Fear & Greed 미수집"),
+        f"🇰🇷 {korea_market_date or '거래일 미확인'} 한국 마감 · {korea_summary}",
+        f"🧭 종합 판단 · {regime}. 지수 방향과 실제 기업 이익을 함께 확인합니다.",
+    ]
     return {
         "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
         "checkedAt": checked_at.astimezone(SEOUL).strftime("%Y-%m-%d %H:%M KST"),
@@ -248,7 +375,11 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
             *[{key: briefing[key] for key in ("title", "url", "publishedAt")} for briefing in briefings],
         ],
         "briefings": briefings,
-        "markets": {key: markets[key] for key in (*us_keys, "kospi", "kosdaq") if key in markets},
+        "markets": {key: markets[key] for key in (*us_keys, "nasdaq100", "kospi", "kosdaq") if key in markets},
+        "recentIssues": issues,
+        "recentIssueFailures": issue_failures or [],
+        "recentIssueWindow": {"from": (checked_at.astimezone(SEOUL).date() - timedelta(days=US_MACRO_ISSUE_LOOKBACK_DAYS - 1)).isoformat(),
+                              "through": checked_at.astimezone(SEOUL).date().isoformat()},
         "fearGreed": fear_greed,
         "nextEvents": events,
         "flags": {"rates": True, "industry": True, "geopolitics": risk_off},
@@ -258,8 +389,8 @@ def build_context(markets: dict[str, dict], fed: dict, checked_at: datetime, fea
         "preferredBoards": preferred_boards,
         "koreaMode": korea_mode,
         "summary": {
-            "current": f"미국 {date_label} 장 마감: S&P 500 {sp['changePct']:+.2f}%, 나스닥 {nasdaq['changePct']:+.2f}%, 다우 {dow['changePct']:+.2f}%, 필라델피아 반도체 {sox['changePct']:+.2f}%, CBOE VIX {vix['close']:.2f}" + (f", Fear & Greed {fear_greed['value']:.1f}({fear_greed['label']})" if fear_greed else "") + f". 한국 {korea_market_date or '거래일 미확인'}: {korea_summary}. 미국·한국 흐름과 글로벌 공식 전망을 함께 보면 {regime} 국면입니다.",
-            "forward": f"연준 성명({fed['publishedAt']}): {policy_summary} {activity_summary}{inflation_summary} 아래 미국 물가·고용·GDP와 IMF 세계전망은 발표일이 확인된 원문 핵심 수치로 요약했습니다.",
+            "current": "\n".join(current_lines),
+            "forward": "지난밤을 포함한 최근 7일 공식 발표를 확인합니다. 아래 영향 설명은 조건부 해석이며 실제 발표 결과나 확정 전망이 아닙니다.",
             "recommendedSort": "추천 정렬: " + (
                 f"미국·글로벌 적합 섹터 → 한국 상대강세 시장({preferred_boards[0]}) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
                 if mode == "earnings_growth" else
@@ -299,7 +430,29 @@ def collect(now: datetime | None = None) -> dict:
             fed.update(parse_fed_statement(statement.text))
         except httpx.HTTPError:
             print("⚠ FOMC 성명 본문 확인 실패 — 금리·물가 수치 표시 생략")
-    return build_context(markets, fed, now, fear_greed)
+        issues, failures = [], []
+        for source, url in RECENT_ISSUE_FEEDS:
+            try:
+                response = client.get(url)
+                response.raise_for_status()
+                issues.extend(parse_recent_issue_rss(response.text, source, now))
+            except (httpx.HTTPError, ValueError, ElementTree.ParseError):
+                failures.append(url)
+        try:
+            response = client.get(BEA_RELEASES)
+            response.raise_for_status()
+            issues.extend(parse_recent_bea_releases(response.text, now))
+        except (httpx.HTTPError, ValueError):
+            failures.append(BEA_RELEASES)
+        for item in issues:
+            if item["source"] == "BEA":
+                try:
+                    response = client.get(item["url"])
+                    response.raise_for_status()
+                    item["fact"] = parse_issue_fact(response.text) or item["fact"]
+                except httpx.HTTPError:
+                    failures.append(item["url"])
+    return build_context(markets, fed, now, fear_greed, issues, failures)
 
 
 def should_write_snapshot(previous: dict, context: dict, *, force: bool = False) -> bool:
@@ -312,12 +465,16 @@ def should_write_snapshot(previous: dict, context: dict, *, force: bool = False)
     )
     return bool(
         force or prewarm_needs_seven_oclock
+        or previous.get("recentIssues") != context.get("recentIssues")
+        or previous.get("recentIssueFailures") != context.get("recentIssueFailures")
+        or ("nasdaq100" not in previous.get("markets", {}) and "nasdaq100" in context.get("markets", {}))
         or (previous_at[:10], previous.get("marketDate"), previous.get("koreaMarketDate"))
         != (current_at[:10], context["marketDate"], context.get("koreaMarketDate"))
     )
 
 
 def main() -> int:
+    enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="미국 장 마감/연준 매크로 스냅샷")
     parser.add_argument("--write", action="store_true", help="검증 성공 시 대시보드 JSON 갱신")
     parser.add_argument("--force", action="store_true", help="같은 날 출처 선택 수정 시 재생성")

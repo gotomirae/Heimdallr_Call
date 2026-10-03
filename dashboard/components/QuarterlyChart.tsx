@@ -85,8 +85,9 @@ function chartSeries(points: ChartPoint[]) {
 function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: MetricMeaning }) {
   const data = chartSeries(points);
   const gpmMeasured = data.filter((point) => point.gpmActual != null).length;
+  const actualCount = data.filter((point) => !point.isCurrentQuarter).length;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">매출액 / GPM</strong><span className="text-xs text-slate-400">억원 · % · GPM {gpmMeasured}/{data.length}</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">매출액 / GPM</strong><span className="text-xs text-slate-400">억원 · % · 실적 GPM {gpmMeasured}/{actualCount}</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 30, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
@@ -184,7 +185,11 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
   </div>;
 }
 
-export default function QuarterlyChart({ points, orderPoints = points }: { points: ChartPoint[]; orderPoints?: ChartPoint[] }) {
+export function OrderQuarterlyChart({ points }: { points: ChartPoint[] }) {
+  return <OrdersPanel points={points} meaning={fundamentalMetricMeanings(withOrderBacklogQoq(points.filter((point) => !point.isCurrentQuarter)))[5]} />;
+}
+
+export default function QuarterlyChart({ points, orderPoints = points, showOrders = true }: { points: ChartPoint[]; orderPoints?: ChartPoint[]; showOrders?: boolean }) {
   if (!points.length && !orderPoints.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
   // 현재 위치 해설은 발표된 분기만 본다. 점선 컨센서스를 현재 실적으로 오인하지 않는다.
   const meanings = fundamentalMetricMeanings(withOrderBacklogQoq(
@@ -194,6 +199,6 @@ export default function QuarterlyChart({ points, orderPoints = points }: { point
     <RevenuePanel points={points} meaning={meanings[0]} />
     <EarningsPanel points={points} meanings={meanings.slice(1, 3)} />
     <GrowthLinePanel points={points} meanings={meanings.slice(3, 5)} />
-    <OrdersPanel points={orderPoints} meaning={fundamentalMetricMeanings(withOrderBacklogQoq(orderPoints.filter((point) => !point.isCurrentQuarter)))[5]} />
+    {showOrders && <OrderQuarterlyChart points={orderPoints} />}
   </div>;
 }

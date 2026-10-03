@@ -90,6 +90,16 @@ jobs:
       - name: D축 반영 최종 스크리닝
         run: python -m src.screener.run --save
 
+      - name: 표시 구간 과거 GPM 보충
+        env:
+          CODES_INPUT: ${{ inputs.codes }}
+        run: |
+          if [ -n "$CODES_INPUT" ]; then
+            python -m src.finance.detail --gpm-history --save --code "$CODES_INPUT"
+          else
+            python -m src.finance.detail --gpm-history --save
+          fi
+
       - name: 정기보고서 서술 근거 갱신
         run: python -m src.collectors.excerpt_run --save --limit 200 --max-seconds 1800
 

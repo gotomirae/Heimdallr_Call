@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import argparse
 import time
+import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from src.collectors.dart_financials import REQUEST_INTERVAL_SEC, _to_int, fetch_single_all
-from src.config.constants import DART_BASE_URL, REPRT_CODE
+from src.config.constants import DART_BASE_URL, GPM_HISTORY_BATCH_SIZE, GPM_HISTORY_FAILURE_STREAK_LIMIT, GPM_HISTORY_MAX_SECONDS, GPM_HISTORY_QUARTERS, REPRT_CODE
 from src.db.supabase_client import get_client, select_all
 from src.finance.derive import margin_pct
 from src.finance.quarterize import ReportFigure, quarterize
@@ -266,17 +267,103 @@ _FUNDAMENTAL_COLUMNS = (
 )
 
 
-def _fundamental_rows() -> tuple[list[dict], bool]:
+def _fundamental_rows(codes: set[str] | None = None) -> tuple[list[dict], bool]:
     """GPM 확인 표식 DDL 적용 전에도 기존 수집을 계속한다."""
+    def read(columns: str) -> list[dict]:
+        if codes is None:
+            return select_all("quarterly_fundamentals", columns)
+        return [row for code in sorted(codes) for row in select_all(
+            "quarterly_fundamentals", columns, filters={"code": code})]
     try:
-        return select_all(
-            "quarterly_fundamentals",
-            f"{_FUNDAMENTAL_COLUMNS},gross_profit_checked_at",
-        ), True
+        return read(f"{_FUNDAMENTAL_COLUMNS},gross_profit_checked_at"), True
     except Exception as exc:
         if str(getattr(exc, "code", "") or "") != "42703":
             raise
-        return select_all("quarterly_fundamentals", _FUNDAMENTAL_COLUMNS), False
+        return read(_FUNDAMENTAL_COLUMNS), False
+
+
+def history_gpm_rows(rows: list[dict], eligible_codes: set[str] | None = None, *, shard_index: int = 0, shard_count: int = 1) -> list[dict]:
+    """순수 선별: 게이트와 무관하게 최근 실제 10분기, 최신 연결/별도 범위 고정."""
+    if shard_count < 1 or not 0 <= shard_index < shard_count:
+        raise ValueError("GPM 분할 범위가 올바르지 않습니다")
+    by_code: dict[str, list[dict]] = {}
+    for row in rows:
+        if row.get("is_estimate") is False and (eligible_codes is None or row["code"] in eligible_codes):
+            by_code.setdefault(row["code"], []).append(row)
+    pending = []
+    for code in sorted(by_code):
+        if zlib.crc32(code.encode("utf-8")) % shard_count != shard_index:
+            continue
+        history = sorted(by_code[code], key=lambda r: (r["fiscal_year"], r["fiscal_quarter"]))
+        scope = history[-1]["fs_div"]
+        for row in history[-GPM_HISTORY_QUARTERS:]:
+            if row["fs_div"] == scope and row.get("gross_profit") is None and row.get("gross_profit_checked_at") is None:
+                pending.append(row)
+    return pending
+
+
+def run_gpm_history(*, save: bool, codes: set[str] | None = None, limit: int | None = GPM_HISTORY_BATCH_SIZE,
+                    shard_index: int = 0, shard_count: int = 1, max_seconds: int = GPM_HISTORY_MAX_SECONDS) -> int:
+    """기존 재무 행의 GPM만 보충한다. 재무 없는 분기·다른 항목을 만들지 않는다."""
+    rows, check_supported = _fundamental_rows(codes)
+    universe = {r["code"]: r for r in select_all("krx_universe", "code,corp_code,is_excluded")}
+    eligible = {code for code, uni in universe.items() if uni.get("corp_code") and not uni.get("is_excluded")}
+    pending = history_gpm_rows(rows, eligible, shard_index=shard_index, shard_count=shard_count)
+    targets = pending if limit is None else pending[:limit]
+    cache: dict[tuple[str, int, int, str], list[dict]] = {}
+    payload = []
+    errors = []
+    missing_reports = 0
+    failures_in_a_row = 0
+    started = time.monotonic()
+    print(f"GPM 과거 분기 미확인 {len(pending)}행 · 이번 처리 {len(targets)}행")
+    for row in targets:
+        if time.monotonic() - started >= max_seconds:
+            print("시간 예산 종료 — 아직 시작하지 않은 분기는 다음 실행에 남깁니다")
+            break
+        uni = universe.get(row["code"])
+        if not uni or not uni.get("corp_code") or uni.get("is_excluded"):
+            continue
+        try:
+            def accounts(q: int) -> list[dict]:
+                key = (uni["corp_code"], row["fiscal_year"], q, row["fs_div"])
+                if key not in cache:
+                    cache[key] = fetch_single_all(*key)
+                    time.sleep(REQUEST_INTERVAL_SEC)
+                return cache[key]
+            q = row["fiscal_quarter"]
+            current_rows = accounts(q)
+            if not current_rows:
+                missing_reports += 1
+                continue  # API/원문 미확보는 확인 완료로 찍지 않는다.
+            previous_rows = accounts(q - 1) if q > 1 else []
+            profit = quarter_income_value(q, extract_accounts(current_rows).gross_profit,
+                extract_accounts(previous_rows).gross_profit if previous_rows else ReportFigure())
+            if profit is None and q > 1 and not previous_rows:
+                missing_reports += 1
+                continue
+            stamp = datetime.now(timezone.utc).isoformat()
+            item = {key: row[key] for key in ("code", "fiscal_year", "fiscal_quarter", "fs_div")}
+            item.update(gross_profit=profit, gpm=margin_pct(profit, row.get("revenue")), updated_at=stamp)
+            if check_supported:
+                item["gross_profit_checked_at"] = stamp
+            payload.append(item)
+            failures_in_a_row = 0
+            print(f"  {row['code']} {row['fiscal_year']}.{q}Q GPM={item['gpm']}")
+        except Exception as exc:
+            errors.append(f"{row['code']} {row['fiscal_year']}.{row['fiscal_quarter']}Q {type(exc).__name__}: {exc}")
+            failures_in_a_row += 1
+            if failures_in_a_row >= GPM_HISTORY_FAILURE_STREAK_LIMIT:
+                print("연속 원천 오류 — 무한 재실행하지 않고 실패 원인을 확인해야 합니다")
+                break
+    measured = sum(r["gpm"] is not None for r in payload)
+    print(f"수치 확인 {measured} · GPM 수치 미확인 {len(payload) - measured} · 원문 미확보 {missing_reports} · 오류 {len(errors)} · API {len(cache)}회")
+    for error in errors:
+        print(error)
+    if save and payload:
+        _save(payload)
+        print(f"저장 {len(payload)}행")
+    return int(bool(errors or missing_reports))
 
 
 def _latest_gate_targets(
@@ -582,8 +669,21 @@ def main() -> int:
     parser.add_argument("--code", action="append", default=[], help="특정 6자리 종목코드(반복 가능)")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--refresh", action="store_true", help="이미 측정된 게이트 통과 종목도 재수집")
+    parser.add_argument("--gpm-history", action="store_true", help="게이트와 무관한 최근 10분기 GPM만 점진 보충")
+    parser.add_argument("--full-history", action="store_true", help="GPM 미확인 전체를 시간 예산 내 처리")
+    parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--max-seconds", type=int, default=GPM_HISTORY_MAX_SECONDS)
     args = parser.parse_args()
     codes = {code.strip() for item in args.code for code in item.split(",") if code.strip()}
+    if args.gpm_history:
+        if args.limit is not None and args.limit <= 0 or args.max_seconds <= 0 or args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+            parser.error("limit/max-seconds/shard-count는 양수, shard-index는 분할 범위 내여야 합니다")
+        return run_gpm_history(save=args.save, codes=codes or None,
+            limit=args.limit if args.limit is not None else None if args.full_history else GPM_HISTORY_BATCH_SIZE,
+            shard_index=args.shard_index, shard_count=args.shard_count, max_seconds=args.max_seconds)
+    if args.full_history:
+        parser.error("--full-history는 --gpm-history와 함께 사용합니다")
     return run(save=args.save, codes=codes or None, limit=args.limit, refresh=args.refresh)
 
 
