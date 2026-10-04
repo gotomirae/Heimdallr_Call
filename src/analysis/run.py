@@ -39,7 +39,7 @@ from src.utils.cost_guard import ENV_DEV, ENV_PROD, check_budget
 FUND_COLUMNS = (
     # ★ `np`(순이익)가 없으면 최근 4분기 PER이 **전 종목 계산 불가**가 된다 —
     #   에러 없이 "계산 불가"만 뜨므로 데이터가 없는 것처럼 보인다(2026-08-23 실측).
-    "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,opm,opm_yoy_delta,"
+    "code,fiscal_year,fiscal_quarter,revenue,op,np,revenue_yoy,op_yoy,opm,opm_yoy_delta,gpm,"
     "ttm_revenue,ttm_op,ttm_opm,ttm_cfo,cfo,capex,fcf,receivables,inventory,"
     "shares_outstanding,shares_yoy,op_status_label,is_estimate,delta_from_preliminary"
 )
@@ -126,6 +126,8 @@ def load_narrative_history(
     quarter: int,
     *,
     read_budget: PostgrestReadBudget | None = None,
+    include_current: bool = False,
+    max_chars: int = NARRATIVE_HISTORY_MAX_CHARS,
 ) -> list[dict]:
     """3단계용 직전 4개 분기 정기보고서 근거와 DART 직접 링크.
 
@@ -151,7 +153,8 @@ def load_narrative_history(
         if not isinstance(ry, int) or not isinstance(rq, int):
             continue
         index = ry * 4 + (rq - 1)
-        if not target - 4 <= index < target or not row.get("sections"):
+        lower, upper = (target - 3, target) if include_current else (target - 4, target - 1)
+        if not lower <= index <= upper or not row.get("sections"):
             continue
         key = (ry, rq)
         previous = by_period.get(key)
@@ -161,7 +164,7 @@ def load_narrative_history(
     selected = [by_period[key] for key in sorted(by_period)]
     if not selected:
         return []
-    per_report = max(1, NARRATIVE_HISTORY_MAX_CHARS // len(selected))
+    per_report = max(1, max_chars // len(selected))
     history: list[dict] = []
     for row in selected:
         sections = row.get("sections") or {}
@@ -187,6 +190,26 @@ def load_narrative_history(
             "truncated": original_chars > per_report,
         })
     return history
+
+
+def load_previous_analysis(code: str, year: int, quarter: int) -> dict | None:
+    """요청 분기 이후 분석은 제외한다. 과거 판단은 새 사실의 원천이 아니다."""
+    rows = select_all("analyses", "fiscal_year,fiscal_quarter,payload,created_at", filters={"code": code})
+    rows = [r for r in rows if isinstance(r.get("fiscal_year"), int)
+            and isinstance(r.get("fiscal_quarter"), int)
+            and (r["fiscal_year"], r["fiscal_quarter"]) <= (year, quarter)]
+    if not rows:
+        return None
+    row = max(rows, key=lambda r: (str(r.get("created_at") or ""), r["fiscal_year"], r["fiscal_quarter"]))
+    payload = row.get("payload") or {}
+    if not isinstance(payload, dict):
+        return None
+    meta = payload.get("_heimdallr")
+    meta = meta if isinstance(meta, dict) else {}
+    return {"fiscal_year": row["fiscal_year"], "fiscal_quarter": row["fiscal_quarter"],
+            "created_at": row.get("created_at"), "invalid": meta.get("invalid") is True,
+            "thesis": payload.get("one_line_thesis"), "earnings_change": payload.get("earnings_change"),
+            "risks": payload.get("risks"), "next_data_to_watch": payload.get("next_data_to_watch") or []}
 
 
 def build_input(

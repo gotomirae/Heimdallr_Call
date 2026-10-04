@@ -176,6 +176,10 @@ export interface QuarterPriceRow {
 }
 
 export interface InvestmentScoreDetail {
+  industry_position_evidence?: { mode: string; score: number | null; denominator: number;
+    values: Record<string, number | null>;
+    evidence: Array<{ axis: string; value: number; quote: string; url: string; ambiguous?: boolean }>;
+    limitation: string } | null;
   mode?: string;
   parts?: Record<string, number | null>;
   raw_sum?: number;

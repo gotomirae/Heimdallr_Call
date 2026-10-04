@@ -41,7 +41,7 @@ from src.analysis.analyze import (
     validate_payload,
 )
 from src.analysis.eligibility import is_growth_acceleration
-from src.analysis.run import FUND_COLUMNS, build_input, load_narrative_history
+from src.analysis.run import FUND_COLUMNS, build_input, load_narrative_history, load_previous_analysis
 from src.analysis.freshness import (
     facts_hash,
     render_excerpt,
@@ -49,7 +49,7 @@ from src.analysis.freshness import (
     select_excerpt,
 )
 from src.finance.narrative_changes import select_quarter_window
-from src.config.constants import NOTIFY_GRADES, REPORT_REFRESH_TRADING_DAYS, SCORE_HIGH
+from src.config.constants import AUTOMATIC_ANALYSIS_INPUT_TOKEN_BUDGET, NOTIFY_GRADES, REPORT_REFRESH_TRADING_DAYS, SCORE_HIGH
 from src.db.supabase_client import get_client, select_all
 from src.screener.score import active_score
 from src.utils.console import enable_utf8_stdout
@@ -520,12 +520,13 @@ def run(
                 "preliminary" if data.is_estimate else "filing"
             )
             data.analysis_stage = stage
+            data.previous_analysis = load_previous_analysis(code, year, quarter)
             data.report_context = r.get("_report_context")
             if stage == "report_final":
                 data.narrative_history = load_narrative_history(code, year, quarter)
             evidence_hash = evidence_hash or facts_hash(data.quarters, data.excerpt)
             # 검색비는 3단계에만 붙는다. 1·2단계는 구조화 데이터와 공시 발췌만 쓴다.
-            result = analyze(data, env="prod", web_search=(stage == "report_final"))
+            result = analyze(data, env="prod", web_search=(stage == "report_final"), token_budget=AUTOMATIC_ANALYSIS_INPUT_TOKEN_BUDGET)
         except BudgetExceeded as exc:
             # ★ 예산 소진은 실패가 아니다. 남은 건수를 반드시 밝힌다.
             stopped_at = str(exc)

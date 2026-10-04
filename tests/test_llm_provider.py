@@ -363,6 +363,18 @@ def test_single_call_cost_cap_requires_no_web_search():
         )
 
 
+def test_prior_watch_points_and_quarterly_causal_contract_reach_request():
+    from src.analysis import analyze as module
+    data = module.AnalysisInput(code="000660", name="SK하이닉스", board="KOSPI",
+        previous_analysis={"next_data_to_watch": ["고객 인증 후 매출 전환"], "thesis": "과거 판단"},
+        narrative_history=[{"fiscal_year": 2026, "fiscal_quarter": 1, "url": "https://dart.fss.or.kr/", "excerpt": "판매 믹스 개선"}])
+    message = module.build_user_message(data)
+    assert "고객 인증 후 매출 전환" in message
+    assert "판매 믹스 개선" in message
+    assert "📅 YYYY.NQ" in message
+    assert "🔁 강조 / 🔄 변경 / 🛠 수정 / 🆕 신규" in message
+
+
 def test_single_call_cost_cap_checks_month_remaining(monkeypatch):
     from src.analysis import analyze as module
     from src.utils.cost_guard import BudgetStatus

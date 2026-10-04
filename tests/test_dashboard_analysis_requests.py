@@ -1,11 +1,18 @@
 # PRD Ref: §7 · §9.1 — 클릭형 LLM 분석 큐
 from types import SimpleNamespace
 from datetime import datetime, timezone
+import pytest
 
 from src.analysis import dashboard_requests as queue
 
 
 ROW = {"id": 1, "code": "005930", "fiscal_year": 2026, "fiscal_quarter": 2}
+
+
+@pytest.fixture(autouse=True)
+def stored_context(monkeypatch):
+    monkeypatch.setattr(queue, "load_previous_analysis", lambda *args: {"next_data_to_watch": ["신규 고객 매출 전환"]})
+    monkeypatch.setattr(queue, "load_narrative_history", lambda *args, **kwargs: [])
 
 
 def test_dashboard_request_analyzes_with_web_search_and_saves(monkeypatch):
@@ -23,7 +30,9 @@ def test_dashboard_request_analyzes_with_web_search_and_saves(monkeypatch):
     monkeypatch.setattr(queue, "set_status", lambda row_id, status, **kwargs: statuses.append(status))
     assert queue.run(3, 240) == 0
     assert data.analysis_stage == "dashboard_on_demand"
+    assert data.previous_analysis["next_data_to_watch"] == ["신규 고객 매출 전환"]
     assert called["web_search"] is True and called["saved"] is result
+    assert called["token_budget"] == queue.DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET
     assert statuses == ["completed"]
 
 
@@ -86,7 +95,7 @@ def test_dashboard_request_compacts_excerpt_after_free_token_preflight(monkeypat
     assert [call[1]["web_search"] for call in calls] == [True, True, False]
     assert len(calls[1][0].excerpt) == queue.DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS
     assert len(calls[2][0].excerpt) == queue.DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS
-    assert data.excerpt == "공시" * 1000
+    assert len(data.excerpt) == queue.DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS
     assert statuses == ["completed"]
 
 

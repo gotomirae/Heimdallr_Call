@@ -41,6 +41,43 @@ export interface NaverDailyPrice {
   close: number;
 }
 
+export interface NaverInvestorFlow {
+  trade_date: string;
+  foreign: number | null;
+  institution: number | null;
+}
+
+export function parseInvestorFlows(body: unknown): NaverInvestorFlow[] {
+  const root = record(body);
+  const rows = Array.isArray(body) ? body : Array.isArray(root?.dealTrendInfos) ? root.dealTrendInfos : [];
+  return rows.flatMap((value) => {
+    const row = record(value);
+    const day = dateOf(row?.bizdate);
+    // 미공개 당일 빈 문자열과 실제 0주를 구분한다.
+    const read = (value: unknown) => value == null || value === "" ? null : numberOf(value);
+    return day ? [{ trade_date: day, foreign: read(row?.foreignerPureBuyQuant), institution: read(row?.organPureBuyQuant) }] : [];
+  });
+}
+
+export async function getNaverInvestorFlows(code: string, fromDate?: string): Promise<NaverInvestorFlow[]> {
+  if (!/^[0-9A-Z]{6}$/.test(code)) return [];
+  const rows = new Map<string, NaverInvestorFlow>();
+  let cursor = "";
+  // 일봉 10분기와 같은 기간을 향해 페이지를 넘긴다. 원천 제한이면 일부만 반환하고 화면에서 밝힌다.
+  for (let page = 0; page < 24; page++) {
+    try {
+      const parsed = parseInvestorFlows(await naverAny(`${code}/trend?pageSize=60${cursor ? `&bizdate=${cursor}` : ""}`));
+      const fresh = parsed.filter((row) => !rows.has(row.trade_date));
+      if (!fresh.length) break;
+      fresh.forEach((row) => rows.set(row.trade_date, row));
+      const oldest = fresh.map((row) => row.trade_date).sort()[0];
+      if ((fromDate && oldest <= fromDate) || parsed.length < 60) break;
+      cursor = oldest.replace(/-/g, "");
+    } catch { break; }
+  }
+  return [...rows.values()].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+}
+
 function record(value: unknown): UnknownRecord | null {
   return value != null && typeof value === "object" && !Array.isArray(value)
     ? (value as UnknownRecord)
@@ -77,14 +114,18 @@ function marketCapOf(value: unknown): number | null {
   return joValue * 1_000_000_000_000 + eokValue * 100_000_000;
 }
 
-async function naverJson(path: string): Promise<UnknownRecord> {
+async function naverAny(path: string): Promise<unknown> {
   const response = await fetch(`${NAVER_BASE}/${path}`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; HeimdallrCall/1.0)" },
     signal: AbortSignal.timeout(NAVER_TIMEOUT_MS),
     next: { revalidate: NAVER_REVALIDATE_SECONDS },
   });
   if (!response.ok) throw new Error(`Naver HTTP ${response.status}`);
-  const body = record(await response.json());
+  return response.json();
+}
+
+async function naverJson(path: string): Promise<UnknownRecord> {
+  const body = record(await naverAny(path));
   if (!body) throw new Error("Naver JSON object missing");
   return body;
 }

@@ -13,7 +13,7 @@ import AnalysisSection from "@/components/AnalysisSection";
 import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
-import { quarterlyCharacteristics } from "@/lib/metricMeaning";
+import { quarterlyCharacteristics, quarterInterpretation } from "@/lib/metricMeaning";
 import { postPeriodContracts, reportNamePeriodEnd, readOrderReportPeriod, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, isAttachmentOnlyCorrection, summarizeOrderDisclosure } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
@@ -22,9 +22,10 @@ import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
 import { forwardPeg } from "@/lib/valuation";
 import { productShareDisclosure } from "@/lib/productShares";
 import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
-import { completedCloseAtKst16, getNaverDailyPrices, getNaverLiveSnapshot } from "@/lib/naver";
+import { completedCloseAtKst16, getNaverDailyPrices, getNaverLiveSnapshot, getNaverInvestorFlows } from "@/lib/naver";
 import {
   getAnalysis,
+  getRecentAnalysisRows,
   getAnnualConsensus,
   getConsensus,
   getDisclosures,
@@ -370,9 +371,9 @@ export default async function StockPage({ params }: { params: { code: string } }
     .filter((row) => sectorOf(universe.get(row.code)) === stockSector)
     .sort(
       (left, right) => {
-        const score = (right.score_final ?? right.score_flash ?? -Infinity) -
-          (left.score_final ?? left.score_flash ?? -Infinity);
-        if (Math.abs(score) > 1e-9) return score;
+        const cap = (universe.get(right.code)?.market_cap_krw ?? 0) -
+          (universe.get(left.code)?.market_cap_krw ?? 0);
+        if (cap !== 0) return cap;
         return left.code.localeCompare(right.code);
       }
     );
@@ -432,6 +433,12 @@ export default async function StockPage({ params }: { params: { code: string } }
           : peerAnnual?.fwd_per ?? null,
       };
     })
+  );
+  sectorPeerRows.sort((left, right) => (right.marketCap ?? 0) - (left.marketCap ?? 0) || left.code.localeCompare(right.code));
+  const opGrowthRanks = new Map(
+    [...sectorPeerRows].filter((row) => row.opYoy != null && Number.isFinite(row.opYoy) && !row.opStatusLabel)
+      .sort((left, right) => (right.opYoy ?? -Infinity) - (left.opYoy ?? -Infinity) || left.code.localeCompare(right.code))
+      .slice(0, 3).map((row, index) => [row.code, index + 1]),
   );
   const sectorMedians = {
     marketCap: median(sectorPeerRows.map((row) => row.marketCap)),
@@ -528,6 +535,20 @@ export default async function StockPage({ params }: { params: { code: string } }
   const dailyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
     : undefined;
+  const investorFlows = await withDetailFallback("투자자별 일간 수급", getNaverInvestorFlows(code, dailyFromDate), [], detailWarnings);
+  const recentAnalyses = await withDetailFallback("최근 분기 분석 이력", getRecentAnalysisRows(code), [], detailWarnings);
+  const quarterStudy = quarterlyCharacteristics(actualChartPoints);
+  const quarterInterpretations = quarterStudy.rows.slice(-4).map((row) => {
+    const source = disclosures.find((d) => d.doc_type === "periodic" && d.fiscal_year === row.fiscalYear && d.fiscal_quarter === row.fiscalQuarter && !isAttachmentOnlyCorrection(d.report_nm));
+    const own = recentAnalyses.find((item) => item.fiscal_year === row.fiscalYear && item.fiscal_quarter === row.fiscalQuarter);
+    const ownInvalid = (own?.payload?._heimdallr as Record<string, unknown> | undefined)?.invalid === true;
+    const ownView = !ownInvalid && own ? readAnalysis(own.payload) : null;
+    const parsed = analysisInvalid ? {revenue: null, earnings: null, yoy: null} : quarterInterpretation(analysis.earningsChange.cause ?? "", row.fiscalYear, row.fiscalQuarter);
+    return {label: row.label, source: source ? dartReportUrl(source.rcept_no) : null,
+      revenue: parsed.revenue ?? (ownView?.earningsChange.cause ? `기존 종합 해석 (매출/GPM 분리 검증 전): ${ownView.earningsChange.cause}` : null),
+      earnings: parsed.earnings ?? null,
+      yoy: parsed.yoy ?? null};
+  });
   // 트리거는 3개월·6개월 구간을 한 타임라인에 합친다 — 사람은 구간이 아니라
   // 시간 순서로 읽는다. 어느 구간에서 왔는지는 칩으로 남긴다.
   const timelineItems: TimelineItem[] = [
@@ -538,7 +559,6 @@ export default async function StockPage({ params }: { params: { code: string } }
   //   규칙 기반이라 차트에 실제로 그려진 숫자에서만 나온다.
   const verdict = chartVerdict(chartPoints);
   const outlook = nextQuarterOutlook(chartPoints);
-  const quarterStudy = quarterlyCharacteristics(actualChartPoints);
 
   // ★ LLM이 쓴 스토리가 그 뒤 실적으로 확인되는가. 분석 이후 발표된 분기와만 대조한다.
   // ★★ 기준은 **분석이 실제로 본 분기**다(`analysisYear/Quarter`). 스크리너의 평가
@@ -560,6 +580,9 @@ export default async function StockPage({ params }: { params: { code: string } }
   const analysisAsOf = typeof lastAttempt.attempted_at === "string"
     ? lastAttempt.attempted_at.slice(0, 10)
     : null;
+  const previousAnalysis = analysisMeta?.previous_analysis as Record<string, unknown> | undefined;
+  const deltaLabels = ["🔁 강조", "🔄 변경", "🛠 수정", "🆕 신규"];
+  const deltaParts = (analysis.earningsChange.effect ?? "").split(/(?=🔁|🔄|🛠|🆕)/u);
 
   return (
     <div className="space-y-5">
@@ -727,7 +750,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         title={`분기 실적 추이 (${CHART_QUARTERS}분기)`}
         note="분기별 값 라벨 · 매출액 YoY와 영업이익 YoY를 같은 좌표에서 비교"
       >
-        <QuarterlyChart points={chartPoints} orderPoints={ordersChartPoints} showOrders={false} />
+        <QuarterlyChart points={chartPoints} orderPoints={ordersChartPoints} showOrders={false} interpretations={quarterInterpretations} />
         <div className="mt-4 space-y-3 rounded border border-slate-700 p-3">
           <h3 className="text-lg font-bold text-white">🔎 분기별 특징 · 계절성 · 분기 체력</h3>
           <p className="text-xs leading-6 text-slate-200">📅 {quarterStudy.seasonality}</p>
@@ -735,13 +758,13 @@ export default async function StockPage({ params }: { params: { code: string } }
             <thead className="text-left text-slate-300"><tr><th>분기</th><th>매출 / GPM</th><th>영업이익 / OPM</th><th>분기 특징 · 직전 분기 마진 변화</th><th>원인 확인 · 근거</th></tr></thead>
             <tbody>{quarterStudy.rows.map((row) => {
               const source = disclosures.find((d) => d.doc_type === "periodic" && d.fiscal_year === row.fiscalYear && d.fiscal_quarter === row.fiscalQuarter && !isAttachmentOnlyCorrection(d.report_nm));
-              const analyzed = !analysisInvalid && analysisYear === row.fiscalYear && analysisQuarter === row.fiscalQuarter && analysis.earningsChange.cause;
+              const analyzed = quarterInterpretations.find((item) => item.label === row.label)?.revenue;
               return <tr key={row.label} className="border-t border-slate-800 align-top">
                 <td className="py-3 pr-2">{row.label}</td>
                 <td className="py-3 pr-3">{row.revenue == null ? DASH : `${num(row.revenue, 1)}억`} / {pct(row.gpm)}</td>
                 <td className="py-3 pr-3">{row.op == null ? DASH : `${num(row.op, 1)}억`} / {pct(row.opm)}</td>
                 <td className="max-w-[300px] py-3 pr-3 leading-5">{row.characteristic}</td>
-                <td className="max-w-[320px] py-3 leading-5">{analyzed ? `저장된 분석 해석: ${analysis.earningsChange.cause}` : "원인 미확인 — 판매량·판가·제품믹스·원가·일회성 손익을 원문에서 확인해야 합니다. 숫자만으로 급성장 원인을 단정하지 않습니다."}
+                <td className="max-w-[320px] whitespace-pre-line py-3 leading-5">{analyzed ? `저장된 분기 해석: ${analyzed}` : "원인 미확인 — 판매량·판가·제품믹스·원가·일회성 손익을 원문에서 확인해야 합니다. 숫자만으로 급성장 원인을 단정하지 않습니다."}
                   {source && <a className="ml-1 text-sky-300 underline" href={dartReportUrl(source.rcept_no)} target="_blank" rel="noreferrer">분기 원문</a>}
                   {!source && <span className="block text-amber-200">해당 분기 원문 링크 확인 필요</span>}
                 </td>
@@ -765,6 +788,8 @@ export default async function StockPage({ params }: { params: { code: string } }
           </Note>
         )}
         <DailyPriceChart
+          code={code}
+          investorFlows={investorFlows}
           points={dailyPrices}
           disclosures={disclosures}
           fromDate={dailyFromDate}
@@ -904,7 +929,18 @@ export default async function StockPage({ params }: { params: { code: string } }
           year={year}
           quarter={quarter}
           hasAnalysis={!analysis.isEmpty}
+          analyzedAt={!analysisInvalid ? recentAnalyses.find((item) => item.fiscal_year === analysisYear && item.fiscal_quarter === analysisQuarter)?.created_at : undefined}
         />}
+        <div className="mb-4 rounded border border-violet-800/70 p-3">
+          <h3 className="font-bold text-violet-200">🧭 이전 분석과 비교</h3>
+          <p className="mt-1 text-xs text-slate-300">이전 분석: {typeof previousAnalysis?.created_at === "string" ? previousAnalysis.created_at.slice(0, 10) : "새 형식의 재분석 후 비교 이력 표시"}. 문장 변경만으로 사실 정정을 선언하지 않습니다.</p>
+          {typeof previousAnalysis?.thesis === "string" && <p className="mt-2 text-xs leading-6 text-slate-300">이전 판단: <Emphasized text={previousAnalysis.thesis} /></p>}
+          {previousAnalysis?.invalid === true && <p className="mt-1 text-xs text-amber-200">⚠️ 이전 결과는 검증 실패 이력으로, 신뢰할 수 있는 투자판단 기준선이 아닙니다.</p>}
+          <div className="mt-3 grid gap-2 md:grid-cols-2">{deltaLabels.map((label) => {
+            const part = deltaParts.find((item) => item.trim().startsWith(label));
+            return <div key={label} className="rounded bg-slate-950/50 p-3 text-xs leading-6"><strong className="text-violet-200">{label}</strong><p className="mt-1 whitespace-pre-line">{part ? <Emphasized text={part.trim().slice(label.length).replace(/^\s*[:：]\s*/, "")} /> : "현재 기준 재분석에서 이전 판단과 최신 근거를 대조한 뒤 표시합니다. 변경 여부를 임의로 만들지 않습니다."}</p></div>;
+          })}</div>
+        </div>
         <p className={"mb-3 inline-flex rounded border px-2 py-1 text-xs font-semibold " + analysisStageClass}>
           {analysisStage}
         </p>
@@ -1245,14 +1281,14 @@ export default async function StockPage({ params }: { params: { code: string } }
                 >
                   <td className={`sticky left-0 z-10 py-2 text-left ${peer.isCurrent ? "bg-amber-950" : "bg-slate-900"}`}>
                     <Link href={"/stock/" + peer.code} className="hover:underline">
-                      {peer.isCurrent ? "현재 · " : ""}{peer.name} ({peer.code})
+                      {peer.name}
                     </Link>
                   </td>
                   <td className="py-2">{marketCap(peer.marketCap)}</td>
                   <td className="py-2">{eok(peer.revenue)}</td>
                   <td className="py-2">{pct(peer.revenueYoy)}</td>
                   <td className="py-2">{eok(peer.op)}</td>
-                  <td className="py-2">{growthOrLabel(peer.opYoy, peer.opStatusLabel)}</td>
+                  <td className={`py-2 ${opGrowthRanks.has(peer.code) ? "font-bold text-emerald-300" : ""}`}>{opGrowthRanks.has(peer.code) && <span className="mr-1 text-[10px]">{opGrowthRanks.get(peer.code)}위</span>}{growthOrLabel(peer.opYoy, peer.opStatusLabel)}</td>
                   <td className="py-2">{pct(peer.opm)}</td>
                   <td className="py-2">{pct(peer.roeCurrent)}</td>
                   <td className="py-2">{pct(peer.roeNext)}</td>
@@ -1266,9 +1302,9 @@ export default async function StockPage({ params }: { params: { code: string } }
         <Note>
           매출·영업이익·OPM은 같은 최신 평가 분기끼리만 비교한다. 현재 종목의 PER·F.PER·ROE는
           위 가치 카드와 같은 네이버 올해/내년 예상값이고, 비교 종목도 같은 네이버 연간 표를 우선한다.
-          조회 실패 시 저장된 네이버 값으로만 물러서며 자체 PER을 계산해 끼우지 않는다. 동일 섹터 전체에서 투자 매력도 상위 8개를 비교하며 평균 대신 이상치에 덜 흔들리는
+          조회 실패 시 저장된 네이버 값으로만 물러서며 자체 PER을 계산해 끼우지 않는다. 동일 섹터 시총 상위 8개와 해당 기업을 시총 순으로 비교하며 평균 대신 이상치에 덜 흔들리는
           중앙값을 썼다. YoY는 동일 평가 분기의 전년 동기 대비이며 흑전·적전은 % 대신 상태로 표시한다.
-          현재 종목이 상위 8개 밖이면 위치 확인을 위해 마지막에 별도로 붙인다.
+          해당 기업이 상위 8개 밖이어도 시총 순서에 포함한다. 녹색 1·2·3위는 표시 종목 중 측정 가능한 영업이익 YoY 순위이며 흑전·적전은 순위에서 제외한다.
         </Note>
       </Card>
 

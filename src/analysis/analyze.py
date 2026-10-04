@@ -22,6 +22,7 @@ from decimal import Decimal
 
 from src.config.constants import (
     ANALYSIS_MODEL,
+    ANALYSIS_PREVIOUS_MAX_CHARS,
     ENABLE_WEB_SEARCH,
     EXCERPT_MAX_CHARS,
     LLM_EFFORT,
@@ -109,6 +110,7 @@ class AnalysisInput:
     report_context: dict | None = None
     #: 3단계에서만 싣는 직전 4개 분기 정기보고서의 제한 발췌와 DART 직접 링크.
     narrative_history: list[dict] = field(default_factory=list)
+    previous_analysis: dict | None = None
     #: 데이터 기준일(YYYY-MM-DD). 모델이 "지금이 언제인지" 알아야
     #  다음 분기 전망과 트리거 시점을 제대로 잡는다.
     as_of: str | None = None
@@ -132,6 +134,7 @@ class AnalysisResult:
     report_evidence_hash: str | None = None
     removed_factual_numbers: tuple[str, ...] = ()
     web_search_requests: int = 0
+    previous_analysis: dict | None = None
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -140,9 +143,9 @@ def _fmt_quarters(quarters: list[dict]) -> str:
         return "(분기 데이터 없음)"
     header = (
         "| 분기 | 매출(억) | YoY% | 영업이익(억) | YoY% | OPM% | OPM YoYΔ%p | "
-        "TTM매출(억) | TTM OPM% | 라벨 |"
+        "TTM매출(억) | TTM OPM% | 라벨 | GPM% |"
     )
-    lines = [header, "|---|---|---|---|---|---|---|---|---|---|"]
+    lines = [header, "|---|---|---|---|---|---|---|---|---|---|---|"]
     for q in quarters:
         def eok(key):
             v = q.get(key)
@@ -156,7 +159,7 @@ def _fmt_quarters(quarters: list[dict]) -> str:
             f"| {q.get('fiscal_year')}.{q.get('fiscal_quarter')}Q | {eok('revenue')} | "
             f"{pct('revenue_yoy')} | {eok('op')} | {pct('op_yoy')} | {pct('opm')} | "
             f"{pct('opm_yoy_delta')} | {eok('ttm_revenue')} | {pct('ttm_opm')} | "
-            f"{q.get('op_status_label') or ''} |"
+            f"{q.get('op_status_label') or ''} | {pct('gpm')} |"
         )
     return "\n".join(lines)
 
@@ -469,6 +472,25 @@ def build_user_message(data: AnalysisInput) -> str:
         "## 7. 업종 비교 (동일 업종 상위)",
         json.dumps(data.peers, ensure_ascii=False) if data.peers else "(비교군 없음)",
     ]
+    if data.previous_analysis:
+        previous = data.previous_analysis
+        parts += ["", "## 8. 이전 분석과 다음 분기 약속 검증",
+                  "이전 판단은 과거 의견이며 사실 출처가 아니다. 입력의 최신 실적/원문으로 확인하고 "
+                  "next_data_to_watch 각 항목을 실현/진행/미실현/확인불가로 평가하라. 발표 전 항목은 진행/확인불가이며 "
+                  "아직 실현되지 않았다고 실패로 단정하지 마라. 이전 invalid 분석은 검증 실패 이력이지 정상 판단 기준선이 아니다.",
+                  "이전 다음 분기 확인 항목: " + json.dumps(previous.get("next_data_to_watch", []), ensure_ascii=False),
+                  json.dumps({key: value for key, value in previous.items() if key != "next_data_to_watch"}, ensure_ascii=False)[:ANALYSIS_PREVIOUS_MAX_CHARS]]
+    if data.narrative_history and data.analysis_stage != "report_final":
+        parts += ["", "## 최근 4개 분기 원문 근거 (발췌 범위 한계)", json.dumps(data.narrative_history, ensure_ascii=False)]
+    parts += ["", "## 해석 출력 계약",
+              "earnings_change.cause를 최근 4개 실제 분기 각각의 블록으로 작성하라. 각 블록은 반드시 "
+              "📅 YYYY.NQ로 시작하고, 📦 매출/GPM: 원인과 의미, 🏭 영업이익/OPM: 원인과 의미, "
+              "📈 YoY: 전년 기저·물량·판가·믹스·원가 중 무엇이 성장률을 만들었는지, 🔎 확인: 원문 URL/한계를 "
+              "줄바꿈해 적어라. 숫자 패턴은 짧게, 경제적 의미와 지속성·반증은 자세히. 없거나 모호한 원인은 확인불가.",
+              "이전 분석이 있으면 earnings_change.effect는 🔁 강조 / 🔄 변경 / 🛠 수정 / 🆕 신규를 구분하고, "
+              "이전 다음 분기 확인 항목별 판정과 최신 근거를 포함한다. 문구 변화만으로 사실 정정으로 단정하지 마라.",
+              "growth_engine.evidence에 독점/대체 가능성, 제품·기준일을 명시한 글로벌/국내 점유율, "
+              "확인된 글로벌 고객·공급망 관계와 가격결정력을 해석하라. 확인되지 않은 점유율·독점은 미확인."]
     return "\n".join(parts)
 
 
@@ -765,6 +787,7 @@ def analysis_result_from_response(
         ),
         removed_factual_numbers=tuple(removed),
         web_search_requests=usage.web_search_requests,
+        previous_analysis=data.previous_analysis,
     )
 
 
@@ -902,6 +925,7 @@ def save(result: AnalysisResult) -> None:
     stored_payload["_heimdallr"] = {
         **old_meta,
         "analysis_stage": stage,
+        "previous_analysis": result.previous_analysis,
         "stage_history": stage_history,
         "facts_hash": result.facts_hash,
         "report_evidence_hash": result.report_evidence_hash,

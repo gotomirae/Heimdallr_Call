@@ -35,7 +35,7 @@ function timeLabel(value?: string): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    timeZone: "Asia/Seoul", year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
   }).format(date);
 }
 
@@ -48,8 +48,8 @@ function errorLabel(value?: string): string | null {
   return value.length > 240 ? `${value.slice(0, 240)}…` : value;
 }
 
-export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis }: {
-  code: string; year: number; quarter: number; hasAnalysis: boolean;
+export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis, analyzedAt }: {
+  code: string; year: number; quarter: number; hasAnalysis: boolean; analyzedAt?: string;
 }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: hasAnalysis ? "completed" : "idle" });
@@ -103,7 +103,9 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <div className="text-sm font-bold text-violet-100">기업 투자판단 LLM 분석</div>
-        <p className="mt-1 text-xs leading-relaxed text-slate-300">클릭한 현재 날짜를 분석 기준일로 다시 저장한다.<br />기업 개요·제품별 매출 비중·핵심 투자 아이디어·실적 원인·향후 전망·주가 구간별 상승/하락 원인·리스크를 공시와 공개 원문으로 분석한다.</p>
+        <p className="mt-1 text-xs text-emerald-200">🕒 가장 최근 분석: {timeLabel(analyzedAt) ?? "분석 이력 없음"}</p>
+        <p className="mt-1 text-xs text-violet-200">🔁 강조 · 🔄 변경 · 🛠 수정 · 🆕 신규를 이전 분석과 비교합니다. 다음 분기 확인 항목도 재점검합니다.</p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-300">클릭하면 현재 시점에 새 분석을 접수합니다. 생성 시각과 실적·확정 종가의 기준일은 구분합니다.<br />기업 개요·제품별 매출 비중·핵심 투자 아이디어·실적 원인·향후 전망·주가 구간별 상승/하락 원인·리스크를 공시와 공개 원문으로 분석합니다.</p>
       </div>
       <button type="button" onClick={request} disabled={active}
         className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-950/40 hover:bg-violet-400 disabled:cursor-wait disabled:bg-slate-600">

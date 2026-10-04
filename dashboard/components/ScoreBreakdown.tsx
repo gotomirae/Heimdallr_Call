@@ -1,7 +1,7 @@
 // PRD Ref: §9.1-2 (기업 투자 매력도와 실적 원점수) · ADR 2, ADR 5
 import { AXES, AXIS_ITEMS, AXIS_MISSING_REASON, PRI_PARTS } from "@/lib/types";
 import type { InvestmentScoreDetail, PriDetail, ScreenRow } from "@/lib/types";
-import { DASH, num } from "@/lib/format";
+import { DASH, num, pct } from "@/lib/format";
 import constants from "@/lib/constants.json";
 
 const AXIS_COLOR: Record<string, string> = {
@@ -13,7 +13,7 @@ const AXIS_COLOR: Record<string, string> = {
 
 const INVESTMENT_PARTS = [
   { key: "industry_growth", label: "산업 성장", meaning: "회사가 속한 시장의 수요와 이익 풀이 커지는가" },
-  { key: "industry_position", label: "산업 내 위치", meaning: "점유율·기술·고객 기반으로 성장 몫을 가져올 위치인가" },
+  { key: "industry_position", label: "산업 내 위치", meaning: "🏰 제품 한정 독점·대체 가능성 / 🌍 글로벌·국내 점유율 / 🔗 글로벌 고객 밸류체인과 가격결정력" },
   { key: "earnings", label: "실적", meaning: "매출·영업이익·마진이 실제로 가속하는가" },
   { key: "growth_story", label: "성장 지속성", meaning: "TTM 이익과 다음 전망이 일회성이 아닌가" },
   { key: "valuation", label: "PER · F.PER", meaning: "현재 가격이 올해·내년 예상 이익에 비해 과하지 않은가" },
@@ -35,6 +35,7 @@ function InvestmentBreakdown({
   const config = constants.investment_score;
   const denominator = detail.denominator ?? 0;
   const fcf = inputs.quarter_fcf;
+  const position = detail.industry_position_evidence;
   return (
     <div className="space-y-3">
       <div>
@@ -43,6 +44,13 @@ function InvestmentBreakdown({
           <span className="text-3xl font-bold">{num(screen.score_final ?? screen.score_flash, 1)}</span>
           <span className="text-sm text-slate-200">/ 100 · 측정 신뢰도 {denominator}/100</span>
         </div>
+      </div>
+      <div className="rounded border border-sky-900 bg-sky-950/20 p-3 text-xs leading-6">
+        <strong className="text-sky-200">🏰 산업 내 기업 위상 · 공시 근거</strong>
+        <p>독점/공급망 {position?.denominator ?? 0}/100 배점 확인 · {position?.score == null ? "충분한 근거가 없어 점수 보류" : `관측 축 정규화 ${num(position.score, 1)}/100`}</p>
+        <p>🌍 글로벌 점유율 {pct(position?.values.global_share)} · 🇰🇷 국내 점유율 {pct(position?.values.domestic_share)}</p>
+        {position?.evidence.map((item, index) => <p key={`${index}-${item.axis}`} className="mt-2 border-l-2 border-sky-700 pl-2">{item.ambiguous && "⚠️ 복수 제품/기간으로 점수 제외 · "}{item.quote}<br /><a className="text-sky-300 underline" href={item.url} target="_blank" rel="noreferrer">공시 원문 ↗</a></p>)}
+        <p className="mt-2 text-amber-200">{position?.limitation ?? "미확인은 비독점/점유율 0이 아닙니다. 성장률·OPM 상대 순위를 시장 지위로 대신하지 않습니다."}<br />🔎 높은 위상은 가격결정력·고객 전환 비용·성장 몫을 지킬 가능성이지 미래 수익 보장은 아닙니다. 제품 범위·고객 집중·대체 기술을 함께 확인합니다.</p>
       </div>
       <div className="space-y-1.5">
         {INVESTMENT_PARTS.map((part) => {
@@ -305,6 +313,7 @@ export function PriBreakdown({
           </div>
         </div>
       )}
+      <p className="rounded border border-violet-900/60 p-2 text-[11px] leading-5 text-violet-200">🔁 PRI 피드백: 발표 당시 점수와 확정 D+60 시장 초과수익을 매일 대조합니다. 서로 다른 분기의 충분한 표본과 시간순 검증 전에는 가중치를 임의 변경하지 않습니다. 가격 반영도는 투자 매력도와 별도 축입니다.</p>
 
       {pri == null && denominator > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-xs text-amber-300">

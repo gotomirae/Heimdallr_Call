@@ -15,8 +15,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { createContext, useContext } from "react";
 import { SERIES_COLOR, withOrderBacklogQoq, type ChartPoint } from "@/lib/chart";
-import { fundamentalMetricMeanings, type MetricMeaning } from "@/lib/metricMeaning";
+import { fundamentalMetricMeanings, type MetricMeaning, type QuarterInterpretation } from "@/lib/metricMeaning";
+
+const ReviewContext = createContext<QuarterInterpretation[]>([]);
 
 const tooltipStyle = { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 6 };
 
@@ -46,7 +49,16 @@ function QuarterAxis() {
   return <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} tickLine={false} />;
 }
 
-function Explanation({ items }: { items: MetricMeaning[] }) {
+function Explanation({ items, kind }: { items: MetricMeaning[]; kind?: "revenue" | "earnings" | "yoy" }) {
+  const reviews = useContext(ReviewContext);
+  if (kind) return <div className="mt-3 grid gap-2 sm:grid-cols-2">
+    {reviews.map((row) => <div key={row.label} className="rounded border border-sky-900/60 bg-slate-900/60 p-3 text-xs leading-6">
+      <strong className="text-sky-200">📅 {row.label} · {kind === "revenue" ? "📦 매출/GPM" : kind === "earnings" ? "🏭 영업이익/OPM" : "📈 성장률의 원인"}</strong>
+      <p className="mt-2 whitespace-pre-line text-slate-100">{row[kind] ?? "⚠️ 이 분기의 인과 해석은 아직 확인되지 않았습니다. 물량·판가·제품믹스·원가·일회성 항목을 해당 분기 원문과 대조해야 합니다. 숫자만으로 원인을 만들지 않습니다."}</p>
+      {row.source && <a className="mt-1 inline-block text-sky-300 underline" href={row.source} target="_blank" rel="noreferrer">분기 공시 원문 ↗</a>}
+    </div>)}
+    <p className="col-span-full text-[11px] text-slate-400">🔎 인과 해석은 공시·저장 분석 범위이며, 미확인 분기는 현재 기준 LLM 분석 후 근거와 함께 보완합니다. 높은 YoY만으로 반복 가능한 성장이라고 단정하지 않습니다.</p>
+  </div>;
   return <div className="mt-2 grid gap-2 sm:grid-cols-2">
     {items.map((item) => <div key={item.label} className="rounded border border-slate-800 bg-slate-900/60 p-2.5">
       <div className="text-[11px] font-bold text-sky-200">현재 위치 · {item.label}</div>
@@ -98,7 +110,7 @@ function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: Metr
       <Line yAxisId="percent" dataKey="gpmActual" name="GPM(흰색)" stroke="#ffffff" strokeWidth={3.5} dot={{ r: 4, fill: "#0f172a", stroke: "#ffffff", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#ffffff", stroke: "#0f172a", strokeWidth: 2 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="gpmActual" content={(p) => lineLabel("#ffffff", "%", -15)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
     {gpmMeasured === 0 && <p className="mt-1 rounded border border-amber-800/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">GPM 원자료가 수집되지 않아 선을 그리지 않았다. 0%가 아니다.</p>}
-    <Explanation items={[meaning]} />
+    <Explanation items={[meaning]} kind="revenue" />
   </div>;
 }
 
@@ -116,7 +128,7 @@ function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: M
       <Line yAxisId="percent" dataKey="opmActual" name="영업이익률" stroke={SERIES_COLOR.OPM_COLOR} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmActual" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
       <Line yAxisId="percent" dataKey="opmForecast" name="영업이익률 전망" stroke={SERIES_COLOR.OPM_COLOR} strokeDasharray="5 4" strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opmForecast" content={(p) => lineLabel(SERIES_COLOR.OPM_COLOR, "%", -17)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
-    <Explanation items={meanings} />
+    <Explanation items={meanings} kind="earnings" />
   </div>;
 }
 
@@ -156,7 +168,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
       </table>
     </div>
     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">실선은 발표된 분기, 점선은 다음 분기 컨센서스다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
-    <Explanation items={meanings} />
+    <Explanation items={meanings} kind="yoy" />
   </div>;
 }
 
@@ -189,16 +201,16 @@ export function OrderQuarterlyChart({ points }: { points: ChartPoint[] }) {
   return <OrdersPanel points={points} meaning={fundamentalMetricMeanings(withOrderBacklogQoq(points.filter((point) => !point.isCurrentQuarter)))[5]} />;
 }
 
-export default function QuarterlyChart({ points, orderPoints = points, showOrders = true }: { points: ChartPoint[]; orderPoints?: ChartPoint[]; showOrders?: boolean }) {
+export default function QuarterlyChart({ points, orderPoints = points, showOrders = true, interpretations = [] }: { points: ChartPoint[]; orderPoints?: ChartPoint[]; showOrders?: boolean; interpretations?: QuarterInterpretation[] }) {
   if (!points.length && !orderPoints.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
   // 현재 위치 해설은 발표된 분기만 본다. 점선 컨센서스를 현재 실적으로 오인하지 않는다.
   const meanings = fundamentalMetricMeanings(withOrderBacklogQoq(
     points.filter((point) => !point.isCurrentQuarter)
   ));
-  return <div className="grid gap-3 md:grid-cols-2">
+  return <ReviewContext.Provider value={interpretations}><div className="grid gap-3 md:grid-cols-2">
     <RevenuePanel points={points} meaning={meanings[0]} />
     <EarningsPanel points={points} meanings={meanings.slice(1, 3)} />
     <GrowthLinePanel points={points} meanings={meanings.slice(3, 5)} />
     {showOrders && <OrderQuarterlyChart points={orderPoints} />}
-  </div>;
+  </div></ReviewContext.Provider>;
 }

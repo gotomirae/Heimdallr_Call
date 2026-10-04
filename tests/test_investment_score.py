@@ -3,12 +3,31 @@
 import pytest
 
 from src.screener.investment_score import (
+    industry_position_from_report,
     InvestmentScoreInput,
     compute_investment_score,
     linear_score,
     mean_measured,
     percentile_scores,
 )
+
+
+def test_industry_position_is_source_based_and_missing_is_not_zero():
+    url = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000100"
+    result = industry_position_from_report({"시장": "당사의 HBM 제품 글로벌 시장 점유율은 30%입니다.\n당사의 국내 HBM 제품 시장 점유율은 40%입니다."}, url, "회사")
+    # 손계산: 글로벌 30/60=50, 국내 40/80=50 → 두 관측 축 정규화 50.
+    assert result["score"] == 50
+    assert result["denominator"] == 55
+    assert result["values"]["exclusive"] is None
+    assert all(item["url"] == url for item in result["evidence"])
+    absent = industry_position_from_report({"시장": "매출은 증가했고 OPM은 개선됐다."}, url, "회사")
+    assert absent["score"] is None
+
+
+def test_industry_position_excludes_competitors_forecasts_and_multiple_scopes():
+    result = industry_position_from_report({"시장": "경쟁사의 글로벌 점유율은 80%입니다.\n당사의 국내 시장 점유율 목표는 90%입니다.\n당사는 독점 공급 지위가 없습니다.\n당사의 글로벌 A 제품 점유율은 30%, B 제품은 40%입니다."}, "https://dart.fss.or.kr/", "회사")
+    assert result["score"] is None
+    assert not result["evidence"]
 from src.screener.matrix import classify
 
 

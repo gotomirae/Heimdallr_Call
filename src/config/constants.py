@@ -103,6 +103,10 @@ INVESTMENT_SCORE_MIN_DENOMINATOR = 60
 INVESTMENT_PEER_MIN_COUNT = 5
 INVESTMENT_GROWTH_STORY_ANCHORS_PCT = (-10.0, 30.0)
 INVESTMENT_FCF_CONVERSION_ANCHORS = (-0.2, 1.0)
+INDUSTRY_POSITION_WEIGHTS = {"exclusive": 25, "global_share": 35, "domestic_share": 20, "global_chain": 20}
+INDUSTRY_POSITION_MIN_DENOMINATOR = 50
+INDUSTRY_POSITION_SHARE_ANCHORS = {"global_share": (0.0, 60.0), "domestic_share": (0.0, 80.0)}
+INDUSTRY_POSITION_GLOBAL_NAMES = ("NVIDIA", "엔비디아", "Apple", "애플", "TSMC", "AMD", "Intel", "인텔", "Microsoft", "마이크로소프트", "Boeing", "보잉", "Airbus", "에어버스", "Tesla", "테슬라")
 
 # 구 PRI 입력을 읽는 과거 screen_results와 회귀 테스트 호환용.
 PRI_WEIGHTS = {"p1": 25, "p2": 25, "p3": 20, "p4": 10, "p5": 20}
@@ -349,10 +353,18 @@ LLM_EFFORT = "low"
 #   (`analyze()`가 상한을 실제로 강제한다 — T97). 최대 + 16% 여유로 잡는다.
 #   ★ 늘릴 때는 반드시 **실측 최대**를 다시 재라. 짐작으로 올리면 T97이 되돌아온다.
 LLM_INPUT_TOKEN_BUDGET = 16000
+# 기본/canary 승인 계약은 유지. 2026-10-04 자동 배치 계약 무료 실측:
+# strict 5종목 최대 20,147 · 같은 최대 기업 웹검색 포함 25,735.
+# 가장 큰 계약에 약 16% 여유. 입력 허용 크기이며 일/월 비용 실링은 그대로다.
+AUTOMATIC_ANALYSIS_INPUT_TOKEN_BUDGET = 30000
 # 대시보드 즉시 분석은 Anthropic 웹검색 도구 계약까지 붙이면 입력이 크게 늘어난다.
 # 토큰 상한 초과 시 구조화 재무는 보존하고 현재 분기 공시 발췌만 이 길이로 줄여
 # 같은 Provider를 검색 없이 한 번 호출한다. SK하이닉스 2026.2Q 실측 15,900토큰.
 DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS = 800
+# 2026-10-04 최근 4분기/이전 판단 포함 무료 사전계측 5종목 최대 17,280.
+# 압축 후 웹검색 포함 최대 22,868 · 약 5% 여유. 일/월 비용 실링은 변경하지 않는다.
+DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET = 24000
+ANALYSIS_PREVIOUS_MAX_CHARS = 1200
 
 # ═══ LLM offline eval · canary 승인 기준 ═══
 # Provider 결과를 같은 replay 입력으로 비교하는 **결정론적** 평가다. LLM judge를

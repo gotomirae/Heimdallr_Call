@@ -205,6 +205,29 @@ export function fundamentalMetricMeanings(points: ChartPoint[]): MetricMeaning[]
   ];
 }
 
+export interface QuarterInterpretation {
+  label: string;
+  revenue: string | null;
+  earnings: string | null;
+  yoy: string | null;
+  source: string | null;
+}
+
+/** 최신 통합 해석에서 정확한 분기 블록만 읽는다. 타 분기 원인을 복사하지 않는다. */
+export function quarterInterpretation(cause: string, year: number, quarter: number): Omit<QuarterInterpretation, "label" | "source"> {
+  const label = `${year}.${quarter}Q`;
+  const block = cause.split(/📅\s*/).find((part) => part.trim().startsWith(label));
+  if (!block) return {revenue: null, earnings: null, yoy: null};
+  const pick = (marker: string) => {
+    const start = block.indexOf(marker);
+    if (start < 0) return null;
+    const rest = block.slice(start + marker.length);
+    const end = rest.search(/[📦🏭📈🔎]/u);
+    return (end < 0 ? rest : rest.slice(0, end)).replace(/^[^:：\n]*[:：]\s*/, "").trim() || null;
+  };
+  return {revenue: pick("📦"), earnings: pick("🏭"), yoy: pick("📈")};
+}
+
 export function metricMeanings(points: ChartPoint[], technical: TechnicalPoint[]): MetricMeaning[] {
   return [
     ...fundamentalMetricMeanings(points),

@@ -15,8 +15,12 @@ from copy import copy
 from datetime import datetime, timezone
 
 from src.analysis.analyze import AnalysisError, BudgetExceeded, analyze, save, validate_payload
-from src.analysis.run import build_input
-from src.config.constants import DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS
+from src.analysis.run import build_input, load_narrative_history, load_previous_analysis
+from src.config.constants import (
+    ANALYSIS_PREVIOUS_MAX_CHARS,
+    DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET,
+    DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS,
+)
 from src.db.supabase_client import get_client
 from src.utils.console import enable_utf8_stdout
 from src.utils.cost_guard import check_budget
@@ -78,7 +82,7 @@ def strict_repair(data, label: str):
     compact = copy(data)
     compact.excerpt = (getattr(data, "excerpt", "") or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
     try:
-        return analyze(compact, env="prod", web_search=False)
+        return analyze(compact, env="prod", web_search=False, token_budget=DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET)
     except Exception as exc:
         raise AnalysisError(f"{label}: 자동복구 실패 — {exc}") from exc
 
@@ -150,8 +154,15 @@ def run(limit: int, max_seconds: float) -> int:
                 allow_fetch=True,
             )
             data.analysis_stage = "dashboard_on_demand"
+            # 고정 계약/최근 4분기 발췌와 숫자 표는 보존하고 중복 최신 발췌만 압축한다.
+            data.excerpt = (getattr(data, "excerpt", "") or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
+            data.previous_analysis = load_previous_analysis(row["code"], row["fiscal_year"], row["fiscal_quarter"])
+            data.narrative_history = load_narrative_history(
+                row["code"], row["fiscal_year"], row["fiscal_quarter"],
+                include_current=True, max_chars=ANALYSIS_PREVIOUS_MAX_CHARS,
+            )
             try:
-                result = analyze(data, env="prod", web_search=True)
+                result = analyze(data, env="prod", web_search=True, token_budget=DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET)
             except Exception as exc:
                 if inaccessible_search_domain(exc):
                     print(f"⚠ {label} · 검색 허용 도메인 거부 — 같은 Provider로 공개 원문 검색 없이 재시도")
@@ -167,7 +178,7 @@ def run(limit: int, max_seconds: float) -> int:
                     compact = copy(data)
                     compact.excerpt = (data.excerpt or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
                     try:
-                        result = analyze(compact, env="prod", web_search=True)
+                        result = analyze(compact, env="prod", web_search=True, token_budget=DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET)
                     except Exception as compact_search_exc:
                         if not input_too_large(compact_search_exc):
                             raise

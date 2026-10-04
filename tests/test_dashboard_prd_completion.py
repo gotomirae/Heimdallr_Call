@@ -2,9 +2,43 @@
 """DB에 이미 있는 종목 상세 지표가 화면 배선에서 다시 빠지지 않게 한다."""
 
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_actual_typescript_quarter_causes_and_flow_nulls():
+    node = shutil.which("node")
+    if not node or not (ROOT / "dashboard/node_modules/typescript").exists():
+        pytest.skip("Node/TypeScript runtime unavailable")
+    script = r"""
+const fs = require('fs'), ts = require('typescript'), assert = require('assert');
+function load(path) {
+ const m = {exports: {}};
+ const code = ts.transpileModule(fs.readFileSync(path, 'utf8'), {
+   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}
+ }).outputText;
+ new Function('exports', 'require', 'module', code)(m.exports, require, m);
+ return m.exports;
+}
+const {quarterInterpretation} = load('lib/metricMeaning.ts');
+const cause = '📅 2026.1Q\n📦 매출/GPM: 가격 개선\n🏭 영업이익/OPM: 고정비 흡수\n📈 YoY: 낮은 전년 기저\n🔎 확인: 원문\n📅 2026.2Q\n📦 매출/GPM: 제품 믹스';
+assert.deepStrictEqual(quarterInterpretation(cause, 2026, 1), {revenue:'가격 개선', earnings:'고정비 흡수', yoy:'낮은 전년 기저'});
+assert.deepStrictEqual(quarterInterpretation(cause, 2025, 4), {revenue:null, earnings:null, yoy:null});
+assert.strictEqual(quarterInterpretation(cause, 2026, 2).revenue, '제품 믹스');
+const {parseInvestorFlows} = load('lib/naver.ts');
+const rows = [{bizdate:'20261002',foreignerPureBuyQuant:'-1,234',organPureBuyQuant:'0'}, {bizdate:'20261001',foreignerPureBuyQuant:'',organPureBuyQuant:null}];
+assert.deepStrictEqual(parseInvestorFlows(rows), [{trade_date:'2026-10-02',foreign:-1234,institution:0},{trade_date:'2026-10-01',foreign:null,institution:null}]);
+assert.deepStrictEqual(parseInvestorFlows({dealTrendInfos:rows}), parseInvestorFlows(rows));
+console.log('quarter matching 3 / flow shape-null-zero 2 verified');
+"""
+    result = subprocess.run([node, "-e", script], cwd=ROOT / "dashboard",
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
 QUERIES = (ROOT / "dashboard/lib/queries.ts").read_text(encoding="utf-8")
 SUPABASE = (ROOT / "dashboard/lib/supabase.ts").read_text(encoding="utf-8")
 TYPES = (ROOT / "dashboard/lib/types.ts").read_text(encoding="utf-8")
@@ -134,7 +168,9 @@ def test_quarter_chart_uses_opm_and_daily_price_matches_its_period():
     assert 'dataKey="close"' not in QUARTER_CHART
     assert "fromDate={dailyFromDate}" in STOCK
     assert ">MACD<" in DAILY_CHART and ">RSI<" in DAILY_CHART
-    assert DAILY_CHART.count('syncId="daily-technical"') == 3
+    assert DAILY_CHART.count('syncId="daily-technical"') == 4
+    assert 'id="investor-flow"' in DAILY_CHART
+    assert 'reverseDirection={{ x: true, y: false }}' in DAILY_CHART
     assert "normalizeDailyRows" in DAILY_CHART
     assert "macdPoints" in DAILY_CHART
     assert "실적 발표" in DAILY_CHART and "ReferenceLine" in DAILY_CHART

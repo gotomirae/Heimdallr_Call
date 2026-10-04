@@ -35,6 +35,7 @@ from src.screener.investment_score import (
     linear_score,
     mean_measured,
     percentile_scores,
+    industry_position_from_report,
 )
 from src.screener.matrix import classify
 from src.finance.derive import op_surprise_label, op_surprise_pct, revenue_surprise_pct
@@ -307,6 +308,7 @@ def build_investment_scores(
     index_of: dict[str, int],
     fundamentals: dict[str, ScoreResult],
     pri_inputs: dict[str, PriInput],
+    position_evidence: dict[str, dict] | None = None,
 ) -> dict[str, InvestmentScoreResult]:
     """같은 평가 분기·투자섹터의 비교값으로 기업 투자 매력도를 만든다.
 
@@ -355,16 +357,10 @@ def build_investment_scores(
         for code, group in groups.items()
     }
 
-    # 산업 내 위치: 매출·영업이익 성장과 OPM을 같은 섹터 안에서 각각 순위화한다.
-    position_metrics = [
-        _grouped_percentiles(
-            {code: _f(current_rows[code], field) for code in codes}, groups,
-            higher_is_better=True,
-        )
-        for field in ("revenue_yoy", "op_yoy", "opm")
-    ]
+    # 성장률/OPM 순위를 독점·시장점유율이라고 오인하지 않는다. 원문 근거가 없으면 분모 제외.
+    position_evidence = position_evidence or {}
     industry_position = {
-        code: mean_measured(*(metric[code] for metric in position_metrics)) for code in codes
+        code: position_evidence.get(code, {}).get("score") for code in codes
     }
 
     # 밸류와 ROE는 절대 업종 간 비교를 피하고 같은 섹터 백분위로 본다.
@@ -428,6 +424,7 @@ def build_investment_scores(
         out[code] = compute_investment_score(InvestmentScoreInput(
             industry_growth=industry_growth[code],
             industry_position=industry_position[code],
+            position_evidence=position_evidence.get(code),
             earnings=fundamental.score_norm,
             growth_story=story,
             valuation=valuation[code],
@@ -663,6 +660,18 @@ def run(fixed: int | None, save: bool) -> int:
         pri = compute_pri(pri_inputs[code])
         preliminary[code] = (uni, gate, fundamental, pri, index, score_in.is_final)
 
+    position_evidence: dict[str, dict] = {}
+    for index in set(index_of.values()):
+        ey, eq = index // 4, index % 4 + 1
+        reports = select_all("disclosure_excerpts", "code,rcept_no,sections", filters={"fiscal_year": ey, "fiscal_quarter": eq})
+        latest_reports: dict[str, dict] = {}
+        for report in reports:
+            c = report["code"]
+            if index_of.get(c) == index and str(report.get("rcept_no") or "") > str(latest_reports.get(c, {}).get("rcept_no") or ""):
+                latest_reports[c] = report
+        for c, report in latest_reports.items():
+            position_evidence[c] = industry_position_from_report(report.get("sections") or {}, f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={report['rcept_no']}", universe[c].get("name") or c)
+    print(f"산업 위상 원문 근거 {len(position_evidence)}기업 · 충분한 측정 {sum(row['score'] is not None for row in position_evidence.values())}기업")
     investment_scores = build_investment_scores(
         by_code,
         universe,
@@ -670,6 +679,7 @@ def run(fixed: int | None, save: bool) -> int:
         index_of,
         {code: row[2] for code, row in preliminary.items()},
         pri_inputs,
+        position_evidence,
     )
     rows = []
     for code, (uni, gate, fundamental, pri, index, is_final) in preliminary.items():

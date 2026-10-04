@@ -557,6 +557,13 @@ export async function getConsensus(
  * 상위 객체만 확인하고 하위를 읽으면 페이지 전체가 500이 난다 —
  * 읽는 쪽에서 필드 단위로 확인한다(`lib/analysis.ts`).
  */
+export async function getRecentAnalysisRows(code: string): Promise<Array<{fiscal_year: number; fiscal_quarter: number; payload: Record<string, unknown>; created_at: string}>> {
+  const {data, error} = await supabase.from("analyses").select("fiscal_year,fiscal_quarter,payload,created_at")
+    .eq("code", code).order("fiscal_year", {ascending: false}).order("fiscal_quarter", {ascending: false}).range(0, 19);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getAnalysis(
   code: string,
   year: number,

@@ -6,7 +6,6 @@ import { NO_STORE_OPTIONS } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 const CODE = /^[0-9A-Z]{6}$/;
 const DAILY_REQUEST_LIMIT = 20;
-const REFRESH_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 function adminClient() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -87,24 +86,18 @@ export async function POST(request: NextRequest) {
   if (readError) return NextResponse.json({ status: "unavailable", message: readError.message }, { status: 503 });
   const current = existing?.[0];
   if (current && ["pending", "working", "deferred"].includes(current.status)) return NextResponse.json(current);
-  let usable = false;
-  if (current?.status === "completed") {
-    try { usable = Boolean(await savedAnalysisUsable(admin, code, year, quarter)); }
-    catch { return NextResponse.json({status: "unavailable", message: "결과 검증 조회 실패 · 중복 과금을 막기 위해 접수를 보류합니다."}, {status: 503}); }
-  }
-  if (usable && current?.status === "completed" && current.completed_at && Date.now() - new Date(current.completed_at).getTime() < REFRESH_COOLDOWN_MS) {
-    return NextResponse.json({ ...current, message: "최근 7일 안에 완료된 최신 분석을 표시한다." });
-  }
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await admin.from("dashboard_analysis_requests")
+  const { count, error: countError } = await admin.from("dashboard_analysis_requests")
     .select("id", { count: "exact", head: true }).gte("requested_at", since);
+  if (countError) return NextResponse.json({status: "unavailable", message: "접수 사용량을 확인하지 못해 새 분석을 보류합니다."}, {status: 503});
   if ((count ?? 0) >= DAILY_REQUEST_LIMIT) return NextResponse.json({ status: "rate_limited", message: "최근 24시간 접수 상한에 도달했다. 큐에 접수되지 않았으며 다음 갱신 창에서 다시 요청할 수 있다." }, { status: 429 });
 
   const payload = { request_key: requestKey, code, fiscal_year: year, fiscal_quarter: quarter,
     status: "pending", error: null, requested_at: new Date().toISOString(), claimed_at: null, completed_at: null };
   const result = current
-    ? await admin.from("dashboard_analysis_requests").update(payload).eq("id", current.id).select().limit(1)
+    ? await admin.from("dashboard_analysis_requests").update(payload).eq("id", current.id).eq("status", current.status).eq("requested_at", current.requested_at).select().limit(1)
     : await admin.from("dashboard_analysis_requests").insert(payload).select().limit(1);
-  if (result.error) return NextResponse.json({ status: "unavailable", message: result.error.message }, { status: 503 });
+  if (result.error) return NextResponse.json({ status: "unavailable", message: "접수 충돌 또는 서버 오류입니다. 상태를 확인한 뒤 다시 요청해 주세요." }, { status: 503 });
+  if (!result.data?.length) return NextResponse.json({status: "conflict", message: "요청 상태가 변경되었습니다. 현재 상태를 조회한 뒤 다시 요청해 주세요."}, {status: 409});
   return NextResponse.json(result.data?.[0] ?? { status: "pending" }, { status: 202 });
 }
