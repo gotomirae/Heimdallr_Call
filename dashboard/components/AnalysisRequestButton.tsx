@@ -32,6 +32,9 @@ const PROGRESS: Record<string, { pct: number; step: string }> = {
 
 function timeLabel(value?: string): string | null {
   if (!value) return null;
+  if (/compiled grammar|simplify your tool schemas/i.test(value)) {
+    return "출력 형식 컴파일 오류로 분석 생성 전에 중단됐습니다. 출력 형식을 단순화한 worker로 수정했습니다. 다시 요청해 주세요.";
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat("ko-KR", {

@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME
+from src.analysis.prompts import ANALYSIS_SCHEMA, ANALYSIS_TOOL_NAME, DASHBOARD_ANALYSIS_SCHEMA
 from src.config.constants import ANALYSIS_MODEL
 from src.config.constants import WEB_SEARCH_ALLOWED_DOMAINS
 from src.llm.provider import LLMRequest, LLMResponse, NormalizedUsage
@@ -86,6 +87,62 @@ def test_anthropic_adapter_preserves_existing_request_and_usage_contract():
         output_tokens=40,
         reasoning_tokens=0,
     )
+
+
+@pytest.mark.parametrize("broken", [False, True])
+def test_dashboard_shallow_transport_roundtrip_and_paid_decode_failure(broken):
+    request = replace(_request(), schema=DASHBOARD_ANALYSIS_SCHEMA)
+
+    def sample(spec):
+        if "$ref" in spec:
+            return sample(request.schema["$defs"][spec["$ref"].split("/")[-1]])
+        if "enum" in spec:
+            return spec["enum"][0]
+        kind = spec.get("type")
+        if kind == "object":
+            return {key: sample(value) for key, value in spec["properties"].items()}
+        if kind == "array":
+            return [sample(spec["items"])]
+        return {"string": "근거 해석 https://dart.fss.or.kr/", "boolean": True,
+                "number": 0.3, "integer": 2}[kind]
+
+    expected = sample(request.schema)
+    wire = {key: value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+            for key, value in expected.items()}
+    if broken:
+        wire["scenarios"] = "{broken"
+
+    class Messages(_AnthropicMessages):
+        def create(self, **kwargs):
+            response = super().create(**kwargs)
+            response.content[0].input = wire
+            return response
+
+    messages = Messages()
+    provider = AnthropicProvider(client=SimpleNamespace(messages=messages))
+    provider.count_input_tokens(request)
+    response = provider.generate_structured(request)
+    tool = messages.create_kwargs["tools"][0]
+    assert tool["strict"] is True
+    assert len(tool["input_schema"]["properties"]) == 12
+    assert all(spec == {"type": "string"} for spec in tool["input_schema"]["properties"].values())
+    assert "$defs" not in tool["input_schema"]
+    assert messages.count_kwargs["tools"] == messages.create_kwargs["tools"]
+    assert "value_chain" in tool["description"]
+    assert response.usage.output_tokens == 40
+    if broken:
+        assert response.payload is None
+        assert response.parse_error
+    else:
+        assert response.payload == expected
+        assert response.parse_error is None
+
+
+def test_industry_position_explanation_is_inside_existing_score_row():
+    source = (ROOT / "dashboard/components/ScoreBreakdown.tsx").read_text(encoding="utf-8")
+    assert "산업 내 기업 위상 · 공시 근거" not in source
+    assert 'part.key === "industry_position"' in source
+    assert "공시 원문 ↗" in source
 
 
 def test_anthropic_adapter_counts_searches_and_exposes_actual_source_urls():

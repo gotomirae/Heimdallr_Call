@@ -45,13 +45,6 @@ function InvestmentBreakdown({
           <span className="text-sm text-slate-200">/ 100 · 측정 신뢰도 {denominator}/100</span>
         </div>
       </div>
-      <div className="rounded border border-sky-900 bg-sky-950/20 p-3 text-xs leading-6">
-        <strong className="text-sky-200">🏰 산업 내 기업 위상 · 공시 근거</strong>
-        <p>독점/공급망 {position?.denominator ?? 0}/100 배점 확인 · {position?.score == null ? "충분한 근거가 없어 점수 보류" : `관측 축 정규화 ${num(position.score, 1)}/100`}</p>
-        <p>🌍 글로벌 점유율 {pct(position?.values.global_share)} · 🇰🇷 국내 점유율 {pct(position?.values.domestic_share)}</p>
-        {position?.evidence.map((item, index) => <p key={`${index}-${item.axis}`} className="mt-2 border-l-2 border-sky-700 pl-2">{item.ambiguous && "⚠️ 복수 제품/기간으로 점수 제외 · "}{item.quote}<br /><a className="text-sky-300 underline" href={item.url} target="_blank" rel="noreferrer">공시 원문 ↗</a></p>)}
-        <p className="mt-2 text-amber-200">{position?.limitation ?? "미확인은 비독점/점유율 0이 아닙니다. 성장률·OPM 상대 순위를 시장 지위로 대신하지 않습니다."}<br />🔎 높은 위상은 가격결정력·고객 전환 비용·성장 몫을 지킬 가능성이지 미래 수익 보장은 아닙니다. 제품 범위·고객 집중·대체 기술을 함께 확인합니다.</p>
-      </div>
       <div className="space-y-1.5">
         {INVESTMENT_PARTS.map((part) => {
           const value = parts[part.key];
@@ -66,6 +59,12 @@ function InvestmentBreakdown({
                 {value == null ? `${DASH} 미측정` : `${value.toFixed(1)}/${max}`}
               </span>
               <span className="col-span-3 text-[11px] leading-relaxed text-slate-300">{part.meaning}</span>
+              {part.key === "industry_position" && <div className="col-span-3 text-xs leading-6 text-slate-200">
+                <p>🔎 독점·공급망 근거 {position?.denominator ?? 0}/100 배점 확인 · {position?.score == null ? "충분한 근거가 없어 점수 보류" : `관측 축 정규화 ${num(position.score, 1)}/100`}</p>
+                <p>🌍 글로벌 점유율 {pct(position?.values.global_share)} · 🇰🇷 국내 점유율 {pct(position?.values.domestic_share)}</p>
+                {position?.evidence.map((item, index) => <p key={`${index}-${item.axis}`} className="mt-2 border-l-2 border-sky-700 pl-2">{item.ambiguous && "⚠️ 복수 제품/기간으로 점수 제외 · "}{item.quote}<br /><a className="text-sky-300 underline" href={item.url} target="_blank" rel="noreferrer">공시 원문 ↗</a></p>)}
+                <p className="mt-2 text-amber-200">{position?.limitation ?? "미확인은 비독점/점유율 0이 아닙니다. 성장률·OPM 상대 순위를 시장 지위로 대신하지 않습니다."}<br />🔎 높은 위상은 가격결정력·고객 전환 비용·성장 몫을 지킬 가능성이지 미래 수익 보장은 아닙니다. 제품 범위·고객 집중·대체 기술을 함께 확인합니다.</p>
+              </div>}
             </div>
           );
         })}

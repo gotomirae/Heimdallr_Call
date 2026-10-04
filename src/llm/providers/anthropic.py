@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import json
+
 from src.llm.provider import LLMRequest, LLMResponse, NormalizedUsage
 from src.utils.env import require_env
 
@@ -25,11 +27,36 @@ class AnthropicProvider:
         return anthropic.Anthropic(**kwargs)
 
     @staticmethod
+    def _section_transport(request: LLMRequest) -> bool:
+        # Dashboard's mandatory value-chain schema exceeded the provider grammar
+        # compiler despite having no optional fields. Keep the canonical contract.
+        return "value_chain" in request.schema.get("required", [])
+
+    @staticmethod
     def _analysis_tool(request: LLMRequest) -> dict:
+        schema = request.schema
+        description = "분석 결과를 구조화해 기록한다. 반드시 이 도구로만 응답한다."
+        if AnthropicProvider._section_transport(request):
+            # Only the wire grammar is shallow. Objects/arrays are JSON strings;
+            # decoded content still passes the full canonical validation before save.
+            description += (
+                " 각 항목은 아래 원래 계약을 따라 작성한다. 객체/배열 항목은 "
+                "마크다운 없이 올바른 JSON 문자열로 인코딩한다. 단순 문자열은 그대로 쓴다. "
+                "근거 없는 숫자나 누락 항목을 만들어 채우지 않는다. 원래 계약: "
+                + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+            )
+            schema = {
+                "type": "object", "additionalProperties": False,
+                "required": list(schema["required"]),
+                "properties": {
+                    key: {"type": "string"}
+                    for key in schema["properties"]
+                },
+            }
         return {
             "name": request.schema_name,
-            "description": "분석 결과를 구조화해 기록한다. 반드시 이 도구로만 응답한다.",
-            "input_schema": request.schema,
+            "description": description,
+            "input_schema": schema,
             "strict": True,
         }
 
@@ -89,6 +116,26 @@ class AnthropicProvider:
             ),
             None,
         )
+        parse_error = None
+        if payload is not None and self._section_transport(request):
+            try:
+                if not isinstance(payload, dict):
+                    raise ValueError("section transport must be an object")
+                if set(payload) != set(request.schema["properties"]):
+                    raise ValueError("section transport keys differ from canonical contract")
+                decoded = {}
+                for key, spec in request.schema["properties"].items():
+                    value = payload[key]
+                    if not isinstance(value, str):
+                        raise ValueError(f"{key}: section transport must be a string")
+                    decoded[key] = (
+                        value if spec.get("type") == "string" else json.loads(value)
+                    )
+                payload = decoded
+            except (ValueError, TypeError) as exc:
+                # Never lose paid response usage when decoding fails.
+                payload = None
+                parse_error = f"section transport decode failed: {exc}"
         usage = response.usage
         server_tool_use = getattr(usage, "server_tool_use", None)
         if isinstance(server_tool_use, dict):
@@ -113,6 +160,7 @@ class AnthropicProvider:
             provider=self.name,
             model=str(getattr(response, "model", None) or request.model),
             payload=payload,
+            parse_error=parse_error,
             stop_reason=getattr(response, "stop_reason", None),
             response_id=getattr(response, "id", None),
             usage=NormalizedUsage(
