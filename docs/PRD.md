@@ -967,6 +967,8 @@ JARVIS 병행 운영(§8.8) 동안 이 알림은 `TECHNICAL_TELEGRAM_ENABLED`로
 
 ### 8.7 📑 Kairos 기업·산업 심층 분석
 
+**2026-10-04 출처 정책 변경:** 기업·산업 모두 기존 출처에 Notion `36a9c770aa61809c95e5c1117f9779b5` 모니터링과 `3999c770aa6180ecb514e74eb998e127` 자료(뷰 `3999c770aa6180cf8f5f000c1e3b0c7b`), `https://hermes-call-psi.vercel.app/`, `https://heimdallr-call.vercel.app/`, `https://sage-gotomiraes-projects.vercel.app/`를 필수 조회 대상으로 추가한다. 조사·재개 전에 `telegram_bridge/SOURCE_POLICY.md`를 읽고 적용한다. 모든 사용 출처는 실행일(KST) 기준 최근 달력상 3개월로 제한한다. 아래 기존 설명의 오래된 이전 분석 비교·웹 구조적 배경 예외는 폐지한다. 날짜 미확인·접근 실패·관련 자료 없음은 구별해 기록하며 미열람 자료를 반영 완료로 세지 않는다.
+
 산업 요청의 표준 이름은 JARVIS 노션 L1 18개(AI·반도체·전력인프라·바이오·화장품_미용기기·엔터·우주항공방산·조선·2차 전지·자율주행차·Robot·IT·헬스케어·소비재·여행·금융·건설·양자컴퓨터)다. 기존 이름(2차전지·배터리·로봇·로봇기계·우주방산·화장품·미용기기·네트워크·OLED·음식료·의류)은 입력 별칭으로 받고 L1 이름으로 접수하며, `AI 반도체`·`ETF`는 특수 라벨로 그대로 둔다(JARVIS PRD 부록 A.4).
 
 인증된 개인 채팅에서 기업명·6자리 종목코드 또는 산업명을 단독 입력한다. 기업은 유니버스에서 하나로 식별하고, 산업은 KRX 업종·투자 섹터·Notion/Drive 산업 카탈로그의 완전 또는 정규화 일치로 식별한다. Telegram update ID를 키로 `request_kind(company|industry)`와 `target_name`을 `kairos_requests`에 기록한다. 정확한 기업명이 산업명과 겹치면 기업을 우선하고, 산업명은 부분 일치로 추정하지 않는다. 전달·수정·그룹·봇 경유 메시지, 문장형 질문과 애매한 대상은 심층 분석을 시작하지 않는다. 기존 짧은 리포트 회신과 별도이며, 로컬 Windows 수집기가 DB 요청을 확인한 뒤 기존 Codex 작업에 `$kairos`를 한 번 전달한다.

@@ -1,5 +1,9 @@
 # Heimdallr Telegram → Kairos → Notion
 
+## 최신 필수 출처 정책 (2026-10-04)
+
+기업·산업 모두 [SOURCE_POLICY.md](SOURCE_POLICY.md)를 조사 전과 재개 시 반드시 읽는다. Notion 모니터링·추가 자료 두 곳과 Hermes Call·Heimdallr Call·SAGE 세 사이트를 기존 출처에 추가한다. **모든 활용자료는 분석 실행일 기준 최근 3개월로 제한**하며, 아래 종전 설명의 오래된 이전 분석 비교·웹 배경 자료 예외는 폐지한다. 접근·자료일을 검증하지 못한 자료는 근거로 사용하지 않고 조회 결과와 원문 링크를 장부·보고서에 남긴다.
+
 Windows의 `HeimdallrTelegramListener`만 Telegram `getUpdates`를 1분마다 호출한다. 인증된 개인 채팅에서 종목명·6자리 코드 또는 산업명을 단독으로 입력하면 접수·예상 시간 메시지를 보내고 `kairos_requests`에 Telegram update ID, `request_kind`, `target_name`으로 심층 분석 요청을 기록한다. 짧은 종목 요약은 보내지 않는다. 수정·전달·그룹·봇 경유 메시지와 문장형 질의는 심층 분석 요청이 아니다. `/status`는 최근 요청의 대상 유형·단계·실패 원인을 조회한다.
 
 Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 이 저장소의 로컬 SQLite 큐로 복사하고, `codex queue`로 지정 Codex 작업을 깨운다. claim이 없으면 5분 뒤 다시 깨운다. 이 수집기는 Telegram API를 폴링하지 않는다. 기존 `C:\Codex\Kairos` 봇·큐·미처리 작업은 건드리지 않는다.

@@ -36,6 +36,22 @@ def insert_industry_job(db, status="pending"):
         )
 
 
+@pytest.mark.parametrize("industry", [False, True])
+def test_both_request_kinds_receive_latest_source_policy(db, monkeypatch, industry):
+    (insert_industry_job if industry else insert_job)(db)
+    bridge.configure_trigger(db, "00000000-0000-0000-0000-000000000042")
+    monkeypatch.setattr(bridge, "find_codex", lambda: "codex.exe")
+    run = Mock(return_value=SimpleNamespace(returncode=0))
+    monkeypatch.setattr(bridge.subprocess, "run", run)
+    assert bridge.wake_pending(db)["status"] == "queued"
+    message = run.call_args.args[0][-1]
+    assert "telegram_bridge/SOURCE_POLICY.md" in message
+    assert "이전 분석 비교를 포함한 모든 활용자료" in message
+    job = bridge.poll(db)["jobs"][0]
+    assert job["request_kind"] == ("industry" if industry else "company")
+    assert job["source_policy"] == "telegram_bridge/SOURCE_POLICY.md"
+
+
 def test_sync_requires_right_bot_and_owner(db, monkeypatch):
     monkeypatch.setattr(bridge, "verify_bot", lambda: None)
     monkeypatch.setattr(bridge, "allowed_chats", lambda: {"111"})
@@ -90,6 +106,9 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert db.execute("SELECT wake_sent_at FROM jobs WHERE id=42").fetchone()[0]
     assert len(called) == 1 and "$kairos" in called[0][-1]
     assert "heartbeat `kairos`를 ACTIVE" in called[0][-1]
+    assert "telegram_bridge/SOURCE_POLICY.md" in called[0][-1]
+    assert "Hermes Call·Heimdallr Call·SAGE" in called[0][-1]
+    assert "이전 분석 비교를 포함한 모든 활용자료" in called[0][-1]
     assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
     monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
     query = Mock()
@@ -103,6 +122,8 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert checkpoint.exists()
     checkpoint_text = checkpoint.read_text(encoding="utf-8")
     assert "005930" in checkpoint_text
+    assert "필수 Notion 모니터링·추가 자료 두 루트" in checkpoint_text
+    assert "필수 Hermes Call·Heimdallr Call·SAGE 세 사이트" in checkpoint_text
     assert "Telegram 원소스(SungwooInsight 72시간·DOC_POOL·sunstudy1234)" in checkpoint_text
     assert "페이지 단위 근거·강조 사본" in checkpoint_text
     assert "직접 확인 필요 외부 자료·링크" in checkpoint_text
@@ -111,6 +132,7 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert bridge.ensure_checkpoint(db, 42) == checkpoint
     assert checkpoint.read_text(encoding="utf-8") == "진행 중 원고와 출처"
     assert bridge.poll(db)["jobs"][0]["checkpoint"] == str(checkpoint)
+    assert bridge.poll(db)["jobs"][0]["source_policy"] == "telegram_bridge/SOURCE_POLICY.md"
     assert bridge.claim(db, 42)["status"] == "not_claimed"
 
 
