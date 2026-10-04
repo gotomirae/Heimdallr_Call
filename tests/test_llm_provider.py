@@ -297,6 +297,7 @@ def test_analysis_orchestration_uses_provider_contract_without_sdk_objects(monke
 
         def generate_structured(self, request):
             self.generated += 1
+            assert request.max_output_tokens == 100
             return LLMResponse(
                 provider=self.name,
                 model=request.model,
@@ -319,6 +320,9 @@ def test_analysis_orchestration_uses_provider_contract_without_sdk_objects(monke
         token_budget=200,
         provider=provider,
         model=ANALYSIS_MODEL,
+        web_search=False,
+        max_output_tokens=100,
+        max_cost_usd=0.15,
     )
 
     assert (provider.counted, provider.generated) == (1, 1)
@@ -326,6 +330,59 @@ def test_analysis_orchestration_uses_provider_contract_without_sdk_objects(monke
     assert result.model == ANALYSIS_MODEL
     assert result.input_tokens == 10
     assert result.output_tokens == 20
+
+
+@pytest.mark.parametrize("cap", [0, -1, float("nan"), float("inf"), 0.001])
+def test_single_call_cost_cap_blocks_generation(cap):
+    from src.analysis import analyze as module
+
+    class Provider:
+        name = "fake"
+
+        def count_input_tokens(self, request):
+            return 13771
+
+        def generate_structured(self, request):
+            raise AssertionError("상한 초과 호출 금지")
+
+    with pytest.raises(module.AnalysisError):
+        module.analyze(
+            module.AnalysisInput(code="000660", name="SK하이닉스", board="KOSPI"),
+            provider=Provider(), model=ANALYSIS_MODEL, enforce_budget=False,
+            web_search=False, max_output_tokens=9100, max_cost_usd=cap,
+        )
+
+
+def test_single_call_cost_cap_requires_no_web_search():
+    from src.analysis import analyze as module
+
+    with pytest.raises(module.AnalysisError, match="웹검색 없이"):
+        module.analyze(
+            module.AnalysisInput(code="000660", name="SK하이닉스", board="KOSPI"),
+            enforce_budget=False, web_search=True, max_cost_usd=0.15,
+        )
+
+
+def test_single_call_cost_cap_checks_month_remaining(monkeypatch):
+    from src.analysis import analyze as module
+    from src.utils.cost_guard import BudgetStatus
+
+    class Provider:
+        name = "fake"
+
+        def count_input_tokens(self, request):
+            return 13771
+
+        def generate_structured(self, request):
+            raise AssertionError("월 잔여 예산 초과 호출 금지")
+
+    monkeypatch.setattr(module, "check_budget", lambda **kwargs: BudgetStatus(26.99, 27, 1, 120, True))
+    with pytest.raises(module.BudgetExceeded, match="월 잔여"):
+        module.analyze(
+            module.AnalysisInput(code="000660", name="SK하이닉스", board="KOSPI"),
+            provider=Provider(), model=ANALYSIS_MODEL, web_search=False,
+            max_output_tokens=9100, max_cost_usd=0.15,
+        )
 
 
 def test_unpriced_model_is_blocked_before_provider_calls(monkeypatch):

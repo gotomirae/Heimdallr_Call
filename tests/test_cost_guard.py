@@ -25,6 +25,43 @@ from src.utils.cost_guard import UnknownModelError, compute_cost_usd, get_pricin
 
 
 # ═══ T19 — 날짜 기준 가격 전환 금지 ═══
+def test_budget_pages_past_1000_cost_rows(monkeypatch):
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    from src.db import supabase_client
+
+    class Query:
+        def select(self, columns):
+            self.columns = columns
+            return self
+
+        def eq(self, *args):
+            return self
+
+        def gte(self, column, value):
+            self.day = value[8:10]
+            return self
+
+        def order(self, *args):
+            return self
+
+        def range(self, start, end):
+            self.start, self.end = start, end
+            return self
+
+        def execute(self):
+            total = 1001 if self.day == "01" else 1
+            rows = [{"id": i, "cost_usd": 0.03} for i in range(total)]
+            return SimpleNamespace(data=rows[self.start:self.end + 1])
+
+    monkeypatch.setattr(supabase_client, "get_client", lambda: SimpleNamespace(table=lambda name: Query()))
+    status = cost_guard.check_budget(now=datetime(2026, 10, 4, tzinfo=timezone.utc))
+    # 손계산: 1,001 * $0.03 = $30.03; 첫 1,000건만 집계하면 안 된다.
+    assert status.month_spent_usd == pytest.approx(30.03)
+    assert status.today_count == 1
+    assert not status.allowed
+
+
 def test_pricing_takes_no_date_argument():
     """★ 참고 프로젝트는 `get_pricing(model, as_of)`로 날짜 분기를 했다.
 

@@ -172,24 +172,26 @@ def check_budget(*, env: str = ENV_PROD, now: datetime | None = None) -> BudgetS
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     db = get_client()
-    month_rows = (
-        db.table("cost_log")
-        .select("cost_usd")
-        .eq("env", env)
-        .gte("created_at", month_start.isoformat())
-        .execute()
-        .data
-        or []
-    )
-    today_rows = (
-        db.table("cost_log")
-        .select("id")
-        .eq("env", env)
-        .gte("created_at", day_start.isoformat())
-        .execute()
-        .data
-        or []
-    )
+    # 월 1,000건 이후 비용이 잘리면 실링이 조용히 무력화된다(T7).
+    from src.config.constants import POSTGREST_PAGE_SIZE
+
+    def read_since(columns: str, since: datetime) -> list[dict]:
+        rows: list[dict] = []
+        offset = 0
+        while True:
+            chunk = (
+                db.table("cost_log").select(columns).eq("env", env)
+                .gte("created_at", since.isoformat()).order("id")
+                .range(offset, offset + POSTGREST_PAGE_SIZE - 1)
+                .execute().data or []
+            )
+            rows.extend(chunk)
+            if len(chunk) < POSTGREST_PAGE_SIZE:
+                return rows
+            offset += POSTGREST_PAGE_SIZE
+
+    month_rows = read_since("id,cost_usd", month_start)
+    today_rows = read_since("id", day_start)
 
     spent = sum(float(r["cost_usd"] or 0) for r in month_rows)
     count = len(today_rows)

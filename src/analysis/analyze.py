@@ -53,7 +53,13 @@ from src.finance.narrative_changes import (
 from src.finance.price_history import canonicalize_price_history
 from src.llm.provider import LLMRequest, LLMResponse, StructuredLLMProvider
 from src.llm.registry import resolve_provider
-from src.utils.cost_guard import ENV_PROD, check_budget, get_pricing, record_usage
+from src.utils.cost_guard import (
+    ENV_PROD,
+    check_budget,
+    estimate_worst_case_cost_usd,
+    get_pricing,
+    record_usage,
+)
 
 # ★ `EXCERPT_MAX_CHARS`는 `constants.py`에서 온다 — 여기서 다시 정의하지 마라(T100).
 #   수집기 예산(2,400)보다 작게 두면 저장해 둔 발췌를 **말없이 버린다.**
@@ -535,10 +541,18 @@ def analyze(
     provider: StructuredLLMProvider | None = None,
     provider_name: str | None = None,
     model: str | None = None,
+    max_output_tokens: int = LLM_MAX_TOKENS,
+    max_cost_usd: float | None = None,
 ) -> AnalysisResult:
     """웹 서치를 쓸지는 `ENABLE_WEB_SEARCH`가 정한다(인자로 덮어쓸 수 있다)."""
     if web_search is None:
         web_search = ENABLE_WEB_SEARCH
+    if max_output_tokens <= 0 or (
+        max_cost_usd is not None and not (0 < max_cost_usd < float("inf"))
+    ):
+        raise AnalysisError("출력·비용 상한은 양수여야 한다 — 생성 0회")
+    if max_cost_usd is not None and web_search:
+        raise AnalysisError("단건 하드캡 검증은 웹검색 없이 실행해야 한다 — 생성 0회")
     if enforce_budget:
         status = check_budget(env=env)
         if not status.allowed:
@@ -561,19 +575,28 @@ def analyze(
         model=selected_model,
         web_search=web_search,
         user_message=user_message,
+        max_output_tokens=max_output_tokens,
     )
 
     # ★★ 예산을 **실제로 검사한다.** 이 파라미터는 오래 선언만 돼 있고 아무 데서도
     #   쓰이지 않았다 — PRD가 "초과 시 호출하지 않는다"고 적어 둔 규칙이
     #   코드에는 없었다. 발췌를 싣기 시작했으므로 이제 진짜 방어가 필요하다.
     # ★ count_tokens는 무료이고 1초쯤 걸린다. 45초짜리 호출 앞에 붙일 만하다.
-    if token_budget:
+    if token_budget or max_cost_usd is not None:
         tokens = provider.count_input_tokens(request)
-        if tokens > token_budget:
+        if token_budget and tokens > token_budget:
             raise AnalysisError(
                 f"{data.code}: 입력 {tokens:,}토큰이 상한 {token_budget:,}을 넘었다. "
                 f"입력 계약·도구 포함 크기를 줄여야 한다 — 호출하지 않는다(비용 0)."
             )
+        if max_cost_usd is not None:
+            worst = estimate_worst_case_cost_usd(
+                selected_model, input_tokens=tokens, max_output_tokens=max_output_tokens,
+            )
+            if worst > max_cost_usd:
+                raise AnalysisError(f"단건 최악비용 ${worst:.6f} > 승인 상한 ${max_cost_usd:.6f} — 생성 0회")
+            if enforce_budget and worst > status.month_remaining_usd:
+                raise BudgetExceeded("단건 최악비용이 월 잔여 예산을 넘는다 — 생성 0회")
 
     response = provider.generate_structured(request)
     cost = record_usage(selected_model, response.usage, env=env)
