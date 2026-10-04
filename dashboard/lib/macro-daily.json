@@ -1,6 +1,6 @@
 {
   "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
-  "checkedAt": "2026-10-04 10:04 KST",
+  "checkedAt": "2026-10-04 12:30 KST",
   "marketDate": "2026-10-02",
   "koreaMarketDate": "2026-10-02",
   "items": [
@@ -16,7 +16,7 @@
     },
     {
       "title": "Fear & Greed Index · 시장 심리",
-      "url": "https://github.com/whit3rabbit/fear-greed-data",
+      "url": "https://fearandgreedgraph.com/",
       "publishedAt": "2026-10-02"
     },
     {
@@ -3874,8 +3874,8 @@
         "value": 31.2
       }
     ],
-    "sourceUrl": "https://github.com/whit3rabbit/fear-greed-data",
-    "sourceLabel": "CNN 원자료 공개 재배포 · whit3rabbit (공식 실시간 아님)"
+    "sourceUrl": "https://fearandgreedgraph.com/",
+    "sourceLabel": "CNN Fear & Greed 재배포 데이터"
   },
   "nextEvents": [
     {
