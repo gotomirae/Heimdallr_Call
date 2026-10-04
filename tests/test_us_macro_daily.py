@@ -8,6 +8,26 @@ from src.collectors.us_macro_daily import MACRO_EVENTS, build_context, parse_fea
 from src.collectors.us_macro_daily import SYMBOLS, parse_recent_issue_rss, parse_recent_bea_releases, parse_issue_fact
 
 
+def test_fear_greed_twelve_months_keeps_more_than_sixty_and_rejects_future():
+    from datetime import timedelta
+    now = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
+    dates = [(now.date() - timedelta(days=i)).isoformat() for i in range(400)]
+    payload = {"dates": dates + ["2026-10-05", "2026-02-30"], "values": [40] * 402}
+    result = parse_fear_greed(payload, now=now)
+    assert len(result["history"]) == 366
+    assert result["history"][0]["date"] == "2025-10-04"
+    assert result["date"] == "2026-10-04"
+
+
+def test_cnn_shape_is_supported_without_fabricating_missing_days():
+    points = [{"x": datetime(2026, 10, d, 0, tzinfo=timezone.utc).timestamp() * 1000, "y": v}
+              for d, v in [(1, 28), (2, 31)]]
+    result = parse_fear_greed({"fear_and_greed_historical": {"data": points}},
+                              now=datetime(2026, 10, 4, 12, tzinfo=timezone.utc))
+    assert len(result["history"]) == 2
+    assert result["date"] == "2026-10-02"
+
+
 def test_recent_atom_captures_last_night_and_excludes_stale_future_untrusted():
     now = datetime(2026, 10, 3, 0, 0, tzinfo=timezone.utc)
     entries = "".join(f'''<entry><title>Employment Situation</title><link href="{url}"/>

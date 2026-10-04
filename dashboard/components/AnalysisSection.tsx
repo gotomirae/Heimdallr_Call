@@ -144,18 +144,21 @@ export default function AnalysisSection({
   narrative,
   timelineItems,
   valuation,
+  priceOnly = false,
 }: {
   analysis: AnalysisView;
   narrative: NarrativeCheck;
   timelineItems: TimelineItem[];
   /** ★ 화면이 네이버 연간 표에서 확인한 배수. LLM 문장에 적힌 PER은 믿지 않는다. */
   valuation: ValuationView;
+  priceOnly?: boolean;
 }) {
   return (
     <div className="space-y-4 text-sm">
+      {!priceOnly && <>
       {analysis.isEmpty && (
         <p className="text-sm text-slate-300">
-          아직 LLM 분석하지 않았다. 아래 주가 위치 수치는 LLM과 무관하게 네이버 원표에서 표시한다.
+          아직 LLM 분석하지 않았다. RSI 아래의 주가 위치 수치는 LLM과 무관하게 네이버 원표에서 표시한다.
         </p>
       )}
       {analysis.thesis && (
@@ -167,7 +170,7 @@ export default function AnalysisSection({
 
       {analysis.whyNow && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">왜 지금인가</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">💡 왜 지금인가</div>
           <Prose text={analysis.whyNow} />
         </div>
       )}
@@ -459,10 +462,12 @@ export default function AnalysisSection({
         </div>
       )}
 
-      {/* 주가가 이미 아는 것 / 아직 모르는 것 — PRI 숫자의 말풀이다. */}
+      </>}
+      {/* 주가 위치는 RSI 아래에 별도로 배치한다. */}
+      {priceOnly &&
       <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black tracking-tight text-slate-100">주가 위치</span>
+            <span className="text-lg font-black tracking-tight text-slate-100">💰 주가 위치</span>
             {analysis.pricePosition.verdict && (
               <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-100">
                 {analysis.pricePosition.verdict}
@@ -546,10 +551,11 @@ export default function AnalysisSection({
             </div>
           </div>
       </div>
-
+      }
+      {!priceOnly && <>
       {analysis.risks.length > 0 && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">리스크</div>
+          <div className="text-lg font-black tracking-tight text-slate-100">⚠️ 핵심 리스크</div>
           <table className="mt-1 w-full text-left text-xs">
             <thead className="text-slate-300">
               <tr>
@@ -576,7 +582,7 @@ export default function AnalysisSection({
       {analysis.nextDataToWatch.length > 0 && (
         <div>
           <div className="text-lg font-black tracking-tight text-slate-100">
-            다음 분기에 확인할 것
+            🔎 다음 분기에 확인할 것
           </div>
           <ul className="mt-1 list-disc pl-4 text-slate-100">
             {analysis.nextDataToWatch.map((v) => <li key={v}>{v}</li>)}
@@ -587,11 +593,12 @@ export default function AnalysisSection({
       {analysis.howICouldBeWrong && (
         <div>
           <div className="text-xs font-semibold uppercase text-slate-300">
-            내가 틀릴 수 있는 이유
+            🧭 판단을 바꿔야 할 이유
           </div>
           <Prose text={analysis.howICouldBeWrong} />
         </div>
       )}
+      </>}
     </div>
   );
 }

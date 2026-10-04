@@ -2,6 +2,9 @@
   "_generated_by": "python -m src.config.export_constants",
   "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
   "dashboard_refresh_seconds": 60,
+  "pri_rule_version": "4.0-2026-10-04",
+  "pri_review_min_rows": 100,
+  "pri_review_min_quarters": 2,
   "dashboard_db_retry_delays_ms": [
     150,
     600,

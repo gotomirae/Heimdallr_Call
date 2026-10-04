@@ -13,6 +13,11 @@ from __future__ import annotations
 from src.analysis.analyze import sanitize_payload, strip_tag_leakage, validate_payload
 
 
+def test_validation_does_not_crash_on_non_numeric_probability():
+    problems = validate_payload({"scenarios": {"bull": {"probability": "not-a-number"}}})
+    assert "type:scenarios.bull.probability" in problems
+
+
 #: 실측 그대로 (042700 한미반도체 2026.2Q · 2026-08-17)
 LEAKED = (
     "1Q 급락 후 2Q 매출 2,512억(+39.5% YoY, 분기 사상 최대)으로 급반등, "

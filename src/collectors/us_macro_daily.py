@@ -24,6 +24,7 @@ from src.config.constants import (
     US_MACRO_VIX_RISK_OFF,
     US_MACRO_ISSUE_LOOKBACK_DAYS,
     US_MACRO_RECENT_ISSUE_LIMIT,
+    MACRO_COMPARISON_MONTHS,
 )
 from src.utils.console import enable_utf8_stdout
 
@@ -38,6 +39,7 @@ SYMBOLS = {
     "kospi": "%5EKS11", "kosdaq": "%5EKQ11",
 }
 FEAR_GREED_URL = "https://fearandgreedgraph.com/api/fear-greed"
+FEAR_GREED_ARCHIVE = "https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/json/cnn_output.json"
 NEW_YORK = ZoneInfo("America/New_York")
 SEOUL = ZoneInfo("Asia/Seoul")
 RECENT_ISSUE_FEEDS = (
@@ -153,7 +155,18 @@ def parse_recent_bea_releases(html: str, now: datetime) -> list[dict]:
     return items
 
 
-def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW_YORK) -> dict:
+def comparison_start(now: datetime) -> str:
+    day = now.astimezone(NEW_YORK).date()
+    year, month = divmod(day.year * 12 + day.month - 1 - MACRO_COMPARISON_MONTHS, 12)
+    # Clamp leap day without silently turning twelve months into sixty observations.
+    while True:
+        try:
+            return day.replace(year=year, month=month + 1).isoformat()
+        except ValueError:
+            day = day - timedelta(days=1)
+
+
+def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW_YORK, full_year: bool = False) -> dict:
     """완료된 최근 두 거래일 종가로 전일 수익률을 계산한다."""
     result = (payload.get("chart") or {}).get("result") or []
     if not result:
@@ -178,14 +191,27 @@ def parse_yahoo_chart(payload: dict, *, now: datetime, market_tz: ZoneInfo = NEW
     (previous_day, previous), (day, close) = measured[-2:]
     if day == previous_day:
         raise ValueError("Yahoo chart 거래일 중복")
-    history = [{"date": measured_day, "value": round(value, 2)} for measured_day, value in measured[-60:]]
+    visible = [(d, v) for d, v in measured if d >= comparison_start(now)] if full_year else measured[-60:]
+    history = [{"date": measured_day, "value": round(value, 2)} for measured_day, value in visible]
     return {"date": day, "close": round(close, 2), "changePct": round((close / previous - 1) * 100, 2), "history": history}
 
 
-def parse_fear_greed(payload: dict) -> dict:
-    """공개 JSON의 날짜·값 배열을 맞춰 최근 60개 고유 관측치만 보존한다."""
+def parse_fear_greed(payload: dict, *, now: datetime | None = None) -> dict:
+    """CNN 및 명시적 재배포 원자료의 지난 12개월 관측치. 결측 보간 금지."""
     dates = payload.get("dates") or []
     values = payload.get("values") or []
+    if "fear_and_greed_historical" in payload:
+        points = payload["fear_and_greed_historical"].get("data") or []
+        dates, values = [], []
+        for point in points:
+            try:
+                # CNN x is a UTC date label (midnight), not an exchange-local candle.
+                day = datetime.fromtimestamp(float(point["x"]) / 1000, timezone.utc).date().isoformat()
+                value = point["y"]
+                dates.append(day)
+                values.append(value)
+            except (KeyError, TypeError, ValueError, OverflowError):
+                continue
     if not isinstance(dates, list) or not isinstance(values, list) or len(dates) != len(values):
         raise ValueError("Fear & Greed 날짜·값 배열 불일치")
     measured: dict[str, float] = {}
@@ -195,8 +221,14 @@ def parse_fear_greed(payload: dict) -> dict:
         except (TypeError, ValueError):
             continue
         if isinstance(day, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) and 0 <= numeric <= 100:
+            try:
+                datetime.strptime(day, "%Y-%m-%d")
+            except ValueError:
+                continue
+            if now and not comparison_start(now) <= day <= now.astimezone(NEW_YORK).date().isoformat():
+                continue
             measured[day] = numeric
-    history = [{"date": day, "value": round(value, 1)} for day, value in sorted(measured.items())[-60:]]
+    history = [{"date": day, "value": round(value, 1)} for day, value in sorted(measured.items())]
     if not history:
         raise ValueError("Fear & Greed 유효 관측치 없음")
     latest = history[-1]
@@ -408,19 +440,27 @@ def collect(now: datetime | None = None) -> dict:
     with httpx.Client(timeout=15, follow_redirects=True, headers=headers) as client:
         markets = {}
         for key, symbol in SYMBOLS.items():
-            response = client.get(YAHOO_CHART.format(symbol=symbol), params={"range": "3mo", "interval": "1d"})
+            response = client.get(YAHOO_CHART.format(symbol=symbol), params={"range": "1y" if key == "nasdaq100" else "3mo", "interval": "1d"})
             response.raise_for_status()
             markets[key] = parse_yahoo_chart(
                 response.json(), now=now,
                 market_tz=SEOUL if key in {"kospi", "kosdaq"} else NEW_YORK,
+                full_year=key == "nasdaq100",
             )
         fear_greed = None
         try:
             response = client.get(FEAR_GREED_URL)
             response.raise_for_status()
-            fear_greed = parse_fear_greed(response.json())
+            fear_greed = parse_fear_greed(response.json(), now=now)
         except (httpx.HTTPError, ValueError, json.JSONDecodeError) as exc:
             print(f"⚠ Fear & Greed 수집 실패 — 결측으로 표시: {type(exc).__name__}")
+            try:
+                response = client.get(FEAR_GREED_ARCHIVE)
+                response.raise_for_status()
+                fear_greed = parse_fear_greed(response.json(), now=now)
+                fear_greed.update(sourceUrl="https://github.com/whit3rabbit/fear-greed-data", sourceLabel="CNN 원자료 공개 재배포 · whit3rabbit (공식 실시간 아님)")
+            except (httpx.HTTPError, ValueError, json.JSONDecodeError):
+                print("⚠ CNN 공개 재배포도 확인 실패 — 심리지수 생성/보간하지 않음")
         response = client.get(FED_RSS)
         response.raise_for_status()
         fed = parse_fed_rss(response.text)
@@ -467,6 +507,7 @@ def should_write_snapshot(previous: dict, context: dict, *, force: bool = False)
         force or prewarm_needs_seven_oclock
         or previous.get("recentIssues") != context.get("recentIssues")
         or previous.get("recentIssueFailures") != context.get("recentIssueFailures")
+        or previous.get("fearGreed") != context.get("fearGreed")
         or ("nasdaq100" not in previous.get("markets", {}) and "nasdaq100" in context.get("markets", {}))
         or (previous_at[:10], previous.get("marketDate"), previous.get("koreaMarketDate"))
         != (current_at[:10], context["marketDate"], context.get("koreaMarketDate"))

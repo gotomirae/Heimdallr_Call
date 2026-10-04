@@ -1,5 +1,6 @@
 // PRD Ref: §9.1 — 종목 상세. **시스템의 핵심 화면.**
 import Link from "next/link";
+import constants from "@/lib/constants.json";
 import { notFound } from "next/navigation";
 import QuarterlyChart, { OrderQuarterlyChart } from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
@@ -704,6 +705,7 @@ export default async function StockPage({ params }: { params: { code: string } }
                     peg: calculatedPeg?.peg ?? null,
                     pegGrowthPct: calculatedPeg?.growthPct ?? null,
                   }} currentAnnouncement={{ returnPct: currentAnnouncementReturn, asOf: priceBasisDate }} />
+                  <p className="mt-3 rounded border border-sky-800/60 p-3 text-xs leading-6 text-slate-200">🔄 PRI 기준 {constants.pri_rule_version}<br />발표 당시 PRI와 이후 확정 초과수익을 매일 검토합니다. 최소 {constants.pri_review_min_rows}건씩 {constants.pri_review_min_quarters}개 분기의 시간순 검증으로 개선 후보를 평가하며, 표본 부족이나 검증 전에는 가중치를 임의 변경하지 않습니다.<br /><Link href="/outcome" className="text-sky-300 underline">📊 성과 피드백·주가반영도 구간 확인</Link></p>
                 </div>
               </div>
             </div>
@@ -771,6 +773,10 @@ export default async function StockPage({ params }: { params: { code: string } }
           priceOutlook={analysis.pricePosition.reason}
         />
         <Note>네이버 일봉을 주간으로 접지 않고 그대로 표시하며, MACD(12·26·9)와 RSI(14)도 거래일 기준으로 계산한다. 점선은 각 분기의 잠정실적과 정기보고서 확정 공시일을 구분한다.</Note>
+        <AnalysisSection analysis={analysis} narrative={narrative} timelineItems={timelineItems} priceOnly
+          valuation={{ perCurrent: per4q, perCurrentYear: perYear, perForward: forwardPerValue,
+            perForwardYear: forwardPerYear, forwardBasis: "네이버 증권 연간 예상값",
+            roeCurrent: currentRoe, roeNext: nextRoe, sourceUrl: naverStockUrl(code) }} />
 
         {/* ★★ 핵심 투자 포인트 — **모양이 무엇을 뜻하는가**(사용자 지정 2026-08-23).
             "성장률이 빨라졌다"는 차트를 보면 누구나 아는 사실이다. 화면이 보태야 하는

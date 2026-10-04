@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import json
 import statistics
 import time
 from datetime import date, timedelta
@@ -28,6 +29,7 @@ from src.analysis.outcome import (
 )
 from src.collectors.kis_client import KisClient
 from src.collectors.kis_prices import fetch_daily_closes, fetch_index_closes
+from src.config.constants import PRI_RULE_VERSION, PRI_REVIEW_MIN_ROWS, PRI_REVIEW_MIN_QUARTERS
 from src.db.supabase_client import (
     get_client,
     select_all,
@@ -284,13 +286,31 @@ def save(results: list[Outcome]) -> int:
     return 0
 
 
+def pri_feedback_review(rows: list[dict]) -> dict:
+    """발표 당시 PRI와 이후 확정 초과수익만 평가한다. 사후 현재 PRI 혼합 금지."""
+    measured = [r for r in rows if r.get("pri_at_announce") is not None and r.get("excess_d60") is not None]
+    quarters = {(r["fiscal_year"], r["fiscal_quarter"]) for r in measured}
+    ic = spearman([r["pri_at_announce"] for r in measured], [r["excess_d60"] for r in measured])
+    per_quarter = {f"{y}.{q}": [r for r in measured if (r["fiscal_year"], r["fiscal_quarter"]) == (y, q)] for y, q in sorted(quarters)}
+    adequate = sum(len(group) >= PRI_REVIEW_MIN_ROWS for group in per_quarter.values()) >= PRI_REVIEW_MIN_QUARTERS
+    return {"version": PRI_RULE_VERSION, "measured_d60": len(measured), "quarters": len(quarters),
+            "pri_vs_excess_ic": ic, "review_ready": adequate,
+            "quarter_samples": {q: len(group) for q, group in per_quarter.items()},
+            "action": "시간순 학습/검증 분리 후 후보 기준과 기존 기준 비교 필요" if adequate else "표본 부족 — 기준 변경 보류",
+            "automatic_weight_change": False}
+
+
 def main() -> int:
     enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="P11 결과 추적")
     parser.add_argument("--quarter", default=None, help="예: 2026.2")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--save", action="store_true")
+    parser.add_argument("--pri-review", action="store_true", help="저장된 확정 성과로 PRI 기준 피드백 검토(조회만)")
     args = parser.parse_args()
+    if args.pri_review:
+        print(json.dumps(pri_feedback_review(select_all("outcome_tracking")), ensure_ascii=False))
+        return 0
 
     qf = None
     if args.quarter:

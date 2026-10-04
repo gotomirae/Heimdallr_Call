@@ -191,7 +191,7 @@ def run(limit: int, max_seconds: float) -> int:
                 problems = validate_payload(result.payload)
                 if problems:
                     raise AnalysisError(
-                        f"{label}: strict 복구 결과도 검증 실패 — {'; '.join(problems[:8])}"
+                        f"{label}: 자동복구 실패 — strict 복구 결과 검증 실패: {'; '.join(problems[:8])}"
                     )
             save(result)
             set_status(row["id"], "completed")

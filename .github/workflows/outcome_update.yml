@@ -41,3 +41,6 @@ jobs:
       - run: pip install -e .
 
       - run: python -m src.analysis.outcome_run --save
+      - name: PRI 기준 피드백 검증 (발표 당시값·확정 D+60)
+        if: always()
+        run: python -m src.analysis.outcome_run --pri-review

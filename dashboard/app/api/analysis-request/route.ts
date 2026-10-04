@@ -32,6 +32,15 @@ function keyOf(code: string, year: number, quarter: number) {
   return `${code}:${year}:${quarter}`;
 }
 
+async function savedAnalysisUsable(admin: NonNullable<ReturnType<typeof adminClient>>, code: string, year: number, quarter: number) {
+  const {data, error} = await admin.from("analyses").select("payload")
+    .eq("code", code).eq("fiscal_year", year).eq("fiscal_quarter", quarter).limit(1);
+  if (error) throw new Error("저장된 분석 검증 상태 조회 실패");
+  const payload = data?.[0]?.payload;
+  return payload && typeof payload === "object" && payload._heimdallr?.invalid !== true
+    && typeof payload.one_line_thesis === "string" && payload.one_line_thesis.trim().length > 0;
+}
+
 export async function GET(request: NextRequest) {
   const code = String(request.nextUrl.searchParams.get("code") ?? "").toUpperCase();
   const year = Number(request.nextUrl.searchParams.get("year"));
@@ -45,6 +54,14 @@ export async function GET(request: NextRequest) {
     .select("status,error,requested_at,claimed_at,completed_at")
     .eq("request_key", keyOf(code, year, quarter)).limit(1);
   if (error) return NextResponse.json({ status: "unavailable", message: error.message }, { status: 503 });
+  if (data?.[0]?.status === "completed") {
+    try {
+      if (!await savedAnalysisUsable(admin, code, year, quarter))
+        return NextResponse.json({...data[0], status: "failed", message: "⚠️ 저장 분석이 검증 실패 또는 미저장 상태입니다. 이전 접수 완료와 구분하며, 버튼으로 검증된 재분석을 요청할 수 있습니다."});
+    } catch {
+      return NextResponse.json({status: "unavailable", message: "분석 결과 상태 조회 실패 · 완료로 표시하지 않습니다."}, {status: 503});
+    }
+  }
   return NextResponse.json(data?.[0] ?? { status: "idle" });
 }
 
@@ -70,13 +87,18 @@ export async function POST(request: NextRequest) {
   if (readError) return NextResponse.json({ status: "unavailable", message: readError.message }, { status: 503 });
   const current = existing?.[0];
   if (current && ["pending", "working", "deferred"].includes(current.status)) return NextResponse.json(current);
-  if (current?.status === "completed" && current.completed_at && Date.now() - new Date(current.completed_at).getTime() < REFRESH_COOLDOWN_MS) {
+  let usable = false;
+  if (current?.status === "completed") {
+    try { usable = Boolean(await savedAnalysisUsable(admin, code, year, quarter)); }
+    catch { return NextResponse.json({status: "unavailable", message: "결과 검증 조회 실패 · 중복 과금을 막기 위해 접수를 보류합니다."}, {status: 503}); }
+  }
+  if (usable && current?.status === "completed" && current.completed_at && Date.now() - new Date(current.completed_at).getTime() < REFRESH_COOLDOWN_MS) {
     return NextResponse.json({ ...current, message: "최근 7일 안에 완료된 최신 분석을 표시한다." });
   }
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count } = await admin.from("dashboard_analysis_requests")
     .select("id", { count: "exact", head: true }).gte("requested_at", since);
-  if ((count ?? 0) >= DAILY_REQUEST_LIMIT) return NextResponse.json({ status: "deferred", message: "최근 24시간 접수 상한에 도달했다. 다음 갱신 창에서 다시 요청할 수 있다." }, { status: 429 });
+  if ((count ?? 0) >= DAILY_REQUEST_LIMIT) return NextResponse.json({ status: "rate_limited", message: "최근 24시간 접수 상한에 도달했다. 큐에 접수되지 않았으며 다음 갱신 창에서 다시 요청할 수 있다." }, { status: 429 });
 
   const payload = { request_key: requestKey, code, fiscal_year: year, fiscal_quarter: quarter,
     status: "pending", error: null, requested_at: new Date().toISOString(), claimed_at: null, completed_at: null };

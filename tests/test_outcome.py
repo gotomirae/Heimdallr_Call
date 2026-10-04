@@ -3,6 +3,15 @@
 
 from __future__ import annotations
 
+
+def test_pri_review_requires_each_quarter_to_have_a_real_holdout_sample():
+    from src.analysis.outcome_run import pri_feedback_review
+    rows = [{"fiscal_year": 2026, "fiscal_quarter": 1, "pri_at_announce": i,
+             "excess_d60": i / 10} for i in range(100)]
+    rows += [{"fiscal_year": 2026, "fiscal_quarter": 2, "pri_at_announce": 40, "excess_d60": 3}]
+    assert not pri_feedback_review(rows)["review_ready"]
+    assert pri_feedback_review(rows)["quarter_samples"] == {"2026.1": 100, "2026.2": 1}
+
 import re
 
 import pytest

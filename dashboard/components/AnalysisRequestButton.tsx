@@ -79,6 +79,7 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
 
   const request = async () => {
     setState({ status: "pending", message: "요청을 접수하고 있다." });
+    try {
     const response = await fetch("/api/analysis-request", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ code, year, quarter }),
@@ -87,6 +88,9 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
     setState(next);
     if (["pending", "working", "deferred"].includes(next.status) && !polling.current) {
       polling.current = setInterval(() => { read().catch(() => undefined); }, 10_000);
+    }
+    } catch {
+      setState({status: "failed", error: "⚠️ 서버 연결을 확인하지 못했습니다. 접수 여부를 재확인한 뒤 다시 요청해 주세요. 중복 요청은 서버에서 차단합니다."});
     }
   };
 

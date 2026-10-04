@@ -235,7 +235,7 @@ def test_analysis_save_preserves_stage_history(monkeypatch):
     class Result:
         data = [{"payload": {"_heimdallr": {"stage_history": {
             "preliminary": "2026-07-28T01:00:00+00:00"
-        }}}}]
+        }, "invalid": True, "invalid_reason": "old failure"}}}]
 
     class DB:
         def table(self, _name): return self
@@ -256,6 +256,8 @@ def test_analysis_save_preserves_stage_history(monkeypatch):
     history = captured[0]["payload"]["_heimdallr"]["stage_history"]
     assert history["preliminary"] == "2026-07-28T01:00:00+00:00"
     assert history["filing"].startswith("20")
+    assert "invalid" not in captured[0]["payload"]["_heimdallr"]
+    assert "invalid_reason" not in captured[0]["payload"]["_heimdallr"]
 
 
 # ── 진행 리포트 (2026-08-17) ──────────────────────────────────────

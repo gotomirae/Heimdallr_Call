@@ -824,8 +824,10 @@ def validate_payload(payload: dict) -> list[str]:
         node = node if isinstance(node, dict) else {}
         if "probability" not in node:
             problems.append(f"missing:scenarios.{name}.probability")
-        else:
+        elif isinstance(node["probability"], (int, float)) and not isinstance(node["probability"], bool):
             probs.append(float(node["probability"]))
+        else:
+            problems.append(f"type:scenarios.{name}.probability")
     if len(probs) == 3 and not (0.9 <= sum(probs) <= 1.1):
         problems.append(f"scenarios.probability_sum={sum(probs):.2f} (1.0 근처여야 한다)")
 
@@ -870,6 +872,9 @@ def save(result: AnalysisResult) -> None:
         # 이력 조회 실패가 이미 성공한 분석 저장을 막으면 안 된다.
         old_meta = {}
     stage_history = dict(old_meta.get("stage_history") or {})
+    # A new validated success must not inherit the previous failed output's hiding flag.
+    for stale_key in ("invalid", "invalid_reason", "validation_errors"):
+        old_meta.pop(stale_key, None)
     stage_history[stage] = completed_at
     stored_payload["_heimdallr"] = {
         **old_meta,

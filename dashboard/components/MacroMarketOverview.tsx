@@ -16,22 +16,22 @@ import type { MacroContext, MacroMarketSeries } from "@/lib/macroContext";
 
 const tooltipStyle = { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 8 };
 
-type SentimentNasdaqPoint = { date: string; fearGreed: number; nasdaq: number };
+type SentimentNasdaqPoint = { date: string; fearGreed: number | null; nasdaq: number };
 
 export function alignFearGreedAndNasdaq(
   fearHistory: { date: string; value: number }[],
   nasdaqHistory: { date: string; value: number }[]
 ): SentimentNasdaqPoint[] {
-  const nasdaqByDate = new Map(nasdaqHistory.map((point) => [point.date, point.value]));
-  return fearHistory.flatMap((point) => {
-    const nasdaq = nasdaqByDate.get(point.date);
-    return nasdaq == null ? [] : [{ date: point.date, fearGreed: point.value, nasdaq }];
-  });
+  const fearByDate = new Map(fearHistory.map((point) => [point.date, point.value]));
+  return [...nasdaqHistory].sort((a, b) => a.date.localeCompare(b.date)).map((point) => ({
+    date: point.date, fearGreed: fearByDate.get(point.date) ?? null, nasdaq: point.value,
+  }));
 }
 
 export function dailyChangeCorrelation(points: SentimentNasdaqPoint[]): number | null {
   const pairs = points.slice(1).map((point, index) => {
     const previous = points[index];
+    if (point.fearGreed == null || previous.fearGreed == null) return [NaN, NaN];
     return [point.fearGreed - previous.fearGreed, (point.nasdaq / previous.nasdaq - 1) * 100];
   }).filter(([fearDelta, nasdaqPct]) => Number.isFinite(fearDelta) && Number.isFinite(nasdaqPct));
   if (pairs.length < 3) return null;
@@ -96,6 +96,10 @@ export default function MacroMarketOverview({ context }: { context: MacroContext
   const fearGreed = context.fearGreed;
   const sentimentNasdaq = alignFearGreedAndNasdaq(fearGreed?.history ?? [], nasdaq?.history ?? []);
   const correlation = dailyChangeCorrelation(sentimentNasdaq);
+  const correlationObservations = sentimentNasdaq.slice(1).filter((point, index) =>
+    point.fearGreed != null && sentimentNasdaq[index].fearGreed != null &&
+    Number.isFinite((point.nasdaq / sentimentNasdaq[index].nasdaq - 1) * 100)
+  ).length;
   const correlationStrength = correlation == null ? "측정 불가" : Math.abs(correlation) >= 0.7 ? "강한" : Math.abs(correlation) >= 0.4 ? "보통" : "약한";
   const correlationDirection = correlation == null ? "" : correlation >= 0 ? "동행" : "역행";
   const vixMood = vix?.close == null ? null : Math.max(0, Math.min(100, 100 - (vix.close - 10) * 4));
@@ -124,16 +128,19 @@ export default function MacroMarketOverview({ context }: { context: MacroContext
       </article>
 
       <article className="rounded-xl border border-slate-700 bg-slate-950/55 p-4">
-        <h4 className="text-base font-black text-white">Fear & Greed × 나스닥100 · 60거래일</h4>
+        <h4 className="text-base font-black text-white">Fear & Greed × 나스닥100 · 지난 12개월</h4>
         <p className="mt-1 text-xs leading-5 text-slate-300">심리지수(왼쪽 축)와 나스닥100(^NDX) 종가(오른쪽 축)를 같은 날짜에 겹쳤다. 일간 변화의 상관계수는 동행성을 보는 보조지표이며 인과관계를 뜻하지 않는다.</p>
         {!nasdaq && <p className="mt-2 text-xs text-amber-200">⚠️ 나스닥100 원자료 미수집 · 나스닥 종합으로 대체하지 않습니다.</p>}
+        <p className="mt-2 text-xs leading-5 text-slate-300">📅 {sentimentNasdaq[0]?.date ?? "—"} ~ {sentimentNasdaq.at(-1)?.date ?? "—"}<br />📊 나스닥100 {sentimentNasdaq.length}거래일 · 심리지수 같은 날짜 {sentimentNasdaq.filter(p => p.fearGreed != null).length}개. 결측은 보간하지 않고 선을 끊습니다.</p>
+        {!fearGreed && <p className="mt-2 text-xs text-amber-200">⚠️ 심리지수 원천 확인 실패 · 나스닥100 선은 독립적으로 표시합니다.</p>}
+        {fearGreed && fearGreed.date !== context.marketDate && <p className="mt-2 text-xs text-amber-200">⚠️ 심리지수 최신 관측 {fearGreed.date} · 미국장 기준 {context.marketDate}와 다릅니다.</p>}
         <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold"><span className="rounded-full bg-violet-400/15 px-2 py-1 text-violet-200">● Fear & Greed</span><span className="rounded-full bg-amber-400/15 px-2 py-1 text-amber-200">● 나스닥100 종가</span></div>
-        <div className="mt-2 h-44"><ResponsiveContainer width="100%" height="100%"><LineChart data={sentimentNasdaq} syncId="macro-sentiment">
+        <div className="mt-2 h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={sentimentNasdaq} syncId="macro-sentiment" syncMethod="value">
           <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="date" stroke="#94a3b8" fontSize={9} minTickGap={38} /><YAxis yAxisId="sentiment" domain={[0, 100]} ticks={[25, 50, 75]} stroke="#c084fc" fontSize={9} /><YAxis yAxisId="nasdaq" orientation="right" domain={["auto", "auto"]} stroke="#fbbf24" fontSize={9} tickFormatter={(value) => Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} width={48} /><ReferenceLine yAxisId="sentiment" y={25} stroke="#fb7185" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={50} stroke="#cbd5e1" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={75} stroke="#34d399" strokeDasharray="3 3" /><Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [name === "나스닥100" ? Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : Number(value).toFixed(1), name]} /><Line yAxisId="sentiment" dataKey="fearGreed" name="Fear & Greed" stroke="#c084fc" strokeWidth={2.5} dot={false} isAnimationActive={false} /><Line yAxisId="nasdaq" dataKey="nasdaq" name="나스닥100" stroke="#fbbf24" strokeWidth={2.2} dot={false} isAnimationActive={false} />
         </LineChart></ResponsiveContainer></div>
-        <p className="mb-3 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-[11px] text-slate-200">최근 {Math.max(0, sentimentNasdaq.length - 1)}회 일간 변화 상관계수 <strong className="text-white">r {correlation == null ? "—" : `${correlation >= 0 ? "+" : ""}${correlation.toFixed(2)}`}</strong> · {correlationStrength}{correlationDirection}</p>
+        <p className="mb-3 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-[11px] text-slate-200">같은 날짜 {correlationObservations}회 일간 변화 상관계수 <strong className="text-white">r {correlation == null ? "—" : `${correlation >= 0 ? "+" : ""}${correlation.toFixed(2)}`}</strong> · {correlationStrength}{correlationDirection}</p>
         <SentimentBar value={fearGreed?.value ?? null} label={fearGreed ? `${fearGreed.label} · ${fearGreed.date}` : "Fear & Greed 미수집"} />
-        {fearGreed && <a href={`/macro/translation?source=${encodeURIComponent(fearGreed.sourceUrl)}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[11px] text-sky-300 underline">{fearGreed.sourceLabel} · 한국어 설명</a>}
+        {fearGreed && <a href={fearGreed.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[11px] text-sky-300 underline">🔗 {fearGreed.sourceLabel} · 원자료</a>}
       </article>
     </div>
 
