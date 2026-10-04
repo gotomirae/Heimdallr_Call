@@ -577,12 +577,13 @@ export default async function StockPage({ params }: { params: { code: string } }
   );
   const productShareSource = productShareDisclosure(disclosureExcerpt);
   const productShares = productShareSource.shares;
-  const analysisAsOf = typeof lastAttempt.attempted_at === "string"
-    ? lastAttempt.attempted_at.slice(0, 10)
+  const successfulAnalysisAt = !analysisInvalid ? recentAnalyses.find((item) => item.fiscal_year === analysisYear && item.fiscal_quarter === analysisQuarter)?.created_at : undefined;
+  const analysisAsOf = successfulAnalysisAt
+    ? new Intl.DateTimeFormat("sv-SE", {timeZone: "Asia/Seoul"}).format(new Date(successfulAnalysisAt))
     : null;
   const previousAnalysis = analysisMeta?.previous_analysis as Record<string, unknown> | undefined;
   const deltaLabels = ["🔁 강조", "🔄 변경", "🛠 수정", "🆕 신규"];
-  const deltaParts = (analysis.earningsChange.effect ?? "").split(/(?=🔁|🔄|🛠|🆕)/u);
+  const deltaParts = (analysis.earningsChange.effect ?? "").replace(/\uFE0F/gu, "").split(/(?=🔁|🔄|🛠|🆕)/u);
 
   return (
     <div className="space-y-5">
@@ -920,7 +921,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         title="LLM 분석"
         note={
           analysisYear && analysisQuarter
-            ? `${quarterLabel(analysisYear, analysisQuarter)} · 분석 기준일 ${analysisAsOf ?? "미확인"}`
+            ? `${quarterLabel(analysisYear, analysisQuarter)} · 분석 생성일 ${analysisAsOf ?? "미확인"}`
             : undefined
         }
       >
@@ -929,7 +930,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           year={year}
           quarter={quarter}
           hasAnalysis={!analysis.isEmpty}
-          analyzedAt={!analysisInvalid ? recentAnalyses.find((item) => item.fiscal_year === analysisYear && item.fiscal_quarter === analysisQuarter)?.created_at : undefined}
+          analyzedAt={successfulAnalysisAt}
         />}
         <div className="mb-4 rounded border border-violet-800/70 p-3">
           <h3 className="font-bold text-violet-200">🧭 이전 분석과 비교</h3>
