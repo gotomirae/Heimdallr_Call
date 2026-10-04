@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from calendar import monthrange
 from datetime import date, datetime, timezone
@@ -135,6 +136,22 @@ class AnalysisResult:
     removed_factual_numbers: tuple[str, ...] = ()
     web_search_requests: int = 0
     previous_analysis: dict | None = None
+
+
+def normalize_explicit_confidence(payload: dict) -> None:
+    """Recover only an explicitly stated confidence, never guess a missing rating."""
+    change = payload.get("earnings_change")
+    if not isinstance(change, dict) or change.get("confidence") not in (None, ""):
+        return
+    outlook = change.get("outlook")
+    if not isinstance(outlook, str):
+        return
+    matches = {rating for phrase, rating in (
+        ("확신도는 낮게 둔다", "low"), ("확신도는 중간으로 둔다", "medium"),
+        ("확신도는 높게 둔다", "high"),
+    ) if re.search(r"(?:^|[.。!?\n]\s*)" + re.escape(phrase) + r"(?:\s*[—–\-.,!?。]|\s*$)", outlook)}
+    if len(matches) == 1:
+        change["confidence"] = matches.pop()
 
 
 def _fmt_quarters(quarters: list[dict]) -> str:
@@ -507,6 +524,11 @@ def build_llm_request(
     raw_user_message = (
         user_message if user_message is not None else build_user_message(data)
     )
+    if not web_search:
+        raw_user_message += (
+            "\n[WEB_SEARCH_EXECUTION: disabled]\n이번 실행은 웹검색을 하지 않는다. "
+            "검색을 수행했거나 검색 결과가 없었다고 쓰지 말고, 제공된 자료 밖의 사실은 미확인으로 명시한다."
+        )
     return LLMRequest(
         model=model,
         system_prompt=(
@@ -666,6 +688,19 @@ def analysis_result_from_response(
     # ★ 저장 전에 태그 누출을 걷어낸다(T61). 스키마 검증은 이걸 못 잡는다 —
     #   타입은 여전히 문자열이라 통과하고, 텔레그램도 esc() 덕에 발송에 성공한다.
     payload = sanitize_payload(payload)
+    normalize_explicit_confidence(payload)
+    if "[WEB_SEARCH_EXECUTION: disabled]" in request_user_message:
+        chain = payload.get("value_chain")
+        if isinstance(chain, dict) and isinstance(chain.get("search_limit"), str):
+            chain["search_limit"] = (
+                "🌐 이번 실행은 웹검색 미실행 · 제공된 공시/DB 자료 기준입니다. "
+                + chain["search_limit"].replace("웹검색으로", "제공된 자료에서")
+                + " 발췌의 미확인은 수주·계약의 부재를 의미하지 않습니다."
+            )
+        if isinstance(payload.get("how_i_could_be_wrong"), str):
+            payload["how_i_could_be_wrong"] = payload["how_i_could_be_wrong"].replace(
+                "웹검색으로", "제공된 자료에서"
+            )
     # B-14 — `{"risk":"...","watch_metric":"..."}` 같은 자리표시 항목은 배열에서 뺀다.
     #   배열이 비면 아래 스키마 검증이 `empty`로 잡는다(전부 자리표시면 저장하지 않는다).
     payload = prune_placeholder_items(payload)

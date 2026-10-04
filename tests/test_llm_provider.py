@@ -107,15 +107,31 @@ def test_dashboard_shallow_transport_roundtrip_and_paid_decode_failure(broken):
                 "number": 0.3, "integer": 2}[kind]
 
     expected = sample(request.schema)
-    wire = {key: value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
-            for key, value in expected.items()}
+    fields = AnthropicProvider._flat_properties(request)
+    wire = {}
+    for key, spec in fields.items():
+        value = sample(spec)
+        wire[key] = value
+    columns = {key: [] for key in ("paths", "indices", "texts", "numbers", "booleans")}
+    for path, value in wire.items():
+        if path == "earnings_change__confidence":
+            continue
+        values = list(enumerate(value)) if isinstance(value, list) else [(-1, value)]
+        for index, item in values:
+            columns["paths"].append(path)
+            columns["indices"].append(index)
+            columns["texts"].append(item if isinstance(item, str) else "")
+            columns["numbers"].append(item if type(item) in (int, float) else 0)
+            columns["booleans"].append(item if isinstance(item, bool) else False)
     if broken:
-        wire["scenarios"] = "{broken"
+        columns["texts"].pop()
+    cells = {"confidence": "high", "cells": [dict(zip(("path", "index", "text", "number", "boolean"), values))
+                       for values in zip(*(columns[key] for key in columns))]}
 
     class Messages(_AnthropicMessages):
         def create(self, **kwargs):
             response = super().create(**kwargs)
-            response.content[0].input = wire
+            response.content[0].input = cells
             return response
 
     messages = Messages()
@@ -124,8 +140,10 @@ def test_dashboard_shallow_transport_roundtrip_and_paid_decode_failure(broken):
     response = provider.generate_structured(request)
     tool = messages.create_kwargs["tools"][0]
     assert tool["strict"] is True
-    assert len(tool["input_schema"]["properties"]) == 12
-    assert all(spec == {"type": "string"} for spec in tool["input_schema"]["properties"].values())
+    assert len(tool["input_schema"]["properties"]) == 2
+    assert all(spec["type"] != "object" for spec in tool["input_schema"]["properties"].values())
+    assert fields["scenarios__bull__probability"]["type"] == "number"
+    assert fields["acceleration_quality__is_genuine"]["type"] == "boolean"
     assert "$defs" not in tool["input_schema"]
     assert messages.count_kwargs["tools"] == messages.create_kwargs["tools"]
     assert "value_chain" in tool["description"]
@@ -143,6 +161,29 @@ def test_industry_position_explanation_is_inside_existing_score_row():
     assert "산업 내 기업 위상 · 공시 근거" not in source
     assert 'part.key === "industry_position"' in source
     assert "공시 원문 ↗" in source
+
+
+def test_dashboard_confidence_is_directly_strict_and_empty_cell_uses_explicit_enum():
+    request = replace(_request(), schema=DASHBOARD_ANALYSIS_SCHEMA)
+    schema = AnthropicProvider._analysis_tool(request)["input_schema"]
+    assert schema["properties"]["confidence"]["enum"] == ["high", "medium", "low"]
+    assert "confidence" in schema["required"]
+    # Full path reconstruction still rejects omissions; no placeholder report is saved.
+    with pytest.raises(ValueError, match="omitted required paths"):
+        AnthropicProvider._restore_cells(request, {"confidence": "low", "cells": []})
+
+
+@pytest.mark.parametrize("outlook,expected", [
+    ("확신도는 낮게 둔다 — 수주 근거 미확인", "low"),
+    ("낮은 수주 확인 가능성", ""),
+    ("확신도는 낮게 둔다고 단정할 수 없다", ""),
+    ("확신도는 낮게 둔다. 확신도는 높게 둔다.", ""),
+])
+def test_missing_confidence_requires_explicit_unambiguous_statement(outlook, expected):
+    from src.analysis.analyze import normalize_explicit_confidence
+    payload = {"earnings_change": {"outlook": outlook, "confidence": ""}}
+    normalize_explicit_confidence(payload)
+    assert payload["earnings_change"]["confidence"] == expected
 
 
 def test_anthropic_adapter_counts_searches_and_exposes_actual_source_urls():

@@ -298,9 +298,10 @@ def test_operating_request_keeps_unproven_reference_contract_disabled():
         factual_references=True,
     )
 
-    assert operating.user_message == "매출 증가액 +595.1억원"
+    assert operating.user_message.split("\n[WEB_SEARCH_EXECUTION: disabled]")[0] == "매출 증가액 +595.1억원"
+    assert "[WEB_SEARCH_EXECUTION: disabled]" in operating.user_message
     assert "[[F001]]" not in operating.system_prompt
-    assert experimental.user_message == "매출 증가액 [[F001:+595.1억원]]"
+    assert experimental.user_message.split("\n[WEB_SEARCH_EXECUTION: disabled]")[0] == "매출 증가액 [[F001:+595.1억원]]"
     assert "[[F001]]" in experimental.system_prompt
 
 
