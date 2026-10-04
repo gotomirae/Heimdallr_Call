@@ -17,11 +17,11 @@ import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from src.collectors.dart_financials import REQUEST_INTERVAL_SEC, _to_int, fetch_single_all
+from src.collectors.dart_financials import REQUEST_INTERVAL_SEC, _to_int, aligned_previous_report, fetch_single_all
 from src.config.constants import DART_BASE_URL, GPM_HISTORY_BATCH_SIZE, GPM_HISTORY_FAILURE_STREAK_LIMIT, GPM_HISTORY_MAX_SECONDS, GPM_HISTORY_QUARTERS, REPRT_CODE
 from src.db.supabase_client import get_client, select_all
 from src.finance.derive import margin_pct
-from src.finance.quarterize import ReportFigure, quarterize
+from src.finance.quarterize import ReportFigure, fiscal_term_of, quarterize
 from src.utils.console import enable_utf8_stdout
 from src.utils.env import require_env
 from src.utils.http import http_get
@@ -168,6 +168,7 @@ def _income_figure(row: dict | None) -> ReportFigure:
     return ReportFigure(
         amount=cumulative_value(row.get("thstrm_amount")),
         add_amount=cumulative_value(row.get("thstrm_add_amount")),
+        fiscal_term=fiscal_term_of(row.get("thstrm_nm")),
     )
 
 
@@ -337,8 +338,17 @@ def run_gpm_history(*, save: bool, codes: set[str] | None = None, limit: int | N
                 missing_reports += 1
                 continue  # API/원문 미확보는 확인 완료로 찍지 않는다.
             previous_rows = accounts(q - 1) if q > 1 else []
-            profit = quarter_income_value(q, extract_accounts(current_rows).gross_profit,
-                extract_accounts(previous_rows).gross_profit if previous_rows else ReportFigure())
+            if q > 1:
+                previous_rows = aligned_previous_report(uni["corp_code"], row["fiscal_year"], q,
+                    row["fs_div"], current_rows, previous_rows)
+            current_profit = extract_accounts(current_rows).gross_profit
+            previous_profit = extract_accounts(previous_rows).gross_profit if previous_rows else ReportFigure()
+            if (q > 1 and current_profit.fiscal_term is not None
+                    and previous_profit.fiscal_term is not None
+                    and current_profit.fiscal_term != previous_profit.fiscal_term):
+                errors.append(f"{row['code']} {row['fiscal_year']}.{q}Q fiscal_term_mismatch — 원문 사업연도 확인 필요")
+                continue  # T237: 기간 불일치를 checked_at 완료 표식으로 숨기지 않는다.
+            profit = quarter_income_value(q, current_profit, previous_profit)
             if profit is None and q > 1 and not previous_rows:
                 missing_reports += 1
                 continue
@@ -494,13 +504,15 @@ def collect_target(
     previous_quarter = _previous_report(quarter)
     current = extract_accounts(current_rows)
     previous = (
-        extract_accounts(accounts(year, previous_quarter))
+        extract_accounts(aligned_previous_report(target.corp_code, year, quarter, target.fs_div,
+            current_rows, accounts(year, previous_quarter)))
         if previous_quarter is not None
         else DetailedAccounts()
     )
     prior_same = extract_accounts(accounts(year - 1, quarter))
     prior_previous = (
-        extract_accounts(accounts(year - 1, previous_quarter))
+        extract_accounts(aligned_previous_report(target.corp_code, year - 1, quarter, target.fs_div,
+            accounts(year - 1, quarter), accounts(year - 1, previous_quarter)))
         if previous_quarter is not None
         else DetailedAccounts()
     )

@@ -36,6 +36,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -63,6 +64,13 @@ class ReportFigure:
 
     amount: int | None = None
     add_amount: int | None = None
+    fiscal_term: int | None = None  # DART thstrm_nm의 회계기수 (달력연도 아님)
+
+
+def fiscal_term_of(label: str | None) -> int | None:
+    """명시적인 제 N 기만 읽는다. 분기 숫자로 사업연도를 추측하지 않는다."""
+    match = re.search(r"제\s*(\d+)\s*기", label or "")
+    return int(match.group(1)) if match else None
 
 
 @dataclass(frozen=True)
@@ -127,6 +135,13 @@ def quarterize(reports: Mapping[str, ReportFigure]) -> dict[int, QuarterValue]:
         if quarter == 1:
             value, source = current, "direct"
         else:
+            current_term = reports[_REPORT_FOR_QUARTER[quarter]].fiscal_term
+            previous_report = reports.get(_REPORT_FOR_QUARTER[quarter - 1])
+            previous_term = previous_report.fiscal_term if previous_report else None
+            # SC: SC2 · T237: 같은 API 연도라도 비12월 결산의 사업연도가 다를 수 있다.
+            if current_term is not None and previous_term is not None and current_term != previous_term:
+                result[quarter] = QuarterValue(None, reason="fiscal_term_mismatch")
+                continue
             prior = cumulative[quarter - 1]
             if prior is None:
                 # ★ 앞 분기 누적이 없으면 이번 분기를 계산할 수 없다. 0으로 채우지 않는다.

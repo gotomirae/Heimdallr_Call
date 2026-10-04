@@ -3,6 +3,17 @@
 
 from __future__ import annotations
 
+
+def test_previous_report_alignment_requires_exact_unique_term(monkeypatch):
+    from src.collectors import dart_financials as collector
+    current = [{"thstrm_nm": "제10기 3분기"}]
+    wrong = [{"thstrm_nm": "제11기 반기"}]
+    correct = [{"thstrm_nm": "제10기 반기"}]
+    monkeypatch.setattr(collector, "fetch_single_all", lambda c, y, q, s: correct if y == 2023 else [])
+    assert collector.aligned_previous_report("corp", 2024, 3, "OFS", current, wrong) == correct
+    monkeypatch.setattr(collector, "fetch_single_all", lambda *args: correct)
+    assert collector.aligned_previous_report("corp", 2024, 3, "OFS", current, wrong) == wrong
+
 import pytest
 
 import src.finance.detail as detail_module

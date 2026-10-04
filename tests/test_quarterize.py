@@ -11,6 +11,34 @@ from __future__ import annotations
 
 import pytest
 
+
+def test_different_fiscal_terms_must_not_be_subtracted():
+    # 원문 334970: 11기 반기에서 10기 3Q를 차분하면 -1,061,117,149원 오염.
+    from src.finance.quarterize import ReportFigure, quarterize
+    result = quarterize({
+        "11012": ReportFigure(add_amount=3365223251, fiscal_term=11),
+        "11014": ReportFigure(add_amount=2304106102, fiscal_term=10),
+    })[3]
+    assert result.value is None
+    assert result.reason == "fiscal_term_mismatch"
+
+
+def test_same_fiscal_term_preserves_cumulative_difference():
+    from src.finance.quarterize import ReportFigure, quarterize
+    # 손계산: 같은 10기 100 - 60 = 40.
+    result = quarterize({
+        "11012": ReportFigure(add_amount=60, fiscal_term=10),
+        "11014": ReportFigure(amount=40, add_amount=100, fiscal_term=10),
+    })[3]
+    assert result.value == 40
+
+
+def test_fiscal_term_parser_does_not_guess_from_quarter_number():
+    from src.finance.quarterize import fiscal_term_of
+    assert fiscal_term_of("제 10 기 3분기말") == 10
+    assert fiscal_term_of("제31기") == 31
+    assert fiscal_term_of("당분기 3개월") is None
+
 from src.finance.quarterize import (
     REPRT_1Q,
     REPRT_3Q,

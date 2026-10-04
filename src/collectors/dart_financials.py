@@ -20,7 +20,7 @@ from src.config.constants import (
     DART_MULTI_ACNT_MAX_CORP_CODES,
     REPRT_CODE,
 )
-from src.finance.quarterize import ReportFigure, QuarterValue, quarterize
+from src.finance.quarterize import ReportFigure, QuarterValue, fiscal_term_of, quarterize
 from src.utils.env import require_env
 from src.utils.http import http_get
 
@@ -213,8 +213,35 @@ def extract_figures(
         figures[field_name] = ReportFigure(
             amount=_to_int(match.get("thstrm_amount")),
             add_amount=_to_int(match.get("thstrm_add_amount")),
+            fiscal_term=fiscal_term_of(match.get("thstrm_nm")),
         )
     return figures
+
+
+def report_term(rows: list[dict]) -> int | None:
+    """계정명과 무관하게 원문 회계기수의 일관성을 확인한다."""
+    terms = {fiscal_term_of(r.get("thstrm_nm")) for r in rows}
+    terms.discard(None)
+    return next(iter(terms)) if len(terms) == 1 else None
+
+
+def aligned_previous_report(corp_code: str, year: int, quarter: int, fs_div: str,
+                            current: list[dict], previous: list[dict]) -> list[dict]:
+    """T237: API 달력연도 대신 명시적 동일 기수로 이전 누적 보고서를 찾는다.
+
+    숫자 연도를 임의 이동하는 것이 아니라 후보 원문 기수의 일치를 확인한다.
+    후보가 없거나 모호하면 기존 불일치 자료를 유지해 quarterize가 차단한다.
+    """
+    term = report_term(current)
+    prior_term = report_term(previous)
+    if quarter <= 1 or term is None or prior_term is None or term == prior_term:
+        return previous
+    candidates = []
+    for candidate_year in (year - 1, year + 1):
+        rows = fetch_single_all(corp_code, candidate_year, quarter - 1, fs_div)
+        if report_term(rows) == term:
+            candidates.append(rows)
+    return candidates[0] if len(candidates) == 1 else previous
 
 
 @dataclass
@@ -304,12 +331,29 @@ def collect_year(
                         match.get("frmtrm_add_amount") or match.get("frmtrm_amount")
                     )
 
+        quarters = {f: quarterize(figs) for f, figs in per_field.items()}
+        for q in (2, 3, 4):
+            current_rows = per_quarter.get(q, [])
+            previous_rows = per_quarter.get(q - 1, [])
+            aligned = aligned_previous_report(corp_code, year, q, fs_div, current_rows, previous_rows)
+            if aligned is previous_rows:
+                continue
+            previous_figures = extract_figures(aligned, fs_div)
+            for field_name, figures in per_field.items():
+                current_figure = figures.get(REPRT_CODE[q])
+                if current_figure is None:
+                    continue
+                quarters[field_name][q] = quarterize({
+                    REPRT_CODE[q]: current_figure,
+                    REPRT_CODE[q - 1]: previous_figures.get(field_name, ReportFigure()),
+                })[q]
+
         results[corp_code] = CompanyQuarters(
             corp_code=corp_code,
             code=(all_rows[0].get("stock_code") or "").strip() or None,
             fiscal_year=year,
             fs_div=fs_div,
-            quarters={f: quarterize(figs) for f, figs in per_field.items()},
+            quarters=quarters,
             prior_year_reported=dict(prior),
         )
     return results
