@@ -983,6 +983,33 @@ Kairos는 Google Drive 자료, Notion 모니터링·직전 완성본, 공시·IR
 
 Notion 보고서의 표 머리글·지표·단위·그래프 제목·축·범례·설명은 한국어로 작성한다. 본문 시작 부분에 목차 블록을 넣지 않는다. 상세 분석을 유지하면서 문장 마침표 뒤에는 다음 문장을 새 줄·블록으로 시작하고, 표 셀의 두 문장은 `<br>`로 구분한다. 기업 주가 절은 네이버 증권의 일봉 기준일·종가와 과거 상승·하락의 주요 구간을 수치·그래프·날짜별 확인 사건으로 설명하되 인과관계를 단정하지 않는다. Heimdallr `/stock/{code}`·네이버 증권·StockEasy 직접 링크를 제공한다. 저장 후 대상별 부모·직전 원본 링크·목차 생략·한글 표/그래프·이미지 표시·출처를 재조회하고, 기업 보고서는 가격과 세 직접 링크도 확인한다.
 
+### 8.7 G. JARVIS 분석 버튼·미국 종목·Drive 자동 준비·별도 발표자료 (D59)
+
+사용자가 JARVIS 추천의 산업·기업 버튼으로 요청한 분석도 Kairos의 인증된 실행 대상이다.
+Vault heimdallr_jarvis_token으로 검증한 3개 RPC를 사용하며 source=jarvis/음수 ID/chat_id=user_id=0을 기록한다.
+기업은 30일 이내이며 이후 실적 발표가 없을 때, 산업은 매핑 폴더의 30일 완료본을 재사용한다.
+동일 대상의 열린 작업을 먼저 반환하고 열린 JARVIS 6건 상한을 원자적으로 적용한다.
+JARVIS 작업의 진행·완료·실패는 DB에 기록하며 Heimdallr Telegram 알림·awaiting_input을 금지한다.
+이 범위의 실행·폴더 규칙은 위 §8.7의 Telegram-only/확인 규칙보다 우선한다.
+
+미국은 SEC 명부의 정확한 티커/정식명과 검증된 한국어 별칭으로 식별하며 market=US/ticker를 사용한다.
+국내 code FK는 비운다. SEC 공시·IR·실적 발표를 사용하고 해외 네이버 링크는 실제 확인한 경우만 제공한다.
+Notion 기업 제목은 기업명 (TICKER·NASDAQ|NYSE)이며 미국 티커에 국내 대시보드 링크를 만들지 않는다.
+
+config/industry_folders.yaml 명시 매핑과 정규화는 Telegram에도 우선 적용한다.
+의료기기/OLED/네트워크/의류 세부분류는 명시적 기업 업종·섹터 근거만 사용한다.
+미매핑 산업은 최대 번호 다음 산업·날짜 폴더를 자동 생성하고 YAML·실행 장부에 남긴다.
+claim 직후 Google Drive for Desktop의 실제 G 드라이브에서 최근 3개월 기업 자료를 확인한다.
+없으면 국내 최근 4기간 정기보고서 PDF/4분기 공시 IR, 미국 4건 10-K/10-Q와 4분기 8-K Item 2.02 EX-99를 수집한다.
+DART 웹/SEC는 초당 1회 이하로 받으며 다운로드 실패·IR 부재는 장부와 분석 한계로 표시하고 진행한다.
+산업 공통 자료를 자동 수집하지 않고 실제 읽은 원문 PDF만 산업 날짜 폴더에 보존한다.
+
+기업 분석 sent 이후 별도 🎤 RPC만 kairos_deck_requests에 접수한다.
+동시에 1건만 Claude Code 구독 로그인으로 기존 kairos-deck 스킬을 화면 없이 실행한다.
+120분 제한, 사용량 한도 30분 뒤 재시도·3회 초과 종료, 성공 JSON/이번 요청의 최신 결과 파일을 검증한다.
+심층 분석 자체의 PDF 금지는 유지하고 별도 발표자료에만 PPTX/PDF/분석노트 생성·Notion 첨부를 허용한다.
+설치·RPC·Notion 재조회 증빙·실제 요청 검증 정본은 telegram_bridge/JARVIS.md, ADR 30이다.
+
 ### 8.8 🧭 JARVIS 진입 필수 조건 `entry_checks` · 🔵 K1 실적 돌파 (2026-10-01)
 
 JARVIS는 국내 🟢 진입을 M1∧M2∧M3∧M4∧M5로 판정하고, **M1·M2·M5를 이 테이블에서 anon SELECT로 읽는다**(JARVIS PRD §7.3·§7.4, INTEGRATION_TASKS B). 임계값은 `constants.py`의 `ENTRY_*`·`K1_*`이며 JARVIS `rules.yaml > entry_core`·`breakout_watch.K1_kr`와 **같은 값**이다(테스트가 같은 PC의 JARVIS 저장소와 대조한다 · T216). 선별에 LLM을 쓰지 않는다(ADR 3).

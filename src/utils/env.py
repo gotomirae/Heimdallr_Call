@@ -126,3 +126,12 @@ def optional_env_bool(name: str, default: bool) -> bool:
     if lowered in ("false", "0", "no", "off"):
         return False
     raise DirtyEnvError(f"{name}는 boolean이어야 한다: {value!r}")
+
+
+def subscription_cli_env() -> dict[str, str]:
+    """Claude child uses its stored subscription login, never inherited API billing."""
+    _load_dotenv_once()
+    excluded = {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+                "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX",
+                "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_MODEL"}
+    return {name: value for name, value in os.environ.items() if name not in excluded}

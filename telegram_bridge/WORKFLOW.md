@@ -52,3 +52,8 @@ Peer Group 표와 본문에 실제로 언급된 모든 상장사는 종목명 �
 - `checkpoint ID`는 `working` 작업의 장부만 만들며 기존 내용을 보존한다. `telegram_bridge/state/`는 Git에서 제외된다.
 - Supabase `kairos_requests`는 service key만 접근한다. anon에 대한 SELECT 정책은 없다.
 - Notion 완료 링크는 검증된 실제 페이지 URL이어야 한다.
+
+## JARVIS G절 (2026-10-05 사용자 결정)
+
+source=jarvis와 미국/Drive/별도 발표자료의 실행·무발송·설치·재조회 계약은 [JARVIS.md](JARVIS.md)가 정본이다.
+이 범위에서는 이전 Telegram-only·폴더 확인 안내보다 사용자 G절이 우선한다.

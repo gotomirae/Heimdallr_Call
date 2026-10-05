@@ -37,12 +37,16 @@ EXPECTED_TABLES = (
     "outcome_tracking",
     "notifications",
     "kairos_requests",
+    "kairos_deck_requests",
+    "kairos_us_companies",
+    "kairos_industry_folders",
     "dashboard_analysis_requests",
     "cost_log",
 )
 
 # 개인 Telegram 요청과 비용은 anon에게 노출하지 않는다.
-ANON_PRIVATE = ("cost_log", "kairos_requests", "dashboard_analysis_requests")
+ANON_PRIVATE = ("cost_log", "kairos_requests", "dashboard_analysis_requests",
+                "kairos_deck_requests", "kairos_us_companies", "kairos_industry_folders")
 ANON_READABLE = tuple(t for t in EXPECTED_TABLES if t not in ANON_PRIVATE)
 
 
@@ -106,7 +110,8 @@ def main() -> int:
             .select(
                 "request_kind,target_name,code,company_name,industry,status,error,"
                 "drive_folder_name,drive_folder_url,drive_folder_confirmed,"
-                "confirmation_message_id,confirmation_response,confirmation_responded_at"
+                "confirmation_message_id,confirmation_response,confirmation_responded_at,"
+                "source,market,ticker,stage,stage_updated_at,reuse_after"
             )
             .limit(1).execute().data or []
         )
@@ -117,7 +122,7 @@ def main() -> int:
         print(f"    ✗ {hint}")
         failures.append(
             "Kairos Drive 확인 컬럼 없음 — "
-            "docs/migrations/kairos_drive_confirmation.sql 적용 필요"
+            "docs/migrations/kairos_drive_confirmation.sql 및 kairos_jarvis.sql 적용 필요"
         )
 
     print(f"\n[3] anon(publishable) SELECT 확인 — {len(ANON_READABLE)}개")

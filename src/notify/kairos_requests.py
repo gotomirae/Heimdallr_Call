@@ -18,6 +18,8 @@ class AnalysisTarget:
     kind: str  # company | industry
     name: str
     code: str | None = None
+    market: str = "KR"
+    ticker: str | None = None
 
 
 @dataclass(frozen=True)
@@ -168,6 +170,8 @@ def enqueue(update_id: int, message: dict, target: Match | AnalysisTarget) -> bo
         "raw_text": message["text"].strip(),
         "status": "pending",
     }
+    if resolved.market == "US":
+        payload.update(market="US", ticker=resolved.ticker, code=None)
     try:
         get_client().table("kairos_requests").insert(payload).execute()
     except Exception as exc:
@@ -177,7 +181,7 @@ def enqueue(update_id: int, message: dict, target: Match | AnalysisTarget) -> bo
         # 기업 요청은 DDL 적용 전에도 기존 계약으로 계속 동작한다. 산업 요청은
         # code NOT NULL을 우회해 거짓 기업으로 저장하지 않고 사용자에게 원인을 알린다.
         if missing_column_of(exc) in {"request_kind", "target_name"}:
-            if resolved.kind == "industry":
+            if resolved.kind == "industry" or resolved.market == "US":
                 raise RuntimeError("KAIROS_INDUSTRY_SCHEMA_REQUIRED") from exc
             legacy = {
                 "update_id": update_id,

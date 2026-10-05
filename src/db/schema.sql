@@ -259,6 +259,9 @@ CREATE TABLE IF NOT EXISTS kairos_requests (
   code TEXT REFERENCES krx_universe(code),
   company_name TEXT,
   raw_text TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'telegram' CHECK (source IN ('telegram','jarvis')),
+  market TEXT NOT NULL DEFAULT 'KR' CHECK (market IN ('KR','US')),
+  ticker TEXT, stage TEXT, stage_updated_at TIMESTAMPTZ, reuse_after TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'working', 'awaiting_input', 'rejected', 'failed', 'sending', 'sent', 'uncertain')),
   notion_url TEXT,
@@ -274,8 +277,10 @@ CREATE TABLE IF NOT EXISTS kairos_requests (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   claimed_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
-  CHECK (
-    (request_kind = 'company' AND code IS NOT NULL AND company_name IS NOT NULL)
+  CONSTRAINT kairos_requests_target_shape_check CHECK (
+    (request_kind = 'company' AND company_name IS NOT NULL AND
+     ((market='KR' AND code IS NOT NULL AND ticker IS NULL) OR
+      (market='US' AND ticker IS NOT NULL AND code IS NULL)))
     OR (request_kind = 'industry' AND code IS NULL AND industry IS NOT NULL)
   )
 );
@@ -449,3 +454,27 @@ ALTER TABLE outcome_tracking ADD COLUMN IF NOT EXISTS excess_d40 NUMERIC;
 -- 2026-09-24 — 매출총이익 미공시 기업의 같은 보고서 반복 호출 방지
 ALTER TABLE quarterly_fundamentals
   ADD COLUMN IF NOT EXISTS gross_profit_checked_at TIMESTAMPTZ;
+
+-- §8.7 G: apply docs/migrations/kairos_jarvis.sql after this base schema
+-- for Vault-authenticated RPCs, US registry, industry mapping and deck queue.
+
+CREATE TABLE IF NOT EXISTS kairos_us_companies (
+  ticker TEXT PRIMARY KEY, name TEXT NOT NULL, cik TEXT NOT NULL,
+  exchange TEXT NOT NULL, verified_at TIMESTAMPTZ NOT NULL,
+  latest_earnings_at TIMESTAMPTZ, earnings_checked_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS kairos_industry_folders (
+  alias_key TEXT PRIMARY KEY, folder_name TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS kairos_deck_requests (
+  id BIGSERIAL PRIMARY KEY,
+  request_id BIGINT NOT NULL REFERENCES kairos_requests(update_id),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','working','sent','failed')),
+  notion_url TEXT, drive_dir TEXT, files JSONB, error TEXT, attempts INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), claimed_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ, retry_after TIMESTAMPTZ
+);
+ALTER TABLE kairos_us_companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kairos_industry_folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kairos_deck_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON kairos_us_companies, kairos_industry_folders, kairos_deck_requests FROM anon, authenticated;

@@ -88,6 +88,11 @@ def connect() -> sqlite3.Connection:
         "confirmation_response": "TEXT",
         "confirmation_responded_at": "TEXT",
         "resume_requested": "INTEGER NOT NULL DEFAULT 0",
+        "source": "TEXT NOT NULL DEFAULT 'telegram'",
+        "market": "TEXT NOT NULL DEFAULT 'KR'",
+        "ticker": "TEXT",
+        "industry": "TEXT",
+        "created_at": "TEXT",
     }
     for name, definition in migrations.items():
         if name not in columns:
@@ -117,7 +122,7 @@ def checkpoint_path(job_id: int) -> Path:
 def ensure_checkpoint(db: sqlite3.Connection, job_id: int) -> Path:
     """작업 ID별 재개 장부를 만든다. 기존 원고·진행 기록은 절대 덮어쓰지 않는다."""
     row = db.execute(
-        "SELECT code,company,request_kind,target_name,raw_text,status FROM jobs WHERE id=?",
+        "SELECT code,company,request_kind,target_name,raw_text,status,source,market,ticker FROM jobs WHERE id=?",
         (job_id,),
     ).fetchone()
     if not row or row["status"] != "working":
@@ -128,6 +133,7 @@ def ensure_checkpoint(db: sqlite3.Connection, job_id: int) -> Path:
         with path.open("x", encoding="utf-8") as record:
             record.write(
                 f"# Kairos 작업 {job_id}\n\n"
+                f"- 출처/시장: {row['source']} / {row['market']} / {row['ticker'] or ''}\n"
                 f"- 대상 유형: {_kind_label(row['request_kind'])}\n"
                 f"- 대상: {_identity(row)}\n"
                 f"- 원문: {row['raw_text']}\n"
@@ -199,13 +205,12 @@ def verify_bot() -> None:
 
 def sync_pending(db: sqlite3.Connection) -> int:
     """전용 로컬 수신기가 기록한 pending만 로컬에 복사한다."""
-    verify_bot()
     chats = allowed_chats()
     try:
         rows = select_all(
             TABLE,
             "update_id,chat_id,user_id,request_kind,target_name,code,company_name,"
-            "industry,raw_text,status,telegram_message_id",
+            "industry,raw_text,status,telegram_message_id,source,market,ticker,created_at",
             filters={"status": "pending"}, order="update_id",
         )
     except Exception as exc:
@@ -215,11 +220,17 @@ def sync_pending(db: sqlite3.Connection) -> int:
             TABLE, "update_id,chat_id,user_id,code,company_name,raw_text,status,telegram_message_id",
             filters={"status": "pending"}, order="update_id",
         )
+    if any(r.get("source", "telegram") == "telegram" for r in rows):
+        verify_bot()
     added = 0
     with db:
         for row in rows:
             # 클라우드 테이블이 손상돼도 인증 조건이 없는 요청은 깨우지 않는다.
-            if str(row["chat_id"]) not in chats or row["user_id"] != row["chat_id"]:
+            source = row.get("source", "telegram")
+            if source == "jarvis":
+                if row["update_id"] >= 0 or row["chat_id"] != 0 or row["user_id"] != 0:
+                    continue
+            elif source != "telegram" or str(row["chat_id"]) not in chats or row["user_id"] != row["chat_id"]:
                 continue
             kind = row.get("request_kind") or "company"
             target = (
@@ -229,11 +240,13 @@ def sync_pending(db: sqlite3.Connection) -> int:
                 continue
             cursor = db.execute(
                 "INSERT OR IGNORE INTO jobs("
-                "id,code,company,request_kind,target_name,raw_text,chat_id,status,telegram_message_id"
-                ") VALUES(?,?,?,?,?,?,?,'pending',?)",
+                "id,code,company,request_kind,target_name,raw_text,chat_id,status,telegram_message_id,"
+                "source,market,ticker,industry,created_at"
+                ") VALUES(?,?,?,?,?,?,?,'pending',?,?,?,?,?,?)",
                 (row["update_id"], row.get("code") or "", row.get("company_name") or target,
                  kind, target, row["raw_text"], row["chat_id"],
-                 row.get("telegram_message_id")),
+                 row.get("telegram_message_id"), source, row.get("market", "KR"), row.get("ticker"),
+                 row.get("industry"), row.get("created_at")),
             )
             added += cursor.rowcount
             if row.get("telegram_message_id"):
@@ -313,12 +326,19 @@ def ask_folder(
     ):
         raise ValueError("INVALID_DRIVE_FOLDER_URL")
     row = db.execute(
-        "SELECT company,code,request_kind,target_name,chat_id,status FROM jobs WHERE id=?",
+        "SELECT company,code,request_kind,target_name,chat_id,status,source FROM jobs WHERE id=?",
         (job_id,),
     ).fetchone()
     if not row or row["status"] != "working" or row["request_kind"] != "industry":
         raise RuntimeError("NOT_WORKING_INDUSTRY")
-    if drive_industry_folder_matches(row["target_name"], folder_name):
+    from src.collectors.drive_bootstrap import mapped_folder
+    mapped = mapped_folder(row["target_name"])
+    if row["source"] == "jarvis":
+        if not mapped or not drive_industry_folder_matches(mapped, folder_name):
+            raise RuntimeError("JARVIS_FOLDER_USE_BOOTSTRAP")
+    if drive_industry_folder_matches(row["target_name"], folder_name) or (
+        mapped and drive_industry_folder_matches(mapped, folder_name)
+    ):
         if not change_remote(
             job_id, "working", "working", drive_folder_name=folder_name,
             drive_folder_url=folder_url, drive_folder_confirmed=True,
@@ -415,7 +435,7 @@ def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
         raise ValueError("INVALID_PROGRESS_STAGE")
     row = db.execute(
         "SELECT company,code,request_kind,target_name,chat_id,telegram_message_id,status,"
-        "progress_stage,progress_updated_at "
+        "progress_stage,progress_updated_at,source "
         "FROM jobs WHERE id=?",
         (job_id,),
     ).fetchone()
@@ -425,6 +445,9 @@ def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
         return {"status": "progress", "id": job_id, "stage": stage,
                 "updated_at": row["progress_updated_at"]}
     now = datetime.now(timezone.utc).isoformat()
+    if row["source"] == "jarvis":
+        if not change_remote(job_id, "working", "working", stage=stage, stage_updated_at=now):
+            raise RuntimeError("REMOTE_JOB_NOT_WORKING")
     with db:
         db.execute(
             "UPDATE jobs SET progress_stage=?,progress_updated_at=? WHERE id=?",
@@ -432,7 +455,7 @@ def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
         )
     telegram_updated = False
     telegram_error = None
-    if row["telegram_message_id"]:
+    if row["source"] != "jarvis" and row["telegram_message_id"]:
         try:
             verify_bot()
             TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
@@ -513,8 +536,8 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         return {"status": "busy", "id": busy[0]}
     row = db.execute(
         "SELECT id,wake_sent,wake_sent_at,company,code,request_kind,target_name,chat_id,"
-        "telegram_message_id,progress_stage "
-        "FROM jobs WHERE status='pending' ORDER BY id LIMIT 1"
+        "telegram_message_id,progress_stage,source "
+        "FROM jobs WHERE status='pending' ORDER BY created_at,id DESC LIMIT 1"
     ).fetchone()
     if not row:
         return {"status": "idle"}
@@ -522,7 +545,7 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         last_wake = datetime.fromisoformat(row["wake_sent_at"])
         if datetime.now(timezone.utc) - last_wake < WAKE_RETRY:
             return {"status": "already_queued", "id": row["id"]}
-    if row["wake_sent"] and row["telegram_message_id"] and row["progress_stage"] != "delayed":
+    if row["source"] != "jarvis" and row["wake_sent"] and row["telegram_message_id"] and row["progress_stage"] != "delayed":
         try:
             verify_bot()
             TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
@@ -540,7 +563,7 @@ def wake_pending(db: sqlite3.Connection) -> dict:
     if not codex:
         return {"status": "error", "id": row[0], "error": "CODEX_NOT_FOUND"}
     message = (
-        f"Heimdallr Telegram 기업·산업 분석 요청 {row[0]}가 등록되었습니다. "
+        f"Heimdallr {row['source']} 기업·산업 분석 요청 {row[0]}가 등록되었습니다. "
         "이 프로젝트의 `python -m telegram_bridge.bridge poll`로 실제 요청을 확인하고, "
         "request_kind와 대상을 공식 출처로 식별한 뒤 `claim ID`가 성공하면 $kairos 스킬로 "
         "분석을 시작하면서 기존 Codex heartbeat `kairos`를 ACTIVE로 설정하세요. "
@@ -548,6 +571,20 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         "대상 유형별 지정 Notion 부모와 양식에 작성하세요. 저장 결과를 재조회한 다음 "
         "`deliver ID --notion URL --industry 산업명`으로 링크를 보내세요. "
         "식별 불가면 `reject ID`, 분석 실패면 `fail ID --reason 코드`로 원인을 알려 주세요."
+    )
+    message += (
+        " G절 사용자 결정은 기존 Kairos Telegram-only 실행 규칙보다 우선합니다. "
+        "source=jarvis는 Vault 토큰 RPC로 인증된 실제 사용자 버튼 요청이며 별도 확인 없이 처리합니다. "
+        "claim 직후 생성된 Drive bootstrap 장부와 source/market/ticker를 반드시 읽으세요. "
+        "config/industry_folders.yaml 매핑은 Telegram 요청에도 우선합니다. "
+        "미국 Telegram 요청도 인증된 큐의 market=US/ticker를 기준으로 처리하세요. "
+        "미국 기업 Notion 제목은 기업명 (TICKER·NASDAQ|NYSE)로 SEC 시장을 사용하세요. "
+        "jarvis는 awaiting_input과 Heimdallr Telegram 발송을 금지합니다. 미국은 SEC 식별·공시를 사용하고 "
+        "국내 /stock 링크를 미국 티커로 만들지 마세요. 산업 PDF 실제 읽은 원문만 bootstrap의 "
+        "industry_pdf_destination에 복사하고 원문 URL/발행일/해시를 장부에 남기세요. "
+        "Notion 재조회 결과 page/blocks/ancestors와 checked_at/request_id를 "
+        "telegram_bridge/state/checkpoints/ID-notion.json에 저장한 뒤 deliver 하세요. "
+        "운영 계약 정본은 telegram_bridge/JARVIS.md입니다."
     )
     try:
         result = subprocess.run(
@@ -577,7 +614,7 @@ def poll(db: sqlite3.Connection) -> dict:
         "SELECT id,code,company,request_kind,target_name,raw_text,status,notion_url,wake_sent,"
         "wake_sent_at,wake_error,progress_stage,progress_updated_at,failure_reason,"
         "drive_folder_name,drive_folder_url,drive_folder_confirmed,confirmation_message_id,"
-        "confirmation_response,confirmation_responded_at,resume_requested "
+        "confirmation_response,confirmation_responded_at,resume_requested,source,market,ticker,industry "
         "FROM jobs WHERE status NOT IN ('sent','rejected','failed') ORDER BY id LIMIT 20"
     ).fetchall()
     jobs = [dict(row) for row in rows]
@@ -596,7 +633,8 @@ def poll(db: sqlite3.Connection) -> dict:
             "trigger_thread_updated_at": setting(db, "trigger_thread_updated_at"),
             "listener": listener,
             "collector": {"last_success": setting(db, "last_success"),
-                          "last_error": setting(db, "last_error")},
+                          "last_error": setting(db, "last_error"),
+                          "registry_error": setting(db, "registry_error")},
             "jobs": jobs}
 
 
@@ -644,13 +682,45 @@ def claim(db: sqlite3.Connection, job_id: int) -> dict:
     except Exception:
         # 상태 표시 장애는 이미 claim된 작업을 되돌리지 않는다.
         pass
-    return {"status": "claimed", "id": job_id,
-            "checkpoint": str(ensure_checkpoint(db, job_id))}
+    checkpoint = ensure_checkpoint(db, job_id)
+    bootstrap_result = prepare_drive(db, job_id, checkpoint)
+    return {"status": "claimed", "id": job_id, "checkpoint": str(checkpoint),
+            "drive": bootstrap_result}
+
+
+def prepare_drive(db: sqlite3.Connection, job_id: int, checkpoint: Path) -> dict:
+    from src.collectors.drive_bootstrap import bootstrap
+    job = dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
+    try:
+        if job["request_kind"] == "company" and job["market"] == "KR":
+            rows = get_client().table("krx_universe").select("sector,industry").eq("code", job["code"]).limit(1).execute().data or []
+            if rows:
+                job["sector_hint"] = " ".join(str(rows[0].get(k) or "") for k in ("sector", "industry"))
+        result = bootstrap(job)
+        if job["request_kind"] == "company" and job["market"] == "US":
+            from telegram_bridge.jarvis_registry import refresh_us_company
+            try:
+                result["reuse_evidence"] = refresh_us_company(job["ticker"])
+            except Exception as exc:
+                result.setdefault("failures", []).append({"source": "US_REUSE_METADATA", "error": type(exc).__name__})
+        if job["request_kind"] == "industry":
+            name = Path(result["folder"]).name
+            if change_remote(job_id, "working", "working", drive_folder_name=name, drive_folder_confirmed=True):
+                with db:
+                    db.execute("UPDATE jobs SET drive_folder_name=?,drive_folder_confirmed=1 WHERE id=?", (name, job_id))
+    except Exception as exc:
+        # Source access/download errors never turn a claimed request into 'complete'.
+        result = {"failures": [{"error": type(exc).__name__}], "files": []}
+    manifest = checkpoint.with_suffix(".drive.json")
+    manifest.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    with checkpoint.open("a", encoding="utf-8") as record:
+        record.write(f"\n- Drive bootstrap 장부: {manifest}\n")
+    return result
 
 
 def reject(db: sqlite3.Connection, job_id: int) -> dict:
     row = db.execute(
-        "SELECT company,code,request_kind,target_name,chat_id,telegram_message_id,status "
+        "SELECT company,code,request_kind,target_name,chat_id,telegram_message_id,status,source "
         "FROM jobs WHERE id=?", (job_id,),
     ).fetchone()
     if not row or row["status"] != "pending":
@@ -663,7 +733,7 @@ def reject(db: sqlite3.Connection, job_id: int) -> dict:
             "UPDATE jobs SET status='rejected',failure_reason='TARGET_AMBIGUOUS' WHERE id=?",
             (job_id,),
         )
-    if row["telegram_message_id"]:
+    if row["source"] != "jarvis" and row["telegram_message_id"]:
         try:
             verify_bot()
             TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
@@ -681,13 +751,13 @@ def fail(db: sqlite3.Connection, job_id: int, reason: str) -> dict:
     if reason not in FAILURE_MESSAGES:
         raise ValueError("INVALID_FAILURE_REASON")
     row = db.execute(
-        "SELECT company,code,request_kind,target_name,chat_id,telegram_message_id,status "
+        "SELECT company,code,request_kind,target_name,chat_id,telegram_message_id,status,source "
         "FROM jobs WHERE id=?", (job_id,),
     ).fetchone()
     if not row or row["status"] not in {"pending", "working", "awaiting_input"}:
         raise RuntimeError("NOT_ACTIVE")
     message = FAILURE_MESSAGES[reason]
-    if not change_remote(job_id, row["status"], "failed", error=message):
+    if not change_remote(job_id, row["status"], "failed", error=reason if row["source"] == "jarvis" else message):
         raise RuntimeError("REMOTE_JOB_STATUS_CHANGED")
     with db:
         db.execute(
@@ -695,7 +765,7 @@ def fail(db: sqlite3.Connection, job_id: int, reason: str) -> dict:
             (reason, datetime.now(timezone.utc).isoformat(), job_id),
         )
     telegram_updated = False
-    if row["telegram_message_id"]:
+    if row["source"] != "jarvis" and row["telegram_message_id"]:
         try:
             verify_bot()
             TelegramClient(chat_id=str(row["chat_id"])).call("editMessageText", {
@@ -718,7 +788,7 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
     if not re.fullmatch(r"https://(?:www\.)?notion\.so/\S+|https://app\.notion\.com/p/\S+", notion):
         raise ValueError("INVALID_NOTION_URL")
     row = db.execute(
-        "SELECT company,code,request_kind,target_name,chat_id,status,telegram_message_id "
+        "SELECT company,code,request_kind,target_name,chat_id,status,telegram_message_id,source "
         "FROM jobs WHERE id=?", (job_id,)
     ).fetchone()
     if not row or row["status"] != "working":
@@ -728,6 +798,15 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
     )
     if not 1 <= len(resolved_industry) <= 100 or "\n" in resolved_industry or "\r" in resolved_industry:
         raise ValueError("INVALID_INDUSTRY")
+    if row["source"] == "jarvis":
+        from telegram_bridge.notion_readback import validate_readback
+        validate_readback(job_id, notion, row["request_kind"], STATE.parent / "checkpoints" / f"{job_id}-notion.json")
+        if not change_remote(job_id, "working", "sent", notion_url=notion,
+                             completed_at=datetime.now(timezone.utc).isoformat(), error=None):
+            raise RuntimeError("REMOTE_JOB_NOT_WORKING")
+        with db:
+            db.execute("UPDATE jobs SET status='sent',notion_url=? WHERE id=?", (notion, job_id))
+        return {"status": "sent", "id": job_id, "notion_url": notion}
     verify_bot()
     client = TelegramClient(chat_id=str(row["chat_id"]))
     if not change_remote(job_id, "working", "sending",
@@ -772,7 +851,7 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
             "UPDATE jobs SET status='sent',telegram_message_id=? WHERE id=?",
             (message_id, job_id),
         )
-    if row["telegram_message_id"]:
+    if row["source"] != "jarvis" and row["telegram_message_id"]:
         try:
             client.call("editMessageText", {
                 "chat_id": row["chat_id"],
@@ -823,6 +902,18 @@ def main() -> int:
             result = configure_trigger(db, args.thread)
         elif args.command == "ingest":
             try:
+                # Registry errors do not block existing Korean/Telegram requests.
+                today = datetime.now(timezone.utc).date().isoformat()
+                if setting(db, "registry_day") != today:
+                    from telegram_bridge.jarvis_registry import sync_registry
+                    try:
+                        registry = sync_registry()
+                        save_setting(db, "registry_day", today)
+                        save_setting(db, "registry_error", "")
+                    except Exception as exc:
+                        save_setting(db, "registry_error", type(exc).__name__)
+                        # Retry at most daily; explicit jarvis_registry command can retry immediately.
+                        save_setting(db, "registry_day", today)
                 count = sync_pending(db)
                 confirmations = sync_folder_confirmations(db)
                 wake = wake_pending(db)

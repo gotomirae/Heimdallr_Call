@@ -1,0 +1,12 @@
+# PRD Ref: §8.7 G-6. Korean names point to SEC-verified tickers only.
+aliases:
+  엔비디아: NVDA
+  애플: AAPL
+  마이크로소프트: MSFT
+  테슬라: TSLA
+  아마존: AMZN
+  알파벳: GOOGL
+  구글: GOOGL
+  메타: META
+  브로드컴: AVGO
+  팔란티어: PLTR

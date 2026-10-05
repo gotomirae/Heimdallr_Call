@@ -28,6 +28,7 @@ from src.db.supabase_client import select_all
 from src.notify.kairos_requests import (
     SUPPORTED_INDUSTRIES,
     AnalysisTarget,
+    _direct_private_text,
     answer_drive_folder_confirmation,
     direct_company_request,
     direct_industry_request,
@@ -326,7 +327,17 @@ def handle_message(
     )
     industry_target = resolve_industry(text, industries or set(SUPPORTED_INDUSTRIES))
 
-    if confident_company is None and industry_target is None and not matches:
+    us_target = None
+    if confident_company is None and not matches and _direct_private_text(message, chats):
+        from src.collectors.sec_edgar import resolve_us
+        try:
+            us = resolve_us(text)
+            if us:
+                us_target = AnalysisTarget("company", us["name"], market="US", ticker=us["ticker"])
+        except Exception as exc:
+            outcome["us_resolution_error"] = type(exc).__name__
+
+    if confident_company is None and industry_target is None and not matches and us_target is None:
         client.send_message(format_not_found(text))
         outcome["result"] = "못 찾음"
         return outcome
@@ -343,18 +354,19 @@ def handle_message(
         outcome["matched"] = (
             f"{confident_company.name}({confident_company.code}) via {confident_company.how}"
         )
+    elif us_target is not None:
+        target = us_target
+        outcome["matched"] = f"{target.name}({target.ticker}) via SEC"
     elif industry_target is not None:
         target = industry_target
         outcome["matched"] = f"산업 {target.name} via exact"
 
-    is_direct = bool(
-        target
-        and (
-            direct_company_request(message, confident_company, chats)
-            if target.kind == "company" and confident_company is not None
-            else direct_industry_request(message, target, chats)
-        )
-    )
+    is_direct = bool(target and (
+        bool(_direct_private_text(message, chats)) if target.market == "US" else
+        direct_company_request(message, confident_company, chats)
+        if target.kind == "company" and confident_company is not None else
+        direct_industry_request(message, target, chats)
+    ))
     if update_id is not None and direct and target is not None and is_direct:
         try:
             is_new = enqueue(update_id, message, target)
@@ -376,7 +388,7 @@ def handle_message(
         outcome["kairos"] = "접수" if is_new else "기존 요청"
         if is_new or receipt_message_id(update_id) is None:
             identity = (
-                f"{target.name} ({target.code}) 기업"
+                f"{target.name} ({target.ticker or target.code}) 기업"
                 if target.kind == "company" else f"{target.name} 산업"
             )
             receipt = client.send_message(

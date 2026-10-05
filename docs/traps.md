@@ -4072,3 +4072,36 @@ cost_log 월 집계를 단일 PostgREST execute로 읽으면 월 1,000건 뒤 �
 ## T245. JSON 문자열을 strict 필드로 강제해도 문자열 속 구조까지 보장하지 않는다
 
 12개 문자열 전송은 grammar 컴파일은 통과했지만 실제 생성에서 JSON 복원 실패가 발생했다. tool_use 종료·문자열 타입 준수는 저장 가능한 분석의 증거가 아니다. 52개 평탄 필드도 컴파일에서 400 실패했다. 작은 타입 지정 cells 목록으로 원래 구조를 복원하고 누락·중복·연속 인덱스·관련 배열 길이를 검증한다. 빈 이벤트 목록은 명시적 빈 마커로 유지하며 추측 항목을 채우지 않는다. 실제 응답의 빈 confidence는 원문에 '확신도는 낮게 둔다'가 있을 때만 low로 정규화했고 이후 신뢰도는 별도 strict enum으로 강제한다. 유료 실패를 숨기거나 승인 없이 반복 호출하지 않는다.
+
+## T249. DART PDF는 직접 URL이 200이어도 0바이트여서 자료 없음으로 조용히 남는다
+
+한화에어로스페이스 동일 접수번호/본문 ID를 검증해 직접 PDF URL을 열어도 200·0B였다.
+공식 다운로드 페이지를 같은 세션에서 먼저 열고 Referer·브라우저 User-Agent를 보내면
+동일 URL이 1,735,598B의 정상 PDF가 된다. 상태 코드만 보지 말고 PDF magic·실제 페이지를 확인한다.
+IR 공시 본문 PDF를 실제 IR 첨부 자료로 세면 IR 없는 기업이 충분한 자료가 있는 것처럼 보인다.
+공식 첨부 선택/다운로드 목록을 읽고 실제 IR만 보존하며 없으면 명시적 결측으로 둔다.
+
+## T250. dotenv의 Anthropic API 키를 Claude 자식에게 상속하면 구독 실행이 조용히 API 과금이 된다
+
+Heimdallr env 헬퍼는 dotenv를 프로세스 환경에 올린다. 그 뒤 claude를 실행하면
+CLI에 키를 전달하지 않았어도 ANTHROPIC_API_KEY가 상속된다.
+구독 실행은 중앙 env 헬퍼에서 API 키·auth token·외부 endpoint/provider 변수를 제거한 환경으로 실행하고,
+claude auth status의 loggedIn/authMethod를 확인한다. 결과 파일 존재만으로 실행 성공을 판정하지 않는다.
+이전 대상 work/result.json을 최신 결과로 선택하면 다른 기업의 발표자료가 정상 sent로 기록된다.
+fallback은 이번 실행 시각과 D<id>를 함께 대조한다.
+
+## T251. 이름 없는 기존 CHECK를 남기면 새 market=US 계약을 추가해도 국내 code가 영구 필수다
+
+기준 schema의 기존 기업/산업 shape CHECK는 자동 이름 kairos_requests_check였다.
+새 migration에서 named target_shape_check만 교체하면 옛 CHECK가 남아 미국의 code=NULL을 막는다.
+기존 자동 이름과 새 named 제약을 함께 교체하고 기준 schema도 동기화한다.
+Python의 가짜 DB 테스트만으로는 PostgreSQL의 제약·변수 이름 충돌·RLS를 확인할 수 없으므로
+원본 DDL→G DDL 재실행→실제 SQL RPC를 임시 PostgreSQL에서 검증한다.
+
+
+## T252. Windows PowerShell 5.1에서 UTF-8 한글 경로와 Python -c 인수가 잘못 해석된다
+
+BOM 없는 UTF-8 설치기를 powershell.exe로 실행하면 한글 Drive 경로가 ANSI로 읽혀 실제 폴더가 있어도 없다고 판정한다.
+또한 native Python -c의 중첩 따옴표가 제거되어 정상 Claude 로그인도 NameError와 로그인 실패로 보고된다.
+한글 설치기는 UTF-8 BOM으로 저장하고 로그인 검사는 저장된 Python 파일을 호출한다. 실제 Windows PowerShell 5.1에서 설치까지 실행해 검증한다.
+예약 작업이 프로젝트 밖에서 실행되므로 src뿐 아니라 telegram_bridge도 editable 패키지 검색에 포함해야 한다.

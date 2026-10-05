@@ -50,3 +50,6 @@ telegram_bridge/state/
 # Telegram MTProto 사용자 로그인 세션. API hash만큼 민감하므로 저장소 반입 금지.
 *.session
 *.session-journal
+
+# JARVIS G verification output (keep source fixtures under tests).
+.pytest-jarvis*/
