@@ -1,6 +1,6 @@
-# JARVIS G절 운영·설치 (2026-10-05)
+# JARVIS G·H·I절 운영·설치 (2026-10-06)
 
-PRD Ref: §8.7 G · 사용자 D59. 시험용 Notion 페이지는 만들지 않는다.
+PRD Ref: §8.7 G·H·I · 사용자 D59·D60·D61. 시험용 Notion 페이지는 만들지 않는다.
 
 ## 구현 파일
 
@@ -17,7 +17,8 @@ PRD Ref: §8.7 G · 사용자 D59. 시험용 Notion 페이지는 만들지 않�
 
 1. **Heimdallr Supabase SQL Editor**에서 `docs/migrations/kairos_jarvis.sql` 전체를 실행한다.
    기존 Kairos 테이블·Drive 확인 마이그레이션이 없는 새 설치만 먼저 `kairos_requests.sql`, `kairos_drive_confirmation.sql`을 실행한다.
-   G SQL은 재실행 안전하다. Vault `heimdallr_jarvis_token`은 그대로 사용한다.
+   신규 설치는 G 다음 `docs/migrations/kairos_claude.sql`(H)을 적용한다. 기존 G 운영 업데이트는 H만 적용한다.
+   H까지 적용한 뒤 G만 재실행하면 mode 유일 인덱스·RPC가 구형으로 되돌아가므로 전체 재적용은 반드시 G→H 순서다. Vault `heimdallr_jarvis_token`은 그대로 사용한다.
    Heimdallr 로컬에 JARVIS 토큰을 복사하거나 추가 환경변수로 넣을 필요가 없다.
    JARVIS Vercel의 기존 `HEIMDALLR_JARVIS_TOKEN`도 변경하지 않는다.
 2. 프로젝트의 실제 로드 파일(`.env`가 있으면 그 파일, 없으면 `.env.txt`)에 다음 한 줄을 추가한다.
@@ -46,7 +47,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\telegram_bridge\install_ja
 
 5. **실제 JARVIS 추천의 🏢 또는 🏭 버튼**으로 검증한다.
    같은 대상을 두 번 누르면 같은 요청 ID의 진행 상태를 사용한다.
-   실제 Notion 분석 완료 후 JARVIS의 🎤 버튼으로 발표자료를 요청한다.
+   Codex Notion 완료 후 자동 🧠 진행·완료 알림과 같은 기업/산업 부모의 Claude Notion 및 Drive MD를 확인한다.
+   기업은 🧠 완료 뒤 JARVIS의 🎤 버튼으로 발표자료를 요청한다. 산업은 🧠 top_pick의 🏢 기업 분석 버튼을 확인한다.
    기업 Drive 폴더의 PPTX·PDF·MD 3개, 기존 기업 Notion 페이지의 첨부,
    DB `sent`와 JARVIS 30분 상태 알림을 확인한다.
    이 단계에서는 실제 요청만 사용하고 시험용 페이지를 만들지 않는다.
@@ -160,3 +162,15 @@ SEC 명부·submissions 경로와 속도 정책은
 ## 2026-10-05 Windows 설치 확인
 
 Windows PowerShell 5.1을 위해 install_jarvis.ps1의 UTF-8 BOM을 유지한다. 로그인 검사는 claude_login.py 파일로 실행한다. 두 1분 예약 작업을 실제 등록하고 collector 성공 및 deck worker idle을 확인했다. 설치 복구 실측은 docs/sessions/2026-10-05-jarvis-install.md에 기록했다.
+
+
+## H·I 적용 결과 (2026-10-06)
+
+- H 운영 SQL 적용 성공. 카탈로그 14/14, 잘못된 토큰 차단 6/6, DB 19개 테이블·새 3컬럼 확인.
+- Claude 자동 큐는 JARVIS의 새로운 sent 전환에만 생성한다. 기존 sent를 소급 접수하지 않는다. 기존 Telegram 요청은 Codex 분석만 한다.
+- 분석 90분/발표자료 120분, 동일 요청 analysis 우선, 전체 Claude 작업 단일 실행. 최신 성공 MD와 Claude Notion을 deck에 전달한다.
+- 로컬 체크포인트·Drive bootstrap 장부·sources는 kairos_requests.update_id와 같은 로컬 ID로 찾는다. Claude 큐의 A/D 일련번호와 혼동하지 않는다.
+- 기존 1분 예약 작업이 수정된 실행기를 사용하므로 재설치할 필요 없다. 실제 Claude 작업 0건·실행기 idle·최근 종료 코드 0 확인.
+- I 규칙은 사용자 Kairos SKILL.md·references/source-policy.md와 WORKFLOW.md·PRD.md에 반영했다. 2_1·Invest_WiKi 내용 날짜(날짜 속성→유효 제목 날짜→생성일), 최근 달력상 3개월, 허브 항목별 판정과 출처 장부를 적용한다.
+- Telegram 리서치 세션은 not_configured. 사용자가 실제 .env.txt에 TELEGRAM_RESEARCH_API_ID/HASH를 설정한 후 `.venv\Scripts\python.exe -X utf8 -m src.collectors.telegram_sources auth` 1회로 인증한다. 비밀 값은 채팅에 보내지 않는다.
+- 실제 기업/산업 요청부터 Notion·Drive·JARVIS 알림·발표자료까지는 사용자 실제 요청으로 검증한다. 시험 Notion 페이지·시험 운영 분석 요청·유료 생성은 하지 않았다.

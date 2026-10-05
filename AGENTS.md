@@ -141,6 +141,9 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **JARVIS H·I Claude 자동 심층 분석 (2026-10-06)** — sent 트리거·analysis/deck 우선순위·장부 전달과 Notion 2_1·Invest_WiKi 내용 날짜 규칙을 반영했다.
+  운영 SQL **14/14**·토큰 차단 **6/6**·임시 PostgreSQL **28/28**·오프라인 **1,272 passed**, 시험 Notion/생성 **0건**.
+  기존 1분 실행기 **idle/종료0**, 실제 버튼 검증·Telegram 연구 인증은 사용자 단계. ADR 31·T253~254·상세 `docs/sessions/2026-10-06-jarvis-hi.md`.
 - **JARVIS G절 연계 (2026-10-05)** — 토큰 RPC·미국 SEC·자동 Drive·별도 구독 deck 실행과 무발송 큐를 구현했다.
   PostgreSQL **22/22**·오프라인 **1,251 passed**, 실제 DART PDF **4건/2,048p/실패0**. ADR 30·T249~251.
   운영 DB·Claude 구독·Drive·PowerPoint 확인, 1분 작업 **2/2 등록·실행**. T252·상세 `docs/sessions/2026-10-05-jarvis-install.md`; 실제 버튼 검증은 남음.
@@ -245,6 +248,3 @@ python -m pytest tests/
 - **최종 완성·L2″ 운영 충전 (2026-09-02)** — 관심종목·비용예측·텔레그램 3링크와 정밀재무 수집 완성.
   게이트 275종목 D1/D2 **275/275**, D3 **267/275**, 발송등급 **37→78**. DB 550행·점수 1,150행 저장,
   신규 분석 3건 검증 저장(9건 차단). **770 passed·1 skipped·3 deselected, build 10/10**. T133~134.
-- **종목 상세 근거·확정 분석 갱신 (2026-08-31)** — 실제 주간 종가·네이버 확정/선행 PER·
-  PRI 원입력·잠정→확정 재분석 연결. DDL 적용·주가 **269/269, 42,180행**·PER **710종목**,
-  삼성전자 렌더 **200·174,240B**. T130~132 방어, **757 passed · build 10/10**.

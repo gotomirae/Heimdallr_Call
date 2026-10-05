@@ -11,7 +11,7 @@ if (-not (Test-Path -LiteralPath 'G:\내 드라이브\1. 주식 자본\2. 아이
     throw 'Google Drive for Desktop root is unavailable.'
 }
 & $python -X utf8 -m src.db.init
-if ($LASTEXITCODE -ne 0) { throw 'Apply kairos_jarvis.sql before installing.' }
+if ($LASTEXITCODE -ne 0) { throw 'Verify G then H migrations: kairos_jarvis.sql and kairos_claude.sql.' }
 & $python -X utf8 -m telegram_bridge.jarvis_registry
 if ($LASTEXITCODE -ne 0) { throw 'Configure SEC_USER_AGENT and verify registry sync.' }
 # Uses sanitized subscription environment; this check does not generate a deck.

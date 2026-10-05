@@ -125,6 +125,12 @@ def main() -> int:
             "docs/migrations/kairos_drive_confirmation.sql 및 kairos_jarvis.sql 적용 필요"
         )
 
+    try:
+        probe = service.table("kairos_deck_requests").select("mode,analysis_md,top_pick").limit(1).execute().data or []
+        print(f"    ✓ Claude analysis/deck 계약 (rows={len(probe)})")
+    except Exception:
+        failures.append("Claude 모드 컬럼 없음 — docs/migrations/kairos_claude.sql 적용 필요")
+
     print(f"\n[3] anon(publishable) SELECT 확인 — {len(ANON_READABLE)}개")
     anon = get_anon_client()
     for table in ANON_READABLE:

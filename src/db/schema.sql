@@ -470,6 +470,8 @@ CREATE TABLE IF NOT EXISTS kairos_deck_requests (
   id BIGSERIAL PRIMARY KEY,
   request_id BIGINT NOT NULL REFERENCES kairos_requests(update_id),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','working','sent','failed')),
+  mode TEXT NOT NULL DEFAULT 'deck' CHECK (mode IN ('analysis','deck')),
+  analysis_md TEXT, top_pick JSONB,
   notion_url TEXT, drive_dir TEXT, files JSONB, error TEXT, attempts INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), claimed_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ, retry_after TIMESTAMPTZ

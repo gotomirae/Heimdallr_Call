@@ -229,7 +229,7 @@ def test_deck_usage_retry_budget_and_manifest(tmp_path,monkeypatch,attempts,expe
     monkeypatch.setattr(deck,'STATE',tmp_path/'state')
     monkeypatch.setattr(deck.shutil,'which',lambda *a:'claude.exe')
     monkeypatch.setattr(deck.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0,stdout=json.dumps({'loggedIn':True,'authMethod':'claude.ai'})))
-    monkeypatch.setattr(deck,'run_claude',lambda *a:SimpleNamespace(returncode=1,stdout='You have hit your usage limit',stderr=''))
+    monkeypatch.setattr(deck,'run_claude',lambda *a,**k:SimpleNamespace(returncode=1,stdout='You have hit your usage limit',stderr=''))
     client=Mock()
     client.rpc.return_value.execute.return_value.data={'id':10,'attempts':attempts,'analysis':{
         'company_name':'삼성전자','code':'005930','market':'KR','notion_url':'https://www.notion.so/'+'a'*32,

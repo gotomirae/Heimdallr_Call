@@ -4105,3 +4105,12 @@ BOM 없는 UTF-8 설치기를 powershell.exe로 실행하면 한글 Drive 경로
 또한 native Python -c의 중첩 따옴표가 제거되어 정상 Claude 로그인도 NameError와 로그인 실패로 보고된다.
 한글 설치기는 UTF-8 BOM으로 저장하고 로그인 검사는 저장된 Python 파일을 호출한다. 실제 Windows PowerShell 5.1에서 설치까지 실행해 검증한다.
 예약 작업이 프로젝트 밖에서 실행되므로 src뿐 아니라 telegram_bridge도 editable 패키지 검색에 포함해야 한다.
+
+
+## T253. Claude 모드를 구분하지 않으면 심층 분석이 발표자료 완료로 조용히 노출된다
+
+요청 ID 하나의 analysis/deck을 request_id만으로 dedupe하거나 status RPC에서 마지막 행 하나만 읽으면 🧠 접수가 🎤 접수를 막고 서로 다른 결과 링크를 반환한다. 열린 작업은 request_id·mode, 상태 응답은 모드별 최신 행을 사용한다. 사용량 retry_after가 미래여도 pending analysis가 있으면 같은 요청의 deck은 기다려야 한다. Claude 큐 일련번호 A/D와 Codex 로컬 작업 ID는 다르므로 ledger·sources는 원본 request_id로 찾는다. top_pick 등 성공 결과의 모든 검증을 sent payload 작성 전에 끝내야 검증 예외가 error만 기록한 sent로 남지 않는다.
+
+## T254. Notion 수정일은 글 내용의 최신성이 아니다
+
+2021년 반도체 동향_210322가 2026-07-10 일괄 수정으로 최근 글처럼 보인다. 날짜 속성→달력 검증한 제목 날짜→생성일로 판단한다. 허브 페이지의 수정일·생성일을 본문 전체에 적용하지 말고 날짜 있는 항목마다 최근 달력상 3개월을 확인한다. 제목·링크·내용 날짜·판단 기준을 장부에 남겨 Claude가 오래된 자료를 최신 사실로 이어받지 않게 한다.
