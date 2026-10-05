@@ -42,7 +42,7 @@ function InvestmentBreakdown({
         <div className="text-xs font-medium text-amber-200">투자 매력도</div>
         <div className="flex items-baseline gap-3">
           <span className="text-3xl font-bold">{num(screen.score_final ?? screen.score_flash, 1)}</span>
-          <span className="text-sm text-slate-200">/ 100 · 측정 신뢰도 {denominator}/100</span>
+          <span className="text-sm text-white">/ 100 · 측정 신뢰도 {denominator}/100</span>
         </div>
       </div>
       <div className="space-y-1.5">
@@ -51,15 +51,15 @@ function InvestmentBreakdown({
           const max = Number(config[part.key]);
           return (
             <div key={part.key} className="grid grid-cols-[7.5rem_1fr_5rem] items-center gap-x-2 gap-y-0.5 rounded border border-slate-800/70 bg-slate-950/30 px-2 py-1.5 text-sm">
-              <span className="font-semibold text-slate-100">{part.label}</span>
+              <span className="font-semibold text-white">{part.label}</span>
               <div className="h-2 overflow-hidden rounded bg-slate-800">
                 {value != null && <div className="h-full bg-amber-400" style={{ width: `${value / max * 100}%` }} />}
               </div>
-              <span className="text-right text-xs text-slate-200">
+              <span className="text-right text-xs text-white">
                 {value == null ? `${DASH} 미측정` : `${value.toFixed(1)}/${max}`}
               </span>
-              <span className="col-span-3 text-[11px] leading-relaxed text-slate-300">{part.meaning}</span>
-              {part.key === "industry_position" && <div className="col-span-3 text-xs leading-6 text-slate-200">
+              <span className="col-span-3 text-[11px] leading-relaxed text-white">{part.meaning}</span>
+              {part.key === "industry_position" && <div className="col-span-3 text-xs leading-6 text-white">
                 <p>🔎 독점·공급망 근거 {position?.denominator ?? 0}/100 배점 확인 · {position?.score == null ? "충분한 근거가 없어 점수 보류" : `관측 축 정규화 ${num(position.score, 1)}/100`}</p>
                 <p>🌍 글로벌 점유율 {pct(position?.values.global_share)} · 🇰🇷 국내 점유율 {pct(position?.values.domestic_share)}</p>
                 {position?.evidence.map((item, index) => <p key={`${index}-${item.axis}`} className="mt-2 border-l-2 border-sky-700 pl-2">{item.ambiguous && "⚠️ 복수 제품/기간으로 점수 제외 · "}{item.quote}<br /><a className="text-sky-300 underline" href={item.url} target="_blank" rel="noreferrer">공시 원문 ↗</a></p>)}
@@ -69,13 +69,13 @@ function InvestmentBreakdown({
           );
         })}
       </div>
-      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-white">
         <div>산업 성장 {num(inputs.industry_growth, 1)}/100 · 산업 내 위치 {num(inputs.industry_position, 1)}/100</div>
         <div>기존 실적 원점수 {num(inputs.fundamental_score, 1)} · 현재 가격은 주가반영도와 2축 등급에서 별도 반영</div>
         <div>성장 스토리 {num(inputs.growth_story, 1)}/100 · 예상 이익 성장 {num(inputs.forecast_earnings_growth_pct, 1)}%</div>
         <div>네이버 PER {num(valuation?.per, 1)}배 · F.PER {num(valuation?.forwardPer, 1)}배 · ROE {num(valuation?.roe, 1)}% · F.ROE {num(valuation?.forwardRoe, 1)}%</div>
         <div>네이버 {valuation?.fcfYear ?? "연간"} FCF {valuation?.fcf == null ? DASH : `${num(valuation.fcf, 1)}억원`} · 점수 계산 시점 현금흐름 측정 여부 {fcf == null ? "미측정" : "측정"}</div>
-        <div className="mt-1 text-slate-300">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. 주가반영도는 이 점수에 합산하지 않는다.</div>
+        <div className="mt-1 text-white">결측 항목은 0점이 아니라 분모에서 제외한다. 성장 스토리는 LLM 문장이 아니라 연속 가속·TTM 이익·컨센서스 성장의 수치 근거다. 주가반영도는 이 점수에 합산하지 않는다.</div>
       </div>
     </div>
   );
@@ -121,7 +121,7 @@ export function ScoreBreakdown({ screen, valuation }: { screen: ScreenRow; valua
         <span className="text-3xl font-bold">
           {num(screen.score_final ?? screen.score_flash, 1)}
         </span>
-        <span className="text-sm text-slate-200">
+        <span className="text-sm text-white">
           raw {num(rawSum, 1)} / {denominator} 정규화
         </span>
       </div>
@@ -151,10 +151,10 @@ export function ScoreBreakdown({ screen, valuation }: { screen: ScreenRow; valua
           if (value == null) {
             return (
               <div key={axis.key} className="text-sm">
-                <span className="font-medium text-slate-100">
+                <span className="font-medium text-white">
                   {axis.key.toUpperCase()} {axis.label}
                 </span>
-                <span className="ml-2 text-slate-300">
+                <span className="ml-2 text-white">
                   {DASH} {AXIS_MISSING_REASON[axis.key] ?? "미측정"}
                 </span>
               </div>
@@ -175,14 +175,14 @@ export function ScoreBreakdown({ screen, valuation }: { screen: ScreenRow; valua
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ backgroundColor: AXIS_COLOR[axis.key] }}
                 />
-                <span className="font-medium text-slate-100">
+                <span className="font-medium text-white">
                   {axis.key.toUpperCase()} {axis.label}
                 </span>
-                <span className="text-slate-200">
+                <span className="text-white">
                   {value.toFixed(0)}/{axis.max}
                 </span>
               </div>
-              <div className="ml-4 text-xs text-slate-200">
+              <div className="ml-4 text-xs text-white">
                 {scored.length
                   ? scored
                       .map((it) => {
@@ -295,7 +295,7 @@ export function PriBreakdown({
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold">{num(pri, 1)}</span>
-        <span className="text-sm text-slate-200">/ 100 · {label}</span>
+        <span className="text-sm text-white">/ 100 · {label}</span>
       </div>
 
       {isModern && (
@@ -307,7 +307,7 @@ export function PriBreakdown({
           <div className="mt-1 h-1.5 overflow-hidden rounded bg-slate-800">
             <div className="h-full bg-sky-400" style={{ width: `${Math.min(confidence ?? 0, 100)}%` }} />
           </div>
-          <div className="mt-1 text-slate-300">
+          <div className="mt-1 text-white">
             가격·성장·밸류·과열 항목의 측정 가능 비중이다. {minConfidence} 미만이면 참고용으로만 본다.
           </div>
         </div>
@@ -326,7 +326,7 @@ export function PriBreakdown({
           const value = parts[part.key];
           return (
             <div key={part.key} className="flex items-center gap-2 text-sm">
-              <span className="w-32 shrink-0 text-slate-100">{part.label}</span>
+              <span className="w-32 shrink-0 text-white">{part.label}</span>
               <div className="h-2 flex-1 overflow-hidden rounded bg-slate-800">
                 {value != null && (
                   <div
@@ -335,43 +335,43 @@ export function PriBreakdown({
                   />
                 )}
               </div>
-              <span className="w-20 shrink-0 text-right text-xs text-slate-200">
+              <span className="w-20 shrink-0 text-right text-xs text-white">
                 {value == null ? `${DASH} 미측정` : `${value.toFixed(0)}/${part.max}`}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-slate-200">
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-xs leading-relaxed text-white">
         {isV4 ? (
           <>
             <div className="rounded border border-sky-800/70 bg-sky-950/20 p-2">
               <strong>① 실적 발표~현재 주가 반응</strong>
               <div>발표 당일 종가 대비 현재 {num(currentAnnouncement?.returnPct ?? (inputs.announcement_return_pct as number | null), 1)}% · {currentAnnouncement?.asOf ?? "저장 기준일"} 종가 기준 → 저장 점수 {num(parts.earnings_reaction, 1)}/20</div>
-              <div className="text-slate-300">양수면 실적 기대가 가격에 반영됐고, 음수면 발표 뒤 주가가 낮아졌다는 뜻이다.</div>
+              <div className="text-white">양수면 실적 기대가 가격에 반영됐고, 음수면 발표 뒤 주가가 낮아졌다는 뜻이다.</div>
             </div>
             <div className="mt-2 rounded border border-amber-800/70 bg-amber-950/20 p-2">
               <strong>② 밸류에이션</strong>
               <div>네이버 과거 {valuation?.historicalPerYears.length ?? 0}개년 평균 PER <strong>{num(valuation?.historicalPerAvg, 2)}배</strong> · 네이버 내년 F.PER <strong>{num(valuation?.forwardPer, 2)}배</strong></div>
               <div>과거 평균 대비 반영도 {num(inputs.valuation_reflection_pct as number | null, 1)}% → {num(parts.valuation_burden, 1)}/20</div>
-              <div className="text-slate-300">양수일수록 과거 평균보다 높은 선행 배수를 받고 있어 기대가 더 반영된 상태다.</div>
+              <div className="text-white">양수일수록 과거 평균보다 높은 선행 배수를 받고 있어 기대가 더 반영된 상태다.</div>
             </div>
             <div className="mt-2 rounded border border-violet-800/70 bg-violet-950/20 p-2">
               <strong>③ PEG(주가 수익 성장 비율)</strong>
               <div>현재 자체 PEG <strong>{num(valuation?.peg, 2)}</strong> · EPS 예상 성장 {num(valuation?.pegGrowthPct, 1)}% · 피어 대비 {num(inputs.peer_peg_premium_pct as number | null, 1)}% → {num(parts.earnings_vs_multiple, 1)}/20</div>
-              <div className="text-slate-300">네이버 내년 F.PER를 네이버 올해→내년 EPS 예상 성장률(%)로 나눈 값이다.</div>
+              <div className="text-white">네이버 내년 F.PER를 네이버 올해→내년 EPS 예상 성장률(%)로 나눈 값이다.</div>
             </div>
             <div className="mt-2 rounded border border-emerald-800/70 bg-emerald-950/20 p-2">
               <strong>④ 이익 전망 반영</strong>
               <div>주가·이익전망 괴리 {num(inputs.earnings_revision_price_gap_pct as number | null, 1)}%p · 내재 성장률 갭 {num(inputs.implied_growth_gap_pct as number | null, 1)}%p → {num(parts.expectation_gap, 1)}/20</div>
-              <div className="text-slate-300">영업이익 전망 개선보다 주가가 앞섰는지, 현재 배수가 요구하는 성장과 전망이 맞는지 본다.</div>
+              <div className="text-white">영업이익 전망 개선보다 주가가 앞섰는지, 현재 배수가 요구하는 성장과 전망이 맞는지 본다.</div>
             </div>
             <div className="mt-2 rounded border border-rose-800/70 bg-rose-950/20 p-2">
               <strong>⑤ 가격 모멘텀·과열</strong>
               <div>중기 지수 대비 {num(inputs.relative_return_pct as number | null, 1)}%p · 과열 합성 {num(inputs.overheat_score_pct as number | null, 1)}/100 · RSI {num(inputs.rsi_14 as number | null, 1)} → {num(parts.momentum_overheat, 1)}/20</div>
-              <div className="text-slate-300">중기 선행 상승과 RSI 45 기준 방향을 본다. 실제 MACD·Signal 교차는 바로 아래 일간 차트의 최신값으로 확인한다.</div>
+              <div className="text-white">중기 선행 상승과 RSI 45 기준 방향을 본다. 실제 MACD·Signal 교차는 바로 아래 일간 차트의 최신값으로 확인한다.</div>
             </div>
-            <div className="mt-2 text-slate-100">주가반영도 = 측정 요인 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 세 요인 미만이면 판정하지 않는다.</div>
+            <div className="mt-2 text-white">주가반영도 = 측정 요인 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 세 요인 미만이면 판정하지 않는다.</div>
           </>
         ) : isV3 ? (
           <>
@@ -396,10 +396,10 @@ export function PriBreakdown({
               <strong>과열 여부</strong>
               <div>합성 과열 {num(inputs.overheat_score_pct, 1)}/100 · RSI {num(inputs.rsi_14, 1)} · 5일 {num(inputs.ret_5d_pct, 1)}%</div>
               <div>52주 고점 대비 {num(inputs.high_52w_drawdown_pct, 1)}% → {num(parts.overheat, 1)}/10</div>
-              <div className="text-slate-300">미래 매수자를 예측하지 않고 현재 가격의 단기 쏠림만 측정한다.</div>
+              <div className="text-white">미래 매수자를 예측하지 않고 현재 가격의 단기 쏠림만 측정한다.</div>
             </div>
             <div className="mt-2"><strong>중기 상대 주가</strong> {num(inputs.relative_return_pct, 1)}%p → {num(parts.relative, 1)}/10</div>
-            <div className="mt-1 text-slate-100">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
+            <div className="mt-1 text-white">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
           </>
         ) : isV2 ? (
           <>
@@ -407,7 +407,7 @@ export function PriBreakdown({
             <div><strong>전망·주가 괴리</strong> {num(inputs.earnings_revision_price_gap_pct, 1)}%p → {num(parts.revision, 1)}/30 · 주가가 이익 전망보다 앞선 정도</div>
             <div><strong>TTM PER·F.PER 반영</strong> {num(inputs.valuation_reflection_pct, 1)}% → {num(parts.valuation, 1)}/20 · 과거 PER 대비 현재 배수</div>
             <div><strong>중기 상대 주가</strong> {num(inputs.relative_return_pct, 1)}%p → {num(parts.relative, 1)}/20 · 3·6·12개월 섹터 대비 평균</div>
-            <div className="mt-1 text-slate-100">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
+            <div className="mt-1 text-white">주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100 · 신뢰도는 점수에 합산하지 않는다.</div>
           </>
         ) : (
           <>
@@ -416,7 +416,7 @@ export function PriBreakdown({
             <div>P3 현재 TTM PER의 과거 9분기 평균 대비 {num(inputs.per_vs_9q_avg_pct, 1)}% → {num(parts.p3, 1)}/20</div>
             <div>P4 발표일부터 5거래일 외국인 순매수/거래량 {num(inputs.foreign_net_ratio_5d_pct, 2)}% → {num(parts.p4, 1)}/10</div>
             <div>P5 RSI(14) {num(inputs.rsi_14, 1)} (45가 중립) → {num(parts.p5, 1)}/20</div>
-            <div className="mt-1 text-slate-100">기존 주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
+            <div className="mt-1 text-white">기존 주가반영도 = 측정 점수 합 ÷ 측정 가능 배점 {denominator} × 100</div>
           </>
         )}
       </div>

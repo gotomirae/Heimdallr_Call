@@ -134,7 +134,10 @@ def fetch_quarterly_estimates(code: str) -> list[ConsensusSnapshot]:
     section = soup.find("div", class_="section cop_analysis")
     table = section.find("table") if section else None
     if table is None:
-        return []
+        # PC 표가 제거된 경우 네이버 종목분석이 쓰는 분기 전용 표를 검증한다.
+        resp = http_get(WISEREPORT_CONSENSUS_URL,
+            params={"cmp_cd": code, "finGubun": "MAIN", "frq": 1}, timeout=40.0)
+        return parse_wisereport_quarterly(decode_html(resp), code)
 
     rows = table.find_all("tr")
     if len(rows) < 3:
@@ -209,6 +212,35 @@ def fetch_quarterly_estimates(code: str) -> list[ConsensusSnapshot]:
                 snap.eps_est = value  # EPS는 원 단위
             else:
                 setattr(snap, field, int(round(value * _EOK)))  # 억원 → 원
+        if snap.revenue_est is not None or snap.op_est is not None:
+            out.append(snap)
+    return out
+
+
+def parse_wisereport_quarterly(html: str, code: str) -> list[ConsensusSnapshot]:
+    """분기 전용 frq=1의 실제 기간·억원 헤더를 검증한다. 연간 표를 분기로 바꾸지 않는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    headers = [th.get_text(" ", strip=True) for th in soup.find_all("th")]
+    if not any("매출액" in h and "억원" in h for h in headers) or not any("영업이익" in h and "억원" in h for h in headers):
+        return []
+    out = []
+    seen = set()
+    for tr in soup.find_all("tr"):
+        cells = [c.get_text(" ", strip=True) for c in tr.find_all(["th", "td"])]
+        if len(cells) != 12:
+            continue
+        period = re.fullmatch(r"(\d{4})[./](\d{2})\(E\)", cells[0].replace(" ", ""))
+        if not period or int(period.group(2)) not in (3, 6, 9, 12):
+            continue
+        year, quarter = int(period.group(1)), int(period.group(2)) // 3
+        if (year, quarter) in seen:
+            return []
+        seen.add((year, quarter))
+        snap = ConsensusSnapshot(code=code, fiscal_year=year, fiscal_quarter=quarter)
+        for name, index in (("revenue_est", 1), ("op_est", 3), ("np_est", 4)):
+            value = _to_number(cells[index])
+            setattr(snap, name, int(round(value * _EOK)) if value is not None else None)
+        snap.eps_est = _to_number(cells[5])
         if snap.revenue_est is not None or snap.op_est is not None:
             out.append(snap)
     return out

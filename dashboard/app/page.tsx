@@ -185,7 +185,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
         <h1 className="text-2xl font-bold text-white">
           {watchlistOnly ? "관심 종목" : "발굴 목록"}
         </h1>
-        <p className="mt-1 text-sm text-slate-100">
+        <p className="mt-1 text-sm text-white">
           {watchlistOnly ? (
             "이 브라우저에 저장한 종목이다. ★를 다시 누르면 목록에서 제거된다."
           ) : (
@@ -206,7 +206,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
                여기에만 적으면 화면이 거짓말을 한다 — 틀린 안내는 사람을 틀린 행동으로
                이끈다(T83). `src/screener/gate.py`가 실제로 넷을 본다. */}
         {!watchlistOnly && <div className="mt-2 rounded border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm">
-          <div className="text-slate-100">
+          <div className="text-white">
             <strong className="text-white">성장 가속</strong> ={" "}
             <strong className="text-amber-300">매출 YoY 가속</strong>
             {" + "}
@@ -215,32 +215,32 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             <strong className="text-amber-300">OPM YoY 상승</strong>
           </div>
           <table className="mt-1.5 text-xs">
-            <tbody className="text-slate-100">
+            <tbody className="text-white">
               <tr>
-                <td className="pr-3 font-mono text-slate-300">G1</td>
+                <td className="pr-3 font-mono text-white">G1</td>
                 <td className="pr-2">매출 YoY</td>
                 <td className="text-amber-300">가속 · 양(+)</td>
               </tr>
               <tr>
-                <td className="pr-3 font-mono text-slate-300">G2</td>
+                <td className="pr-3 font-mono text-white">G2</td>
                 <td className="pr-2">영업이익 YoY</td>
                 <td className="text-amber-300">가속 · 양(+)</td>
-                <td className="pl-2 text-slate-300">흑자전환 통과</td>
+                <td className="pl-2 text-white">흑자전환 통과</td>
               </tr>
               <tr>
-                <td className="pr-3 font-mono text-slate-300">G4</td>
+                <td className="pr-3 font-mono text-white">G4</td>
                 <td className="pr-2">영업이익률(OPM)</td>
                 <td className="text-amber-300">전년 동기보다 상승</td>
-                <td className="pl-2 text-slate-300">방향만 본다(크기는 스코어 B1)</td>
+                <td className="pl-2 text-white">방향만 본다(크기는 스코어 B1)</td>
               </tr>
               <tr>
-                <td className="pr-3 font-mono text-slate-300">G3</td>
+                <td className="pr-3 font-mono text-white">G3</td>
                 <td className="pr-2">업종·이력</td>
-                <td className="text-slate-200">제외업종 아님 · 5분기+</td>
+                <td className="text-white">제외업종 아님 · 5분기+</td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 text-xs text-slate-300">
+          <div className="mt-1 text-xs text-white">
             세 성장 조건과 업종·이력 조건을 모두 만족한 종목이다 · 흑자전환은 별도 턴어라운드로 분류한다
           </div>
         </div>}
@@ -270,7 +270,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       {!watchlistOnly && <div className="flex flex-wrap gap-2">
         {GRADE_ORDER.map((g) => (
           <div key={g}
-               className="rounded border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-100"
+               className="rounded border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm text-white"
                title={{
                  "★": "투자 매력 높음 · 주가 미반영",
                  "○": "투자 매력 높음 · 부분반영 또는 중간 점수 · 미반영",
@@ -279,7 +279,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
                  "✕": "투자 매력 낮음 · 선반영",
                }[g]}>
             <span className="mr-2 text-base font-bold text-white">{g}</span>
-            <span className="text-slate-200">{counts.get(g) ?? 0}</span>
+            <span className="text-white">{counts.get(g) ?? 0}</span>
           </div>
         ))}
       </div>}
@@ -296,47 +296,47 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
           <tbody>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">투자 매력도</td>
-              <td className="text-slate-100">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 주가반영도와 등급에서 별도 반영</td>
+              <td className="text-white">산업 성장·산업 내 위치·실적·성장 스토리·PER/F.PER·ROE·FCF (100점). 현재 주가는 주가반영도와 등급에서 별도 반영</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 YoY</td>
-              <td className="text-slate-100">
+              <td className="text-white">
                 평가 분기의 전년 동기 대비 성장률 ·{" "}
-                <strong className="text-slate-200">흑전·적전</strong>은 %를 만들지 않고 라벨로 쓴다
+                <strong className="text-white">흑전·적전</strong>은 %를 만들지 않고 라벨로 쓴다
               </td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">매출·영업이익 QoQ</td>
-              <td className="text-slate-100">평가 분기의 직전 분기 대비 성장률 · 계절성 판단을 위한 참고 지표</td>
+              <td className="text-white">평가 분기의 직전 분기 대비 성장률 · 계절성 판단을 위한 참고 지표</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">OPM YoY</td>
-              <td className="text-slate-100">
+              <td className="text-white">
                 영업이익률의 전년 동기 대비 변화(%p) ·{" "}
                 <strong className="text-amber-300">양(+)이어야 성장 가속이다(G4)</strong>
               </td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">주가 반영도</td>
-              <td className="text-slate-100">
+              <td className="text-white">
                 주가가 아는 정도 ·{" "}
                 <strong className="text-amber-300">낮을수록 아직 안 올랐다</strong>
               </td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-amber-300">★</td>
-              <td className="text-slate-100">기업 점수 높음 + 주가 반영도 낮음 = 가장 찾던 구간</td>
+              <td className="text-white">기업 점수 높음 + 주가 반영도 낮음 = 가장 찾던 구간</td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표 전후 주가 변화</td>
-              <td className="text-slate-100">
+              <td className="text-white">
                 발표 당일 종가를 기준점으로 계산한 지수 대비 초과수익 (영업일) ·{" "}
                 <Link href="/outcome" className="text-sky-300 underline">시기별 전략</Link>
               </td>
             </tr>
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-white">—</td>
-              <td className="text-slate-100">측정하지 못함 (0이 아니다)</td>
+              <td className="text-white">측정하지 못함 (0이 아니다)</td>
             </tr>
           </tbody>
         </table>

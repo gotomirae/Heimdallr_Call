@@ -9,8 +9,8 @@ const NAV = [
   { href: "/", label: "발굴 목록" },
   { href: "/watchlist", label: "관심 종목" },
   { href: "/matrix", label: "2축 매트릭스" },
+  { href: "/outcome", label: "결과추적 & 투자전략" },
   { href: "/season", label: "시즌" },
-  { href: "/outcome", label: "결과 추적" },
   { href: "/settings", label: "설정" },
 ] as const;
 
@@ -36,7 +36,7 @@ export default function FastNav() {
     return () => window.clearTimeout(id);
   }, [pathname, router]);
 
-  return <nav className="flex gap-4 overflow-x-auto text-sm text-slate-200" aria-label="대시보드 탭">
+  return <nav className="flex gap-4 overflow-x-auto text-sm text-white" aria-label="대시보드 탭">
     {NAV.map((item) => {
       const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
       return <Link

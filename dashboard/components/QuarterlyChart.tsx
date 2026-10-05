@@ -42,11 +42,11 @@ function lineLabel(color: string, unit: "억" | "%", dy: number) {
 }
 
 function Axis({ percent = false }: { percent?: boolean }) {
-  return <YAxis width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => percent ? `${Number(v).toFixed(0)}%` : Number(v).toLocaleString("ko-KR")} />;
+  return <YAxis width={45} domain={["auto", "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => percent ? `${Number(v).toFixed(0)}%` : Number(v).toLocaleString("ko-KR")} />;
 }
 
 function QuarterAxis() {
-  return <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} tickLine={false} />;
+  return <XAxis dataKey="label" stroke="#ffffff" fontSize={9} tickLine={false} />;
 }
 
 function Explanation({ items, kind }: { items: MetricMeaning[]; kind?: "revenue" | "earnings" | "yoy" }) {
@@ -54,16 +54,16 @@ function Explanation({ items, kind }: { items: MetricMeaning[]; kind?: "revenue"
   if (kind) return <div className="mt-3 grid gap-2 sm:grid-cols-2">
     {reviews.map((row) => <div key={row.label} className="rounded border border-sky-900/60 bg-slate-900/60 p-3 text-xs leading-6">
       <strong className="text-sky-200">📅 {row.label} · {kind === "revenue" ? "📦 매출/GPM" : kind === "earnings" ? "🏭 영업이익/OPM" : "📈 성장률의 원인"}</strong>
-      <p className="mt-2 whitespace-pre-line text-slate-100">{row[kind] ?? "⚠️ 이 분기의 인과 해석은 아직 확인되지 않았습니다. 물량·판가·제품믹스·원가·일회성 항목을 해당 분기 원문과 대조해야 합니다. 숫자만으로 원인을 만들지 않습니다."}</p>
+      <p className="mt-2 whitespace-pre-line text-white">{row[kind] ?? "⚠️ 이 분기의 인과 해석은 아직 확인되지 않았습니다. 물량·판가·제품믹스·원가·일회성 항목을 해당 분기 원문과 대조해야 합니다. 숫자만으로 원인을 만들지 않습니다."}</p>
       {row.source && <a className="mt-1 inline-block text-sky-300 underline" href={row.source} target="_blank" rel="noreferrer">분기 공시 원문 ↗</a>}
     </div>)}
-    <p className="col-span-full text-[11px] text-slate-400">🔎 인과 해석은 공시·저장 분석 범위이며, 미확인 분기는 현재 기준 LLM 분석 후 근거와 함께 보완합니다. 높은 YoY만으로 반복 가능한 성장이라고 단정하지 않습니다.</p>
+    <p className="col-span-full text-[11px] text-white">🔎 인과 해석은 공시·저장 분석 범위이며, 미확인 분기는 현재 기준 LLM 분석 후 근거와 함께 보완합니다. 높은 YoY만으로 반복 가능한 성장이라고 단정하지 않습니다.</p>
   </div>;
   return <div className="mt-2 grid gap-2 sm:grid-cols-2">
     {items.map((item) => <div key={item.label} className="rounded border border-slate-800 bg-slate-900/60 p-2.5">
       <div className="text-[11px] font-bold text-sky-200">현재 위치 · {item.label}</div>
-      <div className="mt-0.5 text-xs font-semibold text-slate-100">{item.value}</div>
-      <p className="mt-1 text-[11px] leading-relaxed text-slate-300">{item.meaning}</p>
+      <div className="mt-0.5 text-xs font-semibold text-white">{item.value}</div>
+      <p className="mt-1 text-[11px] leading-relaxed text-white">{item.meaning}</p>
       <p className="mt-1 text-[10px] leading-relaxed text-amber-200">다음 확인: {item.watch}</p>
     </div>)}
   </div>;
@@ -99,10 +99,10 @@ function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: Metr
   const gpmMeasured = data.filter((point) => point.gpmActual != null).length;
   const actualCount = data.filter((point) => !point.isCurrentQuarter).length;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">매출액 / GPM</strong><span className="text-xs text-slate-400">억원 · % · 실적 GPM {gpmMeasured}/{actualCount}</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">매출액 / GPM</strong><span className="text-xs text-white">억원 · % · 실적 GPM {gpmMeasured}/{actualCount}</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 30, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
-      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke="#fff" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <Tooltip formatter={(v, name) => [fmt(v, String(name).startsWith("GPM") ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar yAxisId="amount" dataKey="revenueActual" name="매출액 확정·잠정" fill="#16a34a" isAnimationActive={false}><LabelList dataKey="revenueActual" position="top" fill="#bbf7d0" fontSize={9} formatter={valueLabel("억")} /></Bar>
@@ -117,10 +117,10 @@ function RevenuePanel({ points, meaning }: { points: ChartPoint[]; meaning: Metr
 function EarningsPanel({ points, meanings }: { points: ChartPoint[]; meanings: MetricMeaning[] }) {
   const data = chartSeries(points);
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">영업이익 / OPM</strong><span className="text-xs text-slate-400">억원 · %</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">영업이익 / OPM</strong><span className="text-xs text-white">억원 · %</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 32, right: 10, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
-      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="amount" width={45} domain={["auto", "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={40} domain={["auto", "auto"]} stroke={SERIES_COLOR.OPM_COLOR} fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <Tooltip formatter={(v, name) => [fmt(v, name === "OPM" ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar yAxisId="amount" dataKey="opActual" name="영업이익 확정·잠정" fill="#d4a017" isAnimationActive={false}><LabelList dataKey="opActual" position="top" fill="#fde68a" fontSize={9} formatter={valueLabel("억")} /></Bar>
@@ -142,15 +142,15 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
       <strong className="text-lg font-black text-white">매출액 YoY / 영업이익 YoY</strong>
-      <span className="text-slate-400">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{reportedCount} · 영업이익 {opMeasured}/{reportedCount}</span>
+      <span className="text-white">같은 좌표(%) · 발표 분기 매출 {revenueMeasured}/{reportedCount} · 영업이익 {opMeasured}/{reportedCount}</span>
     </div>
-    {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-slate-400">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
+    {measured === 0 ? <div className="flex h-64 items-center justify-center text-xs text-white">전년 동기 비교값이 아직 없다.</div> : <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 38, right: 12, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
       <YAxis width={50} domain={[
         (min: number) => Math.min(0, min - Math.max(Math.abs(min) * 0.12, 5)),
         (max: number) => Math.max(0, max + Math.max(Math.abs(max) * 0.12, 5)),
-      ]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
-      <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1.2} />
+      ]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+      <ReferenceLine y={0} stroke="#ffffff" strokeWidth={1.2} />
       <Tooltip formatter={(v, name) => [fmt(v, "%"), name]} contentStyle={tooltipStyle} />
       <Legend wrapperStyle={{ fontSize: 11 }} />
       <Line type="linear" dataKey="revenueYoyActual" name="매출액 YoY 확정·잠정" stroke={SERIES_COLOR.REVENUE_COLOR} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="revenueYoyActual" content={(p) => lineLabel(SERIES_COLOR.REVENUE_LABEL, "%", -11)({ ...p })} /></Line>
@@ -159,7 +159,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
       <Line type="linear" dataKey="opYoyForecast" name="영업이익 YoY 전망" stroke={SERIES_COLOR.OP_COLOR} strokeDasharray="5 4" strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="opYoyForecast" content={(p) => lineLabel(SERIES_COLOR.OP_LABEL, "%", 17)({ ...p })} /></Line>
     </LineChart></ResponsiveContainer></div>}
     <div className="mt-2 overflow-x-auto">
-      <table className="w-full min-w-[760px] text-center text-[10px] text-slate-300">
+      <table className="w-full min-w-[760px] text-center text-[10px] text-white">
         <thead><tr><th className="py-1 text-left">원값</th>{growthPoints.map((point) => <th key={point.label}>{point.label}</th>)}</tr></thead>
         <tbody>
           <tr className="border-t border-slate-800"><th className="py-1 text-left text-emerald-300">매출 YoY</th>{growthPoints.map((point) => <td key={point.label}>{fmt(point.revenueYoy, "%")}</td>)}</tr>
@@ -167,7 +167,7 @@ function GrowthLinePanel({ points, meanings }: { points: ChartPoint[]; meanings:
         </tbody>
       </table>
     </div>
-    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">실선은 발표된 분기, 점선은 다음 분기 컨센서스다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
+    <p className="mt-1 text-[10px] leading-relaxed text-white">실선은 발표된 분기, 점선은 다음 분기 컨센서스다. 빈 칸은 선으로 이어 숨기지 않고, 흑전·적전처럼 % 계산이 성립하지 않는 분기는 원값 표에 상태로 표시한다.</p>
     <Explanation items={meanings} kind="yoy" />
   </div>;
 }
@@ -177,10 +177,10 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
   const measured = data.some((p) => p.orderBacklog != null || p.newOrders != null || p.disclosedContractEok != null || p.postReportContractEok != null);
   const qoqMeasured = data.filter((p) => p.orderBacklogQoq != null).length;
   return <div className="rounded border border-slate-800 bg-slate-950/30 p-2 md:col-span-2">
-    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주 / 수주잔고 QoQ</strong><span className="text-xs text-slate-400">억원 · % · QoQ {qoqMeasured}개</span></div>
+    <div className="mb-1 flex items-center justify-between"><strong className="text-lg font-black text-white">수주잔고 / 신규 수주 / 수주잔고 QoQ</strong><span className="text-xs text-white">억원 · % · QoQ {qoqMeasured}개</span></div>
     <div className="h-52"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={data} margin={{ top: 28, right: 8, bottom: 0, left: 0 }}>
       <CartesianGrid stroke="#1e293b" vertical={false} /><QuarterAxis />
-      <YAxis yAxisId="amount" width={52} domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+      <YAxis yAxisId="amount" width={52} domain={[0, "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={42} domain={["auto", "auto"]} stroke="#facc15" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <ReferenceLine yAxisId="percent" y={0} stroke="#64748b" strokeWidth={1} />
       <Tooltip formatter={(v, name) => [fmt(v, String(name).includes("QoQ") ? "%" : "억"), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
@@ -192,7 +192,7 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
     </ComposedChart></ResponsiveContainer></div>
     {!measured && <p className="mt-1 rounded border border-amber-800/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">막대 축은 유지하되 공개 자료의 구조화 수치가 없어 값을 그리지 않았다. 0원이 아니다.</p>}
     <p className="mt-1 text-[11px] text-amber-200">분홍 신규수주는 원문 보고기간 누적 공시값입니다. 반기는 6개월, 사업보고서는 12개월이며 분기 단독 신규수주로 읽지 않습니다.</p>
-    <p className="mt-1 text-[10px] leading-4 text-slate-400">보라·분홍 막대는 정기보고서가 각각 명시한 수주잔고·신규수주다. 노란 선은 같은 공시 범위의 연속 분기 수주잔고만 비교한 QoQ이며, 범위가 바뀌거나 분기가 빠지면 선을 잇지 않는다. 정기보고서가 신규수주 합계를 공개하지 않은 종목은 단일판매·공급계약 공시액을 청록·주황 막대의 공개 신규계약 하한으로 따로 표시하며, 이를 회사 전체 신규수주로 바꾸지 않는다.</p>
+    <p className="mt-1 text-[10px] leading-4 text-white">보라·분홍 막대는 정기보고서가 각각 명시한 수주잔고·신규수주다. 노란 선은 같은 공시 범위의 연속 분기 수주잔고만 비교한 QoQ이며, 범위가 바뀌거나 분기가 빠지면 선을 잇지 않는다. 정기보고서가 신규수주 합계를 공개하지 않은 종목은 단일판매·공급계약 공시액을 청록·주황 막대의 공개 신규계약 하한으로 따로 표시하며, 이를 회사 전체 신규수주로 바꾸지 않는다.</p>
     <Explanation items={[meaning]} />
   </div>;
 }
@@ -202,7 +202,7 @@ export function OrderQuarterlyChart({ points }: { points: ChartPoint[] }) {
 }
 
 export default function QuarterlyChart({ points, orderPoints = points, showOrders = true, interpretations = [] }: { points: ChartPoint[]; orderPoints?: ChartPoint[]; showOrders?: boolean; interpretations?: QuarterInterpretation[] }) {
-  if (!points.length && !orderPoints.length) return <p className="py-8 text-center text-sm text-slate-300">분기 재무가 아직 없다.</p>;
+  if (!points.length && !orderPoints.length) return <p className="py-8 text-center text-sm text-white">분기 재무가 아직 없다.</p>;
   // 현재 위치 해설은 발표된 분기만 본다. 점선 컨센서스를 현재 실적으로 오인하지 않는다.
   const meanings = fundamentalMetricMeanings(withOrderBacklogQoq(
     points.filter((point) => !point.isCurrentQuarter)

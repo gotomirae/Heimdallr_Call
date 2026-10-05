@@ -2,6 +2,21 @@
   "_generated_by": "python -m src.config.export_constants",
   "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
   "dashboard_refresh_seconds": 60,
+  "strategy": {
+    "months": [
+      1,
+      2,
+      4,
+      5,
+      7,
+      8,
+      10,
+      11
+    ],
+    "first_week_days": 7,
+    "flow_sessions": 3,
+    "catalyst_months": 6
+  },
   "pri_rule_version": "4.0-2026-10-04",
   "pri_review_min_rows": 100,
   "pri_review_min_quarters": 2,

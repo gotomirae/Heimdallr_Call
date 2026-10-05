@@ -108,7 +108,7 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
         <div className="text-sm font-bold text-violet-100">기업 투자판단 LLM 분석</div>
         <p className="mt-1 text-xs text-emerald-200">🕒 가장 최근 분석: {timeLabel(analyzedAt) ?? "분석 이력 없음"}</p>
         <p className="mt-1 text-xs text-violet-200">🔁 강조 · 🔄 변경 · 🛠 수정 · 🆕 신규를 이전 분석과 비교합니다. 다음 분기 확인 항목도 재점검합니다.</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-300">클릭하면 현재 시점에 새 분석을 접수합니다. 생성 시각과 실적·확정 종가의 기준일은 구분합니다.<br />기업 개요·제품별 매출 비중·핵심 투자 아이디어·실적 원인·향후 전망·주가 구간별 상승/하락 원인·리스크를 공시와 공개 원문으로 분석합니다.</p>
+        <p className="mt-1 text-xs leading-relaxed text-white">클릭하면 현재 시점에 새 분석을 접수합니다. 생성 시각과 실적·확정 종가의 기준일은 구분합니다.<br />기업 개요·제품별 매출 비중·핵심 투자 아이디어·실적 원인·향후 전망·주가 구간별 상승/하락 원인·리스크를 공시와 공개 원문으로 분석합니다.</p>
       </div>
       <button type="button" onClick={request} disabled={active}
         className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-950/40 hover:bg-violet-400 disabled:cursor-wait disabled:bg-slate-600">
@@ -124,12 +124,12 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
       <div className="h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.pct}>
         <div className={`h-full rounded-full transition-[width] duration-500 ${state.status === "failed" ? "bg-rose-500" : state.status === "completed" ? "bg-emerald-400" : "bg-violet-400"}`} style={{ width: `${progress.pct}%` }} />
       </div>
-      <p className="mt-1.5 text-[11px] text-slate-400">
+      <p className="mt-1.5 text-[11px] text-white">
         단계 기준 진행률이며 모델 내부 토큰 생성률은 아닙니다.
         {requestedAt && <> · 접수 {requestedAt}</>}{claimedAt && <> · 처리 시작 {claimedAt}</>}
       </p>
     </div>}
     {visibleMessage && <p className="mt-2 text-xs leading-5 text-amber-200">{visibleMessage}</p>}
-    {active && <p className="mt-2 text-[11px] text-slate-400">보통 5~15분 안에 시작한다. 일·월 사용량이 소진되면 상태를 보존하고 갱신 후 자동 재개한다.</p>}
+    {active && <p className="mt-2 text-[11px] text-white">보통 5~15분 안에 시작한다. 일·월 사용량이 소진되면 상태를 보존하고 갱신 후 자동 재개한다.</p>}
   </div>;
 }

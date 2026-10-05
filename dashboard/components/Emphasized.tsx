@@ -16,11 +16,11 @@ const TONE_CLASS: Record<EmphasisTone, string> = {
   /** 가속·좋은 신호 — 차트의 영업이익 라인과 같은 노랑. */
   accel: "text-amber-200",
   /** 변화 없음. */
-  flat: "text-slate-50",
+  flat: "text-white",
   /** 둔화·주의 — 하락 색과 같은 하늘색. */
   slow: "text-sky-200",
   /** 판정 불가. */
-  unknown: "text-slate-50",
+  unknown: "text-white",
   /** 경고 — 기저효과·확률 불일치처럼 "믿지 마라"는 신호. */
   warn: "text-orange-300",
   /** 색을 쓰지 않는 기본 강조. */
@@ -66,7 +66,7 @@ export default function Emphasized({
 export function Highlighted({ text }: { text: string }) {
   // 숫자 + 단위(%p·%·배·억·조·원·%p) 또는 방향을 가르는 낱말.
   const pattern =
-    /([+-]?[\d,]+(?:\.\d+)?\s*(?:%p|%|배|억원|억|조원|조|원|개\s*분기|분기))|([^.!?。\n]*(?:핵심|원인|전망|지속|구조적|일시적|저평가|고평가|매력적|부담|아직 반영|이미 반영|가치|가격)[^.!?。\n]*(?:[.!?。]|$))|(급증|급감|급락|급등|확대|축소|개선|악화|둔화|가속|흑자전환|흑전|적자전환|적전|사상 최대|최고치|최저치)/g;
+    /([+-]?[\d,]+(?:\.\d+)?\s*(?:%p|%|배|억원|억|조원|조|원|개\s*분기|분기))|(실적 가속|영업이익|매출|수주|순매수|상향|저평가|선반영|핵심|원인|전망|지속|구조적|일시적|저평가|고평가|매력적|부담|가치|가격|급증|급감|급락|급등|확대|축소|개선|악화|둔화|가속|흑자전환|흑전|적자전환|적전|사상 최대|최고치|최저치)/g;
 
   const out: React.ReactNode[] = [];
   let cursor = 0;
@@ -76,7 +76,7 @@ export function Highlighted({ text }: { text: string }) {
     out.push(
       <strong
         key={`${m.index}`}
-        className="rounded bg-amber-300/15 px-0.5 font-semibold text-amber-200"
+        className={`font-semibold ${/악화|부담|급감|급락|적전|적자전환/.test(m[0]) ? "text-rose-300" : /순매수|개선|상향|흑전/.test(m[0]) ? "text-emerald-200" : /수주|매출|전망/.test(m[0]) ? "text-sky-300" : "text-amber-200"}`}
       >
         {m[0]}
       </strong>
@@ -85,4 +85,14 @@ export function Highlighted({ text }: { text: string }) {
   }
   if (cursor < text.length) out.push(text.slice(cursor));
   return <>{out}</>;
+}
+
+/** 사실과 숫자는 유지하고, 긴 설명을 문장별로 나누어 읽는다. */
+export function ReadableText({ text }: { text: string }) {
+  const lines = text.split(/\n+|(?<=[.!?。])\s+(?=[가-힣A-Z])/).map(s => s.trim()).filter(Boolean);
+  return <>{lines.map((line, i) => <span key={i} className="my-1 block leading-7">
+    <span className="mr-2" aria-hidden>{/위험|주의|철회|악화|부족|불가|미확인/.test(line) ? "⚠️" : /확인|검증|근거/.test(line) ? "🔎" : /전망|향후|다음|성장/.test(line) ? "🚀" : "💡"}</span>
+    {line.split(/(\*\*[^*]+\*\*)/).map((part,j) => part.startsWith("**") ?
+      <strong key={j} className="text-amber-200">{part.slice(2,-2)}</strong> : <Highlighted key={j} text={part}/>)}
+  </span>)}</>;
 }

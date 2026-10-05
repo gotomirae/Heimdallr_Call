@@ -186,7 +186,7 @@ function SortableTh({
             {priority}
           </span>
         )}
-        <span className={`rounded px-1 py-0.5 text-[10px] ${active ? "bg-sky-400/15 text-sky-200" : "bg-slate-800 text-slate-400"}`} aria-hidden="true">
+        <span className={`rounded px-1 py-0.5 text-[10px] ${active ? "bg-sky-400/15 text-sky-200" : "bg-slate-800 text-white"}`} aria-hidden="true">
           {state}
         </span>
       </button>
@@ -319,10 +319,10 @@ function fmtPct(v: number | null | undefined): string {
 }
 /** 수익률 색 — 표에서 눈이 먼저 가야 하는 열이다. */
 function tone(v: number | null | undefined): string {
-  if (v == null) return "text-slate-300";
+  if (v == null) return "text-white";
   if (v > 0) return "text-rose-300 font-semibold";
   if (v < 0) return "text-sky-300";
-  return "text-slate-100";
+  return "text-white";
 }
 /**
  * 성장률 칸. 부호가 바뀌는 구간은 **%가 아니라 라벨**이다(T25) —
@@ -427,10 +427,10 @@ function SectorEditor({
           }}
         />
         <button type="button" onClick={saveCustom} disabled={!draft.trim()}
-          className="rounded bg-sky-500 px-1.5 py-1 text-[10px] font-black text-white disabled:opacity-40"
+          className="rounded bg-sky-500 px-1.5 py-1 text-[10px] font-black text-white disabled:cursor-not-allowed"
           aria-label={`${name} 새 섹터 저장`} title="새 섹터 저장">✓</button>
         <button type="button" onClick={() => { setDraft(sector); setEditingCustom(false); }}
-          className="rounded px-1 py-1 text-[10px] font-bold text-slate-300 hover:bg-slate-800"
+          className="rounded px-1 py-1 text-[10px] font-bold text-white hover:bg-slate-800"
           aria-label={`${name} 섹터 수정 취소`} title="취소">×</button>
       </div>
     );
@@ -443,7 +443,7 @@ function SectorEditor({
         aria-label={`${name} 섹터 선택`}
         title="섹터를 선택하면 즉시 저장됩니다"
         style={{ width: `${Math.min(9.5, Math.max(5.5, Array.from(sector).length + 1))}em` }}
-        className={`min-w-0 shrink rounded border px-0.5 py-1 text-[10px] font-semibold outline-none ${overridden ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-slate-200"}`}
+        className={`min-w-0 shrink rounded border px-0.5 py-1 text-[10px] font-semibold outline-none ${overridden ? "border-sky-500/70 bg-sky-950/60 text-sky-100" : "border-slate-700 bg-slate-900 text-white"}`}
         onChange={(event) => {
           if (event.target.value === CUSTOM_SECTOR_VALUE) {
             setDraft("");
@@ -457,7 +457,7 @@ function SectorEditor({
         <option value={CUSTOM_SECTOR_VALUE}>＋ 직접 입력…</option>
       </select>
       {process && sector.startsWith("반도체") && (
-        <sup className="shrink-0 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-slate-300"
+        <sup className="shrink-0 rounded border border-slate-600 px-0.5 py-px text-[9px] font-bold leading-none text-white"
              title={`${process}공정`}>
           {process}
         </sup>
@@ -684,7 +684,7 @@ export default function DiscoveryTable({
 
   const shown = filtered.slice(0, visibleLimit);
   const select =
-    "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-slate-100";
+    "rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm text-white";
   const showTracking = gate === "opportunity" || gate === "growth" || gate === "turnaround" || gate === "all";
   const active =
     query.trim() !== "" || gate !== (favoriteOnly ? "all" : DEFAULT_FILTERS.gate) || grades.length > 0 ||
@@ -701,9 +701,9 @@ export default function DiscoveryTable({
               </div>
               <div className="flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded-full border border-emerald-500/40 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">● 자동 계산 정상</span>
-                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇺🇸 미국 최근 완료 거래일 {macroContext.marketDate}</span>
-                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🇰🇷 한국 최근 완료 거래일 {macroContext.koreaMarketDate ?? "미수집"}</span>
-                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-slate-200">🕘 {macroContext.checkedAt}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-white">🇺🇸 미국 최근 완료 거래일 {macroContext.marketDate}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-white">🇰🇷 한국 최근 완료 거래일 {macroContext.koreaMarketDate ?? "미수집"}</span>
+                <span className="rounded-full border border-slate-600 bg-slate-900/70 px-3 py-1 text-white">🕘 {macroContext.checkedAt}</span>
               </div>
             </div>
             {macroContext.refreshOverdue && (
@@ -718,22 +718,22 @@ export default function DiscoveryTable({
                   <span className="text-xl" aria-hidden="true">🌡️</span>
                   <h3 className="font-extrabold text-emerald-200">오늘의 시장 온도</h3>
                 </div>
-                <div className="grid gap-2 text-sm leading-6 text-slate-100 lg:grid-cols-2">{macroContext.summary.current.split("\n").filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>
+                <div className="grid gap-2 text-sm leading-6 text-white lg:grid-cols-2">{macroContext.summary.current.split("\n").filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>
               </article>
               <article className="rounded-xl border border-violet-500/30 bg-violet-950/20 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-xl" aria-hidden="true">🔭</span>
                   <h3 className="font-extrabold text-violet-200">앞으로 볼 변수</h3>
                 </div>
-                <p className="mb-3 text-xs leading-5 text-slate-400">{macroContext.recentIssueWindow ? `${macroContext.recentIssueWindow.from} ~ ${macroContext.recentIssueWindow.through} · 지난밤 포함` : "최근 7일 · 최신 자료 갱신 대기"}<br />영향은 조건부 해석입니다. 원문 결과와 시장 반응을 함께 확인하세요.</p>
+                <p className="mb-3 text-xs leading-5 text-white">{macroContext.recentIssueWindow ? `${macroContext.recentIssueWindow.from} ~ ${macroContext.recentIssueWindow.through} · 지난밤 포함` : "최근 7일 · 최신 자료 갱신 대기"}<br />영향은 조건부 해석입니다. 원문 결과와 시장 반응을 함께 확인하세요.</p>
                 <div className="grid gap-4 lg:grid-cols-2">{(macroContext.recentIssues ?? []).map((item) => <div key={item.url} className="border-l-2 border-violet-500/50 pl-3">
                   <a href={item.url} target="_blank" rel="noopener noreferrer" title={item.title} className="text-sm font-bold text-violet-100 underline">{item.emoji} {item.label}</a>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{item.publishedAt} · {item.source} · 공식 발표 원문</p>
+                  <p className="mt-0.5 text-[11px] text-white">{item.publishedAt} · {item.source} · 공식 발표 원문</p>
                   <p className="mt-1 text-xs font-semibold text-sky-200">📌 {item.fact}</p>
-                  <div className="mt-1 space-y-1 text-sm leading-6 text-slate-200">{item.marketImpact.split(/(?<=다\.)\s+/).map((line, index) => <p key={index}>↳ {line}</p>)}</div>
-                  <details className="mt-1 text-[11px] text-slate-400"><summary className="cursor-pointer">원문 제목 확인</summary>{item.title}</details>
+                  <div className="mt-1 space-y-1 text-sm leading-6 text-white">{item.marketImpact.split(/(?<=다\.)\s+/).map((line, index) => <p key={index}>↳ {line}</p>)}</div>
+                  <details className="mt-1 text-[11px] text-white"><summary className="cursor-pointer">원문 제목 확인</summary>{item.title}</details>
                 </div>)}</div>
-                {!(macroContext.recentIssues ?? []).length && <p className="text-sm leading-6 text-slate-300">🔎 최근 7일 내 확인된 공식 발표가 없습니다. 오래된 발표를 이번 주 이슈로 표시하지 않습니다.</p>}
+                {!(macroContext.recentIssues ?? []).length && <p className="text-sm leading-6 text-white">🔎 최근 7일 내 확인된 공식 발표가 없습니다. 오래된 발표를 이번 주 이슈로 표시하지 않습니다.</p>}
                 {!!macroContext.recentIssueFailures?.length && <p className="mt-2 text-xs text-amber-200">⚠️ 일부 공식 출처를 확인하지 못했습니다. <span className="inline-flex flex-wrap gap-2">{macroContext.recentIssueFailures.map((url) => <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="underline">원문 직접 확인</a>)}</span></p>}
                 {(macroContext.globalSectorTilts ?? []).length > 0 && <p className="mt-2 text-xs leading-5 text-violet-200">글로벌 공식 전망 반영 섹터: {(macroContext.globalSectorTilts ?? []).join(" · ")}</p>}
               </article>
@@ -744,26 +744,26 @@ export default function DiscoveryTable({
             <article className="overflow-hidden rounded-xl border border-violet-700/50 bg-violet-950/15">
               <div className="border-b border-violet-800/60 px-4 py-3">
                 <h3 className="font-extrabold text-violet-100">앞으로 3개월 · 증시를 움직일 공식 일정과 대응</h3>
-                <p className="mt-1 text-[11px] text-slate-400">발표 전 예측보다 발표값·시장 반응·기업 이익 전망이 같은 방향인지 확인한다.</p>
+                <p className="mt-1 text-[11px] text-white">발표 전 예측보다 발표값·시장 반응·기업 이익 전망이 같은 방향인지 확인한다.</p>
               </div>
               {(macroContext.nextEvents ?? []).length ? <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-300"><tr><th className="px-4 py-2">일정</th><th className="px-4 py-2">볼 변수</th><th className="px-4 py-2">대응 방안</th></tr></thead>
+                <thead className="bg-slate-900/80 text-white"><tr><th className="px-4 py-2">일정</th><th className="px-4 py-2">볼 변수</th><th className="px-4 py-2">대응 방안</th></tr></thead>
                 <tbody className="divide-y divide-slate-800">{macroContext.nextEvents?.map((item) => <tr key={`${item.date}-${item.event}`} className="align-top">
                   <td className="px-4 py-3">
                     <a href={item.url} target="_blank" rel="noopener noreferrer" title="공식 기관 문서를 새 탭에서 열기" className="font-bold text-violet-200 underline">{item.important && <span className="mr-1 text-[#f7c948]" aria-label="핵심 일정">★</span>}{item.date} · {item.event}</a>
-                    <span className="mt-1 block text-[10px] text-slate-400">{item.source} 공식 문서 · 새 탭</span>
+                    <span className="mt-1 block text-[10px] text-white">{item.source} 공식 문서 · 새 탭</span>
                     <a href={`/macro/translation?source=${encodeURIComponent(item.url)}&eventDate=${encodeURIComponent(item.date)}`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[10px] font-bold text-sky-300 underline">한국어 핵심 설명</a>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-100">{item.watch}</td>
-                  <td className="px-4 py-3 leading-5 text-slate-200">{item.response}</td>
+                  <td className="px-4 py-3 font-semibold text-white">{item.watch}</td>
+                  <td className="px-4 py-3 leading-5 text-white">{item.response}</td>
                 </tr>)}</tbody>
-              </table></div> : <p className="px-4 py-4 text-sm text-slate-300">현재 스냅샷에 향후 3개월 공식 일정이 없습니다.</p>}
+              </table></div> : <p className="px-4 py-4 text-sm text-white">현재 스냅샷에 향후 3개월 공식 일정이 없습니다.</p>}
             </article>
 
             <article className="rounded-xl border border-slate-700/80 bg-slate-950/65 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-extrabold text-white">⚙️ 실적 갱신 자동 계산 흐름</h3>
-                <span className="text-[11px] text-slate-400">점수와 가격은 한 숫자로 합산하지 않음</span>
+                <span className="text-[11px] text-white">점수와 가격은 한 숫자로 합산하지 않음</span>
               </div>
               <div className="grid items-stretch gap-2 text-center text-xs font-bold sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
                 <div className="rounded-lg border border-sky-600/50 bg-sky-950/60 px-3 py-3 text-sky-100"><span className="block text-lg">① 📡</span>미국·한국 장·공식 지표 수집</div>
@@ -784,7 +784,7 @@ export default function DiscoveryTable({
               {macroContext.briefings && macroContext.briefings.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-left text-xs">
-                    <thead className="bg-slate-900/90 text-slate-300">
+                    <thead className="bg-slate-900/90 text-white">
                       <tr>
                         <th className="w-[230px] px-4 py-2.5 font-bold">지표·발표일</th>
                         <th className="px-4 py-2.5 font-bold">핵심 내용과 시장 의미</th>
@@ -795,9 +795,9 @@ export default function DiscoveryTable({
                         <tr key={briefing.url} className="align-top hover:bg-slate-900/55">
                           <td className="px-4 py-3">
                             <a href={translatedSourceUrl(briefing.url)} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 underline decoration-sky-500/60 underline-offset-2">{briefing.title} · 한글 번역</a>
-                            <span className="mt-1 block text-[11px] text-slate-400">📅 {briefing.publishedAt}</span>
+                            <span className="mt-1 block text-[11px] text-white">📅 {briefing.publishedAt}</span>
                           </td>
-                          <td className="px-4 py-3 leading-5 text-slate-200">
+                          <td className="px-4 py-3 leading-5 text-white">
                             <strong className="block text-white">핵심 · {briefing.keyPoint ?? briefing.summary}</strong>
                             <span className="mt-1 block text-amber-100">시장 의미 · {briefing.marketImpact ?? briefing.summary}</span>
                           </td>
@@ -807,7 +807,7 @@ export default function DiscoveryTable({
                   </table>
                 </div>
               ) : (
-                <p className="px-4 py-4 text-xs text-slate-300">공식 발표 요약을 불러오지 못했습니다. 최신 실적과 가격 기준만 적용합니다.</p>
+                <p className="px-4 py-4 text-xs text-white">공식 발표 요약을 불러오지 못했습니다. 최신 실적과 가격 기준만 적용합니다.</p>
               )}
             </article>
 
@@ -822,7 +822,7 @@ export default function DiscoveryTable({
                           <strong className="text-sm text-sky-200"><span className="mr-1 text-amber-300">#{index + 1}</span>{sector.sector}</strong>
                           <span className="rounded bg-sky-400/10 px-1.5 py-0.5 text-sky-200">★/○ {sector.attractive}/{sector.candidates}</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-1 text-center text-slate-300">
+                        <div className="grid grid-cols-3 gap-1 text-center text-white">
                           <span>점수<strong className="mt-0.5 block text-white">{fmtNum(sector.medianScore)}</strong></span>
                           <span>주가반영도<strong className="mt-0.5 block text-white">{fmtNum(sector.medianPri)}</strong></span>
                           <span>5일<strong className="mt-0.5 block text-white">{fmtPct(sector.medianRet5d)}</strong></span>
@@ -830,19 +830,19 @@ export default function DiscoveryTable({
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-xs text-slate-300">현재 비교 가능한 적합 섹터가 없습니다.</p>}
+                ) : <p className="text-xs text-white">현재 비교 가능한 적합 섹터가 없습니다.</p>}
               </article>
               <article className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-4">
                 <h3 className="font-extrabold text-emerald-200">🌱 {GATE_LABEL[gate]} 기준</h3>
-                <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-200">
+                <ul className="mt-3 space-y-2 text-xs leading-5 text-white">
                   {GATE_CRITERIA[gate].map((criterion) => <li key={criterion} className="flex gap-2"><span className="text-emerald-300">◆</span><span>{criterion}</span></li>)}
                 </ul>
               </article>
             </div>
 
-            <footer className="border-t border-slate-800 pt-3 text-[11px] leading-5 text-slate-400">
+            <footer className="border-t border-slate-800 pt-3 text-[11px] leading-5 text-white">
               {macroContext.items.length > 0 ? (
-                <><strong className="text-slate-300">🔗 출처 · {macroContext.source}</strong><span className="mx-2 text-slate-700">|</span>{macroContext.items.map((item, index) => (
+                <><strong className="text-white">🔗 출처 · {macroContext.source}</strong><span className="mx-2 text-white">|</span>{macroContext.items.map((item, index) => (
                   <span key={`${item.url}-${index}`}>{index > 0 && " · "}<a href={translatedSourceUrl(item.url)} target="_blank" rel="noreferrer" className="text-sky-300 underline underline-offset-2">{item.title} · 한글 번역</a></span>
                 ))}</>
               ) : "공식 매크로 원문을 불러오지 못했습니다. 뉴스는 추정하지 않습니다."}
@@ -852,39 +852,39 @@ export default function DiscoveryTable({
       )}
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3" aria-label="발굴 목록 필터">
-        <input value={query} onChange={(e) => patch({ query: e.target.value })} placeholder="종목명 또는 코드" className={`${select} w-44 placeholder:text-slate-300`} aria-label="종목 검색" />
+        <input value={query} onChange={(e) => patch({ query: e.target.value })} placeholder="종목명 또는 코드" className={`${select} w-44 placeholder:text-white`} aria-label="종목 검색" />
         {!favoriteOnly && <select value={gate} onChange={(e) => patch({ gate: e.target.value as GateFilter })} className={select} aria-label="해당 조건의 종목"><option value="all">조건 전체</option>{(Object.keys(GATE_LABEL) as GateFilter[]).filter((k) => k !== "all").map((k) => <option key={k} value={k}>{GATE_LABEL[k]}</option>)}</select>}
         <MultiSelect label="등급" options={gradeOptions} selected={grades} onChange={(next) => patch({ grades: next as Grade[] })} widthClass="w-40" />
         <MultiSelect label="섹터" options={sectorOptions} selected={sectors} onChange={(next) => patch({ sectors: next })} widthClass="w-52" />
         <select value={cap} onChange={(e) => patch({ cap: e.target.value as CapFilter })} className={select} aria-label="시가총액">{(Object.keys(CAP_LABEL) as CapFilter[]).map((k) => <option key={k} value={k}>{CAP_LABEL[k]}</option>)}</select>
         <select value={consensus} onChange={(e) => patch({ consensus: e.target.value as ConsensusFilter })} className={select} aria-label="영업이익 컨센서스 대비"><option value="all">vs 컨센</option><option value="beat">영업이익 컨센 상회</option><option value="miss">영업이익 컨센 하회</option><option value="none">분기 컨센 없음</option></select>
         <select value={quarter} onChange={(e) => patch({ quarter: e.target.value })} className={select} aria-label="분기"><option value="all">분기 전체</option>{quarters.map((q) => <option key={q} value={q}>{q}</option>)}</select>
-        {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">필터 초기화</button>}
+        {active && <button type="button" onClick={() => setFilters(favoriteOnly ? { ...DEFAULT_FILTERS, gate: "all" } : DEFAULT_FILTERS)} className="rounded border border-slate-600 px-2 py-1 text-sm text-white hover:bg-slate-800">필터 초기화</button>}
       </div>
 
-      <p className="text-sm text-slate-100">
+      <p className="text-sm text-white">
         <strong className="text-white">{filtered.length.toLocaleString("ko-KR")}종목</strong>
-        <span className="text-slate-300">
+        <span className="text-white">
           {favoriteOnly
             ? ` / 관심 종목 ${favorites.length.toLocaleString("ko-KR")}`
             : ` / 전체 ${rows.length.toLocaleString("ko-KR")}`}
         </span>
         {/* ★ 화면이 지금 무슨 순서인지 **글로도** 말한다. 화살표만으로는
             스크롤을 내린 뒤 "내가 뭘로 정렬했더라"를 알 수 없다. */}
-        <span className="ml-2 text-xs text-slate-300">
+        <span className="ml-2 text-xs text-white">
           {sorts.length === 0 ? (
             "기본 순서 적용 중"
           ) : (
             <>
               다중 정렬: {sorts.map((rule, index) => (
                 <span key={rule.key}>
-                  {index > 0 && <span className="text-slate-500"> → </span>}
+                  {index > 0 && <span className="text-white"> → </span>}
                   <strong className="text-sky-300">{index + 1}. {SORT_LABEL[rule.key] ?? rule.key}</strong>{" "}
                   {rule.dir === "desc" ? "내림차순" : "오름차순"}
                   <button
                     type="button"
                     onClick={() => patch({ sorts: removeSortRule(sorts, rule.key) })}
-                    className="ml-1 rounded px-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    className="ml-1 rounded px-1 text-white hover:bg-slate-800 hover:text-white"
                     aria-label={`${SORT_LABEL[rule.key] ?? rule.key} 정렬 제거`}
                     title="이 정렬만 제거"
                   >
@@ -892,7 +892,7 @@ export default function DiscoveryTable({
                   </button>
                 </span>
               ))}
-              <span className="text-slate-400"> · 미측정은 맨 뒤</span>
+              <span className="text-white"> · 미측정은 맨 뒤</span>
               <button type="button"
                       onClick={() => patch({ sorts: [] })}
                       className="ml-2 underline hover:text-white">
@@ -919,7 +919,7 @@ export default function DiscoveryTable({
               {macroContext.summary.recommendedSort.replace(/^.*?:\s*/, "")}
             </p>
             {sorts.length > 0 && <span className="shrink-0 rounded-full border border-amber-300/40 bg-black/20 px-3 py-1 text-[11px] font-bold text-amber-200">현재 표는 사용자 정렬 적용 중</span>}
-            <button type="button" onClick={() => patch({ sorts: [] })} className="shrink-0 rounded-lg border border-amber-300/70 bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-yellow-200">기본 추천 순서 복원</button>
+            <button type="button" onClick={() => patch({ sorts: [] })} className="shrink-0 rounded-lg border border-amber-300/70 bg-amber-300 px-3 py-2 text-xs font-black text-white hover:bg-yellow-200">기본 추천 순서 복원</button>
           </div>
         </section>
       )}
@@ -927,8 +927,8 @@ export default function DiscoveryTable({
       {/* ★ 높이를 제한해야 머리글 sticky가 먹는다(T64). */}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700">
         <table className="w-full min-w-[1820px] border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-slate-100 shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
-            <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-slate-300">
+          <thead className="sticky top-0 z-20 bg-slate-950 text-xs text-white shadow-[0_1px_0_0_rgba(148,163,184,0.55)]">
+            <tr className="border-b border-slate-700 text-[11px] font-bold tracking-[0.14em] text-white">
               <th colSpan={3}
                   className="sticky left-0 z-40 w-[276px] min-w-[276px] max-w-[276px] bg-slate-900 px-1 py-1.5 text-left shadow-[5px_0_8px_-6px_rgba(148,163,184,0.8)]">
                 종목 정보
@@ -1004,7 +1004,7 @@ export default function DiscoveryTable({
           <tbody>
             {shown.map((r) => (
               <tr key={r.code} className="group border-t border-slate-800 hover:bg-slate-900/60">
-                <td className="sticky left-0 z-10 w-[120px] min-w-[120px] max-w-[120px] whitespace-nowrap bg-slate-950 px-0.5 py-1.5 text-slate-200 group-hover:bg-slate-900"
+                <td className="sticky left-0 z-10 w-[120px] min-w-[120px] max-w-[120px] whitespace-nowrap bg-slate-950 px-0.5 py-1.5 text-white group-hover:bg-slate-900"
                     title={r.industry ?? undefined}>
                   <SectorEditor
                     code={r.code}
@@ -1024,7 +1024,7 @@ export default function DiscoveryTable({
                     onClick={() => toggleFavorite(r.code)}
                     className={favorites.includes(r.code)
                       ? "text-xl leading-none text-amber-300"
-                      : "text-xl leading-none text-slate-500 hover:text-amber-200"}
+                      : "text-xl leading-none text-white hover:text-amber-200"}
                     aria-label={`${r.name} ${favorites.includes(r.code) ? "관심 종목에서 제거" : "관심 종목으로 추가"}`}
                     title={favorites.includes(r.code) ? "관심 종목에서 제거" : "관심 종목으로 추가"}
                   >
@@ -1047,10 +1047,10 @@ export default function DiscoveryTable({
                       {r.grade}
                     </span>
                   ) : (
-                    <span className="text-slate-300">—</span>
+                    <span className="text-white">—</span>
                   )}
                 </td>
-                <td className="w-[70px] min-w-[70px] max-w-[70px] whitespace-nowrap px-2 py-2 text-slate-200">{r.quarter}</td>
+                <td className="w-[70px] min-w-[70px] max-w-[70px] whitespace-nowrap px-2 py-2 text-white">{r.quarter}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums text-white">
                   {fmtNum(r.score)}
                 </td>
@@ -1071,9 +1071,9 @@ export default function DiscoveryTable({
                     ? "—"
                     : `${r.opmYoyDelta >= 0 ? "+" : ""}${r.opmYoyDelta.toFixed(1)}%p`}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-100">{fmtNum(r.pri)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-200">{fmtCap(r.marketCap)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-100">
+                <td className="px-3 py-2 text-right tabular-nums text-white">{fmtNum(r.pri)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-white">{fmtCap(r.marketCap)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-white">
                   {r.per4q == null ? "—" : `${r.per4q.toFixed(1)}배`}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-sky-200">
@@ -1096,7 +1096,7 @@ export default function DiscoveryTable({
                       </td>
                     ))
                   : (
-                    <td className="px-3 py-2 text-xs text-slate-200">
+                    <td className="px-3 py-2 text-xs text-white">
                       {r.gatePassed === false
                         ? r.failReasons.join(" · ") || "탈락"
                         : "판정 불가 (데이터 부족)"}
@@ -1107,7 +1107,7 @@ export default function DiscoveryTable({
             {favoritesRestored && shown.length === 0 && (
               <tr>
                 <td colSpan={15 + (showTracking ? HORIZONS.length : 1)}
-                    className="px-3 py-8 text-center text-slate-200">
+                    className="px-3 py-8 text-center text-white">
                   {favoriteOnly
                     ? "관심 종목이 없다. 발굴 목록에서 ☆를 눌러 추가해라."
                     : "조건에 맞는 종목이 없다."}
@@ -1119,7 +1119,7 @@ export default function DiscoveryTable({
       </div>
 
       {filtered.length > shown.length && (
-        <div className="flex items-center gap-3 text-sm text-slate-200">
+        <div className="flex items-center gap-3 text-sm text-white">
           <button
             type="button"
             onClick={() => setVisibleLimit((current) => current + ROW_STEP)}

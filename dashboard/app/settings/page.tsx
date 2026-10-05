@@ -25,8 +25,8 @@ function Card({ title, note, children }: {
 }) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-      <h2 className="mb-1 text-sm font-semibold text-slate-100">{title}</h2>
-      {note && <p className="mb-3 text-xs text-slate-300">{note}</p>}
+      <h2 className="mb-1 text-sm font-semibold text-white">{title}</h2>
+      {note && <p className="mb-3 text-xs text-white">{note}</p>}
       {children}
     </section>
   );
@@ -37,11 +37,11 @@ function Row({ label, value, hint }: {
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-slate-800/60 py-1.5 last:border-b-0">
-      <span className="text-sm text-slate-100">
+      <span className="text-sm text-white">
         {label}
-        {hint && <span className="ml-2 text-xs text-slate-300">{hint}</span>}
+        {hint && <span className="ml-2 text-xs text-white">{hint}</span>}
       </span>
-      <span className="shrink-0 font-mono text-sm tabular-nums text-slate-100">{value}</span>
+      <span className="shrink-0 font-mono text-sm tabular-nums text-white">{value}</span>
     </div>
   );
 }
@@ -84,14 +84,14 @@ export default async function SettingsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">설정 · 비용</h1>
-        <p className="mt-1 text-sm text-slate-200">
+        <p className="mt-1 text-sm text-white">
           임계값은 <strong>읽기 전용</strong>이다 — 고치려면{" "}
           <code className="rounded bg-slate-800 px-1 text-xs">src/config/constants.py</code>를
           수정하고 <code className="rounded bg-slate-800 px-1 text-xs">
             python -m src.config.export_constants
           </code>를 돌린다.
         </p>
-        <p className="mt-1 text-xs text-slate-300">
+        <p className="mt-1 text-xs text-white">
           화면에서 고칠 수 있게 만들면 파이썬 상수와 갈라져
           <strong> 어느 쪽이 실제로 쓰이는지 알 수 없게 된다.</strong>
         </p>
@@ -113,9 +113,9 @@ export default async function SettingsPage() {
             <span className="text-3xl font-bold tabular-nums">
               {cost?.available ? `$${spent.toFixed(4)}` : "—"}
             </span>
-            <span className="text-sm text-slate-200">/ ${ceiling}</span>
+            <span className="text-sm text-white">/ ${ceiling}</span>
             {cost?.available && (
-              <span className="text-sm text-slate-300">({usedPct.toFixed(1)}%)</span>
+              <span className="text-sm text-white">({usedPct.toFixed(1)}%)</span>
             )}
           </div>
           <div className="h-3 overflow-hidden rounded bg-slate-800">
@@ -151,29 +151,29 @@ export default async function SettingsPage() {
                 ? `$${cost.nextMonthForecastUsd.toFixed(4)}`
                 : "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-300">
+            <p className="mt-1 text-xs text-white">
               {cost?.forecastBasis ?? "예측할 실호출 이력이 없다."}
               {" · 실제 배치 규모에 따라 달라질 수 있다."}
             </p>
           </div>
 
           <div className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold text-slate-200">월별 실호출 비용 · 최근 12개월</h3>
+            <h3 className="mb-2 text-xs font-semibold text-white">월별 실호출 비용 · 최근 12개월</h3>
             {cost?.available && cost.months.length > 0 ? (
               <div className="overflow-hidden rounded border border-slate-800">
                 {cost.months.map((item) => (
                   <div key={item.monthKey}
                        className="grid grid-cols-3 border-b border-slate-800/70 px-3 py-2 text-sm last:border-b-0">
-                    <span className="text-slate-200">{item.monthKey}</span>
+                    <span className="text-white">{item.monthKey}</span>
                     <span className="text-right font-mono tabular-nums text-white">
                       ${item.spentUsd.toFixed(4)}
                     </span>
-                    <span className="text-right text-slate-300">{item.calls}건</span>
+                    <span className="text-right text-white">{item.calls}건</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-300">월별 비용 기록이 없다.</p>
+              <p className="text-sm text-white">월별 비용 기록이 없다.</p>
             )}
           </div>
         </div>
@@ -181,7 +181,7 @@ export default async function SettingsPage() {
 
       <Card title="발송 이력" note="같은 (종목, 분기, 종류)는 두 번 나가지 않는다.">
         {notifications.length === 0 ? (
-          <p className="text-sm text-slate-300">발송 기록이 없다.</p>
+          <p className="text-sm text-white">발송 기록이 없다.</p>
         ) : (
           <div className="grid gap-x-6 sm:grid-cols-2">
             {[...byKind.entries()].map(([kind, n]) => (
@@ -202,7 +202,7 @@ export default async function SettingsPage() {
             ))}
           </div>
           {suppressedReason && (
-            <p className="mt-3 text-xs text-slate-400">사유: {suppressedReason}</p>
+            <p className="mt-3 text-xs text-white">사유: {suppressedReason}</p>
           )}
         </Card>
       )}
@@ -260,7 +260,7 @@ export default async function SettingsPage() {
           </div>
         </div>
         <details className="mt-3">
-          <summary className="cursor-pointer text-xs text-slate-300 hover:text-slate-100">
+          <summary className="cursor-pointer text-xs text-white hover:text-white">
             항목별 배점 14개 보기
           </summary>
           <div className="mt-2 grid gap-x-8 sm:grid-cols-2">
@@ -339,17 +339,17 @@ export default async function SettingsPage() {
         title="용어"
         note="이 시스템이 쓰는 낱말이 각각 무엇을 재는지. 표 머리글에 마우스를 올려도 같은 설명이 뜬다."
       >
-        <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-100">
-          <strong className="text-slate-100">성장 가속</strong> — 매출 YoY 가속 + 영업이익
+        <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-sm text-white">
+          <strong className="text-white">성장 가속</strong> — 매출 YoY 가속 + 영업이익
           YoY 가속 + OPM YoY 상승을 <strong>모두</strong> 만족한 것.
-          <div className="mt-2 font-mono text-xs leading-relaxed text-slate-200">
+          <div className="mt-2 font-mono text-xs leading-relaxed text-white">
             G1 매출{"   "}revenue_yoy(t) &gt; revenue_yoy(t−1){"  "}AND{"  "}revenue_yoy(t) &gt; 0
             <br />
             G2 영업익 op_yoy(t){"     "}&gt; op_yoy(t−1){"      "}AND{"  "}op_yoy(t){"     "}&gt; 0
             <br />
             G4 OPM{"      "}opm(t) &gt; opm(t−4)
           </div>
-          <p className="mt-2 text-xs text-slate-300">
+          <p className="mt-2 text-xs text-white">
             전년 적자에서 당기 흑자로 돌아선 &lsquo;흑전&rsquo;은 성장률(%)을 계산할 수 없지만
             별도 <strong>턴어라운드</strong> 유형으로 분류한다. 전분기 성장률을 모르면 탈락이
             아니라 <strong>판정 불가</strong>다 — 결측을 탈락으로 뭉개면 데이터가 덜 모인

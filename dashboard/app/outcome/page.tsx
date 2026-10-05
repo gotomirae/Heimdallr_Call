@@ -8,6 +8,7 @@
 //   그럴듯하게 읽히지만 완전히 틀린 조언이 된다.
 import Link from "next/link";
 import SeasonStrategy from "@/components/SeasonStrategy";
+import { ReadableText } from "@/components/Emphasized";
 import { HORIZONS, HORIZON_MEANING, horizonLabel, type Horizon, getOutcomes } from "@/lib/outcome";
 import {
   FEATURE_GROUPS,
@@ -45,7 +46,7 @@ function Card({ title, note, children }: {
   return (
     <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
       <h2 className="text-base font-semibold text-white">{title}</h2>
-      {note && <p className="mb-3 mt-0.5 text-sm text-slate-200">{note}</p>}
+      {note && <p className="mb-3 mt-0.5 text-sm text-white">{note}</p>}
       {children}
     </section>
   );
@@ -57,41 +58,31 @@ function pp(value: number | null): string {
 }
 
 function toneOf(value: number | null): string {
-  if (value == null) return "text-slate-300";
+  if (value == null) return "text-white";
   if (value > 0) return "text-rose-300";
   if (value < 0) return "text-sky-300";
-  return "text-slate-100";
+  return "text-white";
 }
 
 /** `**강조**`를 실제 강조로 바꾼다. 인사이트 문장이 평평하면 안 읽힌다. */
 function Emphasized({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <strong key={i} className="text-white">{part.slice(2, -2)}</strong>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
+  return <ReadableText text={text}/>;
 }
 
 const CONFIDENCE_STYLE: Record<Insight["confidence"], string> = {
   확실: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
   참고: "border-amber-500/60 bg-amber-500/10 text-amber-200",
-  불충분: "border-slate-600 bg-slate-700/30 text-slate-200",
+  불충분: "border-slate-600 bg-slate-700/30 text-white",
 };
 
 function CellText({ cell }: { cell: Cell }) {
   if (cell.n === 0) {
-    return <span className="text-slate-300" title={`표본 ${cell.total}건 중 측정 0건`}>—</span>;
+    return <span className="text-white" title={`표본 ${cell.total}건 중 측정 0건`}>—</span>;
   }
   const thin = cell.n < MIN_SAMPLE;
   return (
     <span
-      className={thin ? "text-slate-300" : toneOf(cell.median)}
+      className={thin ? "text-white" : toneOf(cell.median)}
       title={
         `측정 ${cell.n}건 / 전체 ${cell.total}건 · 평균 ${pp(cell.mean)}%p · ` +
         `플러스 비율 ${((cell.winRate ?? 0) * 100).toFixed(0)}%` +
@@ -99,7 +90,7 @@ function CellText({ cell }: { cell: Cell }) {
       }
     >
       {pp(cell.median)}
-      <span className="ml-1 text-xs text-slate-300">({cell.n})</span>
+      <span className="ml-1 text-xs text-white">({cell.n})</span>
     </span>
   );
 }
@@ -109,10 +100,10 @@ function FeatureTable({ title, note, table }: { title: string; note: string; tab
   return (
     <div className="mb-6 last:mb-0">
       <h3 className="text-sm font-semibold text-white">{title}</h3>
-      <p className="mb-2 text-xs text-slate-200">{note}</p>
+      <p className="mb-2 text-xs text-white">{note}</p>
       <div className="overflow-x-auto rounded border border-slate-700">
         <table className="w-full min-w-[720px] text-sm">
-          <thead className="bg-slate-800 text-xs uppercase text-slate-100">
+          <thead className="bg-slate-800 text-xs uppercase text-white">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-medium">{title}</th>
               {HORIZONS.map((d) => (
@@ -127,13 +118,13 @@ function FeatureTable({ title, note, table }: { title: string; note: string; tab
           <tbody>
             {table.map((r) => (
               <tr key={r.key} className="border-t border-slate-800">
-                <td className="whitespace-nowrap px-3 py-1.5 text-slate-100">{r.key}</td>
+                <td className="whitespace-nowrap px-3 py-1.5 text-white">{r.key}</td>
                 {HORIZONS.map((d) => (
                   <td key={d} className="px-3 py-1.5 text-right tabular-nums">
                     <CellText cell={r.cells.get(d) ?? { n: 0, total: 0, median: null, mean: null, winRate: null }} />
                   </td>
                 ))}
-                <td className="px-3 py-1.5 text-right tabular-nums text-slate-100">{r.total}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-white">{r.total}</td>
               </tr>
             ))}
           </tbody>
@@ -213,17 +204,17 @@ export default async function OutcomePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-white">결과 추적</h1>
-        <p className="mt-1 text-sm text-slate-100">
+        <h1 className="text-2xl font-bold text-white">결과추적 &amp; 투자전략</h1>
+        <p className="mt-1 text-sm text-white">
           발굴한 종목이 <strong className="text-white">실제로 올랐는가</strong>, 그리고{" "}
           <strong className="text-amber-300">언제 샀어야 했는가</strong>.
         </p>
-        <p className="mt-1 text-sm text-slate-200">
-          대상 <strong className="text-slate-100">{rows.length.toLocaleString("ko-KR")}건</strong>
+        <p className="mt-1 text-sm text-white">
+          대상 <strong className="text-white">{rows.length.toLocaleString("ko-KR")}건</strong>
           {quarters.length > 0 && <> · {quarters.join(", ")}</>}
           {dates.length > 0 && <> · 발표일 {dates[0]} ~ {dates[dates.length - 1]}</>}
           {" · 모든 수치는 "}
-          <strong className="text-slate-100">지수 대비 초과수익(%p) 중앙값</strong>
+          <strong className="text-white">지수 대비 초과수익(%p) 중앙값</strong>
           {"이고 괄호는 측정 표본 수다."}
         </p>
       </div>
@@ -243,15 +234,15 @@ export default async function OutcomePage() {
             결론을 지어내지 않고 그 사실을 말한다. */}
       <section className="rounded-lg border-2 border-indigo-500/70 bg-indigo-950/25 p-4">
         <h2 className="text-lg font-bold text-indigo-100">이번 실적 시즌 결론</h2>
-        <p className="mt-2 text-base leading-relaxed text-slate-100">
+        <p className="mt-2 text-base leading-relaxed text-white">
           <Emphasized text={conclusion.verdict} />
         </p>
 
         {conclusion.evidence.length > 0 && (
           <div className="mt-3 space-y-1 rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-            <div className="text-xs font-semibold uppercase text-slate-300">근거 (실측)</div>
+            <div className="text-xs font-semibold uppercase text-white">근거 (실측)</div>
             {conclusion.evidence.map((e, i) => (
-              <p key={i} className="font-mono text-xs text-slate-200">{e}</p>
+              <p key={i} className="font-mono text-xs text-white">{e}</p>
             ))}
           </div>
         )}
@@ -265,7 +256,7 @@ export default async function OutcomePage() {
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/25 text-xs font-bold text-amber-200">
                     {i + 1}
                   </span>
-                  <span className="text-slate-100"><Emphasized text={line} /></span>
+                  <span className="text-white"><Emphasized text={line} /></span>
                 </li>
               ))}
             </ol>
@@ -279,7 +270,7 @@ export default async function OutcomePage() {
         )}
 
         {!conclusion.grounded && (
-          <p className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-slate-100">
+          <p className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-white">
             표본이 모자라 결론을 만들지 않았다 —{" "}
             <strong className="text-amber-300">없는 근거로 조언을 만들지 않는다.</strong>{" "}
             거래일이 쌓이면 이 자리에 자동으로 채워진다.
@@ -302,23 +293,23 @@ export default async function OutcomePage() {
                   isBest ? "border-amber-500 bg-amber-500/10" : "border-slate-700 bg-slate-950/40"
                 }`}
               >
-                <div className="text-xs font-semibold text-slate-100">{horizonLabel(days)}</div>
+                <div className="text-xs font-semibold text-white">{horizonLabel(days)}</div>
                 <div className={`mt-1 text-2xl font-bold tabular-nums ${toneOf(cell.median)}`}>
                   {cell.n > 0 ? `${pp(cell.median)}%p` : DASH}
                 </div>
-                <div className="mt-0.5 text-xs text-slate-200">
+                <div className="mt-0.5 text-xs text-white">
                   {cell.n > 0 ? (
                     <>
                       측정 {cell.n}건 · 플러스{" "}
-                      <strong className="text-slate-100">
+                      <strong className="text-white">
                         {((cell.winRate ?? 0) * 100).toFixed(0)}%
                       </strong>
                     </>
                   ) : (
-                    <span className="text-slate-300">거래일 부족 — 아직 측정 전</span>
+                    <span className="text-white">거래일 부족 — 아직 측정 전</span>
                   )}
                 </div>
-                <div className="mt-1 text-xs text-slate-300">{HORIZON_MEANING[days as Horizon]}</div>
+                <div className="mt-1 text-xs text-white">{HORIZON_MEANING[days as Horizon]}</div>
                 {isBest && (
                   <div className="mt-1 text-xs font-bold text-amber-200">← 가장 좋았던 구간</div>
                 )}
@@ -350,11 +341,11 @@ export default async function OutcomePage() {
                   >
                     {ins.confidence}
                   </span>
-                  <p className="flex-1 text-sm text-slate-100">
+                  <p className="flex-1 text-sm text-white">
                     <Emphasized text={ins.headline} />
                   </p>
                 </div>
-                <p className="mt-1.5 pl-1 font-mono text-xs text-slate-200">{ins.evidence}</p>
+                <p className="mt-1.5 pl-1 font-mono text-xs text-white">{ins.evidence}</p>
                 {ins.action && (
                   <p className="mt-1.5 border-l-2 border-amber-500/60 pl-2 text-sm text-amber-100">
                     {/* ★ Emphasized를 거쳐야 한다 — 그냥 넣으면 `**강조**`의 별표가
@@ -366,7 +357,7 @@ export default async function OutcomePage() {
             ))}
           </div>
         ) : (
-          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-slate-100">
+          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-white">
             <strong className="text-white">아직 결론을 낼 표본이 없다.</strong>{" "}
             발표 후 20·60일은 거래일이 더 지나야 채워진다. 이 화면은 표본이 모이는 대로
             자동으로 결론을 만들어 낸다 —{" "}
@@ -375,7 +366,7 @@ export default async function OutcomePage() {
         )}
 
         {caveats.length > 0 && (
-          <div className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-slate-100">
+          <div className="mt-3 rounded border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-white">
             {caveats.map((c, i) => <p key={i}>⚠ {c}</p>)}
           </div>
         )}
@@ -417,7 +408,7 @@ export default async function OutcomePage() {
                     >
                       {t.confidence}
                     </span>
-                    <span className="text-xs text-slate-300">
+                    <span className="text-xs text-white">
                       종목 {t.total}
                       {t.medianPri != null && ` · 발표시점 반영도 중앙값 ${t.medianPri.toFixed(0)}`}
                       {t.coverageRate != null &&
@@ -434,18 +425,18 @@ export default async function OutcomePage() {
                         <span
                           key={d}
                           className={`rounded px-2 py-0.5 text-xs tabular-nums ${
-                            isBest ? "bg-amber-500/20 font-bold text-amber-100" : "bg-slate-800 text-slate-200"
+                            isBest ? "bg-amber-500/20 font-bold text-amber-100" : "bg-slate-800 text-white"
                           }`}
                           title={HORIZON_MEANING[d]}
                         >
                           {horizonLabel(d)} {cell && cell.n > 0 ? `${pp(cell.median)}%p` : DASH}
-                          <span className="ml-1 text-slate-300">({cell?.n ?? 0})</span>
+                          <span className="ml-1 text-white">({cell?.n ?? 0})</span>
                         </span>
                       );
                     })}
                   </div>
 
-                  <p className="mt-2 text-sm leading-relaxed text-slate-100">
+                  <p className="mt-2 text-sm leading-relaxed text-white">
                     <Emphasized text={t.why} />
                   </p>
                   <p className="mt-1.5 border-l-2 border-amber-500/60 pl-2 text-sm text-amber-100">
@@ -455,10 +446,10 @@ export default async function OutcomePage() {
               ))}
           </div>
         ) : (
-          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-slate-100">
+          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-white">
             <strong className="text-white">섹터별로 결론을 낼 표본이 아직 없다.</strong>{" "}
             어느 섹터도 한 시점에서 측정 {MIN_SAMPLE}건을 넘기지 못했다. 전체 기준 타이밍은
-            위 <strong className="text-slate-200">언제 샀어야 했나</strong> 표를 보라 —{" "}
+            위 <strong className="text-white">언제 샀어야 했나</strong> 표를 보라 —{" "}
             <strong className="text-amber-300">표본 2건으로 섹터 순위를 만들지 않는다.</strong>
           </p>
         )}
@@ -472,7 +463,7 @@ export default async function OutcomePage() {
         {sectorUsable.length > 0 ? (
           <div className="max-h-[60vh] overflow-auto rounded border border-slate-700">
             <table className="w-full min-w-[1040px] text-sm">
-              <thead className="sticky top-0 z-20 bg-slate-800 text-xs uppercase text-slate-100">
+              <thead className="sticky top-0 z-20 bg-slate-800 text-xs uppercase text-white">
                 <tr>
                   <th scope="col" className="px-3 py-2 text-left font-medium">섹터</th>
                   <th scope="col" className="px-3 py-2 text-right font-medium">종목</th>
@@ -524,16 +515,16 @@ export default async function OutcomePage() {
                         {r.sector} →
                       </Link>
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{r.n}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-white">{r.n}</td>
                     <td className={`px-3 py-1.5 text-right font-semibold tabular-nums ${toneOf(r.opYoy)}`}>
                       {r.opYoy == null ? DASH : `${r.opYoy >= 0 ? "+" : ""}${r.opYoy.toFixed(1)}%`}
                     </td>
                     <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.revenueYoy)}`}>
                       {r.revenueYoy == null ? DASH : `${r.revenueYoy >= 0 ? "+" : ""}${r.revenueYoy.toFixed(1)}%`}
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-slate-100">
+                    <td className="px-3 py-1.5 text-right tabular-nums text-white">
                       {r.accelRate == null ? DASH : `${(r.accelRate * 100).toFixed(0)}%`}
-                      <span className="ml-1 text-xs text-slate-300">({r.accelerated})</span>
+                      <span className="ml-1 text-xs text-white">({r.accelerated})</span>
                     </td>
                     <td className={`px-3 py-1.5 text-right tabular-nums ${toneOf(r.accelRateDelta)}`}>
                       {r.accelRateDelta == null
@@ -548,7 +539,7 @@ export default async function OutcomePage() {
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-emerald-100">
                       {r.projectedAccelRate == null ? DASH : `${(r.projectedAccelRate * 100).toFixed(0)}%`}
-                      {r.nextCoverage > 0 && <span className="ml-1 text-xs text-slate-300">({r.nextCoverage})</span>}
+                      {r.nextCoverage > 0 && <span className="ml-1 text-xs text-white">({r.nextCoverage})</span>}
                     </td>
                   </tr>
                 ))}
@@ -556,7 +547,7 @@ export default async function OutcomePage() {
             </table>
           </div>
         ) : (
-          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-slate-100">
+          <p className="rounded border border-slate-600 bg-slate-950/40 px-3 py-3 text-sm text-white">
             섹터 집계를 만들 데이터가 아직 없다. <code>krx_universe.sector</code> 마이그레이션과{" "}
             <code>python -m src.universe.sector_map --save</code>가 필요하다.
           </p>
@@ -567,7 +558,7 @@ export default async function OutcomePage() {
             <div className="text-sm font-bold text-emerald-200">
               다음 분기에 가속 종목이 늘어날 것으로 보이는 섹터
             </div>
-            <p className="mt-0.5 text-xs text-slate-200">
+            <p className="mt-0.5 text-xs text-white">
               네이버 다음 분기 컨센서스와 전년 동분기 실적을 종목별 대조한 결과
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -578,7 +569,7 @@ export default async function OutcomePage() {
                       className={`rounded px-2 py-1 text-sm hover:ring-1 hover:ring-emerald-400/60 ${
                         i === 0
                           ? "bg-emerald-500/25 font-bold text-emerald-100"
-                          : "bg-slate-800 text-slate-100"
+                          : "bg-slate-800 text-white"
                       }`}>
                   {r.sector}{" "}
                   <span className="tabular-nums">
@@ -617,18 +608,18 @@ export default async function OutcomePage() {
                       { 가속: "bg-rose-500/20 text-rose-200",
                         유지: "bg-amber-500/20 text-amber-200",
                         둔화: "bg-sky-500/20 text-sky-200",
-                        판정불가: "bg-slate-700/40 text-slate-100" }[o.momentum]
+                        판정불가: "bg-slate-700/40 text-white" }[o.momentum]
                     }`}>
                       {o.momentum}
                     </span>
                     <span className="text-base font-bold text-white">{o.sector}</span>
-                    <span className="text-xs text-slate-200">{row.n}종목</span>
+                    <span className="text-xs text-white">{row.n}종목</span>
                   </div>
 
                   {/* 성장률: 이번 분기 실측 → 다음 분기 예상 범위 */}
                   <table className="mt-2 text-xs">
                     <thead>
-                      <tr className="text-slate-200">
+                      <tr className="text-white">
                         <th className="pr-3 text-left font-medium"></th>
                         <th className="pr-3 text-right font-medium">이번 분기</th>
                         <th className="pr-3 text-right font-medium">섹터 내 범위</th>
@@ -638,11 +629,11 @@ export default async function OutcomePage() {
                     </thead>
                     <tbody className="tabular-nums">
                       <tr>
-                        <td className="pr-3 font-semibold text-slate-100">매출</td>
+                        <td className="pr-3 font-semibold text-white">매출</td>
                         <td className={`pr-3 text-right font-semibold ${toneOf(row.revenueYoy)}`}>
                           {row.revenueYoy == null ? DASH : `${row.revenueYoy >= 0 ? "+" : ""}${row.revenueYoy.toFixed(1)}%`}
                         </td>
-                        <td className="pr-3 text-right text-slate-200">
+                        <td className="pr-3 text-right text-white">
                           {row.revenueRange == null
                             ? DASH
                             : `${row.revenueRange[0].toFixed(0)} ~ ${row.revenueRange[1].toFixed(0)}%`}
@@ -657,11 +648,11 @@ export default async function OutcomePage() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="pr-3 font-semibold text-slate-100">영업이익</td>
+                        <td className="pr-3 font-semibold text-white">영업이익</td>
                         <td className={`pr-3 text-right font-semibold ${toneOf(row.opYoy)}`}>
                           {row.opYoy == null ? DASH : `${row.opYoy >= 0 ? "+" : ""}${row.opYoy.toFixed(1)}%`}
                         </td>
-                        <td className="pr-3 text-right text-slate-200">
+                        <td className="pr-3 text-right text-white">
                           {row.opRange == null
                             ? DASH
                             : `${row.opRange[0].toFixed(0)} ~ ${row.opRange[1].toFixed(0)}%`}
@@ -678,7 +669,7 @@ export default async function OutcomePage() {
                     </tbody>
                   </table>
 
-                  <p className="mt-2 text-xs text-slate-200">
+                  <p className="mt-2 text-xs text-white">
                     <span className="font-semibold text-amber-100">다음 분기 전분기 대비 · </span>
                     매출 {row.nextRevenueQoq == null ? DASH : `${row.nextRevenueQoq >= 0 ? "+" : ""}${row.nextRevenueQoq.toFixed(1)}%`}
                     {" · "}영업이익 {row.nextOpQoq == null ? DASH : `${row.nextOpQoq >= 0 ? "+" : ""}${row.nextOpQoq.toFixed(1)}%`}
@@ -709,18 +700,18 @@ export default async function OutcomePage() {
                     </div>
                   </div>
 
-                  <p className="mt-2 text-xs text-slate-200">
-                    <span className="font-semibold text-slate-100">주의 · </span>{play.risk}
+                  <p className="mt-2 text-xs text-white">
+                    <span className="font-semibold text-white">주의 · </span>{play.risk}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-200">
-                    <span className="text-slate-300">근거 · </span>{o.basis}
+                  <p className="mt-0.5 text-xs text-white">
+                    <span className="text-white">근거 · </span>{o.basis}
                   </p>
                 </div>
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-slate-200">
-            <strong className="text-slate-100">다음 분기 예상</strong>은 네이버 증권의 종목별
+          <p className="mt-3 text-xs text-white">
+            <strong className="text-white">다음 분기 예상</strong>은 네이버 증권의 종목별
             매출·영업이익 컨센서스를 사용한다. 같은 분기 전년 실적이 양수일 때만 YoY를,
             이번 분기 실적이 양수일 때만 QoQ를 계산하며 부호 전환은 성장률로 만들지 않는다.
             컨센서스가 없거나 섹터 표본이 부족한 경우에만 이번 분기 실측과 직전 변화의 절반을
@@ -749,7 +740,7 @@ export default async function OutcomePage() {
             const top = topGroups(tables.get("섹터") ?? [], d, 3);
             return (
               <div key={d} className="flex flex-wrap items-baseline gap-2 border-b border-slate-800 pb-2 last:border-b-0">
-                <span className="w-24 shrink-0 text-sm font-semibold text-slate-100">
+                <span className="w-24 shrink-0 text-sm font-semibold text-white">
                   {horizonLabel(d)}
                 </span>
                 {top.length > 0 ? (
@@ -759,15 +750,15 @@ export default async function OutcomePage() {
                       className={`rounded px-2 py-0.5 text-sm ${
                         i === 0
                           ? "bg-amber-500/20 font-semibold text-amber-100"
-                          : "bg-slate-800 text-slate-100"
+                          : "bg-slate-800 text-white"
                       }`}
                     >
                       {t.key} <span className="tabular-nums">{pp(t.cell.median)}%p</span>
-                      <span className="ml-1 text-xs text-slate-300">({t.cell.n})</span>
+                      <span className="ml-1 text-xs text-white">({t.cell.n})</span>
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-slate-300">
+                  <span className="text-sm text-white">
                     표본 {MIN_SAMPLE}건 이상인 섹터가 아직 없다
                   </span>
                 )}
@@ -777,10 +768,10 @@ export default async function OutcomePage() {
         </div>
       </Card>
 
-      <p className="text-sm text-slate-200">
+      <p className="text-sm text-white">
         발굴 목록·스크리너는 <Link href="/" className="text-sky-300 underline">한 화면</Link>에 있다
         (종목 분류 필터로 다른 유형까지 볼 수 있다).
-        모든 수치는 <strong className="text-slate-100">영업일 기준</strong>이며 발표일이 휴장이면
+        모든 수치는 <strong className="text-white">영업일 기준</strong>이며 발표일이 휴장이면
         다음 거래일을 기준으로 잡는다.
       </p>
     </div>

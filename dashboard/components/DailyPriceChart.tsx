@@ -36,11 +36,11 @@ function causalSegments(text: string): string[] {
 function Explanation({ item, evidence, outlook }: { item: MetricMeaning; evidence?: string | null; outlook?: string | null }) {
   return <div className="mt-2 rounded border border-slate-800 bg-slate-900/60 p-3">
     <div className="text-lg font-black tracking-tight text-sky-200">현재 위치 · {item.label}</div>
-    <div className="mt-0.5 text-sm font-semibold text-slate-100">{item.value}</div>
-    <p className="mt-1 text-xs leading-relaxed text-slate-300">{item.meaning}</p>
+    <div className="mt-0.5 text-sm font-semibold text-white">{item.value}</div>
+    <p className="mt-1 text-xs leading-relaxed text-white">{item.meaning}</p>
     {evidence && <div className="mt-3 rounded border border-violet-800/70 bg-violet-950/20 p-3">
       <strong className="text-xs text-violet-200">주요 시기별 주가 상승·하락 원인</strong>
-      <ol className="mt-2 space-y-2 text-xs leading-relaxed text-slate-100">
+      <ol className="mt-2 space-y-2 text-xs leading-relaxed text-white">
         {causalSegments(evidence).map((segment, index) => <li key={`${index}-${segment.slice(0, 24)}`} className="flex gap-2">
           <span className="font-bold text-violet-300">{index + 1}</span><span>{segment}</span>
         </li>)}
@@ -94,7 +94,7 @@ export default function DailyPriceChart({
   const marks = announcementDates(visible, disclosures);
   const macdPoints = visible.filter((point) => point.macd != null);
   const latestMacd = [...macdPoints].reverse().find((point) => point.signal != null && point.histogram != null);
-  if (!visible.length) return <p className="py-5 text-center text-sm text-slate-300">같은 기간의 네이버 일간 종가를 불러오지 못했다.</p>;
+  if (!visible.length) return <p className="py-5 text-center text-sm text-white">같은 기간의 네이버 일간 종가를 불러오지 못했다.</p>;
   const price = priceMeaning(visible, high52w);
   const macd = macdMeaning(visible);
   const rsi = rsiMeaning(visible);
@@ -111,12 +111,12 @@ export default function DailyPriceChart({
     <div className="px-2 pt-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-black text-white">
         <span>일간 종가</span>
-        <span className="font-normal text-slate-400">점선 = 잠정·확정 분기실적 발표일 · {visible.length}거래일</span>
+        <span className="font-normal text-white">점선 = 잠정·확정 분기실적 발표일 · {visible.length}거래일</span>
       </div>
       <div className="h-48"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} syncId="daily-technical" syncMethod="value" margin={{ top: 12, right: 8, left: 4, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
         <XAxis dataKey="trade_date" hide />
-        <YAxis domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
+        <YAxis domain={["auto", "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
         <Tooltip reverseDirection={{ x: true, y: false }} allowEscapeViewBox={{ x: true, y: false }} formatter={(v) => [`${Number(v).toLocaleString("ko-KR")}원`, "일간 종가"]} contentStyle={tooltipStyle} />
         {marks.map((mark) => <ReferenceLine key={`${mark.date}-${mark.title}`} x={mark.date} stroke={mark.title.includes("(잠정)") ? "#f59e0b" : "#38bdf8"} strokeDasharray={mark.title.includes("(잠정)") ? "3 3" : "7 3"} />)}
         <Line dataKey="close" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -127,28 +127,28 @@ export default function DailyPriceChart({
     </div>
     <div className="border-t border-slate-800 px-2 pt-1">
       <div className="flex items-center justify-between text-sm font-black text-white">
-        <span>MACD</span><span className="text-xs font-normal text-slate-400">일간 12·26·9 · MACD=단기·장기 추세 차이 · Signal=MACD 9일 평균 · {macdPoints.length}거래일</span>
+        <span>MACD</span><span className="text-xs font-normal text-white">일간 12·26·9 · MACD=단기·장기 추세 차이 · Signal=MACD 9일 평균 · {macdPoints.length}거래일</span>
       </div>
-      {macdPoints.length === 0 ? <div className="flex h-44 items-center justify-center text-xs text-slate-400">MACD 계산에는 최소 26거래일 종가가 필요하다.</div> : <>
-        {latestMacd && <div className="mb-1 flex flex-wrap gap-3 text-[10px] text-slate-300"><span>{latestMacd.trade_date}</span><span>MACD {latestMacd.macd?.toFixed(1)}</span><span>Signal {latestMacd.signal?.toFixed(1)}</span><span>Histogram {latestMacd.histogram != null && latestMacd.histogram >= 0 ? "+" : ""}{latestMacd.histogram?.toFixed(1)}</span></div>}
+      {macdPoints.length === 0 ? <div className="flex h-44 items-center justify-center text-xs text-white">MACD 계산에는 최소 26거래일 종가가 필요하다.</div> : <>
+        {latestMacd && <div className="mb-1 flex flex-wrap gap-3 text-[10px] text-white"><span>{latestMacd.trade_date}</span><span>MACD {latestMacd.macd?.toFixed(1)}</span><span>Signal {latestMacd.signal?.toFixed(1)}</span><span>Histogram {latestMacd.histogram != null && latestMacd.histogram >= 0 ? "+" : ""}{latestMacd.histogram?.toFixed(1)}</span></div>}
         <div className="h-36"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={macdPoints} syncId="daily-technical" syncMethod="value" margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>
-          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" hide /><YAxis domain={["auto", "auto"]} stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} /><ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1.2} /><Tooltip formatter={(v, name) => [Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 }), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 10 }} />
+          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" hide /><YAxis domain={["auto", "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} /><ReferenceLine y={0} stroke="#ffffff" strokeWidth={1.2} /><Tooltip formatter={(v, name) => [Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 }), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 10 }} />
           <Bar dataKey="histogram" name="Histogram" isAnimationActive={false}>{macdPoints.map((point) => <Cell key={point.trade_date} fill={point.histogram == null ? "#475569" : point.histogram >= 0 ? "#22c55e" : "#ef4444"} fillOpacity={0.72} />)}</Bar><Line type="linear" dataKey="macd" name="MACD" stroke="#38bdf8" strokeWidth={2.4} dot={false} connectNulls={false} isAnimationActive={false} /><Line type="linear" dataKey="signal" name="Signal" stroke="#f59e0b" strokeWidth={2.2} dot={false} connectNulls={false} isAnimationActive={false} />
         </ComposedChart></ResponsiveContainer></div>
       </>}
     </div>
     <div className="border-t border-slate-800 px-2 pt-1">
-      <div className="flex flex-wrap justify-between gap-2 text-sm font-black text-white"><span>RSI</span><span className="text-xs font-normal text-slate-400">일간 14 · 최근 14일 상승·하락 힘의 비율 · 45선은 추세 회복 기준</span></div>
-      <div className="h-28"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} syncId="daily-technical" syncMethod="value" margin={{ top: 0, right: 8, left: 4, bottom: 0 }}><CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis domain={[0, 100]} ticks={[30, 45, 70]} stroke="#94a3b8" fontSize={9} /><ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" /><ReferenceLine y={45} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={30} stroke="#38bdf8" strokeDasharray="3 3" /><Tooltip formatter={(v) => [Number(v).toFixed(1), "RSI"]} contentStyle={tooltipStyle} /><Line dataKey="rsi" stroke="#c084fc" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
+      <div className="flex flex-wrap justify-between gap-2 text-sm font-black text-white"><span>RSI</span><span className="text-xs font-normal text-white">일간 14 · 최근 14일 상승·하락 힘의 비율 · 45선은 추세 회복 기준</span></div>
+      <div className="h-28"><ResponsiveContainer width="100%" height="100%"><LineChart data={visible} syncId="daily-technical" syncMethod="value" margin={{ top: 0, right: 8, left: 4, bottom: 0 }}><CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#ffffff" fontSize={9} minTickGap={44} /><YAxis domain={[0, 100]} ticks={[30, 45, 70]} stroke="#ffffff" fontSize={9} /><ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" /><ReferenceLine y={45} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={30} stroke="#38bdf8" strokeDasharray="3 3" /><Tooltip formatter={(v) => [Number(v).toFixed(1), "RSI"]} contentStyle={tooltipStyle} /><Line dataKey="rsi" stroke="#c084fc" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
     </div>
     <div className="border-t border-slate-800 px-2 pt-2" id="investor-flow">
-      <div className="flex flex-wrap justify-between gap-2 text-sm font-black text-white"><span>🌍 외국인·기관 수급 동향</span><span className="text-[11px] font-normal text-slate-400">일별 순매수량(주) · RSI와 동일 날짜축 · {flowCount}/{visible.length}거래일</span></div>
+      <div className="flex flex-wrap justify-between gap-2 text-sm font-black text-white"><span>🌍 외국인·기관 수급 동향</span><span className="text-[11px] font-normal text-white">일별 순매수량(주) · RSI와 동일 날짜축 · {flowCount}/{visible.length}거래일</span></div>
       <div className="h-36"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={flowPoints} syncId="daily-technical" syncMethod="value" margin={{ top: 6, right: 8, left: 4, bottom: 0 }}>
-        <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#94a3b8" fontSize={9} minTickGap={44} /><YAxis stroke="#94a3b8" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><ReferenceLine y={0} stroke="#94a3b8" />
+        <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="trade_date" stroke="#ffffff" fontSize={9} minTickGap={44} /><YAxis stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} /><ReferenceLine y={0} stroke="#ffffff" />
         <Tooltip formatter={(v, name) => [`${Number(v).toLocaleString("ko-KR")}주`, name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 10 }} />
         <Bar dataKey="foreign" name="외국인 순매수" fill="#38bdf8" isAnimationActive={false} /><Bar dataKey="institution" name="기관 순매수" fill="#f59e0b" isAnimationActive={false} />
       </ComposedChart></ResponsiveContainer></div>
-      <p className="mb-2 text-[11px] leading-5 text-slate-300">🔎 양수는 순매수, 음수는 순매도입니다. 수급은 참여자의 매매 결과이지 실적 개선의 원인이나 향후 상승 보장이 아닙니다.<br />{flowCount < visible.length && "⚠️ 원천 미제공·미공개·수집 실패 날짜는 빈칸입니다. 0주로 채우거나 기간을 줄이지 않습니다. "}{code && <a className="text-sky-300 underline" href={`https://m.stock.naver.com/api/stock/${code}/trend?pageSize=60`} target="_blank" rel="noreferrer">네이버 수급 원자료</a>}</p>
+      <p className="mb-2 text-[11px] leading-5 text-white">🔎 양수는 순매수, 음수는 순매도입니다. 수급은 참여자의 매매 결과이지 실적 개선의 원인이나 향후 상승 보장이 아닙니다.<br />{flowCount < visible.length && "⚠️ 원천 미제공·미공개·수집 실패 날짜는 빈칸입니다. 0주로 채우거나 기간을 줄이지 않습니다. "}{code && <a className="text-sky-300 underline" href={`https://m.stock.naver.com/api/stock/${code}/trend?pageSize=60`} target="_blank" rel="noreferrer">네이버 수급 원자료</a>}</p>
     </div>
     </div>
     <div className="mt-2 grid gap-2 lg:grid-cols-3">

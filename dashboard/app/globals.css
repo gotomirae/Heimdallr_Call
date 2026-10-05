@@ -7,5 +7,17 @@
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-slate-950 text-white antialiased;
 }
+
+/* PRD Ref: §9 — 흰색 본문·의미별 강조·표 머리글 고정 */
+main p { line-height: 1.75; white-space: pre-line; }
+main th { color: #fef08a; font-weight: 700; background: #0f172a; }
+table { border-collapse: separate; border-spacing: 0; }
+thead th { position: sticky; top: 0; z-index: 20; }
+.recharts-cartesian-axis-tick-value, .recharts-label { fill: #fff; }
+.table-header-float { position: fixed; z-index: 40; overflow: hidden; background: #0f172a;
+  box-shadow: 0 3px 12px #0009; border-bottom: 1px solid #38bdf8; }
+.table-header-float table { margin: 0; table-layout: fixed; }
+.table-header-float th { background: #0f172a; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }

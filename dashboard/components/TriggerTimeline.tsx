@@ -48,13 +48,13 @@ const TONE = {
 const IMPACT = {
   high: "border-rose-500/60 bg-rose-500/15 text-rose-200",
   medium: "border-amber-500/50 bg-amber-500/10 text-amber-200",
-  low: "border-slate-600 bg-slate-700/30 text-slate-200",
+  low: "border-slate-600 bg-slate-700/30 text-white",
 } as const;
 
 export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-slate-200">
+      <p className="text-sm text-white">
         확인할 트리거가 없다 — 아직 분석하지 않았거나 모델이 짚어내지 못했다.
       </p>
     );
@@ -91,20 +91,20 @@ export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm font-semibold tabular-nums text-slate-100">
+                <span className="font-mono text-sm font-semibold tabular-nums text-white">
                   {t.expectedDate ?? "시점 미정"}
                 </span>
                 <span className={`rounded border px-1.5 py-0.5 text-[11px] ${tone.chip}`}>
                   {t.window}
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-slate-100">{t.event ?? DASH}</p>
+              <p className="mt-0.5 text-sm text-white">{t.event ?? DASH}</p>
               {/* ★ 성격·영향도는 2026-08-17에 추가됐다. 구 스키마 행에는 없으니
                   있을 때만 그린다 — 없는 값을 'medium'으로 채우면 안 된다. */}
               {(t.kind || t.impact) && (
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {t.kind && (
-                    <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] text-slate-100">
+                    <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] text-white">
                       {t.kind}
                     </span>
                   )}
@@ -121,8 +121,8 @@ export default function TriggerTimeline({ items }: { items: TimelineItem[] }) {
               {t.metric && (
                 // ★ '무엇을 보고 확인할 것인가'가 트리거의 핵심이다.
                 //   이게 없으면 "좋아질 것이다" 수준의 말과 구분되지 않는다.
-                <p className="mt-0.5 text-xs text-slate-200">
-                  <span className="text-slate-300">확인 지표 · </span>
+                <p className="mt-0.5 text-xs text-white">
+                  <span className="text-white">확인 지표 · </span>
                   {t.metric}
                 </p>
               )}

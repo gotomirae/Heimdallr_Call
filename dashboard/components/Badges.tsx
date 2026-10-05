@@ -6,7 +6,7 @@ export function GradeBadge({ grade }: { grade: Grade | null }) {
     // ★ 등급 없음은 "낮다"가 아니라 "판정하지 못했다"이다(T35).
     return (
       <span
-        className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-0.5 text-sm text-slate-200"
+        className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-0.5 text-sm text-white"
         title="성장 가속 미해당 또는 주가반영도 판정 불가"
       >
         판정 불가
@@ -77,12 +77,12 @@ export function WarningBadges({
   }
 
   if (badges.length === 0) {
-    return <span className="text-xs text-slate-300">경고 없음</span>;
+    return <span className="text-xs text-white">경고 없음</span>;
   }
 
   const tones: Record<string, string> = {
     amber: "border-amber-700/60 bg-amber-900/30 text-amber-300",
-    slate: "border-slate-700 bg-slate-800/60 text-slate-100",
+    slate: "border-slate-700 bg-slate-800/60 text-white",
     sky: "border-sky-700/60 bg-sky-900/30 text-sky-300",
     violet: "border-violet-700/60 bg-violet-900/30 text-violet-300",
   };

@@ -47,7 +47,7 @@ export function dailyChangeCorrelation(points: SentimentNasdaqPoint[]): number |
 function IndexCard({ label, row }: { label: string; row?: MacroMarketSeries }) {
   const positive = (row?.changePct ?? 0) >= 0;
   return <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
-    <div className="text-xs font-bold text-slate-300">{label}</div>
+    <div className="text-xs font-bold text-white">{label}</div>
     <div className="mt-1 flex items-baseline justify-between gap-2">
       <strong className="text-lg text-white">{row?.close != null ? row.close.toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : "—"}</strong>
       <span className={`text-sm font-black ${positive ? "text-emerald-300" : "text-rose-300"}`}>{row?.changePct != null ? `${positive ? "+" : ""}${row.changePct.toFixed(2)}%` : "—"}</span>
@@ -62,7 +62,7 @@ function SentimentBar({ value, label }: { value: number | null; label: string })
     <div className="relative h-3 overflow-hidden rounded-full bg-gradient-to-r from-rose-600 via-amber-400 to-emerald-500">
       {value != null && <span className="absolute top-1/2 h-5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded bg-white shadow" style={{ left: `${bounded}%` }} />}
     </div>
-    <div className="mt-1 flex justify-between text-[10px] text-slate-400"><span>공포</span><span>중립</span><span>탐욕</span></div>
+    <div className="mt-1 flex justify-between text-[10px] text-white"><span>공포</span><span>중립</span><span>탐욕</span></div>
   </div>;
 }
 
@@ -120,25 +120,25 @@ export default function MacroMarketOverview({ context }: { context: MacroContext
     <div className="grid gap-3 xl:grid-cols-2">
       <article className="rounded-xl border border-slate-700 bg-slate-950/55 p-4">
         <h4 className="text-base font-black text-white">CBOE VIX · 60거래일</h4>
-        <p className="mt-1 text-xs leading-5 text-slate-300">S&P 500 옵션이 반영하는 향후 30일 변동성 기대다. 20 아래는 비교적 안정, 25 이상은 위험회피 경계로 본다.</p>
+        <p className="mt-1 text-sm leading-6 text-white">🔎 S&P 500 옵션의 <strong className="text-sky-300">향후 30일 변동성 기대</strong><br/>✅ 20 아래: 비교적 안정<br/>⚠️ 25 이상: 위험회피 경계</p>
         <div className="mt-3 h-44"><ResponsiveContainer width="100%" height="100%"><LineChart data={vix?.history ?? []} syncId="macro-sentiment">
-          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="date" stroke="#94a3b8" fontSize={9} minTickGap={38} /><YAxis domain={[0, "auto"]} stroke="#94a3b8" fontSize={9} /><ReferenceLine y={20} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={25} stroke="#fb7185" strokeDasharray="3 3" /><Tooltip contentStyle={tooltipStyle} formatter={(value) => [Number(value).toFixed(2), "VIX"]} /><Line dataKey="value" stroke="#38bdf8" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="date" stroke="#ffffff" fontSize={9} minTickGap={38} /><YAxis domain={[0, "auto"]} stroke="#ffffff" fontSize={9} /><ReferenceLine y={20} stroke="#facc15" strokeDasharray="3 3" /><ReferenceLine y={25} stroke="#fb7185" strokeDasharray="3 3" /><Tooltip contentStyle={tooltipStyle} formatter={(value) => [Number(value).toFixed(2), "VIX"]} /><Line dataKey="value" stroke="#38bdf8" strokeWidth={2.5} dot={false} isAnimationActive={false} />
         </LineChart></ResponsiveContainer></div>
         <SentimentBar value={vixMood} label={`변동성 심리 환산 · VIX ${vix?.close?.toFixed(2) ?? "—"}`} />
       </article>
 
       <article className="rounded-xl border border-slate-700 bg-slate-950/55 p-4">
         <h4 className="text-base font-black text-white">Fear & Greed × 나스닥100 · 지난 12개월</h4>
-        <p className="mt-1 text-xs leading-5 text-slate-300">심리지수(왼쪽 축)와 나스닥100(^NDX) 종가(오른쪽 축)를 같은 날짜에 겹쳤다. 일간 변화의 상관계수는 동행성을 보는 보조지표이며 인과관계를 뜻하지 않는다.</p>
+        <p className="mt-1 text-sm leading-6 text-white">📊 <strong className="text-violet-200">왼쪽 축: 심리지수</strong> · <strong className="text-amber-200">오른쪽 축: 나스닥100</strong><br/>🔎 같은 날짜의 움직임을 대조합니다.<br/>⚠️ 상관계수는 동행성을 나타내며 인과관계를 뜻하지 않습니다.</p>
         {!nasdaq && <p className="mt-2 text-xs text-amber-200">⚠️ 나스닥100 원자료 미수집 · 나스닥 종합으로 대체하지 않습니다.</p>}
-        <p className="mt-2 text-xs leading-5 text-slate-300">📅 {sentimentNasdaq[0]?.date ?? "—"} ~ {sentimentNasdaq.at(-1)?.date ?? "—"}<br />📊 나스닥100 {sentimentNasdaq.length}거래일 · 심리지수 같은 날짜 {sentimentNasdaq.filter(p => p.fearGreed != null).length}개. 결측은 보간하지 않고 선을 끊습니다.</p>
+        <p className="mt-2 text-xs leading-5 text-white">📅 {sentimentNasdaq[0]?.date ?? "—"} ~ {sentimentNasdaq.at(-1)?.date ?? "—"}<br />📊 나스닥100 {sentimentNasdaq.length}거래일 · 심리지수 같은 날짜 {sentimentNasdaq.filter(p => p.fearGreed != null).length}개. 결측은 보간하지 않고 선을 끊습니다.</p>
         {!fearGreed && <p className="mt-2 text-xs text-amber-200">⚠️ 심리지수 원천 확인 실패 · 나스닥100 선은 독립적으로 표시합니다.</p>}
         {fearGreed && fearGreed.date !== context.marketDate && <p className="mt-2 text-xs text-amber-200">⚠️ 심리지수 최신 관측 {fearGreed.date} · 미국장 기준 {context.marketDate}와 다릅니다.</p>}
         <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold"><span className="rounded-full bg-violet-400/15 px-2 py-1 text-violet-200">● Fear & Greed</span><span className="rounded-full bg-amber-400/15 px-2 py-1 text-amber-200">● 나스닥100 종가</span></div>
         <div className="mt-2 h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={sentimentNasdaq} syncId="macro-sentiment" syncMethod="value">
-          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="date" stroke="#94a3b8" fontSize={9} minTickGap={38} /><YAxis yAxisId="sentiment" domain={[0, 100]} ticks={[25, 50, 75]} stroke="#c084fc" fontSize={9} /><YAxis yAxisId="nasdaq" orientation="right" domain={["auto", "auto"]} stroke="#fbbf24" fontSize={9} tickFormatter={(value) => Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} width={48} /><ReferenceLine yAxisId="sentiment" y={25} stroke="#fb7185" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={50} stroke="#cbd5e1" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={75} stroke="#34d399" strokeDasharray="3 3" /><Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [name === "나스닥100" ? Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : Number(value).toFixed(1), name]} /><Line yAxisId="sentiment" dataKey="fearGreed" name="Fear & Greed" stroke="#c084fc" strokeWidth={2.5} dot={false} isAnimationActive={false} /><Line yAxisId="nasdaq" dataKey="nasdaq" name="나스닥100" stroke="#fbbf24" strokeWidth={2.2} dot={false} isAnimationActive={false} />
+          <CartesianGrid stroke="#1e293b" vertical={false} /><XAxis dataKey="date" stroke="#ffffff" fontSize={9} minTickGap={38} /><YAxis yAxisId="sentiment" domain={[0, 100]} ticks={[25, 50, 75]} stroke="#c084fc" fontSize={9} /><YAxis yAxisId="nasdaq" orientation="right" domain={["auto", "auto"]} stroke="#fbbf24" fontSize={9} tickFormatter={(value) => Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 0 })} width={48} /><ReferenceLine yAxisId="sentiment" y={25} stroke="#fb7185" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={50} stroke="#ffffff" strokeDasharray="3 3" /><ReferenceLine yAxisId="sentiment" y={75} stroke="#34d399" strokeDasharray="3 3" /><Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [name === "나스닥100" ? Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : Number(value).toFixed(1), name]} /><Line yAxisId="sentiment" dataKey="fearGreed" name="Fear & Greed" stroke="#c084fc" strokeWidth={2.5} dot={false} isAnimationActive={false} /><Line yAxisId="nasdaq" dataKey="nasdaq" name="나스닥100" stroke="#fbbf24" strokeWidth={2.2} dot={false} isAnimationActive={false} />
         </LineChart></ResponsiveContainer></div>
-        <p className="mb-3 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-[11px] text-slate-200">같은 날짜 {correlationObservations}회 일간 변화 상관계수 <strong className="text-white">r {correlation == null ? "—" : `${correlation >= 0 ? "+" : ""}${correlation.toFixed(2)}`}</strong> · {correlationStrength}{correlationDirection}</p>
+        <p className="mb-3 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-[11px] text-white">같은 날짜 {correlationObservations}회 일간 변화 상관계수 <strong className="text-white">r {correlation == null ? "—" : `${correlation >= 0 ? "+" : ""}${correlation.toFixed(2)}`}</strong> · {correlationStrength}{correlationDirection}</p>
         <SentimentBar value={fearGreed?.value ?? null} label={fearGreed ? `${fearGreed.label} · ${fearGreed.date}` : "Fear & Greed 미수집"} />
         {fearGreed && <a href={fearGreed.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[11px] text-sky-300 underline">🔗 {fearGreed.sourceLabel} · 원자료</a>}
       </article>
@@ -147,7 +147,7 @@ export default function MacroMarketOverview({ context }: { context: MacroContext
     <article className="rounded-xl border border-slate-700 bg-slate-950/55 p-4">
       <div className="mb-3 flex items-center justify-between gap-2"><h4 className="text-base font-black text-white">미국 증시 맵 · S&P 500</h4><a href="https://www.tradingview.com/heatmap/stock/?color=change&dataset=SPX500&group=sector&size=market_cap_basic" target="_blank" rel="noreferrer" className="text-xs font-bold text-sky-300 underline">전체 화면</a></div>
       <TradingViewHeatmap />
-      <p className="mt-2 text-[11px] text-slate-400">사각형 크기는 시가총액, 색은 당일 등락률이다. 개별 종목 색보다 같은 섹터가 함께 움직이는지 먼저 본다.</p>
+      <p className="mt-2 text-sm text-white">📐 크기: <strong className="text-sky-300">시가총액</strong> · 🎨 색: <strong className="text-amber-200">당일 등락률</strong><br/>🏭 같은 섹터가 함께 움직이는지 먼저 확인합니다.</p>
     </article>
   </div>;
 }
