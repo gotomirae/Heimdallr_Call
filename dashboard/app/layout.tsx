@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import AutoRefresh from "@/components/AutoRefresh";
 import FastNav from "@/components/FastNav";
+import TableHeaders from "@/components/TableHeaders";
 import constants from "@/lib/constants.json";
 import "./globals.css";
 
@@ -14,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <header className="border-b border-slate-800 bg-slate-900/60">
+        <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-900">
           <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
             <Link href="/" className="text-lg font-semibold">
               🛡️ Heimdallr Call
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <AutoRefresh seconds={constants.dashboard_refresh_seconds} />
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <TableHeaders />
       </body>
     </html>
   );

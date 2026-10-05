@@ -26,11 +26,11 @@ export default async function MatrixPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">투자 매력도 × 주가반영도</h1>
-        <p className="mt-1 text-sm text-slate-200">
+        <p className="mt-1 text-sm text-white">
           실적이 가속 중인 {rows.length.toLocaleString("ko-KR")}종목 ·
           X = 투자 매력도(기업·산업) · Y = 주가반영도(낮을수록 미반영). 점을 클릭하면 상세로 간다.
         </p>
-        <p className="mt-1 text-xs text-slate-300">
+        <p className="mt-1 text-xs text-white">
           두 축을 한 숫자로 합치지 않는다(ADR 5). 같은 기업 점수라도 이미 오른 종목과
           아직 덜 오른 종목은 전혀 다른 투자다 — <strong>좋은 기업과 좋은 투자는 다르다.</strong>
         </p>
@@ -43,7 +43,7 @@ export default async function MatrixPage() {
           { color: "#10b981", title: "○ 관심", note: "고점수·부분반영 또는 중점수·미반영" },
           { color: "#6366f1", title: "△ 기업 고점수 · 선반영", note: "조정 관찰" },
           { color: "#ef4444", title: "✕ 기업 저점수 · 선반영", note: "제외" },
-          { color: "#94a3b8", title: "판정 불가", note: "성장 가속 미해당 또는 주가반영도 없음" },
+          { color: "#ffffff", title: "판정 불가", note: "성장 가속 미해당 또는 주가반영도 없음" },
         ].map((q) => (
           <span
             key={q.title}
@@ -53,8 +53,8 @@ export default async function MatrixPage() {
               className="inline-block h-2.5 w-2.5 rounded-sm"
               style={{ backgroundColor: q.color }}
             />
-            <span className="text-slate-100">{q.title}</span>
-            <span className="text-slate-300">{q.note}</span>
+            <span className="text-white">{q.title}</span>
+            <span className="text-white">{q.note}</span>
           </span>
         ))}
       </div>
@@ -63,7 +63,7 @@ export default async function MatrixPage() {
         <MatrixScatter points={points} />
       </div>
 
-      <p className="text-xs text-slate-300">
+      <p className="text-xs text-white">
         점 {points.length.toLocaleString("ko-KR")}개 · 주가반영도를 판정하지 못해 표시하지 않은
         종목 {undecided.toLocaleString("ko-KR")}개(시세 결측). 0으로 채워 찍으면 원점 근처에
         가짜 군집이 생긴다. <strong>성장 가속 미해당 종목은 애초에 이 화면에 없다.</strong>

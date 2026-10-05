@@ -70,7 +70,7 @@ export const SERIES_COLOR = {
   /** TTM 매출 — 분홍 점선. */
   TTM_COLOR: "#f9a8d4",
   /** 축·눈금 — 계열 색이 아니다. 계열과 헷갈리지 않게 따로 둔다. */
-  AXIS_COLOR: "#cbd5e1",
+  AXIS_COLOR: "#ffffff",
 } as const;
 
 function qLabel(year: number, quarter: number): string {

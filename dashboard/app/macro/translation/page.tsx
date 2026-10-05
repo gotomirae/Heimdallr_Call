@@ -58,23 +58,23 @@ export default async function MacroTranslationPage({
 
   const translation = translationOf(item.title, item.url, context, eventDate);
   return <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
-    <nav className="text-sm text-slate-400"><Link href="/" className="text-sky-300 underline">발굴 목록</Link> / 미국·글로벌 매크로 / 한국어 번역</nav>
+    <nav className="text-sm text-white"><Link href="/" className="text-sky-300 underline">발굴 목록</Link> / 미국·글로벌 매크로 / 한국어 번역</nav>
     <header className="rounded-2xl border border-sky-700/50 bg-sky-950/25 p-5">
       <p className="text-xs font-bold tracking-wide text-sky-300">OFFICIAL SOURCE · KOREAN VIEW</p>
       <h1 className="mt-2 text-2xl font-black text-white">{item.title}</h1>
-      <p className="mt-2 text-sm text-slate-300">발표·시장 기준일 {item.publishedAt ?? "미확인"} · 스냅샷 확인 {context.checkedAt}</p>
+      <p className="mt-2 text-sm text-white">발표·시장 기준일 {item.publishedAt ?? "미확인"} · 스냅샷 확인 {context.checkedAt}</p>
     </header>
     <article className="rounded-2xl border border-slate-700 bg-slate-950/60 p-5 md:p-7">
       <h2 className="text-lg font-extrabold text-emerald-200">{translation.heading}</h2>
-      <p className="mt-4 whitespace-pre-line text-base leading-8 text-slate-100">{translation.body}</p>
-      {translation.marketImpact && <div className="mt-5 rounded-lg border-l-4 border-amber-400 bg-amber-950/25 p-4"><h3 className="font-black text-amber-200">시장 의미·대응</h3><p className="mt-2 leading-7 text-slate-100">{translation.marketImpact}</p></div>}
+      <p className="mt-4 whitespace-pre-line text-base leading-8 text-white">{translation.body}</p>
+      {translation.marketImpact && <div className="mt-5 rounded-lg border-l-4 border-amber-400 bg-amber-950/25 p-4"><h3 className="font-black text-amber-200">시장 의미·대응</h3><p className="mt-2 leading-7 text-white">{translation.marketImpact}</p></div>}
       <div className="mt-6 rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-xs leading-5 text-amber-100">
         공식 원문의 핵심 수치·정책 방향을 한국어로 옮긴 화면입니다. 법적·투자 판단이 필요한 문구는 원문과 함께 확인하세요.
       </div>
     </article>
     <div className="flex flex-wrap gap-3">
       <a href={item.url} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white hover:bg-sky-400">공식 원문 열기</a>
-      <Link href="/" className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800">매크로 화면으로 돌아가기</Link>
+      <Link href="/" className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">매크로 화면으로 돌아가기</Link>
     </div>
   </main>;
 }

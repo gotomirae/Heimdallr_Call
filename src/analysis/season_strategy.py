@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from calendar import monthrange
 from copy import deepcopy
 from datetime import date, timedelta
 from math import isfinite
+import re
 
 from src.analysis.outcome import median, pct_change
 from src.config.constants import (
     STRATEGY_HORIZONS, STRATEGY_MAX_CANDIDATES, STRATEGY_MIN_SAMPLE,
     STRATEGY_MIN_SEASONS, STRATEGY_MONTHS, STRATEGY_NEWS_DAYS,
     STRATEGY_RULE_VERSION, STRATEGY_TREND_SESSIONS, MIN_ESTIMATES,
+    STRATEGY_FIRST_WEEK_DAYS, STRATEGY_FLOW_SESSIONS, STRATEGY_CATALYST_MONTHS,
+    STRATEGY_REVISION_MIN_DAYS,
 )
 
 
@@ -28,9 +32,93 @@ def number(value):
 def season_of(today: date) -> dict:
     month = max(m for m in STRATEGY_MONTHS if m <= today.month)
     quarter = (month - 1) // 3  # 10월에는 다가오는 3Q 발표를 준비한다.
-    return {"id": f"{today.year}-{month:02}", "starts": f"{today.year}-{month:02}-01",
+    return {"id": f"{today.year}-{month:02}-w1", "starts": f"{today.year}-{month:02}-01",
             "target_year": today.year if quarter else today.year - 1,
             "target_quarter": quarter or 4}
+
+
+def due_strategy(today: date) -> bool:
+    return today.month in STRATEGY_MONTHS and today.day <= STRATEGY_FIRST_WEEK_DAYS
+
+
+def growth_estimate(current, prior) -> tuple[float | None, str | None]:
+    current, prior = number(current), number(prior)
+    if current is None or prior is None:
+        return None, None
+    if current > 0 and prior > 0:
+        return pct_change(prior, current), None
+    if current > 0 and prior <= 0:
+        return None, "흑전 예상"
+    if current < 0 and prior >= 0:
+        return None, "적전 예상"
+    return None, "적자축소 예상" if current > prior else "적자확대 예상" if current < prior else "변화 없음"
+
+
+def flow_signal(rows: dict, index_dates: list[str]) -> dict:
+    days = sorted(index_dates)[-STRATEGY_FLOW_SESSIONS:]
+    complete = len(days) == STRATEGY_FLOW_SESSIONS and all(day in rows for day in days)
+    return {"dates": days, "foreign": all(rows[d][2] > 0 for d in days) if complete else None,
+            "institution": all(rows[d][1] > 0 for d in days) if complete else None,
+            "foreign_net": [rows[d][2] if d in rows else None for d in days],
+            "institution_net": [rows[d][1] if d in rows else None for d in days],
+            "source": "네이버 투자자별 순매수(주)", "measured": complete}
+
+
+def catalyst_window(today: date, payload: dict) -> list[dict]:
+    month_index = today.year * 12 + today.month - 1 + STRATEGY_CATALYST_MONTHS
+    end_year, end_month = divmod(month_index, 12)
+    end_month += 1
+    end = date(end_year, end_month, min(today.day, monthrange(end_year, end_month)[1]))
+    triggers = payload.get("triggers") or {}
+    if not isinstance(triggers, dict):
+        return []
+    result = []
+    for key in ("within_3m", "within_6m"):
+        for t in triggers.get(key, []) if isinstance(triggers.get(key), list) else []:
+            if not isinstance(t, dict):
+                continue
+            day = str(t.get("expected_date", ""))
+            if not re.fullmatch(r"\d{4}-\d{2}(?:-\d{2})?", day):
+                continue
+            try:
+                earliest = date.fromisoformat(day if len(day) == 10 else day + "-01")
+                latest = earliest if len(day) == 10 else date(earliest.year, earliest.month, monthrange(earliest.year, earliest.month)[1])
+            except ValueError:
+                continue
+            if latest < today or earliest > end or not t.get("event") or not t.get("verifiable_metric"):
+                continue
+            item = {"event": t["event"], "date": day, "check": t["verifiable_metric"],
+                    "kind": t.get("kind"), "status": "저장 분석의 전망"}
+            if item not in result:
+                result.append(item)
+    return result
+
+
+def signal_evidence(today: date, code: str, current: dict, year_ago: dict,
+                    quotes: list[dict], payload: dict, flow: dict | None) -> dict:
+    valid = sorted([q for q in quotes if q["code"] == code
+        and str(q.get("snapshot_at", ""))[:10] <= today.isoformat()
+        and (number(q.get("n_estimates")) or 0) >= MIN_ESTIMATES], key=lambda q: str(q.get("snapshot_at", "")))
+    latest = valid[-1] if valid else {}
+    rev_yoy, _ = growth_estimate(latest.get("revenue_est"), year_ago.get("revenue"))
+    op_yoy, op_label = growth_estimate(latest.get("op_est"), year_ago.get("op"))
+    old_rev, old_op = number(current.get("revenue_yoy")), number(current.get("op_yoy"))
+    accelerated = (rev_yoy > old_rev and op_yoy > old_op) if all(v is not None for v in (rev_yoy, op_yoy, old_rev, old_op)) else None
+    eligible_old = [q for q in valid[:-1] if q.get("source") == latest.get("source")
+        and (date.fromisoformat(str(latest["snapshot_at"])[:10]) - date.fromisoformat(str(q["snapshot_at"])[:10])).days >= STRATEGY_REVISION_MIN_DAYS]
+    baseline = eligible_old[-1] if eligible_old else {}
+    now_op, was_op = number(latest.get("op_est")), number(baseline.get("op_est"))
+    revision = now_op > was_op if now_op is not None and was_op is not None else None
+    revision_pct, revision_label = growth_estimate(now_op, was_op)
+    catalysts = catalyst_window(today, payload)
+    result = {"acceleration": accelerated, "revenue_yoy": rev_yoy, "op_yoy": op_yoy,
+        "op_label": op_label, "quote_date": str(latest.get("snapshot_at", ""))[:10] or None,
+        "upward_revision": revision, "revision_pct": revision_pct, "revision_label": revision_label,
+        "revision_from": str(baseline.get("snapshot_at", ""))[:10] or None,
+        "catalysts": catalysts, "flow": flow or {"foreign": None, "institution": None, "dates": []}}
+    result["priority"] = "발표 전 우선 검토" if (accelerated is True and revision is True and catalysts
+        and result["flow"].get("foreign") is True and result["flow"].get("institution") is True) else "조건부 추천"
+    return result
 
 
 def latest_before(rows: list[dict], cutoff: int) -> dict[str, dict]:
@@ -47,15 +135,18 @@ def latest_before(rows: list[dict], cutoff: int) -> dict[str, dict]:
 
 def feedback(plans: list[dict], before: str) -> list[dict]:
     """생성 전에 실제로 알려진 D+60 결과만 반영. 동일 시즌 중복은 표본 증가 아님."""
-    sectors = defaultdict(list)
-    for plan in plans:
+    sectors = defaultdict(dict)
+    for plan in sorted(plans, key=lambda p: p.get("created_at", p["id"])):
         for row in plan.get("review", {}).get("stocks", []):
             point = row.get("horizons", {}).get("60", {})
             value = number(point.get("excess"))
             if value is not None and point.get("date", "9999") < before:
-                sectors[row["sector"]].append((plan["id"], value))
+                quarter = f'{plan["target_year"]}.{plan["target_quarter"]}' if "target_year" in plan else plan["id"]
+                code = row.get("code", str(len(sectors[row["sector"]])))
+                sectors[row["sector"]].setdefault((quarter, code), (quarter, value))
     out = []
-    for sector, values in sorted(sectors.items()):
+    for sector, stored in sorted(sectors.items()):
+        values = list(stored.values())
         seasons = len({item[0] for item in values})
         season_counts = {s: sum(item[0] == s for item in values) for s in {item[0] for item in values}}
         enough = sum(n >= STRATEGY_MIN_SAMPLE for n in season_counts.values()) >= STRATEGY_MIN_SEASONS
@@ -68,7 +159,7 @@ def feedback(plans: list[dict], before: str) -> list[dict]:
 
 def create_plan(today: date, universe: list[dict], screens: list[dict], funds: list[dict],
                 consensus: list[dict], analyses: list[dict], disclosures: list[dict],
-                outcomes: list[dict], macro: dict, prior: list[dict]) -> dict:
+                outcomes: list[dict], macro: dict, prior: list[dict], flows: dict | None = None) -> dict:
     season = season_of(today)
     target = season["target_year"] * 4 + season["target_quarter"]
     sc = latest_before(screens, target - 1)
@@ -103,6 +194,10 @@ def create_plan(today: date, universe: list[dict], screens: list[dict], funds: l
             continue  # 여러 분기 낡은 가속 판정을 현재 전략으로 승격하지 않는다.
         a = analysis.get(key, {})
         payload = a.get("payload") or {}
+        target_quotes = [q for q in consensus if q["fiscal_year"] * 4 + q["fiscal_quarter"] == target]
+        signals = signal_evidence(today, u["code"], f,
+            fs.get((u["code"], season["target_year"] - 1, season["target_quarter"]), {}),
+            target_quotes, payload, (flows or {}).get(u["code"]))
         news = [r for r in disclosures if r["code"] == u["code"]
                 and issues_from <= str(r.get("disclosed_at", ""))[:10] <= today.isoformat()]
         news.sort(key=lambda r: str(r.get("disclosed_at", "")), reverse=True)
@@ -115,11 +210,19 @@ def create_plan(today: date, universe: list[dict], screens: list[dict], funds: l
             "expected_revenue": number(c.get("revenue_est")), "expected_op": number(c.get("op_est")),
             "thesis": payload.get("one_line_thesis") if isinstance(payload.get("one_line_thesis"), str) else None,
             "analysis_date": a.get("created_at"), "risks": payload.get("risks") or [],
+            "signals": signals,
+            "investment_idea": {"sector": u.get("sector") or "기타", "business": u.get("products"),
+                "thesis": payload.get("one_line_thesis"), "why_now": payload.get("why_now"),
+                "drivers": (payload.get("growth_engine") or {}).get("drivers", []),
+                "invalidation": "실적 전망 하향·가속 둔화·마진 훼손 또는 확인한 순매수 중단 시 재검토"},
             "news": [{"title": n.get("report_nm"), "date": str(n.get("disclosed_at"))[:10],
                       "url": f'https://dart.fss.or.kr/dsaf001/main.do?rcpNo={n["rcept_no"]}'} for n in news[:3]],
             "feedback_caution": (u.get("sector") or "기타") in caution})
     preferred = set(macro.get("preferredSectors", [])) if not macro.get("stale") else set()
-    candidates.sort(key=lambda r: (r["feedback_caution"], r["sector"] not in preferred,
+    candidates.sort(key=lambda r: (r["feedback_caution"],
+        r["signals"]["acceleration"] is not True, r["signals"]["upward_revision"] is not True,
+        not r["signals"]["catalysts"], r["signals"]["flow"].get("foreign") is not True,
+        r["signals"]["flow"].get("institution") is not True, r["sector"] not in preferred,
         r["pri"] is None, r["pri"] if r["pri"] is not None else float("inf"),
         -(r["score"] if r["score"] is not None else -float("inf")), r["code"]))
     # 기존 시즌 성과는 회고 근거이며 새 전략 수익률과 합치지 않는다.
@@ -140,6 +243,7 @@ def create_plan(today: date, universe: list[dict], screens: list[dict], funds: l
     season.update({"created_at": today.isoformat(), "rule_version": STRATEGY_RULE_VERSION,
         "late_start": today.isoformat() != season["starts"], "feedback": notes,
         "candidates": candidates[:STRATEGY_MAX_CANDIDATES], "eligible": len(candidates),
+        "eligible_codes": [c["code"] for c in candidates],
         "macro": deepcopy(macro), "history": {"n": len(historical), "median": median(historical)},
         "recent_sectors": recent_sectors,
         "actions": ["매크로 대응: " + ("한국 시장 위험회피 국면에서는 발표 확인 후 진입을 우선하고 섹터 집중을 줄인다." if macro.get("koreaMode") == "risk_off" else "선호 섹터와 실적 가속이 겹치는 후보를 우선하되 선반영 확대 시 추격을 보류한다."),

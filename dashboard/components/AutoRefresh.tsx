@@ -48,7 +48,7 @@ export default function AutoRefresh({ seconds }: { seconds: number }) {
       window.removeEventListener("online", onOnline);
     };
   }, [router, seconds]);
-  return <p className="mx-auto max-w-7xl px-4 pt-2 text-xs text-slate-400" role="status">
+  return <p className="mx-auto max-w-7xl px-4 pt-2 text-xs text-white" role="status">
     {pending
       ? "최신 자료 확인 중… (현재 화면을 유지합니다)"
       : `화면 자동 갱신 · ${seconds}초마다 확인 · 클릭/입력 중에는 보류`}

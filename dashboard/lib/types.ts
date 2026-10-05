@@ -17,7 +17,7 @@ export const GRADE_COLOR: Record<Grade, string> = {
   "★": "#f59e0b",
   "○": "#10b981",
   "△": "#6366f1",
-  "·": "#94a3b8",
+  "·": "#38bdf8",
   "✕": "#ef4444",
 };
 

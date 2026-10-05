@@ -77,16 +77,16 @@ export default function MultiSelect({
         className={`flex ${widthClass} items-center justify-between gap-1 rounded border px-2 py-1 text-left text-sm ${
           selected.length > 0
             ? "border-amber-500/70 bg-amber-950/30 text-amber-100"
-            : "border-slate-600 bg-slate-900 text-slate-100"
+            : "border-slate-600 bg-slate-900 text-white"
         }`}
       >
         <span className="truncate">{summary}</span>
-        <span className="shrink-0 text-xs text-slate-300">{open ? "▲" : "▼"}</span>
+        <span className="shrink-0 text-xs text-white">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div className="absolute left-0 z-40 mt-1 max-h-72 w-64 overflow-auto rounded border border-slate-600 bg-slate-900 p-1 shadow-xl">
-          <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-300">
+          <div className="flex items-center justify-between px-2 py-1 text-xs text-white">
             <span>{selected.length === 0 ? "전체 표시 중" : `${selected.length}개 선택`}</span>
             {selected.length > 0 && (
               <button
@@ -114,12 +114,12 @@ export default function MultiSelect({
                   className="h-3.5 w-3.5 accent-amber-500"
                 />
                 <span
-                  className="flex-1 truncate text-slate-100"
+                  className="flex-1 truncate text-white"
                   style={o.color ? { color: o.color, fontWeight: 700 } : undefined}
                 >
                   {o.label ?? o.value}
                 </span>
-                {o.hint && <span className="shrink-0 text-xs text-slate-300">{o.hint}</span>}
+                {o.hint && <span className="shrink-0 text-xs text-white">{o.hint}</span>}
               </label>
             );
           })}

@@ -10,7 +10,7 @@
 //   "그래서 그게 실적으로 확인됐나"를 먼저 보여준다. 순서를 바꾸면
 //   그럴듯한 서술을 읽은 뒤에 검증을 보게 되어 이미 설득된 상태가 된다.
 import TriggerTimeline, { type TimelineItem } from "@/components/TriggerTimeline";
-import Emphasized, { Highlighted } from "@/components/Emphasized";
+import Emphasized, { Highlighted, ReadableText } from "@/components/Emphasized";
 import type { AnalysisView } from "@/lib/analysis";
 import { koreanTranslatedUrl } from "@/lib/links";
 import type { NarrativeCheck, Verdict } from "@/lib/narrativeCheck";
@@ -37,25 +37,25 @@ export interface ValuationView {
 function Prose({ text }: { text: string }) {
   const sentences = text.split(/(?<=\.)\s+|\n+/).map((sentence) => sentence.trim()).filter(Boolean);
   return (
-    <div className="mt-1 space-y-1 text-sm leading-relaxed text-slate-100">
-      {sentences.map((sentence, index) => <p key={`${index}-${sentence.slice(0, 24)}`}><Highlighted text={sentence} /></p>)}
+    <div className="mt-1 space-y-1 text-sm leading-relaxed text-white">
+      {sentences.map((sentence, index) => <p key={`${index}-${sentence.slice(0, 24)}`}><ReadableText text={sentence} /></p>)}
     </div>
   );
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs leading-relaxed text-slate-300">{children}</p>;
+  return <p className="mt-1 text-xs leading-relaxed text-white">{children}</p>;
 }
 
 const VERDICT_STYLE: Record<Verdict, string> = {
   확인: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
   미달: "border-rose-500/60 bg-rose-500/10 text-rose-200",
-  판정불가: "border-slate-600 bg-slate-700/30 text-slate-200",
+  판정불가: "border-slate-600 bg-slate-700/30 text-white",
 };
 
 const SCENARIO_STYLE: Record<string, { border: string; chip: string }> = {
   bull: { border: "border-emerald-500/70", chip: "bg-emerald-500/15 text-emerald-200" },
-  base: { border: "border-slate-500/70", chip: "bg-slate-500/20 text-slate-100" },
+  base: { border: "border-slate-500/70", chip: "bg-slate-500/20 text-white" },
   bear: { border: "border-rose-500/70", chip: "bg-rose-500/15 text-rose-200" },
 };
 
@@ -72,19 +72,19 @@ function NarrativeBlock({ check }: { check: NarrativeCheck }) {
         <span className="text-lg font-black tracking-tight text-indigo-200">
           내러티브 검증 — 스토리대로 실적이 나오고 있나
         </span>
-        <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-200">
+        <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-white">
           분석 {check.analyzedQuarter ?? DASH}
           {check.quartersSince > 0 && ` → 이후 ${check.quartersSince}개 분기 발표`}
         </span>
       </div>
 
-      <p className="mt-2 text-sm text-slate-100">
+      <p className="mt-2 text-sm text-white">
         <Emphasized text={check.headline} />
       </p>
 
       {check.checks.length > 0 && (
         <table className="mt-3 w-full text-left text-xs">
-          <thead className="text-slate-300">
+          <thead className="text-white">
             <tr>
               <th className="py-1 font-medium">지표</th>
               <th className="py-1 font-medium">분석 시점 → 이후 실적</th>
@@ -94,10 +94,10 @@ function NarrativeBlock({ check }: { check: NarrativeCheck }) {
           <tbody>
             {check.checks.map((c) => (
               <tr key={c.label} className="border-t border-slate-800/60 align-top">
-                <td className="py-1.5 pr-2 text-slate-100">{c.label}</td>
-                <td className="py-1.5 pr-2 tabular-nums text-slate-100">
+                <td className="py-1.5 pr-2 text-white">{c.label}</td>
+                <td className="py-1.5 pr-2 tabular-nums text-white">
                   {c.detail}
-                  {c.note && <span className="ml-2 text-slate-300">{c.note}</span>}
+                  {c.note && <span className="ml-2 text-white">{c.note}</span>}
                 </td>
                 <td className="py-1.5">
                   <span className={`rounded border px-1.5 py-0.5 ${VERDICT_STYLE[c.verdict]}`}>
@@ -126,14 +126,14 @@ function NarrativeBlock({ check }: { check: NarrativeCheck }) {
           </p>
         )}
         {check.sustainabilityNote && (
-          <p className="text-slate-300">{check.sustainabilityNote}</p>
+          <p className="text-white">{check.sustainabilityNote}</p>
         )}
       </div>
 
       <Note>
         문장 속 숫자를 긁어내 비교하지 않는다 — 그 숫자가 매출인지 목표주가인지 알 수 없어
-        <strong className="text-slate-200"> 대부분 맞다가 가끔 조용히 틀린다.</strong>{" "}
-        대신 분석 이후 <strong className="text-slate-200">실제로 발표된 분기</strong>와만 대조한다.
+        <strong className="text-white"> 대부분 맞다가 가끔 조용히 틀린다.</strong>{" "}
+        대신 분석 이후 <strong className="text-white">실제로 발표된 분기</strong>와만 대조한다.
       </Note>
     </div>
   );
@@ -157,12 +157,12 @@ export default function AnalysisSection({
     <div className="space-y-4 text-sm">
       {!priceOnly && <>
       {analysis.isEmpty && (
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-white">
           아직 LLM 분석하지 않았다. RSI 아래의 주가 위치 수치는 LLM과 무관하게 네이버 원표에서 표시한다.
         </p>
       )}
       {analysis.thesis && (
-        <p className="text-base font-medium text-slate-100">💡 {analysis.thesis}</p>
+        <p className="text-base font-medium text-white">💡 {analysis.thesis}</p>
       )}
 
       {/* ★ 검증을 해석보다 먼저 놓는다 — 설득되기 전에 대조부터 한다. */}
@@ -170,7 +170,7 @@ export default function AnalysisSection({
 
       {analysis.whyNow && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">💡 왜 지금인가</div>
+          <div className="text-lg font-black tracking-tight text-white">💡 왜 지금인가</div>
           <Prose text={analysis.whyNow} />
         </div>
       )}
@@ -185,19 +185,19 @@ export default function AnalysisSection({
             텔레그램은 발견 경로이며, 투자 판단은 연결된 증권사 원문과 공시를 우선한다.
           </Note>
           {analysis.brokerReports.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-200">
+            <p className="mt-2 text-sm text-white">
               발행일과 직접 링크를 확인할 수 있는 리포트를 찾지 못했다.
             </p>
           ) : (
             <ul className="mt-3 space-y-2">
               {analysis.brokerReports.map((report, index) => (
                 <li key={`${report.url ?? report.title}-${index}`} className="rounded border border-slate-700 bg-slate-950/40 p-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-white">
                     <span>{report.publishedAt ?? DASH}</span>
                     <span>{report.publisher ?? DASH}</span>
                     {report.channel && <span className="rounded bg-slate-800 px-1.5 py-0.5">{report.channel}</span>}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">
+                  <div className="mt-1 text-sm font-semibold text-white">
                     {report.url ? (
                       <a href={koreanTranslatedUrl(report.url)} target="_blank" rel="noreferrer" className="underline decoration-cyan-500/60 underline-offset-2 hover:text-cyan-200">
                         {report.title ?? report.url}
@@ -222,12 +222,12 @@ export default function AnalysisSection({
             직접 URL이 검색 결과에서 확인된 항목만 남긴다.
           </Note>
           {analysis.narrativeVerification.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-200">검증 가능한 과거 원문을 찾지 못해 판정을 만들지 않았다.</p>
+            <p className="mt-2 text-sm text-white">검증 가능한 과거 원문을 찾지 못해 판정을 만들지 않았다.</p>
           ) : (
             <ul className="mt-3 space-y-2">
               {analysis.narrativeVerification.map((item, index) => (
                 <li key={`${item.url}-${index}`} className="rounded border border-slate-700 bg-slate-950/40 p-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-white">
                     <span className="rounded bg-indigo-500/15 px-1.5 py-0.5 font-semibold text-indigo-100">{item.verdict ?? DASH}</span>
                     <span>{item.sourceDate ?? DASH}</span>
                     {item.url ? (
@@ -236,8 +236,8 @@ export default function AnalysisSection({
                       </a>
                     ) : <span>{item.sourceTitle ?? DASH}</span>}
                   </div>
-                  {item.claim && <p className="mt-1 text-sm text-slate-100"><strong>당시 주장 · </strong>{item.claim}</p>}
-                  {item.evidence && <p className="mt-1 text-sm text-slate-200"><strong>이번 분기 확인 · </strong>{item.evidence}</p>}
+                  {item.claim && <p className="mt-1 text-sm text-white"><strong>당시 주장 · </strong>{item.claim}</p>}
+                  {item.evidence && <p className="mt-1 text-sm text-white"><strong>이번 분기 확인 · </strong>{item.evidence}</p>}
                 </li>
               ))}
             </ul>
@@ -252,7 +252,7 @@ export default function AnalysisSection({
         analysis.earningsChange.outlook) && (
         <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black tracking-tight text-slate-100">
+            <span className="text-lg font-black tracking-tight text-white">
               실적 변화 — 원인 · 결과 · 전망
             </span>
             {analysis.earningsChange.confidence && (
@@ -261,7 +261,7 @@ export default function AnalysisSection({
                   {
                     high: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
                     medium: "border-amber-500/60 bg-amber-500/10 text-amber-200",
-                    low: "border-slate-600 bg-slate-700/30 text-slate-200",
+                    low: "border-slate-600 bg-slate-700/30 text-white",
                   }[analysis.earningsChange.confidence]
                 }`}
                 title="전망의 확신도 — 근거가 약하면 모델이 스스로 낮춘다"
@@ -303,7 +303,7 @@ export default function AnalysisSection({
       {(analysis.growthEngine.drivers.length > 0 || analysis.growthEngine.evidence) && (
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black tracking-tight text-slate-100">성장 엔진 상세</span>
+            <span className="text-lg font-black tracking-tight text-white">성장 엔진 상세</span>
             {analysis.growthEngine.nature && (
               <span
                 className={`rounded border px-1.5 py-0.5 text-[11px] ${
@@ -324,7 +324,7 @@ export default function AnalysisSection({
           {analysis.growthEngine.drivers.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {analysis.growthEngine.drivers.map((d) => (
-                <span key={d} className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-100">
+                <span key={d} className="rounded bg-slate-800 px-2 py-0.5 text-xs text-white">
                   {d}
                 </span>
               ))}
@@ -333,7 +333,7 @@ export default function AnalysisSection({
           {analysis.growthEngine.evidence && (
             <Prose text={analysis.growthEngine.evidence} />
           )}
-          <p className="mt-2 text-[11px] leading-5 text-slate-400">제품·기술·CAPA·가동률·가격/물량/믹스·신규 고객·수주·전방 수요·동일 섹터 경쟁과 산업 사이클을 공시와 최신 공개 원문으로 교차 확인한다. 공개되지 않은 고객·계약은 확정 사실로 바꾸지 않는다.</p>
+          <p className="mt-2 text-[11px] leading-5 text-white">제품·기술·CAPA·가동률·가격/물량/믹스·신규 고객·수주·전방 수요·동일 섹터 경쟁과 산업 사이클을 공시와 최신 공개 원문으로 교차 확인한다. 공개되지 않은 고객·계약은 확정 사실로 바꾸지 않는다.</p>
         </div>
       )}
 
@@ -345,22 +345,22 @@ export default function AnalysisSection({
                 ["공개된 고객·최종 수요처", analysis.valueChain.customers], ["글로벌 밸류체인·실적 전파", analysis.valueChain.globalChain] ] as const)
               .map(([label, value]) => <div key={label} className="rounded border border-slate-800 bg-slate-950/40 p-3">
                 <div className="text-xs font-semibold text-cyan-200">{label}</div>
-                <p className="mt-1 whitespace-pre-line leading-relaxed text-slate-100">{value ?? "공개 자료에서 확인되지 않음"}</p>
+                <p className="mt-1 whitespace-pre-line leading-relaxed text-white">{value ?? "공개 자료에서 확인되지 않음"}</p>
               </div>)}
           </div>
-        ) : <p className="mt-2 text-xs text-slate-300">기존 분석에는 고객 관계가 구조화되어 있지 않다. 다음 분석 갱신에서 공시·원문으로 확인한다.</p>}
+        ) : <p className="mt-2 text-xs text-white">기존 분석에는 고객 관계가 구조화되어 있지 않다. 다음 분석 갱신에서 공시·원문으로 확인한다.</p>}
         <div className="mt-3 text-xs font-semibold text-cyan-200">최근 3개월 글로벌 기업향 수주·협업</div>
-        {analysis.valueChain.recentGlobalEvents.length ? <ul className="mt-1 space-y-1 text-xs text-slate-100">
+        {analysis.valueChain.recentGlobalEvents.length ? <ul className="mt-1 space-y-1 text-xs text-white">
           {analysis.valueChain.recentGlobalEvents.map((item) => <li key={`${item.date}-${item.url}`} className="rounded border border-slate-800 p-2">
             {item.date} · {item.company} · {item.status} — {item.event} <a href={koreanTranslatedUrl(item.url)} target="_blank" rel="noreferrer" className="ml-1 text-cyan-200 underline">한글 번역 원문</a>
           </li>)}
-        </ul> : <p className="mt-1 text-xs text-slate-300">확인된 원문 수주·협업 없음. 미공개 고객 관계를 실제 계약으로 간주하지 않는다.</p>}
-        {analysis.valueChain.searchLimit && <p className="mt-2 text-xs text-slate-400">확인 범위: {analysis.valueChain.searchLimit}</p>}
+        </ul> : <p className="mt-1 text-xs text-white">확인된 원문 수주·협업 없음. 미공개 고객 관계를 실제 계약으로 간주하지 않는다.</p>}
+        {analysis.valueChain.searchLimit && <p className="mt-2 text-xs text-white">확인 범위: {analysis.valueChain.searchLimit}</p>}
       </div>
 
       {analysis.baseEffectAssessment && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">
+          <div className="text-lg font-black tracking-tight text-white">
             기저효과 판단
             {analysis.isGenuine != null && (
               <span
@@ -383,9 +383,9 @@ export default function AnalysisSection({
           확률만 보이니 모델이 성의 없이 답한 것처럼 읽혔지만 내용은 멀쩡히 있었다. */}
       {analysis.scenarios.length > 0 && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">시나리오</div>
+          <div className="text-lg font-black tracking-tight text-white">시나리오</div>
           <Note>
-            <strong className="text-slate-200">조건</strong>은 “무엇이 관측되면 이 시나리오인가”다 —
+            <strong className="text-white">조건</strong>은 “무엇이 관측되면 이 시나리오인가”다 —
             다음 분기 실적이 나오면 이 문장과 직접 대조하면 된다.
           </Note>
           <div className="mt-2 space-y-2">
@@ -408,12 +408,12 @@ export default function AnalysisSection({
                       </span>
                     </div>
                     <div className="mt-2 space-y-1.5 text-sm">
-                      <p className="text-slate-100">
-                        <span className="mr-1.5 text-xs font-bold text-slate-300">조건</span>
+                      <p className="text-white">
+                        <span className="mr-1.5 text-xs font-bold text-white">조건</span>
                         {s.condition ? <Highlighted text={s.condition} /> : DASH}
                       </p>
-                      <p className="text-slate-200">
-                        <span className="mr-1.5 text-xs font-bold text-slate-300">함의</span>
+                      <p className="text-white">
+                        <span className="mr-1.5 text-xs font-bold text-white">함의</span>
                         {s.implication ? <Highlighted text={s.implication} /> : DASH}
                       </p>
                     </div>
@@ -430,14 +430,14 @@ export default function AnalysisSection({
           사건을 알 방법이 없다. 숫자표만으로 사건을 쓰라고 하면 지어내게 된다. */}
       {timelineItems.length === 0 && (
         <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
-          <div className="text-lg font-black tracking-tight text-slate-100">주가 상승 트리거</div>
-          <p className="mt-1.5 text-sm text-slate-100">
+          <div className="text-lg font-black tracking-tight text-white">주가 상승 트리거</div>
+          <p className="mt-1.5 text-sm text-white">
             <strong className="text-amber-300">확인 가능한 상승 이벤트를 찾지 못했다.</strong>{" "}
             이 분석의 입력은 분기 실적 표가 중심이라 CAPA 증설·신제품 출시·고객사 협업 같은
             사건은 공시 원문을 읽어야 알 수 있다.
           </p>
           <Note>
-            비어 있는 것은 <strong className="text-slate-200">이벤트가 없다는 뜻이 아니라
+            비어 있는 것은 <strong className="text-white">이벤트가 없다는 뜻이 아니라
             이 입력으로는 알 수 없다는 뜻</strong>이다 — 없는 사건을 지어내지 않는다.
           </Note>
         </div>
@@ -447,13 +447,13 @@ export default function AnalysisSection({
           목록이 아니라 **타임라인**으로 그린다. 시점 순서가 곧 판단이다. */}
       {timelineItems.length > 0 && (
         <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-          <div className="text-lg font-black tracking-tight text-slate-100">
+          <div className="text-lg font-black tracking-tight text-white">
             주가 상승 트리거 ({timelineItems.length}건)
           </div>
           <Note>
             앞으로 주가를 올릴 수 있는 사건을 성격 구분 없이 모두 담는다 — 성장 스토리 ·
             CAPA 확장 · 지역 진출 · 신제품 · 신규 수주 · 인증/규제 · 전방 수요 · 수급까지.
-            각 항목에 <strong className="text-slate-200">확인 지표</strong>가 붙어 있어 나중에
+            각 항목에 <strong className="text-white">확인 지표</strong>가 붙어 있어 나중에
             일어났는지 대조할 수 있다.
           </Note>
           <div className="mt-3">
@@ -467,9 +467,9 @@ export default function AnalysisSection({
       {priceOnly &&
       <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black tracking-tight text-slate-100">💰 주가 위치</span>
+            <span className="text-lg font-black tracking-tight text-white">💰 주가 위치</span>
             {analysis.pricePosition.verdict && (
-              <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-100">
+              <span className="rounded border border-slate-600 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-white">
                 {analysis.pricePosition.verdict}
               </span>
             )}
@@ -477,39 +477,39 @@ export default function AnalysisSection({
           {/* PER·F.PER·ROE는 화면에서 다시 계산하지 않고 네이버 연간 표의 값을 보여준다. */}
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">① 네이버 {valuation.perCurrentYear ?? "올해"} PER(E)</div>
+              <div className="text-[11px] text-white">① 네이버 {valuation.perCurrentYear ?? "올해"} PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-white">
                 {valuation.perCurrent != null ? `${valuation.perCurrent.toFixed(2)}배` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">
+              <div className="text-[11px] text-white">
                 {valuation.perCurrent != null ? "네이버 기업실적분석 연간 예상값" : "네이버 예상값 없음"}
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">② 네이버 {valuation.perForwardYear ?? "내년"} F.PER(E)</div>
+              <div className="text-[11px] text-white">② 네이버 {valuation.perForwardYear ?? "내년"} F.PER(E)</div>
               <div className="mt-0.5 text-xl font-bold text-amber-200">
                 {valuation.perForward != null ? `${valuation.perForward.toFixed(2)}배` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">
+              <div className="text-[11px] text-white">
                 {valuation.forwardBasis ?? "연간 컨센서스 없음"}
               </div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">③ {valuation.perCurrentYear ?? "올해"} ROE(E)</div>
+              <div className="text-[11px] text-white">③ {valuation.perCurrentYear ?? "올해"} ROE(E)</div>
               <div className="mt-0.5 text-xl font-bold text-white">
                 {valuation.roeCurrent != null ? `${valuation.roeCurrent.toFixed(2)}%` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">네이버 올해 연간 예상 ROE</div>
+              <div className="text-[11px] text-white">네이버 올해 연간 예상 ROE</div>
             </div>
             <div className="rounded border border-slate-700 bg-slate-950/50 px-3 py-2">
-              <div className="text-[11px] text-slate-300">④ {valuation.perForwardYear ?? "내년"} F.ROE(E)</div>
+              <div className="text-[11px] text-white">④ {valuation.perForwardYear ?? "내년"} F.ROE(E)</div>
               <div className="mt-0.5 text-xl font-bold text-amber-200">
                 {valuation.roeNext != null ? `${valuation.roeNext.toFixed(2)}%` : DASH}
               </div>
-              <div className="text-[11px] text-slate-300">네이버 내년 연간 예상 ROE</div>
+              <div className="text-[11px] text-white">네이버 내년 연간 예상 ROE</div>
             </div>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-300">
+          <p className="mt-1.5 text-[11px] text-white">
             위 네 숫자는 <a href={valuation.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-300 underline">네이버 증권 연간 기업실적분석 원표</a> 값이다.
             화면에서 PER·F.PER·ROE를 다시 계산하지 않는다. 아래 LLM 본문과 다르면{" "}
             <strong className="text-amber-300">위 원자료를 기준</strong>으로 판단한다.
@@ -530,23 +530,23 @@ export default function AnalysisSection({
 
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <div>
-              <div className="text-xs font-bold text-slate-300">이미 반영된 것</div>
-              <ul className="mt-1 list-disc pl-4 text-slate-200">
+              <div className="text-xs font-bold text-white">이미 반영된 것</div>
+              <ul className="mt-1 list-disc pl-4 text-white">
                 {analysis.pricePosition.pricedIn.length > 0
                   ? analysis.pricePosition.pricedIn.map((v) => (
                       <li key={v}><Highlighted text={v} /></li>
                     ))
-                  : <li className="list-none text-slate-300">{DASH}</li>}
+                  : <li className="list-none text-white">{DASH}</li>}
               </ul>
             </div>
             <div>
               <div className="text-xs font-bold text-amber-200">아직 반영되지 않은 것</div>
-              <ul className="mt-1 list-disc pl-4 text-slate-100">
+              <ul className="mt-1 list-disc pl-4 text-white">
                 {analysis.pricePosition.notPricedIn.length > 0
                   ? analysis.pricePosition.notPricedIn.map((v) => (
                       <li key={v}><Highlighted text={v} /></li>
                     ))
-                  : <li className="list-none text-slate-300">{DASH}</li>}
+                  : <li className="list-none text-white">{DASH}</li>}
               </ul>
             </div>
           </div>
@@ -555,9 +555,9 @@ export default function AnalysisSection({
       {!priceOnly && <>
       {analysis.risks.length > 0 && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">⚠️ 핵심 리스크</div>
+          <div className="text-lg font-black tracking-tight text-white">⚠️ 핵심 리스크</div>
           <table className="mt-1 w-full text-left text-xs">
-            <thead className="text-slate-300">
+            <thead className="text-white">
               <tr>
                 <th className="py-1 font-medium">리스크</th>
                 <th className="py-1 font-medium">발생</th>
@@ -568,10 +568,10 @@ export default function AnalysisSection({
             <tbody>
               {analysis.risks.map((r, i) => (
                 <tr key={i} className="border-t border-slate-800/60 align-top">
-                  <td className="py-1 pr-2 text-slate-100">{r.risk ?? DASH}</td>
-                  <td className="py-1 pr-2 text-slate-200">{r.likelihood ?? DASH}</td>
-                  <td className="py-1 pr-2 text-slate-200">{r.impact ?? DASH}</td>
-                  <td className="py-1 text-slate-200">{r.watchMetric ?? DASH}</td>
+                  <td className="py-1 pr-2 text-white">{r.risk ?? DASH}</td>
+                  <td className="py-1 pr-2 text-white">{r.likelihood ?? DASH}</td>
+                  <td className="py-1 pr-2 text-white">{r.impact ?? DASH}</td>
+                  <td className="py-1 text-white">{r.watchMetric ?? DASH}</td>
                 </tr>
               ))}
             </tbody>
@@ -581,10 +581,10 @@ export default function AnalysisSection({
 
       {analysis.nextDataToWatch.length > 0 && (
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-100">
+          <div className="text-lg font-black tracking-tight text-white">
             🔎 다음 분기에 확인할 것
           </div>
-          <ul className="mt-1 list-disc pl-4 text-slate-100">
+          <ul className="mt-1 list-disc pl-4 text-white">
             {analysis.nextDataToWatch.map((v) => <li key={v}>{v}</li>)}
           </ul>
         </div>
@@ -592,7 +592,7 @@ export default function AnalysisSection({
 
       {analysis.howICouldBeWrong && (
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-300">
+          <div className="text-xs font-semibold uppercase text-white">
             🧭 판단을 바꿔야 할 이유
           </div>
           <Prose text={analysis.howICouldBeWrong} />
