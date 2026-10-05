@@ -522,3 +522,13 @@ POSTGREST_PAGE_SIZE = 1000  # max-rows 1,000 — 초과 테이블은 반드시 r
 # 수익률 기간 시작일 뒤 첫 거래일 허용 여유. 신규 상장 종목의 짧은 이력을
 # 12개월 수익률로 둔갑시키지 않되 장기 연휴는 허용한다.
 RETURN_WINDOW_START_TOLERANCE_DAYS = 10
+
+# §9.3 실적 시즌 전략: 발표 전 판단을 고정하고 다음 시즌에만 피드백 반영.
+STRATEGY_MONTHS = (1, 4, 7, 10)
+STRATEGY_MAX_CANDIDATES = 20
+STRATEGY_MIN_SAMPLE = 5
+STRATEGY_MIN_SEASONS = 2
+STRATEGY_HORIZONS = (20, 40, 60)
+STRATEGY_NEWS_DAYS = 90
+STRATEGY_TREND_SESSIONS = 60
+STRATEGY_RULE_VERSION = "season-v1"
