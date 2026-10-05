@@ -1,0 +1,42 @@
+# PRD Ref: §9.3 · §10
+name: season_strategy
+on:
+  schedule:
+    - cron: "10 10 * * *" # 매일 19:10 KST · 1/4/7/10월 최초 실행 자동 생성
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: season-strategy
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - run: python -m src.analysis.season_strategy_run --save
+      - name: 전략 원본·검증 결과 저장 및 대시보드 갱신
+        shell: bash
+        run: |
+          if git diff --quiet -- dashboard/lib/season-strategies.json; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dashboard/lib/season-strategies.json
+          git commit -m "chore: update earnings season strategy review"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+          done
+          exit 1

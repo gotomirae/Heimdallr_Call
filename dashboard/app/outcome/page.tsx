@@ -7,6 +7,7 @@
 // ★ 표본이 없으면 **결론을 내지 않는다.** 2건으로 "반도체가 최고"라고 쓰면
 //   그럴듯하게 읽히지만 완전히 틀린 조언이 된다.
 import Link from "next/link";
+import SeasonStrategy from "@/components/SeasonStrategy";
 import { HORIZONS, HORIZON_MEANING, horizonLabel, type Horizon, getOutcomes } from "@/lib/outcome";
 import {
   FEATURE_GROUPS,
@@ -226,6 +227,8 @@ export default async function OutcomePage() {
           {"이고 괄호는 측정 표본 수다."}
         </p>
       </div>
+
+      <SeasonStrategy />
 
       {outcomeResult.dropped.length > 0 && (
         <p className="rounded border border-amber-700 bg-amber-900/30 px-3 py-2 text-sm text-amber-200">
