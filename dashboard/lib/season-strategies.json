@@ -5201,17 +5201,17 @@
         "시즌 최초 실행일에 고정한다. 지연 생성 시 월초 전략으로 소급하지 않는다."
       ],
       "review": {
-        "checked_at": "2026-10-06",
+        "checked_at": "2026-10-07",
         "stocks": [
           {
             "code": "097230",
             "sector": "조선·해운",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -19.485294117647058,
@@ -5232,11 +5232,11 @@
             "code": "105630",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -1.0146561443066515,
@@ -5257,11 +5257,11 @@
             "code": "194370",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 4.3866774979691305,
@@ -5282,11 +5282,11 @@
             "code": "033500",
             "sector": "조선·해운",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -6.506849315068493,
@@ -5307,11 +5307,11 @@
             "code": "011760",
             "sector": "자동차",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 7.066381156316917,
@@ -5332,11 +5332,11 @@
             "code": "023530",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -41.122035858877965,
@@ -5357,11 +5357,11 @@
             "code": "015230",
             "sector": "자동차",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 6.514657980456026,
@@ -5382,11 +5382,11 @@
             "code": "160980",
             "sector": "반도체 장비",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -21.763085399449036,
@@ -5407,11 +5407,11 @@
             "code": "017670",
             "sector": "통신·네트워크",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 2.784222737819025,
@@ -5432,11 +5432,11 @@
             "code": "005930",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -13.20754716981132,
@@ -5457,11 +5457,11 @@
             "code": "108380",
             "sector": "우주방산",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 2.5683060109289615,
@@ -5482,11 +5482,11 @@
             "code": "108320",
             "sector": "반도체 DSP",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -3.465982028241335,
@@ -5507,11 +5507,11 @@
             "code": "001120",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 15.5467720685112,
@@ -5532,11 +5532,11 @@
             "code": "000660",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -21.382842509603073,
@@ -5557,11 +5557,11 @@
             "code": "025000",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 10.433070866141732,
@@ -5582,11 +5582,11 @@
             "code": "264450",
             "sector": "통신·네트워크",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 17.853560682046137,
@@ -5607,11 +5607,11 @@
             "code": "142210",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 18.650088809946713,
@@ -5632,11 +5632,11 @@
             "code": "073490",
             "sector": "통신·네트워크",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 41.08216432865731,
@@ -5657,11 +5657,11 @@
             "code": "355150",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 12.619047619047619,
@@ -5682,11 +5682,11 @@
             "code": "081660",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -14.551422319474835,
@@ -12445,17 +12445,17 @@
       ],
       "live_quote_codes": 59,
       "review": {
-        "checked_at": "2026-10-06",
+        "checked_at": "2026-10-07",
         "stocks": [
           {
             "code": "009150",
             "sector": "전자부품",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -13.730853391684903,
@@ -12476,11 +12476,11 @@
             "code": "017670",
             "sector": "통신·네트워크",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 2.784222737819025,
@@ -12501,11 +12501,11 @@
             "code": "000660",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -21.382842509603073,
@@ -12526,11 +12526,11 @@
             "code": "213500",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 7.270029673590504,
@@ -12551,11 +12551,11 @@
             "code": "058430",
             "sector": "철강·금속",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -7.07070707070707,
@@ -12576,11 +12576,11 @@
             "code": "074600",
             "sector": "반도체 부품",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 4.815409309791333,
@@ -12601,11 +12601,11 @@
             "code": "001120",
             "sector": "유통·소비재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 15.5467720685112,
@@ -12626,11 +12626,11 @@
             "code": "047050",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 13.200000000000001,
@@ -12651,11 +12651,11 @@
             "code": "104830",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 10.77127659574468,
@@ -12676,11 +12676,11 @@
             "code": "011760",
             "sector": "자동차",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 7.066381156316917,
@@ -12701,11 +12701,11 @@
             "code": "319660",
             "sector": "반도체 장비",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -11.00702576112412,
@@ -12726,11 +12726,11 @@
             "code": "017960",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -19.17808219178082,
@@ -12751,11 +12751,11 @@
             "code": "257720",
             "sector": "화장품_미용기기",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -0.2680965147453083,
@@ -12776,11 +12776,11 @@
             "code": "028670",
             "sector": "운송·물류",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 26.518218623481783,
@@ -12801,11 +12801,11 @@
             "code": "007660",
             "sector": "전자부품",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 20.434353405725567,
@@ -12826,11 +12826,11 @@
             "code": "080220",
             "sector": "반도체 IDM",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 3.9193729003359463,
@@ -12851,11 +12851,11 @@
             "code": "383310",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -11.25,
@@ -12876,11 +12876,11 @@
             "code": "097230",
             "sector": "조선·해운",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": -19.485294117647058,
@@ -12901,11 +12901,11 @@
             "code": "417840",
             "sector": "반도체 장비",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 71.88940092165899,
@@ -12926,11 +12926,11 @@
             "code": "134380",
             "sector": "화학·소재",
             "horizons": {},
-            "base_date": null,
+            "base_date": "20261006",
             "current": {
-              "date": null,
-              "return": null,
-              "excess": null
+              "date": "20261006",
+              "return": 0.0,
+              "excess": 0.0
             },
             "trend": {
               "return": 1.809045226130653,
@@ -13072,6 +13072,6 @@
       }
     }
   ],
-  "checked_at": "2026-10-06",
+  "checked_at": "2026-10-07",
   "errors": []
 }
