@@ -1,5 +1,7 @@
 # Heimdallr Telegram → Kairos → Notion
 
+Claude 후속 analysis/deck의 인증 오류는 30분 후 같은 작업 ID로 재시도하며 기존 attempts 상한을 유지한다. 실행 전 로그인 없음은 claim하지 않는다. 로그인 장애가 30분 지속되면 Heimdallr 전용 봇의 개인 채팅으로 KST 하루 1회 `Claude 로그인 필요 — PowerShell claude auth login`을 안내한다. 선택 구독 setup-token은 ignored dotenv의 `CLAUDE_CODE_OAUTH_TOKEN`으로만 전달한다. API 키·외부 provider로 대체하지 않는다. `sent` 작업은 다시 pending으로 바꾸지 않는다.
+
 Windows의 `HeimdallrTelegramListener`만 Telegram `getUpdates`를 1분마다 호출한다. 인증된 개인 채팅에서 종목명·6자리 코드 또는 산업명을 단독으로 입력하면 접수·예상 시간 메시지를 보내고 `kairos_requests`에 Telegram update ID, `request_kind`, `target_name`으로 심층 분석 요청을 기록한다. 짧은 종목 요약은 보내지 않는다. 수정·전달·그룹·봇 경유 메시지와 문장형 질의는 심층 분석 요청이 아니다. `/status`는 최근 요청의 대상 유형·단계·실패 원인을 조회한다.
 
 Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 이 저장소의 로컬 SQLite 큐로 복사한다. 전용 대화 `Kairos 자동 분석 전용`의 `kairos-intake` heartbeat가 07:00–24:00 KST에 30분마다 큐를 확인하고 접수·재개한다. 사용자가 대화를 열 필요는 없다. heartbeat 모드에서는 `codex queue`를 호출하지 않는다. queue 모드는 이전 설치 호환용이며 무인 실행의 근거가 아니다. 이 수집기는 Telegram API를 폴링하지 않는다. 기존 `C:\Codex\Kairos` 봇·큐·미처리 작업은 건드리지 않는다.

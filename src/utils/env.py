@@ -129,9 +129,13 @@ def optional_env_bool(name: str, default: bool) -> bool:
 
 
 def subscription_cli_env() -> dict[str, str]:
-    """Claude child uses its stored subscription login, never inherited API billing."""
+    """Claude child uses subscription login or setup-token, never API billing."""
     _load_dotenv_once()
     excluded = {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
                 "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX",
                 "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_MODEL"}
-    return {name: value for name, value in os.environ.items() if name not in excluded}
+    env = {name: value for name, value in os.environ.items() if name not in excluded}
+    token = optional_env("CLAUDE_CODE_OAUTH_TOKEN")
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+    return env

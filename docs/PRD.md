@@ -1008,6 +1008,7 @@ JARVIS Codex 분석이 sent로 전환되면 같은 트랜잭션의 트리거가 
 기업 분석 sent 이후 별도 🎤 RPC가 mode=deck을 접수한다. 같은 요청의 analysis가 pending/working이면 deck claim을 보류한다.
 동시에 1건만 Claude Code 구독 로그인으로 기존 kairos-deck 스킬을 화면 없이 실행한다.
 analysis 90분/deck 120분 제한, 사용량 한도 30분 뒤 재시도·3회 초과 종료, 성공 JSON/이번 요청의 최신 결과 파일을 검증한다.
+Claude 인증 오류와 실행 실패 직후 로그인 소실도 같은 30분 재시도·상한을 적용한다. 실행 전 로그인 없음은 claim하지 않아 attempts를 소비하지 않는다. 로그인 장애가 30분 지속되면 기존 Heimdallr 전용 봇의 개인 채팅으로 KST 하루 1회 재로그인 안내를 보낸다. 로컬 SQLite에 장애 시작·발송 예약 날짜를 먼저 저장하여 재시작·전송 결과 불확실 시 중복하지 않는다. 구독 `CLAUDE_CODE_OAUTH_TOKEN`만 자식 환경에 추가 허용하고 API 키·외부 provider는 계속 차단한다. auth status가 OAuth 존재만으로 loggedIn을 표시할 수 있으므로 실패 후 실제 인증된 실행 전까지 장애 기록을 보존한다.
 심층 분석 자체의 PDF 금지는 유지하고 별도 발표자료에만 PPTX/PDF/분석노트 생성·Notion 첨부를 허용한다.
 설치·RPC·Notion 재조회 증빙·실제 요청 검증 정본은 telegram_bridge/JARVIS.md, ADR 30이다.
 

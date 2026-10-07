@@ -1,10 +1,9 @@
 # PRD Ref: §8.7 G-7
-"""One headless Claude Code deck worker. No Telegram messages or API key."""
+"""One headless Claude subscription worker; daily login notice only, no API key."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
-import os
 from pathlib import Path
 import re
 import shutil
@@ -12,15 +11,64 @@ import sqlite3
 import subprocess
 import sys
 
-from src.config.constants import KAIROS_ANALYSIS_TIMEOUT_SECONDS, KAIROS_DECK_TIMEOUT_SECONDS, KAIROS_DECK_RETRY_MINUTES, KAIROS_DECK_USAGE_RETRIES
+from src.config.constants import KAIROS_ANALYSIS_TIMEOUT_SECONDS, KAIROS_CLAUDE_LOGIN_NOTICE_MINUTES, KAIROS_DECK_TIMEOUT_SECONDS, KAIROS_DECK_RETRY_MINUTES, KAIROS_DECK_USAGE_RETRIES
 from src.db.supabase_client import get_client
-from src.utils.env import subscription_cli_env
+from src.utils.env import optional_env, subscription_cli_env
+from telegram_bridge.claude_login import probe_subscription
 
 SKILL = Path.home() / '.claude/skills/kairos-deck'
 # Claude Code refuses writes under ~/.claude (protected path, 2026-10-08 A1 SOURCE_ACCESS), so the run works here.
-WORK_ROOT = Path(os.environ.get('KAIROS_CLAUDE_WORK_ROOT', r'C:\Claude\kairos-work'))
+WORK_ROOT = Path(optional_env('KAIROS_CLAUDE_WORK_ROOT', r'C:\Claude\kairos-work'))
 STATE = Path(__file__).resolve().parent / 'state/decks'
 USAGE = re.compile(r'usage limit|rate.?limit|hit your limit|out of extra usage|resets? (?:at|in)|사용량.*(?:한도|제한)', re.I)
+AUTH = re.compile(r'/login\b|not logged in|invalid (?:api key|bearer token)|\b401\b|authentication|oauth token.*(?:expired|invalid)', re.I)
+
+
+def send_login_notice() -> None:
+    from src.notify.telegram import TelegramClient, bot_id_of
+    client = TelegramClient()
+    if bot_id_of(client.token) != '8933940541':
+        raise ValueError('LOGIN_NOTICE_DEDICATED_BOT_REQUIRED')
+    chat = client.call('getChat', {'chat_id': client.chat_id}).get('result', {})
+    if chat.get('type') != 'private':
+        raise ValueError('LOGIN_NOTICE_PRIVATE_CHAT_REQUIRED')
+    client.send_message('Claude 로그인 필요 — PowerShell <code>claude auth login</code>')
+
+
+def login_notice(available: bool | None, now: datetime | None = None) -> dict:
+    """Persist outage onset and reserve before send, even when delivery is uncertain."""
+    now = now or datetime.now(timezone.utc)
+    STATE.mkdir(parents=True, exist_ok=True)
+    day = now.astimezone(timezone(timedelta(hours=9))).date().isoformat()
+    send = False
+    with sqlite3.connect(STATE / 'auth.sqlite3', timeout=30) as db:
+        db.execute('CREATE TABLE IF NOT EXISTS auth (id INTEGER PRIMARY KEY CHECK(id=1), since TEXT, notice_day TEXT)')
+        db.execute('BEGIN IMMEDIATE')
+        db.execute('INSERT OR IGNORE INTO auth(id) VALUES(1)')
+        since, notice_day = db.execute('SELECT since,notice_day FROM auth WHERE id=1').fetchone()
+        if available is True:
+            since = None
+        elif available is False:
+            since = since or now.isoformat()
+        if since and now - datetime.fromisoformat(since) >= timedelta(minutes=KAIROS_CLAUDE_LOGIN_NOTICE_MINUTES) and notice_day != day:
+            notice_day, send = day, True
+        db.execute('UPDATE auth SET since=?,notice_day=? WHERE id=1', (since, notice_day))
+    result = {'login_required_since': since, 'login_notice_day': notice_day}
+    if send:
+        try:
+            send_login_notice()
+            result['login_notice'] = 'sent'
+        except Exception as exc:
+            # Reserve once/day: a timeout might already have delivered the message.
+            result['login_notice_error'] = type(exc).__name__
+    return result
+
+
+def retry_payload(error: str, attempts: int, started: datetime) -> dict:
+    if attempts > KAIROS_DECK_USAGE_RETRIES:
+        return {'status': 'failed', 'error': error, 'completed_at': started.isoformat()}
+    return {'status': 'pending', 'error': error, 'claimed_at': None, 'completed_at': None,
+            'retry_after': (datetime.now(timezone.utc) + timedelta(minutes=KAIROS_DECK_RETRY_MINUTES)).isoformat()}
 
 
 def parse_result(output: str) -> dict | None:
@@ -183,19 +231,16 @@ def run_once() -> dict:
     cli = shutil.which('claude.exe') or shutil.which('claude')
     if not cli or not (SKILL / 'SKILL.md').is_file():
         return {'status': 'unavailable', 'error': 'CLAUDE_OR_SKILL_MISSING'}
-    auth = subprocess.run([cli, "auth", "status", "--json"], capture_output=True,
-        text=True, encoding="utf-8", timeout=30, env=subscription_cli_env(),
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    try:
-        login = json.loads(auth.stdout)
-    except ValueError:
-        return {"status": "unavailable", "error": "CLAUDE_LOGIN_REQUIRED"}
-    if auth.returncode or not login.get("loggedIn") or login.get("authMethod") != "claude.ai":
-        return {"status": "unavailable", "error": "CLAUDE_SUBSCRIPTION_REQUIRED"}
+    login = probe_subscription(cli)
+    if not login['loggedIn']:
+        notice = login_notice(False)
+        return {"status": "unavailable", "error": login.get('error', 'CLAUDE_LOGIN_REQUIRED'), **notice}
     client = get_client()
     job = client.rpc('kairos_claim_deck', {}).execute().data
     if not job:
-        return {'status': 'idle'}
+        # auth status may report loggedIn for an expired environment OAuth token.
+        # Preserve its outage through retry_after until a real execution authenticates.
+        return {'status': 'idle', **login_notice(None)}
     analysis = job['analysis']
     deck_id = int(job['id'])
     STATE.mkdir(parents=True, exist_ok=True)
@@ -221,6 +266,7 @@ def run_once() -> dict:
         output = run.stdout + '\n' + run.stderr
         result = parse_result(run.stdout) or result_file(WORK_ROOT, deck_id, started.timestamp(), mode) or result_file(SKILL, deck_id, started.timestamp(), mode)
         if run.returncode == 0 and result and result.get('status') == 'ok':
+            login_notice(True)
             if result.get('request_id') != request_key or result.get('mode') != mode:
                 raise ValueError('DECK_RESULT_WRONG_REQUEST')
             validate_success(result, mode)
@@ -233,12 +279,15 @@ def run_once() -> dict:
                 payload.update(analysis_md=result['analysis_md'],
                     top_pick=top_pick)
         elif USAGE.search(output) or (result and result.get('reason') == 'USAGE'):
-            if job['attempts'] > KAIROS_DECK_USAGE_RETRIES:
-                payload['error'] = 'USAGE'
-            else:
-                payload = {'status': 'pending', 'error': 'USAGE', 'claimed_at': None, 'completed_at': None,
-                           'retry_after': (datetime.now(timezone.utc) + timedelta(minutes=KAIROS_DECK_RETRY_MINUTES)).isoformat()}
+            login_notice(True)
+            payload = retry_payload('USAGE', job['attempts'], started)
+        elif (AUTH.search(output) or (result or {}).get('reason') in {
+                'CLAUDE_LOGIN_REQUIRED', 'CLAUDE_SUBSCRIPTION_REQUIRED', 'AUTHENTICATION'}
+                or (run.returncode and not probe_subscription(cli)['loggedIn'])):
+            login_notice(False)
+            payload = retry_payload('CLAUDE_LOGIN_REQUIRED', job['attempts'], started)
         else:
+            login_notice(True)
             payload['error'] = (result or {}).get('reason', 'CLAUDE_EXIT' if run.returncode else 'RESULT_MISSING')
     except TimeoutTreeUncertain:
         payload = {"status": "working", "error": "TIMEOUT_TREE_UNCERTAIN"}

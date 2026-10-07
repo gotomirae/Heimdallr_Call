@@ -252,6 +252,118 @@ def test_subscription_cli_removes_api_billing(monkeypatch):
     assert 'ANTHROPIC_API_KEY' not in env and 'ANTHROPIC_BASE_URL' not in env
 
 
+def test_subscription_oauth_only_clean_token_passes(monkeypatch):
+    from src.utils.env import subscription_cli_env
+    for name in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL',
+                 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY'):
+        monkeypatch.setenv(name, 'fixture')
+    monkeypatch.setenv('CLAUDE_CODE_OAUTH_TOKEN', '  fixture-oauth  ')
+    env = subscription_cli_env()
+    assert env['CLAUDE_CODE_OAUTH_TOKEN'] == 'fixture-oauth'
+    assert not any(name in env for name in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
+        'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY'))
+
+
+@pytest.mark.parametrize('method,token,allowed', [
+    ('claude.ai', None, True), ('oauth_token', 'fixture-oauth', True),
+    ('oauth_token', None, False), ('api_key', 'fixture-oauth', False), ('none', 'fixture-oauth', False)])
+def test_subscription_auth_method_is_checked(monkeypatch, method, token, allowed):
+    from telegram_bridge.claude_login import probe_subscription
+    monkeypatch.setattr('telegram_bridge.claude_login.subscription_cli_env',
+        lambda: {'CLAUDE_CODE_OAUTH_TOKEN': token} if token else {})
+    monkeypatch.setattr(deck.subprocess, 'run', lambda *a, **k: SimpleNamespace(
+        returncode=0, stdout=json.dumps({'loggedIn': True, 'authMethod': method})))
+    assert probe_subscription('claude')['loggedIn'] is allowed
+
+
+@pytest.mark.parametrize('output,post_login,attempts,status,error', [
+    ('Please run /login', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
+    ('Invalid API key', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
+    ('authentication_error 401', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
+    ('not logged in', True, 4, 'failed', 'CLAUDE_LOGIN_REQUIRED'),
+    ('exit without result', False, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
+    ('exit without result', True, 1, 'failed', 'CLAUDE_EXIT')])
+def test_deck_auth_failure_retries_with_cap(tmp_path, monkeypatch, output, post_login, attempts, status, error):
+    (tmp_path / 'SKILL.md').write_text('skill', encoding='utf-8')
+    monkeypatch.setattr(deck, 'SKILL', tmp_path)
+    monkeypatch.setattr(deck, 'STATE', tmp_path / 'state')
+    monkeypatch.setattr(deck.shutil, 'which', lambda *a: 'claude')
+    probes = iter([{'loggedIn': True}, {'loggedIn': post_login}])
+    monkeypatch.setattr(deck, 'probe_subscription', lambda *a: next(probes))
+    monkeypatch.setattr(deck, 'login_notice', lambda *a, **k: {})
+    monkeypatch.setattr(deck, 'run_claude', lambda *a, **k: SimpleNamespace(returncode=1, stdout=output, stderr=''))
+    client = Mock()
+    client.rpc.return_value.execute.return_value.data = {'id': 10, 'attempts': attempts, 'analysis': {
+        'company_name': '삼성전자', 'code': '005930', 'market': 'KR',
+        'notion_url': 'https://www.notion.so/' + 'a' * 32, 'request_kind': 'company', 'status': 'sent'}}
+    client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{'id': 10}]
+    monkeypatch.setattr(deck, 'get_client', lambda: client)
+    result = deck.run_once()
+    assert (result['status'], result['error']) == (status, error)
+    if status == 'pending':
+        assert result['claimed_at'] is None and result['completed_at'] is None
+        assert timedelta(minutes=29) < datetime.fromisoformat(result['retry_after']) - datetime.now(timezone.utc) < timedelta(minutes=31)
+
+
+def test_login_outage_notice_durable_once_per_kst_day(tmp_path, monkeypatch):
+    monkeypatch.setattr(deck, 'STATE', tmp_path)
+    sent = []
+    monkeypatch.setattr(deck, 'send_login_notice', lambda: sent.append('sent'))
+    now = datetime(2026, 10, 8, 14, 0, tzinfo=timezone.utc)  # 23:00 KST
+    deck.login_notice(False, now)
+    deck.login_notice(False, now + timedelta(minutes=29))
+    deck.login_notice(None, now + timedelta(minutes=29))  # superficial loggedIn must not erase an expired token outage
+    assert sent == []
+    deck.login_notice(False, now + timedelta(minutes=30))
+    deck.login_notice(False, now + timedelta(minutes=59))
+    assert len(sent) == 1
+    deck.login_notice(False, now + timedelta(hours=1))  # next KST day
+    assert len(sent) == 2
+    deck.login_notice(True, now + timedelta(hours=2))
+    deck.login_notice(False, now + timedelta(hours=3))
+    deck.login_notice(False, now + timedelta(hours=4))
+    assert len(sent) == 2  # recovery must not erase today's dedupe
+
+
+def test_login_notice_uncertain_send_does_not_duplicate(tmp_path, monkeypatch):
+    monkeypatch.setattr(deck, 'STATE', tmp_path)
+    sender = Mock(side_effect=RuntimeError('private error must not escape'))
+    monkeypatch.setattr(deck, 'send_login_notice', sender)
+    now = datetime.now(timezone.utc)
+    deck.login_notice(False, now)
+    result = deck.login_notice(False, now + timedelta(minutes=31))
+    deck.login_notice(False, now + timedelta(minutes=32))
+    assert sender.call_count == 1 and result['login_notice_error'] == 'RuntimeError'
+
+
+def test_missing_login_never_claims_or_spends_attempts(tmp_path, monkeypatch):
+    (tmp_path / 'SKILL.md').write_text('skill', encoding='utf-8')
+    monkeypatch.setattr(deck, 'SKILL', tmp_path)
+    monkeypatch.setattr(deck, 'STATE', tmp_path / 'state')
+    monkeypatch.setattr(deck.shutil, 'which', lambda *a: 'claude')
+    monkeypatch.setattr(deck, 'probe_subscription', lambda *a: {'loggedIn': False})
+    client = Mock()
+    monkeypatch.setattr(deck, 'get_client', client)
+    assert deck.run_once()['status'] == 'unavailable'
+    client.assert_not_called()
+
+
+@pytest.mark.parametrize('bot_id,chat_type,allowed', [
+    ('8933940541', 'private', True), ('8605695587', 'private', False),
+    ('8933940541', 'group', False)])
+def test_login_notice_only_heimdallr_private_chat(monkeypatch, bot_id, chat_type, allowed):
+    client = Mock(token=bot_id + ':fixture', chat_id='fixture')
+    client.call.return_value = {'result': {'type': chat_type}}
+    monkeypatch.setattr('src.notify.telegram.TelegramClient', lambda: client)
+    if allowed:
+        deck.send_login_notice()
+        client.send_message.assert_called_once()
+    else:
+        with pytest.raises(ValueError):
+            deck.send_login_notice()
+        client.send_message.assert_not_called()
+
+
 def test_sql_runtime_budgets_match_constants():
     from src.config.constants import KAIROS_JARVIS_MAX_OPEN, KAIROS_REUSE_DAYS
     sql = Path("docs/migrations/kairos_jarvis.sql").read_text(encoding="utf-8")

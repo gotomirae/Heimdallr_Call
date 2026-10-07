@@ -20,7 +20,7 @@ $loginProbe = Join-Path $PSScriptRoot 'claude_login.py'
 $loginJson = & $python -X utf8 $loginProbe
 if ($LASTEXITCODE -ne 0) { throw 'Claude login check failed.' }
 $login = $loginJson | ConvertFrom-Json
-if (-not $login.loggedIn -or $login.authMethod -ne 'claude.ai') { throw 'Run claude auth login using subscription first.' }
+if (-not $login.loggedIn) { throw 'Run claude auth login using subscription, or configure a subscription setup-token first.' }
 # PDF export uses the installed PowerPoint COM server.
 $powerpointKey = Get-ItemProperty -LiteralPath 'Registry::HKEY_CLASSES_ROOT\PowerPoint.Application\CLSID' -ErrorAction SilentlyContinue
 if (-not $powerpointKey) { throw 'Microsoft PowerPoint desktop is required for PDF export.' }

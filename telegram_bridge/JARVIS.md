@@ -1,4 +1,4 @@
-# JARVIS G·H·I·J절 운영·설치 (2026-10-07)
+# JARVIS G·H·I·J절 운영·설치 (2026-10-08)
 
 PRD Ref: §8.7 G·H·I · 사용자 D59·D60·D61. 시험용 Notion 페이지는 만들지 않는다.
 
@@ -27,6 +27,8 @@ PRD Ref: §8.7 G·H·I · 사용자 D59·D60·D61. 시험용 Notion 페이지는
 3. 이 PC의 일반 Windows 사용자 로그인 세션에서 Google Drive for Desktop을 실행하고
    `G:\내 드라이브\1. 주식 자본\2. 아이언맨의 투자 분석`을 열 수 있는지 확인한다.
    Claude Code에 `claude auth login`으로 **구독 로그인**한다. API 키는 사용하지 않는다.
+   무인 운영은 선택적으로 `claude setup-token`을 직접 실행해 발급한 구독 토큰을 실제 로드 파일의 `CLAUDE_CODE_OAUTH_TOKEN`에 저장할 수 있다. 토큰을 채팅·로그·Git에 남기지 않는다. [공식 인증 설명](https://code.claude.com/docs/en/authentication)을 따른다.
+   환경 OAuth 토큰이 만료됐으면 새 setup-token으로 교체하거나 그 변수를 비운 후 구독 로그인으로 돌아간다. 단순 토큰 존재나 auth status의 loggedIn만으로 실제 호출 성공을 보장하지 않는다.
    PowerPoint 데스크톱과 기존 `%USERPROFILE%\.claude\skills\kairos-deck\SKILL.md`를 확인한다.
 4. PowerShell에서 아래 명령을 순서대로 실행한다.
 
