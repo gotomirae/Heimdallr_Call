@@ -455,8 +455,9 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         header_labels = {"", "-", "품목", "구분", "사업부문", "부문", "수량", "금액", "단위", "수주일자", "납기", "납기일자"} | backlog_names | new_names
         while data_at < len(grid):
             row = grid[data_at]
+            is_header_row = any(_order_header(cell) in {"수량", "금액"} for cell in row)
             if (any(numeric.fullmatch(cell.replace(" ", "")) for cell in row)
-                    or (_order_header(row[0]) not in header_labels
+                    or (not is_header_row and _order_header(row[0]) not in header_labels
                         and any(cell == "-" or re.search(r"\d{4}[./-]\d{1,2}|\d{4}년", cell) for cell in row))):
                 break
             data_at += 1

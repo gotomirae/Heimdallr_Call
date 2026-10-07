@@ -432,6 +432,8 @@ def test_non_numeric_multirow_header_and_empty_total_are_not_private_contracts()
 <TR><TH>세부 사업</TH><TH>수량</TH><TH>금액</TH></TR>
 <TR><TD>합계</TD><TD>-</TD><TD>114,918,238</TD></TR></TABLE>'''
     assert "수주잔고 | 114,918,238" in structured_order_metrics(xml)
+    # 기간이 붙은 머리글의 연도는 실제 비공개 계약 날짜가 아니다.
+    assert structured_order_metrics(xml) == structured_order_metrics(xml.replace("세부 사업", "세부 사업(2026년 1분기)"))
     # 세보 주요계약: 합계 칸에 금액을 쓰지 않았지만 독립 계약의 명시 잔고는 모두 공개했다.
     xml = '''<P>(단위: 천원)</P><TABLE><TR><TH>품목</TH><TH>수주일자</TH><TH>수주잔고</TH></TR>
 <TR><TD>HVAC</TD><TD>20250917</TD><TD>3,182,280</TD></TR>
@@ -439,6 +441,14 @@ def test_non_numeric_multirow_header_and_empty_total_are_not_private_contracts()
 <TR><TD>합계</TD><TD>합계</TD><TD>합계</TD></TR></TABLE>'''
     assert "수주잔고 | 120,088,656" in structured_order_metrics(xml)
     assert "공시 항목 합산(표 범위)" in structured_order_metrics(xml)
+
+
+def test_amount_unit_cell_inside_minimum_purchase_body_is_not_a_header():
+    xml = '''<TABLE><TR><TH>품목</TH><TH>구분</TH><TH>구분</TH><TH>수주잔고</TH></TR>
+<TR><TD>항체의약품</TD><TD>현 최소구매물량 기준</TD><TD>금액(백만불)</TD><TD>9,923</TD></TR>
+<TR><TD>항체의약품</TD><TD>예상물량 기준</TD><TD>금액(백만불)</TD><TD>12,526</TD></TR></TABLE>'''
+    assert "수주잔고 | 9,923" in structured_order_metrics(xml)
+    assert "수주잔고 | 12,526" not in structured_order_metrics(xml)
 
 
 def test_unlabelled_total_requires_exact_item_sum():
