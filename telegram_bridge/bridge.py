@@ -170,12 +170,18 @@ def save_setting(db: sqlite3.Connection, key: str, value: str) -> None:
         )
 
 
-def configure_trigger(db: sqlite3.Connection, thread_id: str) -> dict:
+def configure_trigger(db: sqlite3.Connection, thread_id: str, mode: str = "queue") -> dict:
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", thread_id):
         raise ValueError("INVALID_THREAD_ID")
+    if mode not in {"queue", "heartbeat"}:
+        raise ValueError("INVALID_TRIGGER_MODE")
     previous = setting(db, "trigger_thread")
     configured_at = datetime.now(timezone.utc).isoformat()
     with db:
+        db.execute(
+            "INSERT INTO settings(key,value) VALUES('trigger_mode',?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (mode,)
+        )
         db.execute(
             "INSERT INTO settings(key,value) VALUES('trigger_thread',?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (thread_id,)
@@ -192,7 +198,7 @@ def configure_trigger(db: sqlite3.Connection, thread_id: str) -> dict:
             )
             requeued = cursor.rowcount
     return {
-        "status": "configured", "thread_id": thread_id,
+        "status": "configured", "thread_id": thread_id, "trigger_mode": mode,
         "configured_at": configured_at, "requeued_pending": requeued,
     }
 
@@ -488,6 +494,9 @@ def find_codex() -> str | None:
 
 
 def wake_pending(db: sqlite3.Connection) -> dict:
+    # J절: intake alone schedules claims; queue must not start a competing turn.
+    if setting(db, "trigger_mode") == "heartbeat":
+        return {"status": "heartbeat"}
     thread = setting(db, "trigger_thread")
     if not thread:
         return {"status": "not_configured"}
@@ -566,7 +575,7 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         f"Heimdallr {row['source']} 기업·산업 분석 요청 {row[0]}가 등록되었습니다. "
         "이 프로젝트의 `python -m telegram_bridge.bridge poll`로 실제 요청을 확인하고, "
         "request_kind와 대상을 공식 출처로 식별한 뒤 `claim ID`가 성공하면 $kairos 스킬로 "
-        "분석을 시작하면서 기존 Codex heartbeat `kairos`를 ACTIVE로 설정하세요. "
+        "분석을 시작하세요. 전용 대화의 `kairos-intake`가 접수·재개를 담당하며 기존 `kairos`는 PAUSED로 유지하세요. "
         "최근 3개월 Google Drive·Notion, 기존 분석, 공식 원문·신뢰 가능한 웹 자료를 조사해 "
         "Telegram 리서치 채널·게시물·첨부는 제외하고 과거 장부의 해당 자료도 사용하지 마세요. 대상 유형별 지정 Notion 부모와 양식에 작성하세요. 저장 결과를 재조회한 다음 "
         "`deliver ID --notion URL --industry 산업명`으로 링크를 보내세요. "
@@ -614,8 +623,10 @@ def poll(db: sqlite3.Connection) -> dict:
         "SELECT id,code,company,request_kind,target_name,raw_text,status,notion_url,wake_sent,"
         "wake_sent_at,wake_error,progress_stage,progress_updated_at,failure_reason,"
         "drive_folder_name,drive_folder_url,drive_folder_confirmed,confirmation_message_id,"
-        "confirmation_response,confirmation_responded_at,resume_requested,source,market,ticker,industry "
-        "FROM jobs WHERE status NOT IN ('sent','rejected','failed') ORDER BY id LIMIT 20"
+        "confirmation_response,confirmation_responded_at,resume_requested,source,market,ticker,industry,created_at "
+        "FROM jobs WHERE status NOT IN ('sent','rejected','failed') "
+        "ORDER BY CASE WHEN status='working' THEN 0 "
+        "WHEN status='pending' THEN 2 ELSE 1 END,created_at,id DESC LIMIT 20"
     ).fetchall()
     jobs = [dict(row) for row in rows]
     for job in jobs:
@@ -630,6 +641,7 @@ def poll(db: sqlite3.Connection) -> dict:
     trigger_thread = setting(db, "trigger_thread")
     return {"trigger_configured": bool(trigger_thread),
             "trigger_thread": trigger_thread,
+            "trigger_mode": setting(db, "trigger_mode") or "queue",
             "trigger_thread_updated_at": setting(db, "trigger_thread_updated_at"),
             "listener": listener,
             "collector": {"last_success": setting(db, "last_success"),
@@ -875,6 +887,7 @@ def main() -> int:
     sub.add_parser("checkpoint").add_argument("id", type=int)
     trigger = sub.add_parser("configure-trigger")
     trigger.add_argument("--thread", required=True)
+    trigger.add_argument("--mode", choices=("queue", "heartbeat"), default="queue")
     for command in ("claim", "reject"):
         sub.add_parser(command).add_argument("id", type=int)
     failed = sub.add_parser("fail")
@@ -899,7 +912,7 @@ def main() -> int:
     db = connect()
     try:
         if args.command == "configure-trigger":
-            result = configure_trigger(db, args.thread)
+            result = configure_trigger(db, args.thread, args.mode)
         elif args.command == "ingest":
             try:
                 # Registry errors do not block existing Korean/Telegram requests.

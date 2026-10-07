@@ -141,6 +141,9 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **JARVIS J절 자동 접수 (2026-10-07)** — 전용 대화·30분 kairos-intake ACTIVE, 기존 kairos PAUSED·collector queue 차단.
+  실제 -1 sent·Notion 40절/21표/5이미지·JARVIS 알림 확인, 1,277 passed. H A1은 구독 재인증 대기.
+  ADR 33·T256·상세 `docs/sessions/2026-10-07-jarvis-intake.md`.
 - **Telegram 리서치 소스 제외 (2026-10-07)** — Codex·Claude 스킬 6파일·자료 규칙·LLM 우선 검색·수집기에서 채널/게시물/첨부를 제외했다.
   status/search/auth **3/3 disabled**·활성 채널/명령 참조 **0**·오프라인 **1,275 passed**. Telegram 요청/알림 경로는 유지.
   최초 연구 인증은 취소, 새 분석은 과거 Telegram 자료도 제외한다. ADR 32·T255·상세 `docs/sessions/2026-10-07-telegram-research-excluded.md`.
@@ -245,6 +248,3 @@ python -m pytest tests/
 - **변경 자동 반영 보강 (2026-09-05)** — 상시 공시 폴링·정정 발췌/hash 재분석·매일 컨센서스·화면 60초 갱신.
   정정 **2/2→재대상 0**, 컨센서스 **6행**, 결과 추적 **3행** 실저장. 배포 `c196ebf`·CI **786 passed·5 skipped**.
   빌드 **10/10**·고영 **HTTP 200·190,661B**. 전체 예약 배치 후속 확인 사항은 `docs/sessions/2026-09-05.md`, 함정 T136.
-- **대시보드 개편 완료 (2026-09-04)** — 5개 성장 유형, 숫자 라벨·영익+OPM/YoY/수주 통합 분기차트, 동기간 주간종가+MACD+RSI,
-  간결 히스토리, 3개 직접링크, 성장 가속만 1→2단계 LLM. 실데이터 성장 **209**·턴어라운드 **168**·둔화+영익가속 **73**,
-  전체 **1,151**, 발송등급 **172**. **780 passed·1 skipped·3 network deselected·build 10/10·실화면 검증**.

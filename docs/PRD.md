@@ -1022,6 +1022,18 @@ analysis 90분/deck 120분 제한, 사용량 한도 30분 뒤 재시도·3회 �
 
 Claude 심층 분석은 Codex Notion과 실제 로컬 ID의 체크포인트·sources, Drive·웹을 읽어 같은 기업/산업 부모 아래 🧠 Notion과 Drive MD를 저장한다. 산업 top_pick은 확인된 기업명·시장·코드로 반환한다. deck은 최신 성공 analysis_md·Claude Notion을 이어받고, 없거나 failed면 스킬이 분석부터 수행한다. 상태·재사용 RPC는 claude를 추가하고 deck을 mode=deck으로 한정한다. 운영 과거 sent를 소급 접수하거나 시험 Notion 페이지를 만들지 않는다. SQL 정본은 docs/migrations/kairos_claude.sql이다.
 
+
+
+### 8.7 J절: 대화를 열지 않는 자동 접수 (2026-10-07)
+
+- 전용 대화: `Kairos 자동 분석 전용` (`01a11689-cd7f-7fb0-bc8d-af71da3a7d4b`). 과거 대화는 참고용으로 보존하고 trigger를 새 대화로 변경했다.
+- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–24:00에 30분 간격. 과거 사용량 회복용 `kairos`는 PAUSED다.
+- configure-trigger의 `--mode heartbeat`는 수집기의 queue 발송·확인 후 재개 queue도 차단한다. 예약 턴만 접수·재개하여 중복 실행을 방지한다.
+- poll 한 번 → 빈 큐면 추가 도구 없이 종료. 작업이 있으면 모든 사용량 창 잔여 10% 이상 및 ordinaryUsageAllowed를 확인한다. working 우선, 없으면 가장 오래된 pending 한 건을 claim한다. 사용량 부족은 같은 상태·장부로 다음 실행까지 기다린다.
+- 실제 요청은 WORKFLOW와 Kairos 스킬에 따라 Notion 저장·재조회·deliver/fail까지 처리한다. source=jarvis는 Heimdallr 메시지 없이 sent→H절 analysis→JARVIS 알림으로 연결한다. Telegram 리서치는 제외한다.
+- PC·앱·로그인·네트워크 유지가 필요하다. 사용자가 전용 대화를 직접 열 필요는 없다. 유휴 heartbeat도 사용량이 발생할 수 있어 1회 실측 20,000 토큰 초과이면 30분으로 조정한다.
+- 선택 J3의 파일 status 변경 실험은 하지 않고 앱 API로 등록한 intake를 ACTIVE 유지한다. 앱 내부 SQLite는 수정하지 않는다.
+
 ### 8.8 🧭 JARVIS 진입 필수 조건 `entry_checks` · 🔵 K1 실적 돌파 (2026-10-01)
 
 JARVIS는 국내 🟢 진입을 M1∧M2∧M3∧M4∧M5로 판정하고, **M1·M2·M5를 이 테이블에서 anon SELECT로 읽는다**(JARVIS PRD §7.3·§7.4, INTEGRATION_TASKS B). 임계값은 `constants.py`의 `ENTRY_*`·`K1_*`이며 JARVIS `rules.yaml > entry_core`·`breakout_watch.K1_kr`와 **같은 값**이다(테스트가 같은 PC의 JARVIS 저장소와 대조한다 · T216). 선별에 LLM을 쓰지 않는다(ADR 3).

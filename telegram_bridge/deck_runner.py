@@ -207,6 +207,10 @@ def run_once() -> dict:
             'Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch',
             '--permission-mode', 'acceptEdits', '--output-format', 'json'],
             KAIROS_ANALYSIS_TIMEOUT_SECONDS if mode == 'analysis' else KAIROS_DECK_TIMEOUT_SECONDS)
+        # Preserve the real CLI failure locally; never print its private output.
+        (STATE / f'{request_key}.run.json').write_text(json.dumps({
+            'returncode': run.returncode, 'stdout': run.stdout, 'stderr': run.stderr,
+        }, ensure_ascii=False, indent=2), encoding='utf-8')
         output = run.stdout + '\n' + run.stderr
         result = parse_result(run.stdout) or result_file(SKILL, deck_id, started.timestamp(), mode)
         if run.returncode == 0 and result and result.get('status') == 'ok':

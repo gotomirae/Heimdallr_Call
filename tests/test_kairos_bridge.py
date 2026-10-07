@@ -89,7 +89,7 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert bridge.wake_pending(db)["status"] == "already_queued"
     assert db.execute("SELECT wake_sent_at FROM jobs WHERE id=42").fetchone()[0]
     assert len(called) == 1 and "$kairos" in called[0][-1]
-    assert "heartbeat `kairos`를 ACTIVE" in called[0][-1]
+    assert "기존 `kairos`는 PAUSED" in called[0][-1]
     assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
     monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
     query = Mock()
@@ -331,3 +331,27 @@ def test_confirmed_folder_sync_requeues_same_job(db, monkeypatch):
     assert bridge.wake_pending(db)["status"] == "resumed"
     assert "선택을 사용자가 확인" in calls[0][-1]
     assert db.execute("SELECT resume_requested FROM jobs WHERE id=43").fetchone()[0] == 0
+
+
+def test_heartbeat_intake_never_queues_pending_or_resume(db, monkeypatch):
+    insert_job(db)
+    result = bridge.configure_trigger(db, "01a11689-cd7f-7fb0-bc8d-af71da3a7d4b", "heartbeat")
+    assert result["trigger_mode"] == "heartbeat"
+    def forbidden(*args, **kwargs):
+        pytest.fail("heartbeat must not send queue messages")
+    monkeypatch.setattr(bridge, "find_codex", forbidden)
+    assert bridge.wake_pending(db) == {"status": "heartbeat"}
+    with db:
+        db.execute("UPDATE jobs SET status='working',resume_requested=1 WHERE id=42")
+    assert bridge.wake_pending(db) == {"status": "heartbeat"}
+    assert db.execute("SELECT resume_requested FROM jobs WHERE id=42").fetchone()[0] == 1
+
+
+def test_poll_prioritizes_working_and_oldest_pending_with_negative_ids(db):
+    insert_job(db)
+    with db:
+        db.execute("UPDATE jobs SET created_at='2026-10-07T10:00:00Z' WHERE id=42")
+        db.execute("INSERT INTO jobs(id,code,company,raw_text,chat_id,status,created_at) VALUES(-1,'142210','유니트론텍','유니트론텍',111,'pending','2026-10-07T11:00:00Z')")
+        db.execute("INSERT INTO jobs(id,code,company,raw_text,chat_id,status,created_at) VALUES(-2,'005930','삼성전자','삼성전자',111,'pending','2026-10-07T12:00:00Z')")
+        db.execute("INSERT INTO jobs(id,code,company,raw_text,chat_id,status,created_at) VALUES(99,'005930','삼성전자','삼성전자',111,'working','2026-10-07T13:00:00Z')")
+    assert [job['id'] for job in bridge.poll(db)['jobs']] == [99,42,-1,-2]

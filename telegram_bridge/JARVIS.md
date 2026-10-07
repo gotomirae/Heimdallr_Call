@@ -1,4 +1,4 @@
-# JARVIS G·H·I절 운영·설치 (2026-10-06)
+# JARVIS G·H·I·J절 운영·설치 (2026-10-07)
 
 PRD Ref: §8.7 G·H·I · 사용자 D59·D60·D61. 시험용 Notion 페이지는 만들지 않는다.
 
@@ -174,3 +174,16 @@ Windows PowerShell 5.1을 위해 install_jarvis.ps1의 UTF-8 BOM을 유지한다
 - I 규칙은 사용자 Kairos SKILL.md·references/source-policy.md와 WORKFLOW.md·PRD.md에 반영했다. 2_1·Invest_WiKi 내용 날짜(날짜 속성→유효 제목 날짜→생성일), 최근 달력상 3개월, 허브 항목별 판정과 출처 장부를 적용한다.
 - Telegram 리서치 채널·게시물·첨부·재배포 링크는 분석 소스에서 제외한다(2026-10-07 사용자 결정). 검색·인증을 요구하지 않고 과거 체크포인트·sources의 Telegram 자료도 분석 근거로 사용하지 않는다. 같은 보고서가 필요하면 공시·IR·증권사 등 원 발행기관에서 직접 확보한다.
 - 실제 기업/산업 요청부터 Notion·Drive·JARVIS 알림·발표자료까지는 사용자 실제 요청으로 검증한다. 시험 Notion 페이지·시험 운영 분석 요청·유료 생성은 하지 않았다.
+
+
+## J절: 대화를 열지 않는 자동 접수 (2026-10-07)
+
+- 전용 대화: `Kairos 자동 분석 전용` (`01a11689-cd7f-7fb0-bc8d-af71da3a7d4b`). 과거 대화는 참고용으로 보존하고 trigger를 새 대화로 변경했다.
+- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–24:00에 30분 간격. 과거 사용량 회복용 `kairos`는 PAUSED다.
+- configure-trigger의 `--mode heartbeat`는 수집기의 queue 발송·확인 후 재개 queue도 차단한다. 예약 턴만 접수·재개하여 중복 실행을 방지한다.
+- poll 한 번 → 빈 큐면 추가 도구 없이 종료. 작업이 있으면 모든 사용량 창 잔여 10% 이상 및 ordinaryUsageAllowed를 확인한다. working 우선, 없으면 가장 오래된 pending 한 건을 claim한다. 사용량 부족은 같은 상태·장부로 다음 실행까지 기다린다.
+- 실제 요청은 WORKFLOW와 Kairos 스킬에 따라 Notion 저장·재조회·deliver/fail까지 처리한다. source=jarvis는 Heimdallr 메시지 없이 sent→H절 analysis→JARVIS 알림으로 연결한다. Telegram 리서치는 제외한다.
+- PC·앱·로그인·네트워크 유지가 필요하다. 사용자가 전용 대화를 직접 열 필요는 없다. 유휴 heartbeat도 사용량이 발생할 수 있어 1회 실측 20,000 토큰 초과이면 30분으로 조정한다.
+- 선택 J3의 파일 status 변경 실험은 하지 않고 앱 API로 등록한 intake를 ACTIVE 유지한다. 앱 내부 SQLite는 수정하지 않는다.
+
+첫 유휴 실측은 캐시포함170,563토큰(캐시165,120·비캐시+출력5,443)이므로 J절 기준에 따라 현재 간격은30분이다. 실제 -1 Codex Notion과 JARVIS 완료 알림은 확인했으며 Claude A1은 구독 재인증이 필요하다. 상세 운영 증거는 docs/sessions/2026-10-07-jarvis-intake.md에 보존한다.
