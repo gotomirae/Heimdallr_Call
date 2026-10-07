@@ -1,9 +1,8 @@
-# PRD Ref: §8.7 · SC: 세 지정 채널의 실제 게시물·첨부를 개별 영구링크로 수집한다.
-"""Kairos 투자 분석용 Telegram 원문 수집기.
+# PRD Ref: §8.7 · SC: 제외된 Telegram 리서치는 인증·네트워크 없이 disabled로 종료한다.
+"""Telegram 수집 유틸리티. 2026-10-07부터 기본 리서치 채널은 제외됐다.
 
-Bot API/getUpdates는 사용하지 않는다. 사용자가 직접 승인한 MTProto 사용자 세션으로
-SungwooInsight, DOC_POOL, sunstudy1234를 읽기 전용 조회한다. 게시·전송·반응 메서드는
-제공하지 않는다.
+status/search/auth는 채널 설정이 비어 있으면 disabled를 반환한다.
+기존 원소스 장부와 파싱 유틸리티는 보존하며 Telegram 봇 요청·알림과 별개다.
 """
 
 from __future__ import annotations
@@ -226,6 +225,8 @@ async def search_sources(
     download_dir: Path | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
+    if not channel_specs():
+        return {'status': 'disabled', 'reason': 'EXCLUDED_FROM_ANALYSIS_SOURCES', 'channels': []}
     config = load_config()
     if not config.session_path.exists():
         return {
@@ -282,6 +283,8 @@ async def search_sources(
 
 
 async def authorize() -> dict[str, object]:
+    if not channel_specs():
+        return {'status': 'disabled', 'reason': 'EXCLUDED_FROM_ANALYSIS_SOURCES', 'channels': []}
     config = load_config()
     config.session_path.parent.mkdir(parents=True, exist_ok=True)
     client = TelegramClient(
@@ -303,6 +306,8 @@ async def authorize() -> dict[str, object]:
 
 
 async def status() -> dict[str, object]:
+    if not channel_specs():
+        return {'status': 'disabled', 'reason': 'EXCLUDED_FROM_ANALYSIS_SOURCES', 'channels': []}
     try:
         config = load_config()
     except (MissingEnvError, DirtyEnvError) as exc:
@@ -377,7 +382,7 @@ def main(argv: list[str] | None = None) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered + "\n", encoding="utf-8")
     print(rendered)
-    return 0 if result.get("status") in {"ok", "ready", "partial", "authorized"} else 2
+    return 0 if result.get("status") in {"ok", "ready", "partial", "authorized", "disabled"} else 2
 
 
 if __name__ == "__main__":

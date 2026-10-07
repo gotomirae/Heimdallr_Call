@@ -3,6 +3,8 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from src.collectors.telegram_sources import (
     ChannelSpec,
     build_search_terms,
@@ -106,3 +108,19 @@ def test_report_channel_downloads_relevant_document(tmp_path):
         8,
         str(tmp_path / "DOC_POOL" / "8-반도체_산업전망.pdf"),
     )]
+
+
+@pytest.mark.parametrize('command', ['status', 'search', 'auth'])
+def test_excluded_sources_stop_before_config_or_network(monkeypatch, command):
+    import asyncio
+    from src.collectors import telegram_sources as sources
+    def forbidden():
+        raise AssertionError('Excluded source must not load credentials or connect')
+    monkeypatch.setattr(sources, 'load_config', forbidden)
+    if command == 'status':
+        result = asyncio.run(sources.status())
+    elif command == 'search':
+        result = asyncio.run(sources.search_sources('삼성전자', []))
+    else:
+        result = asyncio.run(sources.authorize())
+    assert result == {'status': 'disabled', 'reason': 'EXCLUDED_FROM_ANALYSIS_SOURCES', 'channels': []}

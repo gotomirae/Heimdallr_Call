@@ -141,6 +141,9 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **Telegram 리서치 소스 제외 (2026-10-07)** — Codex·Claude 스킬 6파일·자료 규칙·LLM 우선 검색·수집기에서 채널/게시물/첨부를 제외했다.
+  status/search/auth **3/3 disabled**·활성 채널/명령 참조 **0**·오프라인 **1,275 passed**. Telegram 요청/알림 경로는 유지.
+  최초 연구 인증은 취소, 새 분석은 과거 Telegram 자료도 제외한다. ADR 32·T255·상세 `docs/sessions/2026-10-07-telegram-research-excluded.md`.
 - **JARVIS H·I Claude 자동 심층 분석 (2026-10-06)** — sent 트리거·analysis/deck 우선순위·장부 전달과 Notion 2_1·Invest_WiKi 내용 날짜 규칙을 반영했다.
   운영 SQL **14/14**·토큰 차단 **6/6**·임시 PostgreSQL **28/28**·오프라인 **1,272 passed**, 시험 Notion/생성 **0건**.
   기존 1분 실행기 **idle/종료0**, 실제 버튼 검증·Telegram 연구 인증은 사용자 단계. ADR 31·T253~254·상세 `docs/sessions/2026-10-06-jarvis-hi.md`.
@@ -245,6 +248,3 @@ python -m pytest tests/
 - **대시보드 개편 완료 (2026-09-04)** — 5개 성장 유형, 숫자 라벨·영익+OPM/YoY/수주 통합 분기차트, 동기간 주간종가+MACD+RSI,
   간결 히스토리, 3개 직접링크, 성장 가속만 1→2단계 LLM. 실데이터 성장 **209**·턴어라운드 **168**·둔화+영익가속 **73**,
   전체 **1,151**, 발송등급 **172**. **780 passed·1 skipped·3 network deselected·build 10/10·실화면 검증**.
-- **최종 완성·L2″ 운영 충전 (2026-09-02)** — 관심종목·비용예측·텔레그램 3링크와 정밀재무 수집 완성.
-  게이트 275종목 D1/D2 **275/275**, D3 **267/275**, 발송등급 **37→78**. DB 550행·점수 1,150행 저장,
-  신규 분석 3건 검증 저장(9건 차단). **770 passed·1 skipped·3 deselected, build 10/10**. T133~134.

@@ -140,7 +140,7 @@ def ensure_checkpoint(db: sqlite3.Connection, job_id: int) -> Path:
                 "- 단계: 대상 식별 완료\n"
                 "- 출처·수치 검증: 미작성\n"
                 "- 최근 3개월 Drive·Notion 선택 기록: 미작성\n"
-                "- Telegram 원소스(SungwooInsight 72시간·DOC_POOL·sunstudy1234) 조회 장부: 미작성\n"
+                "- 공식 원문(공시·IR·증권사·공공 통계) 조회 장부: 미작성\n"
                 "- 페이지 단위 근거·강조 사본 장부: 미작성\n"
                 "- 직접 확인 필요 외부 자료·링크: 미작성\n"
                 "- 언급 종목 네이버증권 링크 검증: 미작성\n"
@@ -568,7 +568,7 @@ def wake_pending(db: sqlite3.Connection) -> dict:
         "request_kind와 대상을 공식 출처로 식별한 뒤 `claim ID`가 성공하면 $kairos 스킬로 "
         "분석을 시작하면서 기존 Codex heartbeat `kairos`를 ACTIVE로 설정하세요. "
         "최근 3개월 Google Drive·Notion, 기존 분석, 공식 원문·신뢰 가능한 웹 자료를 조사해 "
-        "대상 유형별 지정 Notion 부모와 양식에 작성하세요. 저장 결과를 재조회한 다음 "
+        "Telegram 리서치 채널·게시물·첨부는 제외하고 과거 장부의 해당 자료도 사용하지 마세요. 대상 유형별 지정 Notion 부모와 양식에 작성하세요. 저장 결과를 재조회한 다음 "
         "`deliver ID --notion URL --industry 산업명`으로 링크를 보내세요. "
         "식별 불가면 `reject ID`, 분석 실패면 `fail ID --reason 코드`로 원인을 알려 주세요."
     )

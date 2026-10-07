@@ -414,25 +414,19 @@ def build_user_message(data: AnalysisInput) -> str:
         )
     if data.report_context:
         search = data.report_context.get("report_search") or {}
-        channels = search.get("priority_channels") or []
-        channel_lines = "\n".join(
-            f"- {c.get('name')}: {c.get('url')}"
-            for c in channels
-            if isinstance(c, dict)
-        )
+        # Ignore channel hints persisted before Telegram research was excluded.
+        report_context = {**data.report_context, "report_search": {**search, "priority_channels": []}}
         parts += [
             "",
             "## 4-1. 정기보고서 후 5거래일 최종 갱신",
             "이 블록이 있으면 3단계다. web_search를 반드시 사용하되 아래 순서로 최대 3회만 검색하라.",
             f"발행일 범위: {search.get('published_from', '—')} ~ "
             f"{search.get('published_through', '—')} (양 끝 포함 · 달력일)",
-            "① 아래 텔레그램 공개 채널 2곳에서 종목명과 6자리 코드를 각각 우선 검색한다.",
-            channel_lines or "- 지정 채널 없음",
-            "② 부족할 때만 종목명·코드·'증권사 리포트'로 일반 웹검색한다.",
+            "① 종목명·코드로 증권사 공식 리서치센터·회사 IR·공시 원문을 웹검색한다.",
+            "② 필요한 자료는 원 발행기관의 공식 배포본으로 보완한다.",
             "③ 위 발행일 범위 안의 증권사/리서치센터 자료만 broker_reports에 남긴다. "
             "일반 뉴스·블로그·유튜브는 리포트로 세지 마라.",
-            "텔레그램은 발견 경로이지 사실의 최종 권위가 아니다. 연결된 원문이 열리면 원문을 우선하고, "
-            "열리지 않으면 텔레그램 게시물의 직접 URL을 남겨라.",
+            "Telegram 채널·게시물·첨부와 재배포 링크는 분석 소스에서 제외한다. 원 발행기관 자료를 직접 확인하라.",
             "publisher·title·published_at·직접 URL을 검색 결과에서 확인하지 못하면 제외하라. "
             "해당 리포트가 없으면 broker_reports는 빈 배열로 두고 절대 만들어내지 마라.",
             "컨센서스 변화는 네이버/WiseReport 수치이며 리포트 원문이 아니다. 변화가 없어도 검색은 수행한다.",
@@ -444,7 +438,7 @@ def build_user_message(data: AnalysisInput) -> str:
             "기준일 직전 3개월의 글로벌 기업향 수주·협업이 있으면 날짜·상대방·직접 URL을 "
             "value_chain.recent_global_events에 적어라. 확인되지 않으면 빈 배열과 검색 한계를 적어라. "
             "직접 고객과 최종 수요처·업계 추정을 구별하라.",
-            json.dumps(data.report_context, ensure_ascii=False),
+            json.dumps(report_context, ensure_ascii=False),
         ]
         if data.narrative_history:
             parts += [

@@ -103,7 +103,7 @@ def test_wake_once_and_claim(db, monkeypatch):
     assert checkpoint.exists()
     checkpoint_text = checkpoint.read_text(encoding="utf-8")
     assert "005930" in checkpoint_text
-    assert "Telegram 원소스(SungwooInsight 72시간·DOC_POOL·sunstudy1234)" in checkpoint_text
+    assert "공식 원문(공시·IR·증권사·공공 통계)" in checkpoint_text
     assert "페이지 단위 근거·강조 사본" in checkpoint_text
     assert "직접 확인 필요 외부 자료·링크" in checkpoint_text
     assert "언급 종목 네이버증권 링크 검증" in checkpoint_text

@@ -172,5 +172,5 @@ Windows PowerShell 5.1을 위해 install_jarvis.ps1의 UTF-8 BOM을 유지한다
 - 로컬 체크포인트·Drive bootstrap 장부·sources는 kairos_requests.update_id와 같은 로컬 ID로 찾는다. Claude 큐의 A/D 일련번호와 혼동하지 않는다.
 - 기존 1분 예약 작업이 수정된 실행기를 사용하므로 재설치할 필요 없다. 실제 Claude 작업 0건·실행기 idle·최근 종료 코드 0 확인.
 - I 규칙은 사용자 Kairos SKILL.md·references/source-policy.md와 WORKFLOW.md·PRD.md에 반영했다. 2_1·Invest_WiKi 내용 날짜(날짜 속성→유효 제목 날짜→생성일), 최근 달력상 3개월, 허브 항목별 판정과 출처 장부를 적용한다.
-- Telegram 리서치 세션은 not_configured. 사용자가 실제 .env.txt에 TELEGRAM_RESEARCH_API_ID/HASH를 설정한 후 `.venv\Scripts\python.exe -X utf8 -m src.collectors.telegram_sources auth` 1회로 인증한다. 비밀 값은 채팅에 보내지 않는다.
+- Telegram 리서치 채널·게시물·첨부·재배포 링크는 분석 소스에서 제외한다(2026-10-07 사용자 결정). 검색·인증을 요구하지 않고 과거 체크포인트·sources의 Telegram 자료도 분석 근거로 사용하지 않는다. 같은 보고서가 필요하면 공시·IR·증권사 등 원 발행기관에서 직접 확보한다.
 - 실제 기업/산업 요청부터 Notion·Drive·JARVIS 알림·발표자료까지는 사용자 실제 요청으로 검증한다. 시험 Notion 페이지·시험 운영 분석 요청·유료 생성은 하지 않았다.

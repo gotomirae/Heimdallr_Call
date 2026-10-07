@@ -157,7 +157,7 @@ def test_prompt_forbids_new_arithmetic_and_requires_latest_disclosure_citation()
     assert "[[F" not in SYSTEM_PROMPT
 
 
-def test_report_final_prompt_prioritizes_two_channels_and_exact_date_window():
+def test_report_final_prompt_excludes_old_channel_hints_and_keeps_date_window():
     message = build_user_message(_input(report_context={
         "filing_date": "2026-09-04",
         "window_end": "2026-09-11",
@@ -174,8 +174,8 @@ def test_report_final_prompt_prioritizes_two_channels_and_exact_date_window():
     }))
     assert "web_search를 반드시 사용" in message
     assert "2026-09-04 ~ 2026-09-11" in message
-    assert "https://t.me/s/sunstudy1234" in message
-    assert "https://t.me/s/DOC_POOL" in message
+    assert "https://t.me/s/sunstudy1234" not in message
+    assert "https://t.me/s/DOC_POOL" not in message
     assert "변화가 없어도 검색은 수행" in message
 
 

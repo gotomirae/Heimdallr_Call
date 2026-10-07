@@ -101,10 +101,7 @@ def test_report_refresh_requires_actual_consensus_change():
     search = unchanged.context["report_search"]
     assert search["published_from"] == "2026-09-04"
     assert search["published_through"] == "2026-09-11"
-    assert [c["url"] for c in search["priority_channels"]] == [
-        "https://t.me/s/sunstudy1234",
-        "https://t.me/s/DOC_POOL",
-    ]
+    assert search["priority_channels"] == []
 
 
 def test_report_final_plan_searches_once_even_without_consensus_change(monkeypatch):
