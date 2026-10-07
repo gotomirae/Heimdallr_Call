@@ -382,6 +382,15 @@ def test_scope_uses_company_name_and_drops_report_date():
     assert structured_order_series(xml) == structured_order_series(xml.replace("2026.06.30", "2026.03.31"))
 
 
+def test_generic_order_heading_is_not_a_new_company_scope():
+    # SFA는 2026년에 제목에서 사업부문별만 지웠다. 회사 합계의 범위 변경이 아니다.
+    xml = '''<P>(1) 사업부문별 수주/매출/수주잔고 현황</P><P>(단위: 백만원)</P>
+<TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>987,499</TD></TR></TABLE>'''
+    assert structured_order_metrics(xml) == structured_order_metrics(xml.replace("사업부문별 ", ""))
+    assert "범위 | 회사 공시 합계" in structured_order_metrics(xml)
+    assert "단위 | 천원" in structured_order_metrics(xml.replace("백만원", "백만개(KK), 천원"))
+
+
 def test_explicit_whole_company_total_wins_over_product_subtotals():
     xml = '''<P>(단위: 천USD)</P><TABLE>
 <TR><TH>품목</TH><TH>구분</TH><TH>수주잔고</TH></TR>
@@ -389,6 +398,47 @@ def test_explicit_whole_company_total_wins_over_product_subtotals():
 <TR><TD>변압기</TD><TD>계</TD><TD>1,290,131</TD></TR>
 <TR><TD>합계</TD><TD>계</TD><TD>1,939,091</TD></TR></TABLE>'''
     assert "수주잔고 | 1,939,091" in structured_order_metrics(xml)
+
+
+def test_total_with_domestic_export_subtotals_and_private_first_contract():
+    # 일진전기의 전체/국내/해외 합계에서 전체 '계'만 선택한다.
+    xml = '''<P>(단위: 천USD)</P><TABLE><TR><TH>품목</TH><TH>구분</TH><TH>수주일자</TH><TH>수주잔고</TH></TR>
+<TR><TD>합계</TD><TD>국내</TD><TD>~2026년반기</TD><TD>468,895</TD></TR>
+<TR><TD>합계</TD><TD>해외</TD><TD>~2026년반기</TD><TD>1,470,196</TD></TR>
+<TR><TD>합계</TD><TD>계</TD><TD>계</TD><TD>1,939,091</TD></TR></TABLE>'''
+    assert "수주잔고 | 1,939,091" in structured_order_metrics(xml)
+    # 큐브 원문: 비공개 첫 계약은 머리글이 아니다. 명시 회사 합계를 읽는다.
+    xml = '''<P>(단위: 천원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH><TH>수주잔고</TH></TR>
+<TR><TH>품목</TH><TH>수량</TH><TH>금액</TH></TR>
+<TR><TD>Tencent</TD><TD>-</TD><TD>-</TD></TR><TR><TD>카카오</TD><TD>-</TD><TD>85,374,311</TD></TR>
+<TR><TD>합계</TD><TD>-</TD><TD>85,374,311</TD></TR></TABLE>'''
+    assert "수주잔고 | 85,374,311" in structured_order_metrics(xml)
+
+
+def test_currency_labelled_total_is_not_added_twice():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = '''<P>(단위: K$, 백만원)</P><TABLE><TR><TH>품목</TH><TH>통화</TH><TH>수주잔고</TH></TR>
+<TR><TD>장비</TD><TD>USD</TD><TD>26,260</TD></TR><TR><TD>합계(USD)</TD><TD></TD><TD>26,260</TD></TR>
+<TR><TD>보드</TD><TD>KRW</TD><TD>6,899</TD></TR><TR><TD>합계(KRW)</TD><TD></TD><TD>6,899</TD></TR></TABLE>'''
+    series = structured_order_series(xml)
+    assert len(series) == 2
+    assert any("수주잔고 | 26,260" in s for s in series)
+    assert any("수주잔고 | 6,899" in s for s in series)
+
+
+def test_non_numeric_multirow_header_and_empty_total_are_not_private_contracts():
+    # 한화에어로스페이스처럼 첫 머리글 표제가 두 행에서 달라도 금액 열을 유지한다.
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>사업부문</TH><TH>수주잔고</TH><TH>수주잔고</TH></TR>
+<TR><TH>세부 사업</TH><TH>수량</TH><TH>금액</TH></TR>
+<TR><TD>합계</TD><TD>-</TD><TD>114,918,238</TD></TR></TABLE>'''
+    assert "수주잔고 | 114,918,238" in structured_order_metrics(xml)
+    # 세보 주요계약: 합계 칸에 금액을 쓰지 않았지만 독립 계약의 명시 잔고는 모두 공개했다.
+    xml = '''<P>(단위: 천원)</P><TABLE><TR><TH>품목</TH><TH>수주일자</TH><TH>수주잔고</TH></TR>
+<TR><TD>HVAC</TD><TD>20250917</TD><TD>3,182,280</TD></TR>
+<TR><TD>HVAC</TD><TD>20250908</TD><TD>116,906,376</TD></TR>
+<TR><TD>합계</TD><TD>합계</TD><TD>합계</TD></TR></TABLE>'''
+    assert "수주잔고 | 120,088,656" in structured_order_metrics(xml)
+    assert "공시 항목 합산(표 범위)" in structured_order_metrics(xml)
 
 
 def test_unlabelled_total_requires_exact_item_sum():

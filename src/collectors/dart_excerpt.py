@@ -287,6 +287,8 @@ def _table_grid(table) -> list[list[str]]:
 def _order_unit(table) -> str | None:
     """표와 가장 가까운 명시 단위만 읽는다. 단위가 없으면 값을 버린다."""
     contexts = [table.get_text(" ", strip=True)]
+    inline_usd = any(re.fullmatch(r"(?:USD|US\$)\s*[\d,]+(?:\.\d+)?", cell.get_text(" ", strip=True))
+                     for cell in table.find_all(["td", "th"]))
     for tag in table.find_all_previous(["p", "tu", "title", "table"], limit=8):
         if tag.name == "title":
             break
@@ -307,7 +309,7 @@ def _order_unit(table) -> str | None:
             return None
         match = re.search(r"(백만원|억원|천원|(?<![가-힣])원(?![가-힣])|백만\s*(?:USD|달러)|천\s*(?:USD|달러)|USD|달러|천RMB|백만IDR)", declaration[1] if declaration else "")
         if declaration and not match:
-            return None
+            return "USD" if inline_usd else None
         if match:
             return re.sub(r"\s+", "", match.group(1))
     # 저스템처럼 숫자 셀마다 단위를 붙인 표는 다른 매출 표 단위를 상속하지 않는다.
@@ -315,7 +317,7 @@ def _order_unit(table) -> str | None:
                   if (m := re.fullmatch(r"[\d,]+(?:\.\d+)?\s*(백만원|억원|천원|원)", cell.get_text(" ", strip=True)))}
     if len(cell_units) == 1:
         return cell_units.pop()
-    return None
+    return "USD" if inline_usd else None
 
 
 def _order_currency_parts(table) -> list[str] | None:
@@ -378,12 +380,13 @@ def _order_scope_heading(table) -> str | None:
         if not heading or len(heading) >= 160:
             continue
         match = re.search(r"\[[^\]]{1,70}\]", heading)
-        if match:
-            return heading if re.search(r"종속회사|지배회사", match[0]) else match[0]
+        if match and (re.search(r"부문|사업부|종속회사|지배회사", match[0]) or not re.search(r"수주|매출|주\d|기준일|현재|\d{4}", match[0])):
+            label = heading if re.search(r"종속회사|지배회사", match[0]) else match[0]
+            return re.sub(r"\s+", "", label) if re.search(r"[가-힣]", label) and not re.search(r"종속회사|지배회사", label) else label
         if re.match(r"^(?:종속회사|지배회사)\s*[:：]", heading):
             return heading
         numbered = re.search(r"\(\d+\)\s*([^()]{2,45})$", heading)
-        if numbered and not re.search(r"판매|수주상황|수주현황|수주\s*상황", numbered[1]):
+        if numbered and not re.search(r"판매|수주|매출", numbered[1]):
             return numbered[1].strip()
         business = re.search(r"([^。.]{2,50}사업[^。.]{0,20})의\s*수주상황", heading)
         if business:
@@ -432,11 +435,16 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         unit = _order_unit(table)
         if unit is None:
             scope = f"{scope_heading} / 회사 공시 합계" if scope_heading else "회사 공시 합계"
+            if any(re.fullmatch(r"(?:USD|EUR|CHF)\s*[\d,]+(?:\.\d+)?", cell.get_text(" ", strip=True))
+                   for cell in table.find_all(["td", "th"])):
+                scope += " / 원문 외화 계약(단위 혼합)"
             candidates.append(("", scope, None, None))
             candidate_items.append(None)
             continue
         grid = _table_grid(table)
         grid = [[re.sub(rf"(?<=[\d,])\s*{re.escape(unit)}$", "", cell) for cell in row] for row in grid]
+        if unit == "USD":
+            grid = [[re.sub(r"^(?:USD\s*|US\$|\$)(?=[\d,])", "", cell) for cell in row] for row in grid]
         header_at = next((
             index for index, row in enumerate(grid[:6])
             if any(_order_header(cell) in backlog_names | new_names for cell in row)
@@ -444,9 +452,12 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         if header_at is None:
             continue
         data_at = header_at + 1
+        header_labels = {"", "-", "품목", "구분", "사업부문", "부문", "수량", "금액", "단위", "수주일자", "납기", "납기일자"} | backlog_names | new_names
         while data_at < len(grid):
             row = grid[data_at]
-            if any(numeric.fullmatch(cell.replace(" ", "")) for cell in row):
+            if (any(numeric.fullmatch(cell.replace(" ", "")) for cell in row)
+                    or (_order_header(row[0]) not in header_labels
+                        and any(cell == "-" or re.search(r"\d{4}[./-]\d{1,2}|\d{4}년", cell) for cell in row))):
                 break
             data_at += 1
         if data_at >= len(grid):
@@ -492,8 +503,17 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         # 연도별 과거 비교표를 이번 보고기간의 잔고로 읽지 않는다.
         if len(data_rows) > 1 and any(re.fullmatch(r"(?:19|20)\d{2}(?:년)?", row[0].strip()) for row in data_rows):
             continue
-        label_columns = min(c for c in (backlog_column, new_column) if c is not None)
-        total_rows = [row for row in data_rows if any(total_label.fullmatch(cell) for cell in row[:label_columns])]
+        monetary_labels = backlog_names | new_names | {"수주총액", "기납품액", "이월수주잔액", "전기말수주잔고"}
+        label_columns = max(1, min(i for i, path in enumerate(paths) if any(part in monetary_labels for part in path)))
+        # 사업부문과 품목이 분리된 표는 두 표제가 함께 독립 항목을 식별한다.
+        item_key_columns = 2 if label_columns >= 2 and _order_header(grid[header_at][1]) in {"품목", "프로젝트명"} else 1
+        def item_key(row: list[str]) -> str:
+            return " / ".join(row[:item_key_columns])
+        total_rows = [row for row in data_rows if any(total_label.fullmatch(_order_header(cell)) for cell in row[:label_columns])]
+        complete_totals = [row for row in total_rows if all(not _order_header(cell) or cell == "-"
+                          or total_label.fullmatch(_order_header(cell)) for cell in row[:label_columns])]
+        if len(complete_totals) == 1:
+            total_rows = complete_totals
         strong_totals = [row for row in total_rows if any(re.search(r"合計|합\s*계|총\s*계", cell) for cell in row[:label_columns])]
         if strong_totals:
             total_rows = strong_totals
@@ -538,7 +558,7 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             elif (not total_rows and len(usable_rows) > 1
                   and len(usable_rows) == len(item_rows)
                   and all(row[0].strip() for row in usable_rows)
-                  and len({row[0] for row in usable_rows}) == len(usable_rows)
+                  and len({item_key(row) for row in usable_rows}) == len(usable_rows)
                   and not any(re.search(r"소\s*계|합\s*계|총\s*계", cell)
                               for row in usable_rows for cell in row[:3])):
                 # 한 표의 모든 공개 항목만 합산한다. 결측·비공개·통화 혼합은 합산하지 않는다.
@@ -557,9 +577,9 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
                              and len(row[0]) <= 100
                              and any(c is not None and c < len(row) and numeric.fullmatch(row[c].replace(" ", ""))
                                      for c in (backlog_column, new_column))]
-                if not total_rows and len(published) >= 2 and len({row[0] for row in published}) == len(published):
+                if not total_rows and len(published) >= 2 and len({item_key(row) for row in published}) == len(published):
                     for row in published:
-                        scoped = f"공시 공개 항목: {row[0]}"
+                        scoped = f"공시 공개 항목: {item_key(row)}"
                         if scope_heading:
                             scoped = f"{scope_heading} / {scoped}"
                         values = [row[c].replace(" ", "") if c is not None and c < len(row)
@@ -580,6 +600,18 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
 
         backlog = value_at(backlog_column)
         new_orders = value_at(new_column)
+        if backlog is None and new_orders is None and len(total_rows) == 1:
+            details = [row for row in data_rows if row not in total_rows]
+            keys = [tuple(row[:label_columns]) for row in details]
+            if details and len(set(keys)) == len(keys) and all(row[0].strip() for row in details):
+                chosen = [""] * len(grid[0])
+                for column in (backlog_column, new_column):
+                    if column is not None and all(numeric.fullmatch(row[column].replace(" ", "")) for row in details):
+                        values = [Decimal(row[column].replace(" ", "").replace(",", "")) for row in details]
+                        if all(v >= 0 for v in values):
+                            chosen[column] = format(sum(values), ",f")
+                backlog, new_orders = value_at(backlog_column), value_at(new_column)
+                scope = "공시 항목 합산(표 범위)"
         if backlog is None and new_orders is None:
             continue
         nearby = " ".join(
