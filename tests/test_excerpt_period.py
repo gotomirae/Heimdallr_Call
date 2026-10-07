@@ -218,7 +218,7 @@ def test_transport_failure_keeps_pending_and_collects_next_report(monkeypatch, c
     monkeypatch.setattr(e, "targets", lambda *a, **k: rows)
     monkeypatch.setattr(e, "get_client", lambda: DB())
     monkeypatch.setattr(e, "fetch_report_xml", fetch)
-    monkeypatch.setattr(e, "build_excerpt", lambda receipt, xml: ReportExcerpt(receipt, {"사업의 개요": "본문"}, 2))
+    monkeypatch.setattr(e, "build_excerpt", lambda receipt, xml, **kw: ReportExcerpt(receipt, {"사업의 개요": "본문"}, 2))
     assert e.main() == 0
     assert [r["rcept_no"] for r in saved] == ["1"]
     output = capsys.readouterr().out

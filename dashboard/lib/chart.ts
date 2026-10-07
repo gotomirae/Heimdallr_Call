@@ -31,6 +31,7 @@ export interface ChartPoint {
   postReportContractEok: number | null;
   /** 공시 합계의 범위. 주요계약은 전체 회사 수주잔고가 아니다. */
   orderScope?: string;
+  orderAmountUnit?: string;
   /** 非12월 결산 수주점의 실제 보고기간 종료일. 재무 달력분기와 합치지 않는다. */
   orderPeriodEnd?: string;
   orderClosingMonth?: number;
@@ -168,7 +169,7 @@ export interface ContractDisclosureQuarter {
 /** 수주 원문은 재무 수집 여부와 독립적이다. 재무가 없는 과거 분기도 수주축에 남긴다. */
 export function attachOrderReportPoints(
   points: ChartPoint[],
-  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string; periodEnd?: string; periodLabel?: string; closingMonth?: number }[],
+  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string; amountUnit?: string; backlogAmount?: number | null; newOrdersAmount?: number | null; periodEnd?: string; periodLabel?: string; closingMonth?: number }[],
 ): ChartPoint[] {
   const merged = new Map(points.map((point) => [`${point.fiscalYear}-${point.fiscalQuarter}`, { ...point }]));
   for (const report of reports) {
@@ -181,7 +182,8 @@ export function attachOrderReportPoints(
       disclosedContractEok: null, postReportContractEok: null,
       opStatusLabel: null, ttmRevenue: null, isEstimate: false, isCurrentQuarter: false,
     };
-    merged.set(key, { ...point, orderBacklog: report.backlogEok, newOrders: report.newOrdersEok, orderScope: report.scope,
+    merged.set(key, { ...point, orderBacklog: report.backlogAmount ?? report.backlogEok,
+      newOrders: report.newOrdersAmount ?? report.newOrdersEok, orderScope: report.scope, orderAmountUnit: report.amountUnit ?? "억원",
       ...(report.periodEnd ? { orderPeriodEnd: report.periodEnd, orderClosingMonth: report.closingMonth } : {}) });
   }
   // 非12월 자료가 있으면 주문 전용 축에서 재무의 가짜 빈 분기점을 제거한다.
@@ -258,6 +260,7 @@ export function withOrderBacklogQoq(points: ChartPoint[]): ChartPoint[] {
         previous?.orderBacklog != null && previous.orderBacklog > 0 &&
         previousIndex != null && currentIndex - previousIndex === 3 &&
         Boolean(point.orderPeriodEnd) === Boolean(previous.orderPeriodEnd) &&
+        (point.orderAmountUnit ?? "억원") === (previous.orderAmountUnit ?? "억원") &&
         point.orderClosingMonth === previous.orderClosingMonth &&
         Boolean(point.orderScope) && point.orderScope === previous.orderScope
       ) {

@@ -14,7 +14,7 @@ import AnalysisRequestButton from "@/components/AnalysisRequestButton";
 import Emphasized from "@/components/Emphasized";
 import { readAnalysis } from "@/lib/analysis";
 import { quarterlyCharacteristics, quarterInterpretation } from "@/lib/metricMeaning";
-import { postPeriodContracts, reportNamePeriodEnd, readOrderReportPeriod, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, isAttachmentOnlyCorrection, summarizeOrderDisclosure } from "@/lib/orderSignals";
+import { postPeriodContracts, reportNamePeriodEnd, readOrderReportPeriod, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetrics, isAttachmentOnlyCorrection, summarizeOrderDisclosures } from "@/lib/orderSignals";
 import { checkNarrative } from "@/lib/narrativeCheck";
 import { sectorOf } from "@/lib/sector";
 import { growthCategory } from "@/lib/growthCategory";
@@ -471,8 +471,8 @@ export default async function StockPage({ params }: { params: { code: string } }
   const historicalPerYears = naverLive?.perHistoryYears ?? [];
   const calculatedPeg = forwardPeg(forwardPerValue, naverLive?.eps, naverLive?.epsNext);
 
-  const orderMetrics = orderExcerpts.map(extractOrderDisclosureMetric).filter((row) => row != null);
-  const orderSummaries = orderExcerpts.map(summarizeOrderDisclosure).filter((row) => row != null);
+  const orderMetrics = orderExcerpts.flatMap(extractOrderDisclosureMetrics);
+  const orderSummaries = orderExcerpts.flatMap(summarizeOrderDisclosures);
   const allOrderContracts = orderExcerpts.map(extractOrderContractDisclosure).filter((row) => row != null)
     .sort((left, right) => String(right.disclosedAt ?? "").localeCompare(String(left.disclosedAt ?? "")));
   const disclosureDateByReceipt = new Map(disclosures.map((row) => [row.rcept_no, row.disclosed_at?.slice(0, 10) ?? null]));
@@ -532,6 +532,14 @@ export default async function StockPage({ params }: { params: { code: string } }
   );
   const chartStartFund = funds.slice(-CHART_QUARTERS)[0];
   const ordersChartPoints = attachOrderReportPoints(chartPoints, orderMetrics);
+  const orderScopeKey = (row: typeof orderMetrics[number]) => `${row.scope} · ${row.amountUnit ?? "억원"}`;
+  const orderScopes = [...new Set(orderMetrics.map(orderScopeKey))];
+  const orderChartSeries = orderScopes.map((scope, index) => ({ scope,
+    points: attachOrderReportPoints(chartPoints.map((p) => ({ ...p, orderBacklog: null, newOrders: null,
+      orderScope: undefined, disclosedContractEok: index === 0 && scope.endsWith("· 억원") ? p.disclosedContractEok : null,
+      postReportContractEok: index === 0 && scope.endsWith("· 억원") ? p.postReportContractEok : null,
+    })), orderMetrics.filter((row) => orderScopeKey(row) === scope)),
+  }));
   const dailyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
     : undefined;
@@ -777,7 +785,7 @@ export default async function StockPage({ params }: { params: { code: string } }
         </div>
         <p className="mt-2 text-xs text-white">수주 수치는 DART 정기보고서 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공시가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
         {orderMetrics.length > 0 && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-sky-300">
-          {orderMetrics.map((metric) => <a key={metric.rceptNo} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
+          {orderMetrics.map((metric) => <a key={`${metric.rceptNo}:${metric.scope}:${metric.amountUnit}`} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
             {metric.periodLabel ?? `${metric.year}년 ${metric.quarter}분기`} {metric.scope} · 원문
           </a>)}
         </div>}
@@ -1034,7 +1042,10 @@ export default async function StockPage({ params }: { params: { code: string } }
 
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
       <Card title="수주잔고·신규수주" note="OpenDART 정기보고서와 단일판매·공급계약을 교차 확인">
-        <OrderQuarterlyChart points={ordersChartPoints} />
+        {orderChartSeries.length ? orderChartSeries.map((series) => <div key={series.scope} className="mb-4">
+          <p className="mb-1 text-sm font-semibold text-sky-200">📋 {series.scope}</p>
+          <OrderQuarterlyChart points={series.points} />
+        </div>) : <OrderQuarterlyChart points={ordersChartPoints} />}
         <p className="my-3 text-xs text-white">최신 실적 기간 종료일: {latestReportPeriodEnd ?? "확인 필요"} · 원문 미기재/범위 불명은 0이 아니라 결측입니다.</p>
         <div className="mb-4 grid gap-2 sm:grid-cols-3">
           <div className="rounded border border-slate-700 bg-slate-950/40 p-3 text-xs">
@@ -1055,11 +1066,11 @@ export default async function StockPage({ params }: { params: { code: string } }
             <thead className="text-left text-xs text-white"><tr className="border-b border-slate-700">
               <th className="py-2">공시일</th><th>분기</th><th>수주잔고</th><th>신규수주</th><th>공시 범위·상태</th><th>출처</th>
             </tr></thead>
-            <tbody>{orderSummaries.map((row) => <tr key={row.rceptNo} className="border-b border-slate-800/70 align-top">
+            <tbody>{orderSummaries.map((row) => <tr key={`${row.rceptNo}:${row.scope}`} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-white">{disclosureDateByReceipt.get(row.rceptNo) ?? DASH}</td>
               <td className="py-2 text-white">{row.periodLabel ?? quarterLabel(row.year, row.quarter)}</td>
-              <td className="py-2 tabular-nums">{row.backlogEok == null ? DASH : `${num(row.backlogEok, 1)}억원`}</td>
-              <td className="py-2 tabular-nums">{row.newOrdersEok == null ? DASH : `${num(row.newOrdersEok, 1)}억원`}</td>
+              <td className="py-2 tabular-nums">{(row.backlogAmount ?? row.backlogEok) == null ? DASH : `${num(row.backlogAmount ?? row.backlogEok, 2)}${row.amountUnit ?? "억원"}`}</td>
+              <td className="py-2 tabular-nums">{(row.newOrdersAmount ?? row.newOrdersEok) == null ? DASH : `${num(row.newOrdersAmount ?? row.newOrdersEok, 2)}${row.amountUnit ?? "억원"}`}</td>
               <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-white">{row.scope}</span>}{row.newOrdersPeriod && <span className="mt-0.5 block text-[11px] text-amber-200">신규수주: {row.newOrdersPeriod}</span>}</td>
               <td className="py-2"><a href={dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">DART 원문</a></td>
             </tr>)}</tbody>

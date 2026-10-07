@@ -244,7 +244,7 @@ def main() -> int:
             continue
         consecutive_http_failures = 0
         try:
-            ex = build_excerpt(d["rcept_no"], xml)
+            ex = build_excerpt(d["rcept_no"], xml, report_period_end=report_end(d.get("report_nm")))
         except ExcerptError as exc:
             print(f"  ✗ {label} — {exc}")
             failed += 1

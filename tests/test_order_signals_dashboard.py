@@ -48,6 +48,20 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_business_scopes_are_preserved_without_replacing_or_adding_totals():
+    metrics = _run([{"metrics": True, "row": {"rcept_no": "20260814003496", "fiscal_year": 2026,
+        "fiscal_quarter": 2, "sections": {"공시 수주지표 목록": {"series": [
+            "범위 | 조선부문\n단위 | 억원\n수주잔고 | 19,043",
+            "범위 | 건설부문\n단위 | 백만원\n수주잔고 | 8,330,749"]}}}}])[0]
+    assert [(r["scope"], r["backlogEok"]) for r in metrics] == [("조선부문", 19043), ("건설부문", 83307.49)]
+
+
+def test_foreign_backlog_is_not_misrepresented_as_won():
+    result = _run([{"metric": True, "row": {"rcept_no": "1", "fiscal_year": 2026, "fiscal_quarter": 2,
+        "sections": {"공시 수주지표": "범위 | 최소구매물량\n단위 | 백만USD\n수주잔고 | 9,923"}}}])[0]
+    assert result['backlogEok'] is None and result['backlogAmount'] == 9923 and result['amountUnit'] == '백만USD'
+
+
 def test_contract_window_starts_after_actual_period_not_announcement_or_current_quarter():
     rows = [{"disclosedAt": day} for day in ["2026-06-30", "2026-07-01", "2026-08-01", "2026-10-02", "2026-10-04"]]
     result = _run([{"periodWindow": True, "rows": rows, "basisDate": "2026-10-03", "periodEnd": "2026-06-30"}])[0]

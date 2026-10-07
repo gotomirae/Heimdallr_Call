@@ -1,7 +1,7 @@
 // PRD Ref: §9.1 — 종목 상세의 공시 기반 확인 포인트
 //
-// ★ 수주 발췌는 한 분기뿐이므로 QoQ를 만들지 않는다. 같은 분기 원문에서
-//   "다음 보고서에 다시 확인할 말"만 꺼내며, 금액·증가율을 재계산하지 않는다.
+// 수주 확인 포인트 한 건으로 QoQ를 만들지 않는다. 그래프는 별도 수집한
+// 다분기 수치 중 같은 공시 범위·통화의 연속 분기만 비교한다.
 
 export interface DisclosureExcerptRow {
   rcept_no: string;
@@ -28,6 +28,9 @@ export interface OrderDisclosureMetric {
   newOrdersEok: number | null;
   scope: string;
   newOrdersPeriod: string | null;
+  amountUnit?: string;
+  backlogAmount?: number | null;
+  newOrdersAmount?: number | null;
   periodEnd?: string;
   periodLabel?: string;
   closingMonth?: number;
@@ -41,6 +44,9 @@ export interface OrderDisclosureSummary {
   newOrdersEok: number | null;
   scope: string | null;
   newOrdersPeriod: string | null;
+  amountUnit?: string;
+  backlogAmount?: number | null;
+  newOrdersAmount?: number | null;
   status: "measured" | "private" | "not_applicable" | "mentioned" | "truncated" | "unmentioned";
   statusLabel: string;
   evidence: string | null;
@@ -131,8 +137,13 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
   const explicitMetric = row.sections["공시 수주지표"];
   const section = typeof explicitMetric === "string" ? explicitMetric : row.sections["매출 및 수주상황"];
   if (typeof section !== "string") return null;
-  const unit = section.match(/(?:단위\s*[:：|]\s*|\(단위\s*[:：]\s*)(백만원|천원|원|억원)/)?.[1];
-  const factor = unit === "억원" ? 1 : unit === "백만원" ? 0.01 : unit === "천원" ? 0.00001 : unit === "원" ? 1e-8 : null;
+  const unit = section.match(/(?:단위\s*[:：|]\s*|\(단위\s*[:：]\s*)(백만원|천원|원|억원|백만USD|백만달러|천USD|천달러|USD|달러|천RMB|백만IDR)/)?.[1];
+  const krw = ["억원", "백만원", "천원", "원"].includes(unit ?? "");
+  const amountUnit = krw ? "억원" : unit?.includes("RMB") ? "백만RMB" : unit?.includes("IDR") ? "백만IDR" : "백만USD";
+  const factor = unit === "억원" ? 1 : unit === "백만원" ? 0.01 : unit === "천원" ? 0.00001 : unit === "원" ? 1e-8
+    : ["백만USD", "백만달러", "백만IDR"].includes(unit ?? "") ? 1
+    : ["천USD", "천달러", "천RMB"].includes(unit ?? "") ? 0.001
+    : ["USD", "달러"].includes(unit ?? "") ? 0.000001 : null;
   if (factor == null) return null;
   const exactValue = (label: RegExp): number | null => {
     const values = section.split("\n").flatMap((line) => {
@@ -144,9 +155,10 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     return values.length === 1 && Number.isFinite(values[0]) && values[0] >= 0
       ? Math.round(values[0] * factor * 100) / 100 : null;
   };
-  const backlogEok = exactValue(/^수주\s*잔고$/);
-  const newOrdersEok = exactValue(/^신규\s*수주$/);
-  if (backlogEok == null && newOrdersEok == null) return null;
+  const backlogAmount = exactValue(/^수주\s*잔고$/);
+  const newOrdersAmount = exactValue(/^신규\s*수주$/);
+  if (backlogAmount == null && newOrdersAmount == null) return null;
+  const backlogEok = krw ? backlogAmount : null, newOrdersEok = krw ? newOrdersAmount : null;
   const exactText = (label: RegExp): string | null => {
     const values = section.split("\n").flatMap((line) => {
       const cells = line.split("|").map((cell) => cell.trim());
@@ -157,10 +169,38 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
   const disclosedScope = exactText(/^범위$/);
   return { year: period?.year ?? row.fiscal_year!, quarter: period?.quarter ?? row.fiscal_quarter!, rceptNo: row.rcept_no,
     backlogEok, newOrdersEok,
+    ...(!krw ? { amountUnit, backlogAmount, newOrdersAmount } : {}),
     scope: disclosedScope ?? "공시 명시 수치",
     newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
     ...(period ? { periodEnd: period.end, periodLabel: period.label, closingMonth: period.closingMonth } : {}),
   };
+}
+
+/** 서로 다른 연결회사/사업부의 원문 표를 합산하거나 한 점으로 덮어쓰지 않는다. */
+export function extractOrderDisclosureMetrics(row: DisclosureExcerptRow): OrderDisclosureMetric[] {
+  const series = record(row.sections?.["공시 수주지표 목록"])?.series;
+  if (!Array.isArray(series)) {
+    const metric = extractOrderDisclosureMetric(row);
+    return metric ? [metric] : [];
+  }
+  return series.flatMap((section) => {
+    if (typeof section !== "string") return [];
+    const metric = extractOrderDisclosureMetric({ ...row, sections: { ...row.sections, "공시 수주지표": section } });
+    return metric ? [metric] : [];
+  });
+}
+
+export function summarizeOrderDisclosures(row: DisclosureExcerptRow): OrderDisclosureSummary[] {
+  const series = record(row.sections?.["공시 수주지표 목록"])?.series;
+  if (!Array.isArray(series)) {
+    const summary = summarizeOrderDisclosure(row);
+    return summary ? [summary] : [];
+  }
+  return series.flatMap((section) => {
+    if (typeof section !== "string") return [];
+    const summary = summarizeOrderDisclosure({ ...row, sections: { ...row.sections, "공시 수주지표": section } });
+    return summary ? [summary] : [];
+  });
 }
 
 /** 최근 6개월 중 최근 정기보고서 이후이면서 현재 분기에 속한 계약만 남긴다. */
@@ -281,6 +321,8 @@ function summarizeOrderDisclosureBase(row: DisclosureExcerptRow): OrderDisclosur
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
     backlogEok: metric.backlogEok, newOrdersEok: metric.newOrdersEok, scope: metric.scope,
     newOrdersPeriod: metric.newOrdersPeriod,
+    ...(metric.amountUnit ? { amountUnit: metric.amountUnit, backlogAmount: metric.backlogAmount,
+      newOrdersAmount: metric.newOrdersAmount } : {}),
     status: "measured", statusLabel: "공시 수치 확인", evidence: signal?.evidence ?? null,
   };
   const evidence = signal?.evidence ?? null;

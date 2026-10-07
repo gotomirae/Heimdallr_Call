@@ -26,6 +26,7 @@ import html
 import re
 import zipfile
 from dataclasses import dataclass, field
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
@@ -55,7 +56,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v5 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v6 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -229,15 +230,23 @@ def _section_xml(xml: str, wanted_name: str) -> str | None:
     if pattern is None:
         return None
     rx = re.compile(pattern)
+    matched = []
     for i, (_start, end, title) in enumerate(titles):
         bare = re.sub(r"^[\dIVX]+[.\-]?\s*", "", title).strip()
         if not (rx.search(bare) or rx.search(title)):
             continue
         stop = titles[i + 1][0] if i + 1 < len(titles) else len(xml)
         raw = xml[end:stop]
-        if len(to_text(raw)) >= 80:
-            return raw
-    return None
+        if len(to_text(raw)) >= 80 or re.search(r"<TABLE\b", raw, re.I):
+            matched.append((title, raw))
+    if not matched:
+        return None
+    first = matched[0][1]
+    if wanted_name == "매출 및 수주상황" and "상세표" in first:
+        details = [raw for title, raw in matched[1:] if "상세" in title]
+        if details:
+            return first + "\n" + "\n".join(details)
+    return first
 
 
 def _table_grid(table) -> list[list[str]]:
@@ -286,45 +295,151 @@ def _order_unit(table) -> str | None:
             break
         contexts.append(" ".join(tag.get_text(" ", strip=True).split()))
     for context in contexts:
-        match = re.search(r"단위\s*[:：]?[^가-힣]{0,30}(백만원|억원|천원|원)(?:\s*[,，)]|\s*$)", context)
-        if "단위" in context and not match:
+        # DART에서 자주 쓰는 달러 별칭의 배율은 명시 표기대로만 정규화한다.
+        context = re.sub(r"US\$\s*1,?000|U\$\s*천|K\$|천\s*\$|천\s*불", "천USD", context, flags=re.I)
+        context = re.sub(r"백만\s*불", "백만USD", context)
+        context = re.sub(r"US\$", "USD", context)
+        context = re.sub(r"금액\s*\(\s*(백만USD|천USD|백만원|억원|천원|원)\s*\)", r"단위: \1)", context)
+        # 수량(천개,대,척)과 금액의 병기 단위도 금액 열에서만 읽는다.
+        declaration = re.search(r"단위\s*(?:[:：]\s*|\s+(?=백만원|억원|천원|원|USD|달러))((?:[^()]|\([^)]*\)){1,100})", context)
+        currencies = re.findall(r"백만원|억원|천원|(?<![가-힣])원(?![가-힣])|USD|달러|EUR|유로", declaration[1] if declaration else "")
+        if len(set(currencies)) > 1:
+            return None
+        match = re.search(r"(백만원|억원|천원|(?<![가-힣])원(?![가-힣])|백만\s*(?:USD|달러)|천\s*(?:USD|달러)|USD|달러|천RMB|백만IDR)", declaration[1] if declaration else "")
+        if declaration and not match:
             return None
         if match:
-            return match.group(1)
+            return re.sub(r"\s+", "", match.group(1))
+    # 저스템처럼 숫자 셀마다 단위를 붙인 표는 다른 매출 표 단위를 상속하지 않는다.
+    cell_units = {m[1] for cell in table.find_all(["td", "th"])
+                  if (m := re.fullmatch(r"[\d,]+(?:\.\d+)?\s*(백만원|억원|천원|원)", cell.get_text(" ", strip=True)))}
+    if len(cell_units) == 1:
+        return cell_units.pop()
     return None
 
 
-def structured_order_metrics(section_xml: str) -> str | None:
+def _order_currency_parts(table) -> list[str] | None:
+    """통화 열과 통화별 명시 배율이 함께 있는 표만 분리한다."""
+    grid = _table_grid(table)
+    header_at = next((i for i, row in enumerate(grid[:4]) if "통화" in row), None)
+    if header_at is None:
+        return None
+    column = grid[header_at].index("통화")
+    currencies = {row[column] for row in grid[header_at + 1:] if row[column] in {"USD", "KRW", "CHF", "EUR"}}
+    if not currencies:
+        return None
+    contexts = [table.get_text(" ", strip=True)]
+    for tag in table.find_all_previous(["p", "table"], limit=4):
+        if tag.name == "table" and len(tag.find_all("tr")) > 1:
+            break
+        contexts.append(tag.get_text(" ", strip=True))
+    declaration = " ".join(re.findall(r"단위\s*[:：]\s*([^)]{1,100})", " ".join(contexts)))
+    units = {}
+    krw = re.search(r"백만원|억원|천원|(?<![가-힣])원(?![가-힣])", declaration)
+    usd = re.search(r"백만\s*(?:USD|달러|불)|천\s*(?:USD|달러|불|\$)|K\$|US\$1,?000|USD|US\$", declaration, re.I)
+    if krw: units["KRW"] = krw[0]
+    if usd:
+        units["USD"] = "백만USD" if "백만" in usd[0] else "천USD" if re.search(r"천|K|1,?000", usd[0], re.I) else "USD"
+    # 배율 선언이 없는 통화에는 추측 단위를 붙이지 않는다.
+    if not units:
+        return []
+    parts = []
+    heading = _order_scope_heading(table)
+    for currency in sorted(currencies):
+        if currency not in units:
+            continue
+        selected = [row for row in grid[header_at + 1:]
+                    if row[column] == currency or any(re.fullmatch(rf"합\s*계\s*\({currency}\)", cell) for cell in row)]
+        if not selected:
+            continue
+        # 분리한 표의 통화 열을 제거해야 하위 파서가 다시 혼합 통화 표로 해석하지 않는다.
+        cells = "".join("<TR>" + "".join(f"<TD>{html.escape(cell)}</TD>" for i, cell in enumerate(row) if i != column) + "</TR>"
+                        for row in [grid[header_at], *selected])
+        parts.append(f"<P>[{html.escape(heading or '공시 통화별 표')} / {currency}]</P>"
+                     f"<P>(단위: {units[currency]})</P><TABLE>{cells}</TABLE>")
+    return parts
+
+
+def _order_header(value: str) -> str:
+    """단위/기간 각주만 제거하고 전기말·수주총액의 의미는 보존한다."""
+    value = re.sub(r"\([^)]*\)|\[[^]]*\]|[*※]+\d*$|주\d+$", "", value)
+    value = re.sub(r"\s+", "", value)
+    value = re.sub(r"(?<=수주잔고)A\+B-C$|(?<=수주총액)[AB]$", "", value)
+    if value.endswith("금액") and value[:-2] in {"수주잔고", "기말수주잔고", "신규수주", "당기수주"}:
+        value = value[:-2]
+    return value
+
+
+def _order_scope_heading(table) -> str | None:
+    for tag in table.find_all_previous(["p", "title", "table"], limit=20):
+        if tag.name == "table" and len(tag.find_all("tr")) > 1:
+            break
+        heading = tag.get_text(" ", strip=True)
+        if not heading or len(heading) >= 160:
+            continue
+        match = re.search(r"\[[^\]]{1,70}\]", heading)
+        if match:
+            return heading if re.search(r"종속회사|지배회사", match[0]) else match[0]
+        if re.match(r"^(?:종속회사|지배회사)\s*[:：]", heading):
+            return heading
+        numbered = re.search(r"\(\d+\)\s*([^()]{2,45})$", heading)
+        if numbered and not re.search(r"판매|수주상황|수주현황|수주\s*상황", numbered[1]):
+            return numbered[1].strip()
+        business = re.search(r"([^。.]{2,50}사업[^。.]{0,20})의\s*수주상황", heading)
+        if business:
+            return business[1].strip()
+        # 한 행짜리 단위 표에 회사명을 함께 적는 원문(삼화전기 등).
+        if tag.name == "table" and '단위' in heading:
+            label = re.sub(r"\(?\s*단위\s*[:：].*$", "", heading).strip()
+            if label and len(label) < 70 and not re.search(r"기준일|현재|\d{4}[.년-]", label):
+                return label
+    return None
+
+
+def structured_order_series(section_xml: str, *, period_end: str | None = None) -> list[str]:
     """다단 머리글을 포함한 DART 수주표에서 검증 가능한 합계만 구조화한다.
 
     `수주총액`은 오래된 프로젝트의 계약총액일 수 있으므로 신규수주로 바꾸지 않는다.
     신규수주는 원문 열이 `신규수주` 또는 `당기수주`라고 명시한 경우에만 읽는다.
     """
     soup = BeautifulSoup(section_xml, "html.parser")
-    backlog_names = {"수주잔고", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
+    for table in list(soup.find_all("table")):
+        parts = _order_currency_parts(table)
+        if parts is not None:
+            table.replace_with(BeautifulSoup("".join(parts), "html.parser"))
+    backlog_names = {"수주잔고", "수주잔고액", "기말수주잔고액", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
                      "당분기말수주잔고", "당반기말수주잔고",
+                     "당분기수주잔고", "당반기수주잔고", "당기수주잔고",
                      "계약잔액", "수주잔액", "기말계약잔액"}
-    new_names = {"신규수주", "당기수주", "신규수주액", "당기수주액"}
+    new_names = {"신규수주", "당기수주", "신규수주액", "당기수주액", "당기수주금액", "당기신규수주액", "당기신규수주",
+                 "당반기수주총액", "당기수주총액", "당분기수주총액", "당해신규수주액"}
+    # 명시 정의가 있을 때만 수주총액을 당기 신규수주로 읽는다(엠앤씨솔루션).
+    period_flow = bool(re.search(r"수주총액\s*=\s*당기\s*수주총액", soup.get_text(" ", strip=True)))
+    if period_flow:
+        new_names.add("수주총액")
     numeric = re.compile(r"^-?[\d,]+(?:\.\d+)?$")
-    total_label = re.compile(r"^(?:합\s*계|총\s*계)$")
+    total_label = re.compile(r"^(?:(?:총|전체|전사|수주)\s*)?(?:합\s*계|총\s*계|계)$")
     candidates: list[tuple[str, str, str | None, str | None]] = []
+    candidate_items: list[str | None] = []
+    period_labels: dict[str, str] = {}
     order_tables = [
         table for table in soup.find_all("table")
-        if any(re.sub(r"\s+", "", cell.get_text(" ", strip=True)) in backlog_names | new_names
+        if any(_order_header(cell.get_text(" ", strip=True)) in backlog_names | new_names
                for cell in table.find_all(["th", "td"]))
     ]
-    # 단위를 읽지 못한 다른 자회사 표도 범위 모호성에 포함한다.
-    if len(order_tables) != 1:
-        return None
-
     for table in order_tables:
+        scope_heading = _order_scope_heading(table)
         unit = _order_unit(table)
         if unit is None:
+            scope = f"{scope_heading} / 회사 공시 합계" if scope_heading else "회사 공시 합계"
+            candidates.append(("", scope, None, None))
+            candidate_items.append(None)
             continue
         grid = _table_grid(table)
+        grid = [[re.sub(rf"(?<=[\d,])\s*{re.escape(unit)}$", "", cell) for cell in row] for row in grid]
         header_at = next((
             index for index, row in enumerate(grid[:6])
-            if any(re.sub(r"\s+", "", cell) in backlog_names | new_names for cell in row)
+            if any(_order_header(cell) in backlog_names | new_names for cell in row)
         ), None)
         if header_at is None:
             continue
@@ -341,7 +456,7 @@ def structured_order_metrics(section_xml: str) -> str | None:
         for column in range(len(grid[0])):
             path: list[str] = []
             for row in grid[header_at:data_at]:
-                value = re.sub(r"\s+", "", row[column])
+                value = _order_header(row[column])
                 if value and (not path or path[-1] != value):
                     path.append(value)
             paths.append(path)
@@ -350,6 +465,9 @@ def structured_order_metrics(section_xml: str) -> str | None:
             matched = [index for index, path in enumerate(paths) if any(part in names for part in path)]
             if len(matched) == 1:
                 return matched[0]
+            current_flow = [index for index in matched if any(part.startswith("당기") or part.startswith("당반기") for part in paths[index])]
+            if len(current_flow) == 1:
+                return current_flow[0]
             amount_columns = [index for index in matched if paths[index] and paths[index][-1] in {"금액", "원화금액"}]
             return amount_columns[0] if len(amount_columns) == 1 else None
 
@@ -359,8 +477,53 @@ def structured_order_metrics(section_xml: str) -> str | None:
             continue
 
         data_rows = grid[data_at:]
-        total_rows = [row for row in data_rows if any(total_label.fullmatch(cell) for cell in row[:3])]
-        if len(total_rows) == 1:
+        if period_end:
+            y, month = int(period_end[:4]), int(period_end[5:7])
+            label = {3: rf"{y}년(?:1분기|당분기|1Q)", 6: rf"{y}년(?:반기|상반기|당반기)",
+                     9: rf"{y}년(?:3분기|3Q)", 12: rf"{y}년"}.get(month)
+            labeled_rows = [row for row in data_rows if label and re.fullmatch(label, re.sub(r"\s+", "", row[0]))]
+            if len(labeled_rows) == 1:
+                data_rows = labeled_rows
+        if period_flow and period_end:
+            period_rows = [row for row in data_rows if any(
+                re.sub(r"[. /]", "-", cell).rstrip('-') == period_end for cell in row[:3])]
+            if len(period_rows) == 1:
+                data_rows = period_rows
+        # 연도별 과거 비교표를 이번 보고기간의 잔고로 읽지 않는다.
+        if len(data_rows) > 1 and any(re.fullmatch(r"(?:19|20)\d{2}(?:년)?", row[0].strip()) for row in data_rows):
+            continue
+        label_columns = min(c for c in (backlog_column, new_column) if c is not None)
+        total_rows = [row for row in data_rows if any(total_label.fullmatch(cell) for cell in row[:label_columns])]
+        strong_totals = [row for row in total_rows if any(re.search(r"合計|합\s*계|총\s*계", cell) for cell in row[:label_columns])]
+        if strong_totals:
+            total_rows = strong_totals
+        company_totals = [row for row in total_rows if any(re.fullmatch(r"전사\s*합\s*계|총\s*합\s*계", cell) for cell in row[:label_columns])]
+        if len(company_totals) == 1:
+            total_rows = company_totals
+        elif len(total_rows) > 1:
+            # 품목별 '계'와 전체 '합계'를 구분하고, 합계의 기간별 소계를 중복 선택하지 않는다.
+            repeated_totals = [row for row in total_rows if sum(bool(re.fullmatch(r"합\s*계", cell)) for cell in row[:label_columns]) >= 2]
+            if len(repeated_totals) == 1:
+                total_rows = repeated_totals
+        minimum_rows = [row for row in data_rows if any("최소구매물량" in cell.replace(" ", "") for cell in row)
+                        and not any("예상" in cell for cell in row)]
+        # rowspan 합계 아래 내수·수출·소계가 반복될 때 명시 소계 한 행만 선택한다.
+        subtotals = [row for row in total_rows if any(re.fullmatch(r"소\s*계", cell) for cell in row[:3])]
+        if len(total_rows) > 1 and len(subtotals) == 1:
+            total_rows = subtotals
+        # 일부 보고서는 마지막 총계행의 표제를 비운다. 명시 항목 합과 정확히 일치할 때만 승인한다.
+        if not total_rows and len(data_rows) > 1 and all(cell in {"", "-"} for cell in data_rows[-1][:3]):
+            details = data_rows[:-1]
+            if all(row[0].strip() for row in details) and len({row[0] for row in details}) == len(details):
+                columns = [c for c in (backlog_column, new_column) if c is not None]
+                if all(all(numeric.fullmatch(row[c].replace(" ", "")) for row in data_rows)
+                       and sum(Decimal(row[c].replace(" ", "").replace(",", "")) for row in details)
+                       == Decimal(data_rows[-1][c].replace(" ", "").replace(",", "")) for c in columns):
+                    total_rows = [data_rows[-1]]
+        if len(minimum_rows) == 1:
+            chosen = minimum_rows[0]
+            scope = "최소구매물량(확정 계약)"
+        elif len(total_rows) == 1:
             chosen = total_rows[0]
             scope = "회사 공시 합계"
         else:
@@ -368,10 +531,45 @@ def structured_order_metrics(section_xml: str) -> str | None:
                 row for row in data_rows
                 if any(numeric.fullmatch(cell.replace(" ", "")) for cell in row)
             ]
-            if len(total_rows) == 0 and len(usable_rows) == 1:
+            item_rows = [row for row in data_rows if row[0].strip() and not re.match(r"주\d|[※*]", row[0].strip())]
+            if len(total_rows) == 0 and len(usable_rows) == 1 and len(item_rows) == 1:
                 chosen = usable_rows[0]
                 scope = "회사 공시 단일행"
+            elif (not total_rows and len(usable_rows) > 1
+                  and len(usable_rows) == len(item_rows)
+                  and all(row[0].strip() for row in usable_rows)
+                  and len({row[0] for row in usable_rows}) == len(usable_rows)
+                  and not any(re.search(r"소\s*계|합\s*계|총\s*계", cell)
+                              for row in usable_rows for cell in row[:3])):
+                # 한 표의 모든 공개 항목만 합산한다. 결측·비공개·통화 혼합은 합산하지 않는다.
+                chosen = [""] * len(grid[0])
+                for column in (backlog_column, new_column):
+                    if column is not None and all(numeric.fullmatch(row[column].replace(" ", "")) for row in usable_rows):
+                        amounts = [Decimal(row[column].replace(" ", "").replace(",", "")) for row in usable_rows]
+                        if all(v >= 0 for v in amounts):
+                            chosen[column] = format(sum(amounts), ",f")
+                scope = "공시 항목 합산(표 범위)"
             else:
+                # 같은 표에 해당 없음/비공개 행이 섞여 있어도 공개 항목 각각은 보존한다.
+                # 합계를 만들지 않으며 식별 가능한 두 항목 이상인 경우에만 범위별로 승인한다.
+                published = [row for row in usable_rows if row[0].strip()
+                             and not re.search(r"합\s*계|소\s*계|총\s*계", row[0])
+                             and len(row[0]) <= 100
+                             and any(c is not None and c < len(row) and numeric.fullmatch(row[c].replace(" ", ""))
+                                     for c in (backlog_column, new_column))]
+                if not total_rows and len(published) >= 2 and len({row[0] for row in published}) == len(published):
+                    for row in published:
+                        scoped = f"공시 공개 항목: {row[0]}"
+                        if scope_heading:
+                            scoped = f"{scope_heading} / {scoped}"
+                        values = [row[c].replace(" ", "") if c is not None and c < len(row)
+                                  and numeric.fullmatch(row[c].replace(" ", ""))
+                                  and Decimal(row[c].replace(" ", "").replace(",", "")) >= 0 else None
+                                  for c in (backlog_column, new_column)]
+                        if any(v is not None for v in values):
+                            candidates.append((unit, scoped, *values))
+                            candidate_items.append(None)
+                            period_labels[scoped] = "보고기간 누적"
                 continue
 
         def value_at(column: int | None) -> str | None:
@@ -388,36 +586,66 @@ def structured_order_metrics(section_xml: str) -> str | None:
             tag.get_text(" ", strip=True)
             for tag in table.find_all_previous(["p", "title"], limit=4)
         )
-        if re.search(r"주요\s*(?:프로젝트|계약)", nearby):
+        if re.search(r"주요\s*(?:프로젝트|(?:수주\s*)?계약)|진행률적용", nearby):
             scope = "주요계약(전체 회사 아님)"
         # 연결 수주표가 하나라도 종속회사만 공시한 수치일 수 있다.
         # 가장 가까운 회사 범위 표제를 보존해 연결 전체 잔고로 오인하지 않는다.
-        scope_heading = None
-        for tag in table.find_all_previous(["p", "title"], limit=20):
-            heading = tag.get_text(" ", strip=True)
-            if len(heading) >= 160:
-                continue
-            match = re.search(r"\[[^\]]*(?:사업부|부문|종속회사|지배회사)[^\]]*\]", heading)
-            if match:
-                # 설명·매출 각주의 '종속회사'는 수주 범위 표제가 아니다.
-                scope_heading = heading if re.search(r"종속회사|지배회사", match[0]) else match[0]
-                break
-            if re.match(r"^(?:종속회사|지배회사)\s*[:：]", heading):
-                scope_heading = heading
-                break
         if scope_heading:
             scope = f"{scope_heading} / {scope}"
         candidates.append((unit, scope, backlog, new_orders))
+        items = sorted({row[0] for row in data_rows if row[0].strip()
+                        and not total_label.fullmatch(row[0]) and not re.search(r"합\s*계|소\s*계", row[0])})
+        candidate_items.append(" · ".join(items) if items and len(" · ".join(items)) <= 140 else None)
+        period_labels[scope] = "당분기" if any("당분기수주총액" in path for path in paths) else "보고기간 누적"
 
-    if len(candidates) != 1:
+    # 복수 표를 합산하지 않는다. 범위가 구분되지 않는 중복은 승인하지 않는다.
+    original_counts = {(unit, scope): sum(c[0] == unit and c[1] == scope for c in candidates)
+                       for unit, scope, _, _ in candidates}
+    for i, (unit, scope, backlog, new_orders) in enumerate(candidates):
+        if candidate_items[i] and original_counts[(unit, scope)] > 1:
+            # 회사 표제가 없더라도 표의 품목 범위는 원문대로 보존한다.
+            named_scope = f"{scope} / 표 품목: {candidate_items[i]}"
+            candidates[i] = (unit, named_scope, backlog, new_orders)
+            period_labels[named_scope] = period_labels[scope]
+    counts = {(scope, unit): sum(c[1] == scope and c[0] == unit for c in candidates)
+              for unit, scope, _, _ in candidates}
+    result = []
+    for unit, scope, backlog, new_orders in candidates:
+        if counts[(scope, unit)] != 1 or not unit or any(not c[0] and c[1] == scope for c in candidates):
+            continue
+        rows = [f"범위 | {scope}", f"단위 | {unit}"]
+        if backlog is not None:
+            rows.append(f"수주잔고 | {backlog}")
+        if new_orders is not None:
+            rows.extend((f"신규수주 | {new_orders}", f"신규수주 기간 | {period_labels[scope]}"))
+        result.append("\n".join(rows))
+    narrative = narrative_order_metrics(section_xml) if not result else None
+    return result or ([narrative] if narrative else [])
+
+
+def structured_order_metrics(section_xml: str, *, period_end: str | None = None) -> str | None:
+    series = structured_order_series(section_xml, period_end=period_end)
+    return representative_order_metric(series)
+
+
+def representative_order_metric(series: list[str]) -> str | None:
+    if len(series) == 1:
+        return series[0]
+    # 회사 합계와 주요 계약 부분집합이 함께 있으면 합계가 대표 지표다.
+    primary = [s for s in series if '주요계약(전체 회사 아님)' not in s]
+    return primary[0] if len(primary) == 1 else None
+
+
+def narrative_order_metrics(section_xml: str) -> str | None:
+    """표 대신 명시한 현재 잔고 한 문장도 읽는다. 과거/목표/추정 값은 제외한다."""
+    text = BeautifulSoup(section_xml, "html.parser").get_text(" ", strip=True)
+    matches = re.findall(r"(?:작성기준일|보고기간\s*종료일|당(?:반기|분기|기)말)"
+                         r"[^。.!?]{0,60}?수주\s*잔고\s*(?:는|[:：])\s*"
+                         r"([\d,]+(?:\.\d+)?)\s*(억원|백만원|천원|원)", text)
+    if len(matches) != 1:
         return None
-    unit, scope, backlog, new_orders = candidates[0]
-    rows = [f"범위 | {scope}", f"단위 | {unit}"]
-    if backlog is not None:
-        rows.append(f"수주잔고 | {backlog}")
-    if new_orders is not None:
-        rows.extend((f"신규수주 | {new_orders}", "신규수주 기간 | 보고기간 누적"))
-    return "\n".join(rows)
+    value, unit = matches[0]
+    return f"범위 | 회사 공시 명시 잔고\n단위 | {unit}\n수주잔고 | {value}"
 
 
 def major_contract_backlog(section: str) -> str | None:
@@ -499,6 +727,7 @@ def build_excerpt(
     *,
     budget_chars: int = DEFAULT_BUDGET_CHARS,
     per_section: int = PER_SECTION_CHARS,
+    report_period_end: str | None = None,
 ) -> ReportExcerpt:
     """절을 우선순위대로 담되 **예산을 넘기지 않는다.**
 
@@ -523,13 +752,19 @@ def build_excerpt(
         remaining -= take
     order_section = sections.get("매출 및 수주상황")
     order_section_xml = _section_xml(xml, "매출 및 수주상황")
-    order_metric = structured_order_metrics(order_section_xml) if order_section_xml else None
+    order_series = structured_order_series(order_section_xml, period_end=report_period_end) if order_section_xml else []
+    order_metric = representative_order_metric(order_series)
+    if not order_series and order_section_xml:
+        narrative = narrative_order_metrics(order_section_xml)
+        if narrative:
+            order_series = [narrative]
+            order_metric = narrative
     raw_order_table = bool(order_section_xml and any(
-        re.sub(r"\s+", "", cell.get_text(" ", strip=True)) in {
+        _order_header(cell.get_text(" ", strip=True)) in {
             "수주잔고", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
             "당분기말수주잔고", "당반기말수주잔고",
-            "계약잔액", "수주잔액", "기말계약잔액",
-            "신규수주", "당기수주", "신규수주액", "당기수주액",
+            "계약잔액", "수주잔액", "기말계약잔액", "수주잔고액", "기말수주잔고액",
+            "신규수주", "당기수주", "신규수주액", "당기수주액", "당기신규수주액", "당기신규수주",
         }
         for table in BeautifulSoup(order_section_xml, "html.parser").find_all("table")
         for cell in table.find_all(["td", "th"])
@@ -541,6 +776,8 @@ def build_excerpt(
         order_metric = major_contract_backlog(order_section)
     if order_metric:
         picked["공시 수주지표"] = order_metric
+    if order_series:
+        picked["공시 수주지표 목록"] = {"series": order_series}
     # 절이 없는 첨부·비정상 원문에 완료 표식을 쓰면 영원히 재수집되지 않는다.
     if sections:
         picked["공시 수주지표 확인"] = checked_marker

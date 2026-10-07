@@ -401,20 +401,11 @@ export async function getDisclosureExcerpt(
 
 /** 최근 정기보고서 수주 표 + 단일판매·공급계약 수시공시. */
 export async function getOrderDisclosureExcerpts(code: string): Promise<DisclosureExcerptRow[]> {
-  try {
-    const allRows: DisclosureExcerptRow[] = [];
-    for (let offset = 0; ; offset += 1000) {
-      const { data, error } = await supabase
-        .from("disclosure_excerpts")
-        .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
-        .eq("code", code)
-        .order("rcept_no", { ascending: false })
-        .range(offset, offset + 999);
-      if (error) return [];
-      const rows = (data as unknown as DisclosureExcerptRow[]) ?? [];
-      allRows.push(...rows);
-      if (rows.length < 1000) break;
-    }
+    // 조회 실패를 []로 삼키면 실제 저장된 수주를 '수치 없음'으로 표시한다.
+    // 공통 재시도를 적용하고 최종 실패는 상세 페이지의 경고 경계로 전달한다.
+    const allRows = await selectAll<DisclosureExcerptRow>("disclosure_excerpts",
+      "rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars",
+      (q) => q.eq("code", code).order("rcept_no", { ascending: false }));
     const seen = new Set<string>();
     return allRows.filter((row) => {
       if (row.sections && typeof row.sections === "object" &&
@@ -425,9 +416,6 @@ export async function getOrderDisclosureExcerpts(code: string): Promise<Disclosu
       seen.add(key);
       return true;
     });
-  } catch {
-    return [];
-  }
 }
 
 /**

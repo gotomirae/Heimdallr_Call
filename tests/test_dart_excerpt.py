@@ -192,6 +192,95 @@ def test_structured_order_metrics_does_not_add_multiple_company_tables():
     assert structured_order_metrics(xml) is None
 
 
+def test_current_sfa_total_is_not_discarded_with_historical_or_major_contract_tables():
+    # 실제 20260812000465: 합계-소계 987,499백만원, 신규 442,637백만원.
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>구분</TH><TH>구분</TH>
+    <TH>당기 신규수주액(제29기 반기)</TH><TH>기말 수주잔고액(제29기 반기 말)</TH></TR>
+    <TR><TD ROWSPAN="3">합계</TD><TD>내수</TD><TD>172,667</TD><TD>375,581</TD></TR>
+    <TR><TD>수출</TD><TD>269,970</TD><TD>611,918</TD></TR>
+    <TR><TD>소계</TD><TD>442,637</TD><TD>987,499</TD></TR></TABLE>
+    <P>(단위: 백만원)</P><TABLE><TR><TH>연도</TH><TH>구분</TH><TH>수주잔고</TH></TR>
+    <TR><TD>2025</TD><TD>합계</TD><TD>911,850</TD></TR>
+    <TR><TD>2024</TD><TD>합계</TD><TD>991,679</TD></TR></TABLE>'''
+    metric = structured_order_metrics(xml)
+    assert metric and '수주잔고 | 987,499' in metric and '신규수주 | 442,637' in metric
+
+
+def test_quantity_unit_before_currency_and_footnoted_headers():
+    xml = '''<P>(단위: 천개, 백만원)</P><TABLE><TR><TH>품목</TH>
+    <TH COLSPAN="2">수주잔고**</TH></TR><TR><TH>품목</TH><TH>수량</TH><TH>금액</TH></TR>
+    <TR><TD>합계</TD><TD>41,090</TD><TD>21,944</TD></TR></TABLE>'''
+    assert structured_order_metrics(xml) == '범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 21,944'
+
+
+def test_named_company_tables_remain_separate_without_converting_foreign_currency():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = '''<TABLE><TR><TD>삼화전기주식회사</TD><TD>(단위: 천개,백만원)</TD></TR></TABLE>
+    <TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>38,972</TD></TR></TABLE>
+    <TABLE><TR><TD>천진삼화전기유한공사</TD><TD>(단위: 천개,천RMB)</TD></TR></TABLE>
+    <TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>20,949</TD></TR></TABLE>
+    <TABLE><TR><TD>삼화텍콤</TD><TD>(단위: 천개,백만원)</TD></TR></TABLE>
+    <TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>1,410</TD></TR></TABLE>'''
+    series = structured_order_series(xml)
+    assert len(series) == 3
+    assert '삼화전기주식회사' in series[0] and '38,972' in series[0]
+    assert '천진삼화전기유한공사' in series[1] and '단위 | 천RMB' in series[1]
+    assert '삼화텍콤' in series[2] and '1,410' in series[2]
+    assert structured_order_metrics(xml) is None
+
+
+def test_period_flow_definition_reads_current_mnc_row_not_contract_total():
+    # 실제 엠앤씨솔루션: 2026.06.30 잔고 9,331억 / 당기수주 890억.
+    xml = '''<P>(단위: 억원)</P><TABLE><TR><TH>품목</TH><TH>수주일자</TH>
+    <TH>수주총액*</TH><TH>수주잔고**</TH></TR>
+    <TR><TD>방산부품</TD><TD>2025.12.31</TD><TD>4,500</TD><TD>10,037</TD></TR>
+    <TR><TD>방산부품</TD><TD>2026.06.30</TD><TD>890</TD><TD>9,331</TD></TR></TABLE>
+    <P>* 수주총액 = 당기수주총액 ** 수주잔고 = 전년말 수주잔고 + 수주총액 - 기납품액</P>'''
+    metric = structured_order_metrics(xml, period_end='2026-06-30')
+    assert metric and '수주잔고 | 9,331' in metric and '신규수주 | 890' in metric
+    assert structured_order_metrics(xml.replace('수주총액 = 당기수주총액', '총 계약금액'), period_end='2026-06-30') is None
+
+
+def test_referenced_detailed_order_table_is_collected_outside_main_sales_section():
+    xml = '''<TITLE>4. 매출 및 수주상황</TITLE><P>상세표-1 매출 및 수주상황(상세) 참조.</P>
+    <P>회사와 종속회사의 매출 및 수주에 관한 상세한 내용은 보고서 후반 상세표에 기재하였습니다.</P>
+    <TITLE>5. 위험관리</TITLE><P>위험관리</P><TITLE>1. 매출 및 수주상황(상세)</TITLE>
+    <P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+    <TR><TD>합계</TD><TD>123,000</TD></TR></TABLE>'''
+    assert '수주잔고 | 123,000' in build_excerpt('X', xml).sections['공시 수주지표']
+
+
+def test_narrative_current_order_balance_has_explicit_unit():
+    from src.collectors.dart_excerpt import narrative_order_metrics
+    assert narrative_order_metrics('<P>본 보고서 작성기준일 현재 수주잔고는 2,691억원입니다.</P>') == (
+        '범위 | 회사 공시 명시 잔고\n단위 | 억원\n수주잔고 | 2,691')
+    assert narrative_order_metrics('<P>2027년 목표 수주잔고는 2,691억원입니다.</P>') is None
+
+
+def test_inline_units_in_current_year_orders_do_not_use_previous_year():
+    xml = '''<TABLE><TR><TH>구분</TH><TH>전년도 이월 수주액</TH><TH>당해 신규 수주액</TH></TR>
+    <TR><TD>2025년</TD><TD>14,885 백만원</TD><TD>54,397 백만원</TD></TR>
+    <TR><TD>2026년 반기</TD><TD>18,802백만원</TD><TD>71,782백만원</TD></TR></TABLE>'''
+    metric = structured_order_metrics(xml, period_end='2026-06-30')
+    assert metric and '신규수주 | 71,782' in metric and '수주잔고 |' not in metric
+
+
+def test_minimum_contracts_not_added_to_contingent_forecast_orders():
+    xml = '''<P>(단위: 백만USD)</P><TABLE><TR><TH>품목</TH><TH>구분</TH><TH>수주잔고</TH></TR>
+    <TR><TD>CDMO</TD><TD>현 최소구매물량 기준</TD><TD>9,923</TD></TR>
+    <TR><TD>CDMO</TD><TD>수요 증가 시 예상물량 기준</TD><TD>12,526</TD></TR></TABLE>'''
+    metric = structured_order_metrics(xml)
+    assert metric == '범위 | 최소구매물량(확정 계약)\n단위 | 백만USD\n수주잔고 | 9,923'
+
+
+def test_table_sum_is_only_with_complete_independent_items():
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+    <TR><TD>A사업</TD><TD>100</TD></TR><TR><TD>B사업</TD><TD>50</TD></TR></TABLE>'''
+    assert '수주잔고 | 150' in structured_order_metrics(xml)
+    assert structured_order_metrics(xml.replace('<TD>50</TD>', '<TD>-</TD>')) is None
+    assert structured_order_metrics(xml.replace('B사업', 'A사업')) is None
+
+
 def test_report_zip_selects_receipt_main_document_not_first_audit_attachment(monkeypatch):
     """경동나비엔 2025 사업보고서 실제 ZIP 순서 재생: 감사첨부가 먼저 온다."""
     payload = io.BytesIO()
@@ -267,6 +356,58 @@ def test_missing_order_table_unit_does_not_inherit_sales_unit():
 <TABLE><TR><TH>매출</TH></TR><TR><TD>123</TD></TR></TABLE>
 <P>수주상황</P><TABLE><TR><TH>품목</TH><TH>신규수주</TH><TH>수주잔고</TH></TR>
 <TR><TD>합계</TD><TD>100</TD><TD>200</TD></TR></TABLE>"""
+    assert structured_order_metrics(xml) is None
+
+
+def test_mixed_currency_order_rows_keep_declared_scale_and_separate_totals():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 네오셈/프레스티지 원문: K$는 천USD, 원화 행은 백만원. 26,598을 원화로 읽지 않는다.
+    xml = '''<P>(단위: 천$, 백만원)</P><TABLE>
+<TR><TH>품목</TH><TH>통화</TH><TH>수주잔고</TH></TR>
+<TR><TD>바이오</TD><TD>USD</TD><TD>26,598</TD></TR>
+<TR><TD>바이오</TD><TD>KRW</TD><TD>33,875</TD></TR></TABLE>'''
+    series = structured_order_series(xml)
+    assert len(series) == 2
+    assert any("단위 | 천USD\n수주잔고 | 26,598" in s for s in series)
+    assert any("단위 | 백만원\n수주잔고 | 33,875" in s for s in series)
+    assert structured_order_metrics(xml) is None
+
+
+def test_scope_uses_company_name_and_drops_report_date():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = '''<P>[LS ELECTRIC]</P><TABLE><TR><TD>(기준일: 2026.06.30) (단위: 억원)</TD></TR></TABLE>
+<TABLE><TR><TH>품목</TH><TH>당기 수주금액</TH><TH>수주잔고</TH></TR>
+<TR><TD>합계</TD><TD>34,677</TD><TD>69,998</TD></TR></TABLE>'''
+    assert "[LS ELECTRIC] / 회사 공시 합계" in structured_order_series(xml)[0]
+    assert structured_order_series(xml) == structured_order_series(xml.replace("2026.06.30", "2026.03.31"))
+
+
+def test_explicit_whole_company_total_wins_over_product_subtotals():
+    xml = '''<P>(단위: 천USD)</P><TABLE>
+<TR><TH>품목</TH><TH>구분</TH><TH>수주잔고</TH></TR>
+<TR><TD>전력선</TD><TD>계</TD><TD>648,960</TD></TR>
+<TR><TD>변압기</TD><TD>계</TD><TD>1,290,131</TD></TR>
+<TR><TD>합계</TD><TD>계</TD><TD>1,939,091</TD></TR></TABLE>'''
+    assert "수주잔고 | 1,939,091" in structured_order_metrics(xml)
+
+
+def test_unlabelled_total_requires_exact_item_sum():
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주일자</TH><TH>납기</TH><TH>수주잔고</TH></TR>
+<TR><TD>물품취급</TD><TD>-</TD><TD>-</TD><TD>100</TD></TR>
+<TR><TD>건설</TD><TD>-</TD><TD>-</TD><TD>80</TD></TR>
+<TR><TD></TD><TD></TD><TD></TD><TD>180</TD></TR></TABLE>'''
+    assert "수주잔고 | 180" in structured_order_metrics(xml)
+    assert structured_order_metrics(xml.replace(">180<", ">190<")) is None
+
+
+def test_partly_private_table_preserves_public_items_without_a_total():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>사업부문</TH><TH>수주잔고</TH></TR>
+<TR><TD>프레스</TD><TD>217,745</TD></TR><TR><TD>합금철</TD><TD>해당사항 없음</TD></TR>
+<TR><TD>산업기계</TD><TD>24,010</TD></TR></TABLE>'''
+    series = structured_order_series(xml)
+    assert len(series) == 2
+    assert all("공시 공개 항목:" in s for s in series)
     assert structured_order_metrics(xml) is None
 
 
