@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -16,6 +17,8 @@ from src.db.supabase_client import get_client
 from src.utils.env import subscription_cli_env
 
 SKILL = Path.home() / '.claude/skills/kairos-deck'
+# Claude Code refuses writes under ~/.claude (protected path, 2026-10-08 A1 SOURCE_ACCESS), so the run works here.
+WORK_ROOT = Path(os.environ.get('KAIROS_CLAUDE_WORK_ROOT', r'C:\Claude\kairos-work'))
 STATE = Path(__file__).resolve().parent / 'state/decks'
 USAGE = re.compile(r'usage limit|rate.?limit|hit your limit|out of extra usage|resets? (?:at|in)|사용량.*(?:한도|제한)', re.I)
 
@@ -39,7 +42,7 @@ def parse_result(output: str) -> dict | None:
 def result_file(skill: Path, request_id: int, started: float, mode: str = 'deck') -> dict | None:
     # Never accept an unrelated or stale work/*/result.json.
     found = []
-    for path in (skill / 'work').glob('*/result.json'):
+    for path in [*(skill / 'work').glob('*/result.json'), *skill.glob('*/result.json')]:
         if path.stat().st_mtime < started:
             continue
         try:
@@ -86,7 +89,8 @@ class TimeoutTreeUncertain(RuntimeError):
 
 
 def run_claude(args: list[str], timeout: int = KAIROS_DECK_TIMEOUT_SECONDS):
-    process = subprocess.Popen(args, cwd=SKILL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    WORK_ROOT.mkdir(parents=True, exist_ok=True)
+    process = subprocess.Popen(args, cwd=WORK_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, encoding="utf-8", errors="replace", env=subscription_cli_env(),
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     try:
@@ -203,8 +207,11 @@ def run_once() -> dict:
         prompt = build_prompt(job)
         if mode not in {'analysis', 'deck'} or analysis['status'] != 'sent' or (mode == 'deck' and analysis['request_kind'] != 'company'):
             raise ValueError('DECK_ANALYSIS_NOT_READY')
+        from src.collectors.drive_bootstrap import DRIVE_ROOT
+        # Only the folders the skill needs: Codex ledger/sources, Drive analysis root, skill scripts (read/run).
         run = run_claude([cli, '-p', prompt, '--allowedTools',
-            'Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch',
+            'Bash,PowerShell,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch',
+            '--add-dir', str(STATE.parent), '--add-dir', str(DRIVE_ROOT), '--add-dir', str(SKILL),
             '--permission-mode', 'acceptEdits', '--output-format', 'json'],
             KAIROS_ANALYSIS_TIMEOUT_SECONDS if mode == 'analysis' else KAIROS_DECK_TIMEOUT_SECONDS)
         # Preserve the real CLI failure locally; never print its private output.
@@ -212,7 +219,7 @@ def run_once() -> dict:
             'returncode': run.returncode, 'stdout': run.stdout, 'stderr': run.stderr,
         }, ensure_ascii=False, indent=2), encoding='utf-8')
         output = run.stdout + '\n' + run.stderr
-        result = parse_result(run.stdout) or result_file(SKILL, deck_id, started.timestamp(), mode)
+        result = parse_result(run.stdout) or result_file(WORK_ROOT, deck_id, started.timestamp(), mode) or result_file(SKILL, deck_id, started.timestamp(), mode)
         if run.returncode == 0 and result and result.get('status') == 'ok':
             if result.get('request_id') != request_key or result.get('mode') != mode:
                 raise ValueError('DECK_RESULT_WRONG_REQUEST')
