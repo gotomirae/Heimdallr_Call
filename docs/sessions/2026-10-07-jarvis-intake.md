@@ -54,3 +54,9 @@ WORKFLOW·JARVIS·PRD·활성 사용자 Kairos SKILL.md를 접수+재개 통합 
 로그인 후에는 실패한 실제 A1 한 건을 조건부 pending으로 재접수하여 기존1분 실행기가 수행하게 하고, 동일 request_id=-1/Notion원본/sources를 이어받는다. 새 운영 요청·시험 페이지·수동 JARVIS 발송은 만들지 않는다. auth재로그인과 A1후속완료는 아직 미확인이다.
 
 최종 코드 관련 집중 회귀74 passed(3.85초), 전체 오프라인1,277 passed/2 skipped/3 deselected와 diff --check 확인. OS Korea Standard Time UTC+09:00 확인. 설치 Kairos SKILL도30분으로 맞춤. .env.txt·.cache·state는 Git 제외, 과거 사용자 pytest 디렉터리는 변경/스테이징하지 않음.
+
+## 커밋·push 및 인증 복구 후 자동 재개 준비
+
+J절 구현·실전 증거를 main b06cbbf로 push 완료. 원격3203f32 매크로 자동 갱신을 fetch·rebase하여 보존했고 force push하지 않았다. tracked 변경0, 사용자 untracked pytest 디렉터리는 그대로다.
+
+재로그인 완료는 아직 확인되지 않았다. 승인된 실제 A1만 id=1/request_id=-1/mode=analysis/status=failed/error=CLAUDE_EXIT 조건으로 pending·CLAUDE_LOGIN_REQUIRED로 준비했다. 기존1분 실행기는 auth 확인이 claim보다 먼저이므로 인증 복구 전에는 실행/attempt 증가 없이 대기한다. 기존 Codex sent·Notion·sources를 다시 생성하지 않는다. 인증 복구 후 같은 A1을 자동 실행할 수 있으며 성공·Claude Notion·JARVIS 후속 알림은 이후 실제 상태로 검증해야 한다.
