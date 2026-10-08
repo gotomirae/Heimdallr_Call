@@ -5,8 +5,8 @@
     "confirmed": 446,
     "not_applicable": 12
   },
-  "latest_all_three": 16,
-  "confirmed_missing_latest_all_three": 430,
+  "latest_all_three": 17,
+  "confirmed_missing_latest_all_three": 429,
   "ir_research_attached": 481,
   "confirmed_ir_research_attached": 446,
   "confirmed_kind_documents": 810,
@@ -110,6 +110,23 @@
           }
         },
         {
+          "scope": "[LS Energy Solutions] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 178,
+          "newOrders": 16,
+          "qoq": 3.488372093023262,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        },
+        {
           "scope": "[LS파워솔루션] / 회사 공시 단일행",
           "unit": "억원",
           "period": "2026-06",
@@ -127,23 +144,6 @@
           }
         },
         {
-          "scope": "[LS Energy Solutions] / 회사 공시 단일행",
-          "unit": "억원",
-          "period": "2026-06",
-          "backlog": 178,
-          "newOrders": 16,
-          "qoq": 3.488372093023262,
-          "complete": true,
-          "missing": [],
-          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
-          "history": {
-            "backlog": 6,
-            "newOrders": 4,
-            "qoq": 5,
-            "complete": 3
-          }
-        },
-        {
           "scope": "공식 IR 주요제품 수주사업",
           "unit": "억원",
           "period": "2026-06",
@@ -158,6 +158,29 @@
             "newOrders": 6,
             "qoq": 3,
             "complete": 3
+          }
+        }
+      ]
+    },
+    {
+      "code": "022100",
+      "name": "포스코DX",
+      "series": [
+        {
+          "scope": "공식 IR 연결 경영실적 공시 합계 (2026 발표·잔고 조원 반올림)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 9600,
+          "newOrders": 2304,
+          "qoq": 0,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.poscodx.com/download.do?fid=348&pid=7118",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
           }
         }
       ]

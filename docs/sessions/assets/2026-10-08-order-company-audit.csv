@@ -282,7 +282,7 @@
 021240,코웨이,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002001
 021320,KCC건설,confirmed,단일판매·공급계약 공시 확인 (전체 수주량은 별도 조사),2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261008900243
 021820,세원정공,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260922000499
-022100,포스코DX,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,9566.76,,-0.3667993476345388,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000366
+022100,포스코DX,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,공식 IR 연결 경영실적 공시 합계 (2026 발표·잔고 조원 반올림),억원,9600,2304,0,True,,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000366
 023160,태광,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261001000037
 023410,유진기업,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003236
 023450,동남합성,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000350
@@ -760,7 +760,7 @@
 128820,대성산업,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002153
 128940,한미약품,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004181
 129920,대성하이텍,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,764.88,,14.137344435491084,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002715
-130580,나이스디앤비,review,원문에서 ���주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001736
+130580,나이스디앤비,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001736
 130660,한전산업,confirmed,단일판매·공급계약 공시 확인 (전체 수주량은 별도 조사),2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260930800058
 131030,옵투스제약,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000735
 131290,티에스이,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,1319.12,,37.94718954248364,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002616
