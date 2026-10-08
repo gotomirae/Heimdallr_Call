@@ -388,6 +388,10 @@ def _order_scope_heading(table) -> str | None:
             return re.sub(r"\s+", "", label) if re.search(r"[가-힣]", label) and not re.search(r"종속회사|지배회사", label) else label
         if re.match(r"^(?:종속회사|지배회사)\s*[:：]", heading):
             return heading
+        # KAI의 종속회사 표제는 대괄호 없이 '(주)제노코' 등으로 적힌다.
+        # 이 표제를 잃으면 자회사 잔고가 모회사 전체 합계로 표시된다.
+        if re.fullmatch(r"(?:(?:\(주\)|주식회사)\s*[^():：]{2,60}|[^():：]{2,60}\s*\(주\))", heading):
+            return heading
         numbered = re.search(r"\(\d+\)\s*([^()]{2,45})$", heading)
         if numbered and not re.search(r"판매|수주|매출", numbered[1]):
             return numbered[1].strip()

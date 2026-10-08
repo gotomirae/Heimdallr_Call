@@ -5,8 +5,8 @@
     "confirmed": 446,
     "not_applicable": 12
   },
-  "latest_all_three": 17,
-  "confirmed_missing_latest_all_three": 429,
+  "latest_all_three": 19,
+  "confirmed_missing_latest_all_three": 427,
   "ir_research_attached": 481,
   "confirmed_ir_research_attached": 446,
   "confirmed_kind_documents": 810,
@@ -295,6 +295,29 @@
       ]
     },
     {
+      "code": "047810",
+      "name": "한국항공우주",
+      "series": [
+        {
+          "scope": "공식 IR 사업부 공시 합계 (분기 경영실적 표)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 257502,
+          "newOrders": 3194,
+          "qoq": -3.0241176204751197,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.koreaaero.com/KO/Services/Common/DownloadFile.aspx?FilePid=14770",
+          "history": {
+            "backlog": 9,
+            "newOrders": 9,
+            "qoq": 7,
+            "complete": 7
+          }
+        }
+      ]
+    },
+    {
       "code": "056190",
       "name": "SFA",
       "series": [
@@ -313,6 +336,29 @@
             "newOrders": 10,
             "qoq": 9,
             "complete": 9
+          }
+        }
+      ]
+    },
+    {
+      "code": "064350",
+      "name": "현대로템",
+      "series": [
+        {
+          "scope": "공식 IR 사업부 공시 합계 (2025~2026 발표 기준)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 304046,
+          "newOrders": 18703,
+          "qoq": 1.9669261287607265,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.hyundai-rotem.co.kr/upload/2026/7/20260724015202026163.pdf",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
           }
         }
       ]

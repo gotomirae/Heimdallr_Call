@@ -28,6 +28,7 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "140860": "파크시스템스", "079550": "LIG디펜스앤에어로스페이스", "356860": "티엘비", "006360": "GS건설",
     "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술", "375500": "DL이앤씨",
     "047040": "대우건설", "294870": "IPARK현대산업개발", "022100": "포스코DX",
+    "064350": "현대로템", "047810": "한국항공우주",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -37,6 +38,8 @@ OFFICIAL_IR_HOSTS = {
     "047040": "https://www.daewooencir.co.kr",
     "294870": "https://ipark-dvp.com",
     "022100": "https://www.poscodx.com",
+    "064350": "https://www.hyundai-rotem.co.kr",
+    "047810": "https://www.koreaaero.com",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }

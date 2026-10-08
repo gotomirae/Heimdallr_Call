@@ -587,3 +587,16 @@ def test_vertical_contract_orders_separate_current_domestic_and_usd_with_explici
     assert structured_order_series(xml.replace("<TD>0.00</TD>", "<TD>-</TD>")) == rows
     assert not structured_order_series(xml.replace("단위 : 원, USD", "단위 : 백만원, 천USD"))
     assert not structured_order_series(xml.replace("77,102,371,407", "77,102,371,408").replace("18,860,475.48", "18,860,475.49"))
+
+
+def test_unbracketed_subsidiary_heading_keeps_parent_and_subsidiary_apart():
+    # KAI 25Q3: 제노코 82,149,293천원은 KAI 전체 262,673억원이 아니다.
+    xml = '''<P>[ 지배회사의 내용 ]</P><P>(단위: 억원)</P>
+<TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>262,673</TD></TR></TABLE>
+<P>[ 종속회사의 내용 ]</P><P>(주)제노코</P><P>(단위: 천원)</P>
+<TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>82,149,293</TD></TR></TABLE>'''
+    from src.collectors.dart_excerpt import structured_order_series
+    rows = structured_order_series(xml)
+    assert len(rows) == 2
+    assert any('[ 지배회사의 내용 ]' in row and '262,673' in row for row in rows)
+    assert any('(주)제노코 / 회사 공시 합계' in row and '82,149,293' in row for row in rows)

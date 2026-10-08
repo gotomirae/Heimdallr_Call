@@ -71,7 +71,7 @@
 002960,한국쉘석유,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003708
 002990,금호건설,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,94718.48,,-1.056752154572893,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000466
 003000,부광약품,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001667
-003010,혜인,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,240.9,,-59.29368029739776,False,최신 정기보고서 기간의 수치 미확보 / 신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250804000178
+003010,혜인,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,591.8,,0,False,최신 정기보고서 기간의 수치 미확보 / 신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241111000448
 003070,코오롱글로벌,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,118495.67,,3.1395162205654303,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003744
 003090,대웅,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002579
 003100,선광,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001951
@@ -235,7 +235,7 @@
 014680,한솔케미칼,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001414
 014710,사조씨푸드,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003123
 014790,HL D&I,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,58618.81,,-2.620948416794122,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001577
-014820,동원시스템즈,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001261
+014820,동원시스템즈,review,원문에서 수주기업 여부를 ���정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001261
 014830,유니드,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001550
 014940,오리엔탈정공,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,[단위:백만원] / 회사 공시 합계,억원,2908.34,,-5.317611209500983,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000120
 015230,대창단조,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,378.43,,4.889270766928133,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000441
@@ -435,7 +435,7 @@
 047050,포스코인터내셔널,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 단일행,억원,32474,,,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요 / QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001968
 047310,파워로직스,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000125
 047770,코데즈컴바인,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001141
-047810,한국항공우주,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,821.49,,,False,최신 정기보고서 기간의 수치 미확보 / 신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요 / QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114002303
+047810,한국항공우주,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,공식 IR 사업부 공시 합계 (분기 경영실적 표),억원,257502,3194,-3.0241176204751197,True,,https://www.koreaaero.com/KO/Services/Common/DownloadFile.aspx?FilePid=14770
 047920,HLB제약,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001328
 048410,현대바이오,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261002000649
 048550,SM C&C,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002532
@@ -504,7 +504,7 @@
 063570,NICE인프라,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002987
 064260,다날,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002403
 064290,인텍플러스,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,1261.69,,106.95656452988649,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002497
-064350,현대로템,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,주요계약(전체 회사 아님),억원,127711.9,,7.628942122093263,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002977
+064350,현대로템,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,공식 IR 사업부 공시 합계 (2025~2026 발표 기준),억원,304046,18703,1.9669261287607265,True,,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002977
 064400,LG씨엔에스,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,53472.95,,31.538203627223528,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002448
 064550,바이오니아,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004190
 064760,티씨케이,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,1993.7,,104.7340316286712,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001689
@@ -685,7 +685,7 @@
 101490,에스앤에스텍,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000645
 101730,위메이드맥스,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000941
 101930,인화정공,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,786.59,,-3.6867882943553365,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002712
-101970,우양에이치씨,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,1083.31,,35.49335234450239,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004059
+101970,우양에이치씨,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,회사 공시 합계,억원,799.53,,-15.690740564993199,False,최신 정기보고서 기간의 수치 미확보 / 신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514000624
 102120,어보브반도체,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003851
 102260,동성케미컬,confirmed,정기보고서·공식 IR 수주 수치 확인,2026-06,[ 종속회사 내용 ] [ (주) 동성화인텍 ] 1) 수주 잔고 / 회사 공시 합계,억원,20410.85,,-1.700780196493934,False,신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003663
 102460,이연제약,review,원문에서 수주기업 여부를 확정하지 못함,2026-06,,,,,,False,원문·기업 IR 추가 조사,https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004092
