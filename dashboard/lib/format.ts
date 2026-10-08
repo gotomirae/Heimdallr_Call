@@ -36,6 +36,15 @@ export function num(value: number | null | undefined, digits = 0): string {
   });
 }
 
+/** 수주 소액이 0으로 보이지 않도록 백만 외화 단위의 센트까지 표시한다. */
+export function orderAmount(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return DASH;
+  return value.toLocaleString("ko-KR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: value !== 0 && Math.abs(value) < 0.005 ? 8 : 2,
+  });
+}
+
 export function quarterLabel(year: number, quarter: number): string {
   return `${year}.${quarter}Q`;
 }

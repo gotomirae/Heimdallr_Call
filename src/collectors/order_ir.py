@@ -26,13 +26,13 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "298040": "효성중공업", "059090": "미코", "475960": "토모큐브", "044490": "태웅",
     "100090": "SK오션플랜트", "388050": "지투파워", "213420": "덕산네오룩스", "010140": "삼성중공업",
     "140860": "파크시스템스", "079550": "LIG디펜스앤에어로스페이스", "356860": "티엘비", "006360": "GS건설",
-    "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술",
+    "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술", "375500": "DL이앤씨",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
     "034020": "https://www.doosanenerbility.com", "298040": "https://www.hyosungheavyindustries.com",
     "010140": "https://www.samsungshi.com", "006360": "https://www.gsenc.com",
-    "028050": "https://sea.samsungena.com", "000720": "https://m.hdec.kr",
+    "028050": "https://sea.samsungena.com", "000720": "https://m.hdec.kr", "375500": "https://www.dlenc.co.kr",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }

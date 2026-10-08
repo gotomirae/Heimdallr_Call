@@ -56,7 +56,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v8 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v9 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -402,6 +402,53 @@ def _order_scope_heading(table) -> str | None:
     return None
 
 
+def _contract_rollforward_series(table) -> list[str] | None:
+    """명시 신규 계약 행의 당기 통화 열과 원문 변동식을 대조한다."""
+    grid = _table_grid(table)
+    labels = ["기초수주계약잔액", "신규수주계약금액", "변경수주계약금액", "수익인식액", "수주계약잔액"]
+    if not any(row and _order_header(row[0]) == labels[1] for row in grid):
+        return None
+    if (len(grid) < 7 or any(len(row) != 5 for row in grid)
+            or _order_header(grid[0][0]) != "구분"
+            or grid[0][1] != grid[0][2] or _order_header(grid[0][1]) not in {"당기", "당분기", "당반기"}
+            or not all(_order_header(grid[0][i]) == "전기" for i in (3, 4))):
+        return []
+    headers = [re.sub(r"\s+", "", cell) for cell in grid[1]]
+    if not re.fullmatch(r"국내계약(?:\(원\))?", headers[1]) or headers[2] != "수출계약(USD)":
+        return []
+    if headers[3:] != headers[1:3]:
+        return []
+    explicit_won = headers[1] == "국내계약(원)"
+    for tag in table.find_all_previous(["p", "table"], limit=3):
+        if tag.name == "table" and len(tag.find_all("tr")) > 1:
+            break
+        context = re.sub(r"\s+", "", tag.get_text())
+        if "단위" in context:
+            if not re.search(r"단위[:：]원,USD(?:\)|$)", context):
+                return []
+            explicit_won = True
+            break
+    rows = {label: [r for r in grid[2:] if _order_header(r[0]) == label] for label in labels}
+    if any(len(items) != 1 for items in rows.values()):
+        return []
+    results = []
+    for column, unit, scope in ((1, "원" if explicit_won else None, "국내계약"), (2, "USD", "수출계약")):
+        if unit is None:
+            continue
+        raw = [re.sub(r"\s+", "", rows[label][0][column]) for label in labels]
+        if not all(re.fullmatch(r"-?[\d,]+(?:\.\d+)?|\([\d,]+(?:\.\d+)?\)", value)
+                   or i == 2 and value == "-" for i, value in enumerate(raw)):
+            continue
+        # 신규·잔고는 반드시 명시 숫자다. 변경 행 '-'의 0은 변동식 검증에만 쓴다.
+        amounts = [Decimal("0" if value == "-" else value.replace(",", "").replace("(", "-").replace(")", "")) for value in raw]
+        if (amounts[0] + amounts[1] + amounts[2] + amounts[3] != amounts[4]
+                or amounts[1] < 0 or amounts[4] < 0):
+            continue
+        results.append(f"범위 | 공시 진행기준 수주계약 / {scope}\n단위 | {unit}"
+                       f"\n수주잔고 | {raw[4]}\n신규수주 | {raw[1]}\n신규수주 기간 | 보고기간 누적")
+    return results
+
+
 def structured_order_series(section_xml: str, *, period_end: str | None = None) -> list[str]:
     """다단 머리글을 포함한 DART 수주표에서 검증 가능한 합계만 구조화한다.
 
@@ -418,7 +465,8 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
                      "당분기수주잔고", "당반기수주잔고", "당기수주잔고",
                      "계약잔액", "수주잔액", "기말계약잔액"}
     new_names = {"신규수주", "당기수주", "신규수주액", "당기수주액", "당기수주금액", "당기신규수주액", "당기신규수주",
-                 "당반기수주총액", "당기수주총액", "당분기수주총액", "당해신규수주액"}
+                 "당반기수주총액", "당기수주총액", "당분기수주총액", "당해신규수주액",
+                 "당반기수주", "당분기수주", "신규수주계약금액"}
     # 명시 정의가 있을 때만 수주총액을 당기 신규수주로 읽는다(엠앤씨솔루션).
     period_flow = bool(re.search(r"수주총액\s*=\s*당기\s*수주총액", soup.get_text(" ", strip=True)))
     if period_flow:
@@ -426,6 +474,7 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
     numeric = re.compile(r"^-?[\d,]+(?:\.\d+)?$")
     total_label = re.compile(r"^(?:(?:총|전체|전사|수주)\s*)?(?:합\s*계|총\s*계|계)$")
     candidates: list[tuple[str, str, str | None, str | None]] = []
+    vertical_series: list[str] = []
     candidate_items: list[str | None] = []
     period_labels: dict[str, str] = {}
     order_tables = [
@@ -434,6 +483,10 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
                for cell in table.find_all(["th", "td"]))
     ]
     for table in order_tables:
+        rollforward = _contract_rollforward_series(table)
+        if rollforward is not None:
+            vertical_series.extend(rollforward)
+            continue
         if period_end:
             # 코미팜은 분기말 표 뒤에 보고서 제출 직전 잔고도 싣는다. 후자를
             # 같은 분기 잔고로 쓰거나 두 표를 합산하지 않는다.
@@ -701,6 +754,12 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         if new_orders is not None:
             rows.extend((f"신규수주 | {new_orders}", f"신규수주 기간 | {period_labels[scope]}"))
         result.append("\n".join(rows))
+    # 회사 구분이 없는 서로 다른 변동표를 같은 범위로 덮어쓰지 않는다.
+    vertical_by_scope: dict[tuple[str, str], set[str]] = {}
+    for metric in vertical_series:
+        lines = metric.splitlines()
+        vertical_by_scope.setdefault((lines[0], lines[1]), set()).add(metric)
+    result.extend(next(iter(values)) for values in vertical_by_scope.values() if len(values) == 1)
     narrative = narrative_order_metrics(section_xml) if not result else None
     return result or ([narrative] if narrative else [])
 
@@ -847,6 +906,7 @@ def build_excerpt(
             "당분기말수주잔고", "당반기말수주잔고",
             "계약잔액", "수주잔액", "기말계약잔액", "수주잔고액", "기말수주잔고액",
             "신규수주", "당기수주", "신규수주액", "당기수주액", "당기신규수주액", "당기신규수주",
+            "당반기수주", "당분기수주", "신규수주계약금액",
         }
         for table in BeautifulSoup(order_section_xml, "html.parser").find_all("table")
         for cell in table.find_all(["td", "th"])

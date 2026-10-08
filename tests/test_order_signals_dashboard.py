@@ -92,6 +92,19 @@ def test_foreign_backlog_is_not_misrepresented_as_won():
     assert result['backlogEok'] is None and result['backlogAmount'] == 9923 and result['amountUnit'] == '백만USD'
 
 
+def test_small_dollar_new_orders_keep_cents_through_conversion_chart_and_display():
+    # 우리기술 원문: H1 $2,414.24 − Q1 $2,053.46 = Q2 $360.78.
+    rows = [{"rcept_no": str(q), "fiscal_year": 2026, "fiscal_quarter": q,
+             "sections": {"공시 수주지표": f"범위 | 수출계약\n단위 | USD\n수주잔고 | 18638870.25\n신규수주 | {amount}\n신규수주 기간 | 보고기간 누적"}}
+            for q, amount in [(1, "2053.46"), (2, "2414.24")]]
+    reports = _run([{"metric": True, "row": row} for row in rows])
+    assert reports[1]["newOrdersAmount"] == pytest.approx(0.00241424)
+    chart = _run([{"orderReportPoints": True, "points": [], "reports": reports}])[0]
+    assert chart[1]["newOrders"] == pytest.approx(0.00036078)
+    assert _run([{"orderAmount": True, "value": value} for value in
+                 [chart[1]["newOrders"], 0, None, 840.30367877]]) == ["0.00036078", "0.00", "—", "840.30"]
+
+
 def test_contract_window_starts_after_actual_period_not_announcement_or_current_quarter():
     rows = [{"disclosedAt": day} for day in ["2026-06-30", "2026-07-01", "2026-08-01", "2026-10-02", "2026-10-04"]]
     result = _run([{"periodWindow": True, "rows": rows, "basisDate": "2026-10-03", "periodEnd": "2026-06-30"}])[0]

@@ -161,7 +161,8 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     });
     // 둘 이상의 행·사업부가 있으면 어떤 합계인지 알 수 없다.
     return values.length === 1 && Number.isFinite(values[0]) && values[0] >= 0
-      ? Math.round(values[0] * factor * 100) / 100 : null;
+      // 백만 외화 단위에서도 원문 1센트(1e-8)를 보존한다. 소액을 실제 0으로 바꾸지 않는다.
+      ? Math.round(values[0] * factor * (krw ? 100 : 1e8)) / (krw ? 100 : 1e8) : null;
   };
   const backlogAmount = exactValue(/^수주\s*잔고$/);
   const newOrdersAmount = exactValue(/^신규\s*수주$/);

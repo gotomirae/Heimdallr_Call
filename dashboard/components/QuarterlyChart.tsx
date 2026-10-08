@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { createContext, useContext } from "react";
 import { SERIES_COLOR, withOrderBacklogQoq, type ChartPoint } from "@/lib/chart";
+import { orderAmount } from "@/lib/format";
 import { fundamentalMetricMeanings, type MetricMeaning, type QuarterInterpretation } from "@/lib/metricMeaning";
 
 const ReviewContext = createContext<QuarterInterpretation[]>([]);
@@ -185,9 +186,9 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
       <YAxis yAxisId="amount" width={52} domain={[0, "auto"]} stroke="#ffffff" fontSize={9} tickFormatter={(v) => Number(v).toLocaleString("ko-KR")} />
       <YAxis yAxisId="percent" orientation="right" width={42} domain={["auto", "auto"]} stroke="#facc15" fontSize={9} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
       <ReferenceLine yAxisId="percent" y={0} stroke="#64748b" strokeWidth={1} />
-      <Tooltip formatter={(v, name) => [fmt(v, String(name).includes("QoQ") ? "%" : suffix), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
-      <Bar yAxisId="amount" dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel(suffix)} /></Bar>
-      <Bar yAxisId="amount" dataKey="newOrders" name="신규수주(분기 단독)" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel(suffix)} /></Bar>
+      <Tooltip formatter={(v, name) => [String(name).includes("QoQ") ? fmt(v, "%") : `${orderAmount(typeof v === "number" ? v : null)}${suffix}`, name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
+      <Bar yAxisId="amount" dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={(v) => `${orderAmount(typeof v === "number" ? v : null)}${suffix}`} /></Bar>
+      <Bar yAxisId="amount" dataKey="newOrders" name="신규수주(분기 단독)" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={(v) => `${orderAmount(typeof v === "number" ? v : null)}${suffix}`} /></Bar>
       <Bar yAxisId="amount" dataKey="disclosedContractEok" name="공시 신규계약(하한·보고서일까지)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar yAxisId="amount" dataKey="postReportContractEok" name="공시 신규계약(하한·보고서 이후)" fill="#fb923c" isAnimationActive={false}><LabelList dataKey="postReportContractEok" position="top" fill="#fed7aa" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Line yAxisId="percent" type="linear" dataKey="orderBacklogQoq" name="수주잔고 QoQ" stroke="#facc15" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="orderBacklogQoq" content={(p) => lineLabel("#fde047", "%", -12)({ ...p })} /></Line>

@@ -21,7 +21,7 @@ import { growthCategory } from "@/lib/growthCategory";
 import { dartReportUrl, naverStockUrl, stockeasyStockUrl } from "@/lib/links";
 import { forwardPeg } from "@/lib/valuation";
 import { productShareDisclosure } from "@/lib/productShares";
-import { DASH, eok, growthOrLabel, marketCap, num, pct, quarterLabel } from "@/lib/format";
+import { DASH, eok, growthOrLabel, marketCap, num, orderAmount, pct, quarterLabel } from "@/lib/format";
 import { completedCloseAtKst16, getNaverDailyPrices, getNaverLiveSnapshot, getNaverInvestorFlows } from "@/lib/naver";
 import {
   getAnalysis,
@@ -1072,14 +1072,14 @@ export default async function StockPage({ params }: { params: { code: string } }
             <tbody>{orderSummaries.map((row) => <tr key={`${row.rceptNo}:${row.scope}`} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-white">{disclosureDateByReceipt.get(row.rceptNo) ?? DASH}</td>
               <td className="py-2 text-white">{row.periodLabel ?? quarterLabel(row.year, row.quarter)}</td>
-              <td className="py-2 tabular-nums">{(row.backlogAmount ?? row.backlogEok) == null ? DASH : `${num(row.backlogAmount ?? row.backlogEok, 2)}${row.amountUnit ?? "억원"}`}</td>
+              <td className="py-2 tabular-nums">{(row.backlogAmount ?? row.backlogEok) == null ? DASH : `${orderAmount(row.backlogAmount ?? row.backlogEok)}${row.amountUnit ?? "억원"}`}</td>
               <td className="py-2 tabular-nums">{(() => { const value = orderQoq.get(`${row.scope}:${row.amountUnit ?? "억원"}:${row.year}:${row.quarter}`); return value == null ? DASH : `${value >= 0 ? "+" : ""}${num(value, 1)}%`; })()}</td>
               <td className="py-2 tabular-nums">{(() => {
                 const metric = orderMetrics.find((m) => m.rceptNo === row.rceptNo && m.scope === row.scope);
                 const result = metric ? quarterNewOrders(metric, orderMetrics) : null;
-                return <span title={result?.status}>{result?.value == null ? DASH : `${num(result.value, 2)}${row.amountUnit ?? "억원"}`}{result?.value == null && result?.cumulative != null && <span className="mt-1 block text-[10px] text-amber-200">{result.status}</span>}</span>;
+                return <span title={result?.status}>{result?.value == null ? DASH : `${orderAmount(result.value)}${row.amountUnit ?? "억원"}`}{result?.value == null && result?.cumulative != null && <span className="mt-1 block text-[10px] text-amber-200">{result.status}</span>}</span>;
               })()}</td>
-              <td className="py-2 tabular-nums">{(row.newOrdersAmount ?? row.newOrdersEok) == null ? DASH : `${num(row.newOrdersAmount ?? row.newOrdersEok, 2)}${row.amountUnit ?? "억원"}`}</td>
+              <td className="py-2 tabular-nums">{(row.newOrdersAmount ?? row.newOrdersEok) == null ? DASH : `${orderAmount(row.newOrdersAmount ?? row.newOrdersEok)}${row.amountUnit ?? "억원"}`}</td>
               <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-white">{row.scope}</span>}{row.newOrdersPeriod && <span className="mt-0.5 block text-[11px] text-amber-200">신규수주: {row.newOrdersPeriod}</span>}</td>
               <td className="py-2"><a href={row.sourceUrl ? `${row.sourceUrl}${row.sourcePage ? `#page=${row.sourcePage}` : ""}` : dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">{row.sourceLabel ?? "DART 원문"}{row.sourcePage ? ` p${row.sourcePage}` : ""}</a>{row.newOrdersSourceUrl && <a href={row.newOrdersSourceUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-pink-300 underline">신규수주 근거</a>}</td>
             </tr>)}</tbody>

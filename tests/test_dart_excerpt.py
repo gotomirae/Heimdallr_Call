@@ -556,3 +556,34 @@ def test_order_dot_typo_requires_explicit_contract_balance_for_single_item():
     assert '수주잔고 | 5,118' in structured_order_metrics(xml.replace('595,161','20,362').replace('142,757','15,244').replace('452.404','5.118'))
     # 차감액과 정확히 일치하지 않으면 소수 또는 오기인지 판정할 수 없다.
     assert '수주잔고 | 452.404' in structured_order_metrics(xml.replace('142,757','142,000'))
+
+
+@pytest.mark.parametrize("label,amount,backlog", [("당반기수주", 41482, 34423), ("당분기수주", 47336, 34604)])
+def test_report_period_orders_without_amount_suffix_preserve_cumulative_period(label, amount, backlog):
+    from src.collectors.dart_excerpt import structured_order_series
+    # 기가비스 25H1/25.9M 실제 명시 표: '당분기'는 보고 누적이며 Q3 단독은 47,336−41,482.
+    xml = f'<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>{label}</TH><TH>납품액</TH><TH>수주잔고</TH></TR><TR><TD>반도체 기판 검사 및 수리장비</TD><TD>{amount}</TD><TD>7059</TD><TD>{backlog}</TD></TR></TABLE>'
+    [metric] = structured_order_series(xml)
+    assert f"신규수주 | {amount}" in metric
+    assert "신규수주 기간 | 보고기간 누적" in metric
+
+
+def test_vertical_contract_orders_separate_current_domestic_and_usd_with_explicit_units():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 우리기술 26Q1 실제 원문. 전기 전체를 현재 분기로 읽거나 변경 계약을 신규에 합산하지 않는다.
+    xml = '<P>(단위 : 원, USD)</P><TABLE><TR><TH rowspan="2">구분</TH><TH colspan="2">당분기</TH><TH colspan="2">전기</TH></TR><TR><TH>국내계약(원)</TH><TH>수출계약(USD)</TH><TH>국내계약(원)</TH><TH>수출계약(USD)</TH></TR>'
+    for label,krw,usd in [("기초 수주계약 잔액","80,646,541,916","19,618,088.00"),("신규 수주계약 금액","416,612,786","2,053.46"),("변경 수주계약 금액","104,368,906","0.00"),("수익 인식액","(4,065,152,201)","(759,665.98)"),("수주계약 잔액","77,102,371,407","18,860,475.48")]:
+        xml += f'<TR><TD>{label}</TD><TD>{krw}</TD><TD>{usd}</TD><TD>999999</TD><TD>88888</TD></TR>'
+    xml += '</TABLE>'
+    rows = structured_order_series(xml)
+    assert len(rows) == 2
+    domestic = next(r for r in rows if "국내계약" in r)
+    export = next(r for r in rows if "수출계약" in r)
+    assert "단위 | 원" in domestic and "신규수주 | 416,612,786" in domestic
+    assert "수주잔고 | 77,102,371,407" in domestic
+    assert "단위 | USD" in export and "신규수주 | 2,053.46" in export
+    assert "수주잔고 | 18,860,475.48" in export
+    # 변경 계약 '-'는 신규/잔고를 추정하지 않고 네 명시 금액의 변동식과 대조한다.
+    assert structured_order_series(xml.replace("<TD>0.00</TD>", "<TD>-</TD>")) == rows
+    assert not structured_order_series(xml.replace("단위 : 원, USD", "단위 : 백만원, 천USD"))
+    assert not structured_order_series(xml.replace("77,102,371,407", "77,102,371,408").replace("18,860,475.48", "18,860,475.49"))
