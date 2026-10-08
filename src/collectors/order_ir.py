@@ -27,7 +27,7 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "100090": "SK오션플랜트", "388050": "지투파워", "213420": "덕산네오룩스", "010140": "삼성중공업",
     "140860": "파크시스템스", "079550": "LIG디펜스앤에어로스페이스", "356860": "티엘비", "006360": "GS건설",
     "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술", "375500": "DL이앤씨",
-    "047040": "대우건설",
+    "047040": "대우건설", "294870": "IPARK현대산업개발",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -35,6 +35,7 @@ OFFICIAL_IR_HOSTS = {
     "010140": "https://www.samsungshi.com", "006360": "https://www.gsenc.com",
     "028050": "https://sea.samsungena.com", "000720": "https://m.hdec.kr", "375500": "https://www.dlenc.co.kr",
     "047040": "https://www.daewooencir.co.kr",
+    "294870": "https://ipark-dvp.com",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }
@@ -46,6 +47,16 @@ OFFICIAL_IR_ADDITIONAL_HOSTS = {
 
 def download_verified_pdf(fact: dict) -> bytes:
     """폼 전용 자료실은 공개 CSRF 절차로 내려받고 화면에는 자료실을 링크한다."""
+    storage_key = fact.get("download_key")
+    if storage_key is not None:
+        library = "https://ipark-dvp.com/ko/ir/information/materials"
+        if fact["code"] != "294870" or fact["source_url"] != library or not isinstance(storage_key, str) or not re.fullmatch(r"[0-9A-F]{128,160}", storage_key):
+            raise ValueError("공식 IR 폼 다운로드 대상 불일치")
+        with httpx.Client(timeout=90, follow_redirects=True) as client:
+            response = client.post("https://ipark-dvp.com/common/storage/download",
+                                   data={"key": storage_key, "originName": fact["download_name"]}, headers={"Referer": library})
+            response.raise_for_status()
+            return response.content
     index = fact.get("download_idx")
     if index is None:
         return http_get(fact["source_url"], timeout=90).content
@@ -103,7 +114,7 @@ def parse_quarter_order_page(text: str) -> list[dict]:
 
 def verified_ir_facts() -> list[dict]:
     facts = []
-    downloads: dict[tuple[str, int | None], bytes] = {}
+    downloads: dict[tuple[str, int | None, str | None], bytes] = {}
     # 벡터/이미지 표는 숫자 위치를 추측하지 않는다. 직접 렌더링 대조한 장부만
     # 원문 해시·페이지를 재검증한 뒤 받아들인다.
     manifest = Path(__file__).resolve().parents[1] / "config" / "order_ir_verified.json"
@@ -117,7 +128,7 @@ def verified_ir_facts() -> list[dict]:
             if not any(url.startswith(host + "/") for host in hosts):
                 raise ValueError("검증 장부 회사/공식 출처 불일치")
             index = fact.get("download_idx") if url == fact["source_url"] else None
-            key = (url, index)
+            key = (url, index, fact.get("download_key") if url == fact["source_url"] else None)
             if key not in downloads:
                 downloads[key] = download_verified_pdf(fact) if url == fact["source_url"] else http_get(url, timeout=90).content
             data = downloads[key]
@@ -257,7 +268,7 @@ def format_ir_metric(fact: dict) -> str:
               + (f'\n수주잔고 | {plain_ir_amount(fact["backlog"])}' if fact["backlog"] is not None else "")
               + (f'\n신규수주 | {plain_ir_amount(fact["new_orders"])}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
               f'\n출처 | {fact["source_url"]}' +
-              (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None else "") +
+              (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None and fact.get("download_key") is None else "") +
               f'\n자료명 | 공식 IR')
     if fact.get("new_orders_source_url"):
         metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'

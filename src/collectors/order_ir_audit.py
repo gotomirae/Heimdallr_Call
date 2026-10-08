@@ -40,6 +40,7 @@ def main() -> int:
     with Path(args.codes_file).open(encoding='utf-8-sig',newline='') as handle:
         codes={r['code'] for r in csv.DictReader(handle)}
     if not codes or any(not re.fullmatch(r'\d{6}',code) for code in codes):parser.error('6자리 code 목록 필요')
+    (root/'targets.json').write_text(json.dumps(sorted(codes)),encoding='utf-8')
     params={'method':'searchIRMaterialsSub','forward':'searchirmaterials_sub','currentPageSize':str(ORDER_IR_AUDIT_PAGE_SIZE),'fromDate':args.from_date,'toDate':args.to_date}
     # GET은 서버가 필터를 무시해 15행을 돌려준다. POST 총건수/페이지를 검증한다.
     query_id=hashlib.sha256(json.dumps(params,sort_keys=True).encode()).hexdigest()[:12]
@@ -106,6 +107,7 @@ def main() -> int:
             except Exception as error:failures.append({**futures[future],'error':type(error).__name__})
             if i%25==0:print('read',i,'/',len(docs),'candidate_docs',sum(bool(r['pages']) for r in results),'failures',len(failures),flush=True)
             (root/'scan.json').write_text(json.dumps({'results':results,'failures':failures},ensure_ascii=False),encoding='utf-8')
+    (root/'scan.json').write_text(json.dumps({'results':results,'failures':failures},ensure_ascii=False),encoding='utf-8')
     print('done',len(results),'candidates',sum(bool(r['pages']) for r in results),'companies',len({r['code'] for r in results if r['pages']}),'failures',len(failures),flush=True)
     summary={'from_date':args.from_date,'to_date':args.to_date,'target_companies':len(codes),
              'listing_total':total,'listing_pages':pages,'matched_rows':len(rows),

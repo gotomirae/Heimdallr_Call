@@ -208,8 +208,13 @@ def test_transport_failure_keeps_pending_and_collects_next_report(monkeypatch, c
     saved = []
     class DB:
         def table(self, name): return self
+        def select(self, columns): return self
+        def eq(self, *args): return self
+        def limit(self, count): return self
         def upsert(self, row, **kw): saved.append(row); return self
-        def execute(self): return None
+        def execute(self):
+            from types import SimpleNamespace
+            return SimpleNamespace(data=[{"sections": {"order_company_audit": {"status": "confirmed"}}}])
     def fetch(receipt):
         if receipt == "0":
             raise RuntimeError("HTTP 조회 실패(5회 재시도)") from httpx.ConnectTimeout("timed out")
@@ -221,6 +226,7 @@ def test_transport_failure_keeps_pending_and_collects_next_report(monkeypatch, c
     monkeypatch.setattr(e, "build_excerpt", lambda receipt, xml, **kw: ReportExcerpt(receipt, {"사업의 개요": "본문"}, 2))
     assert e.main() == 0
     assert [r["rcept_no"] for r in saved] == ["1"]
+    assert saved[0]["sections"]["order_company_audit"]["status"] == "confirmed"
     output = capsys.readouterr().out
     assert "미수집 유지" in output and "rcpNo=0" in output
     assert "수집 1건 · 실패 1건" in output

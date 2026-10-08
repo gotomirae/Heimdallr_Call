@@ -1,0 +1,522 @@
+{
+  "universe": 1206,
+  "classification": {
+    "review": 748,
+    "confirmed": 446,
+    "not_applicable": 12
+  },
+  "latest_all_three": 16,
+  "confirmed_missing_latest_all_three": 430,
+  "ir_research_attached": 481,
+  "confirmed_ir_research_attached": 446,
+  "confirmed_kind_documents": 810,
+  "confirmed_kind_candidates": 199,
+  "confirmed_kind_candidate_companies": 59,
+  "confirmed_kind_failures": 1,
+  "complete_companies": [
+    {
+      "code": "000720",
+      "name": "현대건설",
+      "series": [
+        {
+          "scope": "공식 IR 연결(2026년 표시 기준)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1039831,
+          "newOrders": 188609,
+          "qoq": 12.628826617650724,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.hdec.kr/kr/Common/FileDownLoad.aspx?MenuCode=&DownLoadCheck=95773400680849408&AutoIndex=30374",
+          "history": {
+            "backlog": 3,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ]
+    },
+    {
+      "code": "010120",
+      "name": "엘에스일렉트릭",
+      "series": [
+        {
+          "scope": "[LS ELECTRIC] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 69998,
+          "newOrders": 21519,
+          "qoq": 24.054940186087737,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        },
+        {
+          "scope": "[LS메탈] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 666,
+          "newOrders": 393,
+          "qoq": 44.15584415584415,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        },
+        {
+          "scope": "[LS이모빌리티솔루션] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 12179,
+          "newOrders": 941,
+          "qoq": 4.567699836867867,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        },
+        {
+          "scope": "[LS ELECTRIC Vietnam] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 962,
+          "newOrders": 564,
+          "qoq": 34.73389355742298,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        },
+        {
+          "scope": "[LS파워솔루션] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 5775,
+          "newOrders": 3484,
+          "qoq": 110.92037983929876,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        },
+        {
+          "scope": "[LS Energy Solutions] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 178,
+          "newOrders": 16,
+          "qoq": 3.488372093023262,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003088",
+          "history": {
+            "backlog": 6,
+            "newOrders": 4,
+            "qoq": 5,
+            "complete": 3
+          }
+        },
+        {
+          "scope": "공식 IR 주요제품 수주사업",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 69998,
+          "newOrders": 20835,
+          "qoq": 24.054940186087737,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.ls-electric.com/ko/company/data/2026_2분기_실적자료.pdf",
+          "history": {
+            "backlog": 5,
+            "newOrders": 6,
+            "qoq": 3,
+            "complete": 3
+          }
+        }
+      ]
+    },
+    {
+      "code": "028050",
+      "name": "삼성E&A",
+      "series": [
+        {
+          "scope": "공식 IR 전체 사업부문",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 226756,
+          "newOrders": 30065,
+          "qoq": 9.949233163787286,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://sea.samsungena.com/kr/ir/event-earnings",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        }
+      ]
+    },
+    {
+      "code": "032820",
+      "name": "우리기술",
+      "series": [
+        {
+          "scope": "공시 진행기준 수주계약 / 국내계약",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 840.3,
+          "newOrders": 125.85000000000001,
+          "qoq": 8.985499727633517,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003825",
+          "history": {
+            "backlog": 4,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        },
+        {
+          "scope": "공시 진행기준 수주계약 / 수출계약",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 18.63887025,
+          "newOrders": 0.0003607799999999998,
+          "qoq": -1.174971597269625,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003825",
+          "history": {
+            "backlog": 4,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ]
+    },
+    {
+      "code": "034020",
+      "name": "두산에너빌리티",
+      "series": [
+        {
+          "scope": "공식 IR 에너빌리티 부문",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 263509,
+          "newOrders": 43368,
+          "qoq": 8.676501519769374,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.doosanenerbility.com/kr/investment/ir/down/535",
+          "history": {
+            "backlog": 2,
+            "newOrders": 2,
+            "qoq": 1,
+            "complete": 1
+          }
+        }
+      ]
+    },
+    {
+      "code": "047040",
+      "name": "대우건설",
+      "series": [
+        {
+          "scope": "공식 IR 연결 전체",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 534019,
+          "newOrders": 37073,
+          "qoq": 2.9132668596382416,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.daewooencir.co.kr/inc/download.asp?FileName=대우건설 2Q26 실적발표(게시용).pdf",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        }
+      ]
+    },
+    {
+      "code": "056190",
+      "name": "SFA",
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 9874.99,
+          "newOrders": 2247.1,
+          "qoq": 2.2874077081796784,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000465",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        }
+      ]
+    },
+    {
+      "code": "079550",
+      "name": "LIG디펜스앤에어로스페이스",
+      "series": [
+        {
+          "scope": "공식 IR 전체 수주사업(잔고 조원 단위 반올림)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 245700,
+          "newOrders": 3263.5,
+          "qoq": -2.9237455551165525,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.ligdefenseaerospace.com/common/file/downloadUser.do?atch_no=tK4vhGx3CzzBx8UefSW6zg%3D%3D",
+          "history": {
+            "backlog": 7,
+            "newOrders": 7,
+            "qoq": 6,
+            "complete": 6
+          }
+        }
+      ]
+    },
+    {
+      "code": "140860",
+      "name": "파크시스템스",
+      "series": [
+        {
+          "scope": "공식 IR 전체 제품",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1125,
+          "newOrders": 784,
+          "qoq": 29.16188289322619,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://kind.krx.co.kr/external/dst/irReference/19256/2026_2Q_파크시스템스 IR 자료_260814(국문).pdf",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        },
+        {
+          "scope": "본사 및 해외 자회사 운영 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1125.09,
+          "newOrders": 784.15,
+          "qoq": 29.12329427427036,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004158",
+          "history": {
+            "backlog": 10,
+            "newOrders": 9,
+            "qoq": 9,
+            "complete": 8
+          }
+        }
+      ]
+    },
+    {
+      "code": "222080",
+      "name": "SFA넥셀",
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2750.7,
+          "newOrders": 308.29999999999995,
+          "qoq": -12.581000899392048,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260818000223",
+          "history": {
+            "backlog": 6,
+            "newOrders": 5,
+            "qoq": 4,
+            "complete": 4
+          }
+        }
+      ]
+    },
+    {
+      "code": "230240",
+      "name": "에치에프알",
+      "series": [
+        {
+          "scope": "공시 항목 합산(표 범위)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 304.56,
+          "newOrders": 310.34999999999997,
+          "qoq": 1838.6378103119032,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002714",
+          "history": {
+            "backlog": 3,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ]
+    },
+    {
+      "code": "267260",
+      "name": "HD현대일렉트릭",
+      "series": [
+        {
+          "scope": "공식 IR 연결 전체",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 8490,
+          "newOrders": 1440,
+          "qoq": 7.631845841784979,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.hd-hyundaielectric.com/elec/common/fileDown.jsp?fileName=2026_07_28_142852_1.pdf&filePath=%2Fhome%2Fapp%2Fhd_electric%2Fupload%2Felec%2Fpresentation%2F&fileOrgName=HD%ED%98%84%EB%8C%80%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD_2Q26+%EC%8B%A4%EC%A0%81%EB%B0%9C%ED%91%9C+%EC%9E%90%EB%A3%8C.pdf",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        }
+      ]
+    },
+    {
+      "code": "294870",
+      "name": "IPARK현대산업개발",
+      "series": [
+        {
+          "scope": "공식 IR 주택·토목·건축 공시 합계 (2026 비교표 기준)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 329873,
+          "newOrders": 9906,
+          "qoq": 0.416126341680223,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://ipark-dvp.com/ko/ir/information/materials",
+          "history": {
+            "backlog": 3,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ]
+    },
+    {
+      "code": "348210",
+      "name": "넥스틴",
+      "series": [
+        {
+          "scope": "회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 89.78,
+          "newOrders": 0,
+          "qoq": -65.1312723318316,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003931",
+          "history": {
+            "backlog": 9,
+            "newOrders": 7,
+            "qoq": 7,
+            "complete": 6
+          }
+        }
+      ]
+    },
+    {
+      "code": "375500",
+      "name": "DL이앤씨",
+      "series": [
+        {
+          "scope": "공식 IR 연결(2026년 표시 기준)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 298209,
+          "newOrders": 31181,
+          "qoq": 8.461328629362242,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.dlenc.co.kr/common/fileDownloadSecu.do?fileseq=39089&filesral=41353&nm_file_chg=irav_2026918143639.pdf",
+          "history": {
+            "backlog": 3,
+            "newOrders": 2,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ]
+    },
+    {
+      "code": "420770",
+      "name": "기가비스",
+      "series": [
+        {
+          "scope": "회사 공시 단일행",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 652.66,
+          "newOrders": 570.13,
+          "qoq": 251.36473755047106,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003218",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "from_date": "2024-01-01",
+  "to_date": "2026-10-08",
+  "target_companies": 481,
+  "listing_total": 3611,
+  "listing_pages": 37,
+  "matched_rows": 1161,
+  "matched_companies": 175,
+  "read_documents": 926,
+  "candidate_documents": 202,
+  "candidate_companies": 61,
+  "failures": 1,
+  "image_only_documents": 272
+}

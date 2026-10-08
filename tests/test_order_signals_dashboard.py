@@ -48,6 +48,31 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_company_classification_is_independent_from_metric_coverage():
+    base = {"code": "123456", "rcept_no": "20260814000001", "fiscal_year": 2026, "fiscal_quarter": 2,
+            "sections": {"공시 수주지표 확인": "완료", "order_business_evidence": {"status": "confirmed", "basis": "수주 내역 비공개", "evidence": "기밀"}}}
+    result = _run([{"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": [base]}])[0]
+    assert result["status"] == "confirmed"
+    assert result["series"] == []
+
+
+def test_company_audit_uses_same_scope_and_latest_report_period():
+    def row(q, backlog, cumulative):
+        return {"code": "123456", "rcept_no": f"20260{q}14000001", "fiscal_year": 2026, "fiscal_quarter": q,
+                "sections": {"공시 수주지표 확인": "완료", "공시 수주지표":
+                             f"단위 | 억원\n범위 | 연결 전체\n수주잔고 | {backlog}\n신규수주 | {cumulative}\n신규수주 기간 | 보고기간 누적"}}
+    # 손계산: Q2 신규 80-30=50, 잔고 QoQ=(150/100-1)*100=50.
+    rows = [row(1, 100, 30), row(2, 150, 80)]
+    complete = _run([{"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": rows}])[0]
+    assert complete["series"][0]["complete"] is True
+    assert complete["series"][0]["newOrders"] == 50
+    assert complete["series"][0]["qoq"] == 50
+    latest = {"code": "123456", "rcept_no": "20261114000001", "fiscal_year": 2026, "fiscal_quarter": 3,
+              "sections": {"공시 수주지표 확인": "완료"}}
+    stale = _run([{"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": [*rows, latest]}])[0]
+    assert stale["series"][0]["complete"] is False
+
+
 def test_new_orders_are_quarterized_only_with_comparable_cumulative_sources():
     base = {"year": 2026, "scope": "연결 전체", "backlogEok": 100,
             "newOrdersPeriod": "보고기간 누적"}

@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 const NAV = [
   { href: "/", label: "발굴 목록" },
   { href: "/watchlist", label: "관심 종목" },
+  { href: "/orders", label: "수주기업" },
   { href: "/matrix", label: "2축 매트릭스" },
   { href: "/outcome", label: "결과추적 & 투자전략" },
   { href: "/season", label: "시즌" },

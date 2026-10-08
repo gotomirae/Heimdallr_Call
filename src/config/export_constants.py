@@ -87,6 +87,10 @@ def build() -> dict:
         "semiconductor_specific_order": list(SEMICONDUCTOR_SPECIFIC_ORDER),
         "sector_unknown": UNKNOWN_SECTOR,
         "sector_etf_themes": dict(SECTOR_ETF_THEMES),
+        "order_company": {
+            "query_codes": constants.ORDER_COMPANY_QUERY_CODES,
+            "query_parallel": constants.ORDER_COMPANY_QUERY_PARALLEL,
+        },
         "gate": {
             "market_cap_floor_krw": getattr(constants, "MARKET_CAP_FLOOR_KRW", None),
             "min_quarters_history": constants.MIN_QUARTERS_HISTORY,

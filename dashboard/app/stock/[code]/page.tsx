@@ -1044,7 +1044,9 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
+      <div id="orders" className="scroll-mt-4" />
       <Card title="수주잔고·신규수주" note="DART 정기보고서·공식 IR·단일판매·공급계약을 교차 확인">
+        <p className="mb-3 text-sm"><a href="/orders" className="text-sky-200 underline">수주기업 분류·세 항목 조사 장부</a>에서 기업별 확보 상태와 추가 조사 사유를 확인할 수 있습니다.</p>
         {orderChartSeries.length ? orderChartSeries.map((series) => <div key={series.scope} className="mb-4">
           <p className="mb-1 text-sm font-semibold text-sky-200">📋 {series.scope}</p>
           <OrderQuarterlyChart points={series.points} />

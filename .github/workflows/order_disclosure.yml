@@ -118,3 +118,29 @@ jobs:
           cache: pip
       - run: pip install -e .
       - run: python -m src.collectors.order_contract_run --limit 10000 --save
+
+  company_audit:
+    needs: [collect, contracts]
+    if: ${{ always() && (needs.collect.result == 'success' || needs.contracts.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: pip install -e .
+      - run: npm ci --ignore-scripts
+        working-directory: dashboard
+      - name: 수주기업 분류 후 최신 세 항목 확보·미확보 장부 갱신
+        run: python -m src.collectors.order_company --save

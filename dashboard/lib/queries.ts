@@ -13,6 +13,28 @@ import type {
 } from "./types";
 import type { DisclosureExcerptRow } from "./orderSignals";
 import { readOrderReportPeriod } from "./orderSignals";
+import type { OrderCompanyAudit } from "./orderCompany";
+import constants from "./constants.json";
+
+export async function getOrderCompanyAudits(codes: string[]): Promise<OrderCompanyAudit[]> {
+  // JSON 키만으로 12,000개 공시를 필터링하면 말미 페이지가 statement_timeout에 걸린다.
+  // 기존 (code, fiscal_year, fiscal_quarter) 색인을 먼저 사용하고 각 구간도 range로 읽는다.
+  const chunks: string[][] = [];
+  for (let offset = 0; offset < codes.length; offset += constants.order_company.query_codes) {
+    chunks.push(codes.slice(offset, offset + constants.order_company.query_codes));
+  }
+  const newest = new Map<string, OrderCompanyAudit>();
+  for (let offset = 0; offset < chunks.length; offset += constants.order_company.query_parallel) {
+    const batches = await Promise.all(chunks.slice(offset, offset + constants.order_company.query_parallel).map(chunk =>
+      selectAll<{ audit: OrderCompanyAudit }>("disclosure_excerpts", "audit:sections->order_company_audit",
+        q => q.in("code", chunk).not("sections->order_company_audit", "is", null).order("code"))));
+    for (const rows of batches) for (const { audit } of rows) {
+      if (!audit?.code || !audit.generatedAt) continue;
+      if (!newest.has(audit.code) || newest.get(audit.code)!.generatedAt < audit.generatedAt) newest.set(audit.code, audit);
+    }
+  }
+  return [...newest.values()];
+}
 
 // ★ 배열 — `sector`는 마이그레이션 전까지 없어서 통째 조회가 42703으로 죽는다(T18).
 const UNIVERSE_COLUMNS = [

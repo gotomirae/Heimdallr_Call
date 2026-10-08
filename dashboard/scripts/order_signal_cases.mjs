@@ -11,6 +11,7 @@ const { postPeriodContracts, reportNamePeriodEnd, currentQuarterPostReportContra
 const { quarterlyCharacteristics } = jiti(resolve(here, "..", "lib", "metricMeaning.ts"));
 const { withOrderBacklogQoq, attachOrderReportPoints, sortOrderChartSeries } = jiti(resolve(here, "..", "lib", "chart.ts"));
 const { orderAmount } = jiti(resolve(here, "..", "lib", "format.ts"));
+const { auditOrderCompany } = jiti(resolve(here, "..", "lib", "orderCompany.ts"));
 
 const input = await new Promise((done) => {
   let buf = "";
@@ -20,7 +21,9 @@ const input = await new Promise((done) => {
 });
 
 const cases = JSON.parse(input);
-process.stdout.write(JSON.stringify(cases.map((c) => c.orderSeries
+process.stdout.write(JSON.stringify(cases.map((c) => c.companyAudit
+  ? auditOrderCompany(c.company, c.rows, "2026-10-08T00:00:00Z")
+  : c.orderSeries
   ? sortOrderChartSeries(c.series)
   : c.orderAmount
   ? orderAmount(c.value)

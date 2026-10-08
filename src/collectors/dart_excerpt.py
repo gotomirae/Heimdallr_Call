@@ -893,6 +893,9 @@ def build_excerpt(
         remaining -= take
     order_section = sections.get("매출 및 수주상황")
     order_section_xml = _section_xml(xml, "매출 및 수주상황")
+    if order_section_xml:
+        from src.collectors.order_company import classify_order_section
+        picked["order_business_evidence"] = classify_order_section(order_section_xml)
     order_series = structured_order_series(order_section_xml, period_end=report_period_end) if order_section_xml else []
     order_metric = representative_order_metric(order_series)
     if not order_series and order_section_xml:

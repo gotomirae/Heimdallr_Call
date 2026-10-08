@@ -988,6 +988,10 @@
     "지주·기타서비스": "지주·서비스",
     "기타": "기타"
   },
+  "order_company": {
+    "query_codes": 100,
+    "query_parallel": 3
+  },
   "gate": {
     "market_cap_floor_krw": 100000000000,
     "min_quarters_history": 5
