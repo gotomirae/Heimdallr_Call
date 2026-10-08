@@ -1,6 +1,8 @@
 # PRD Ref: §9.1-3 · 공식 IR 실측 수주표 재생
+import pytest
+
 from src.collectors.order_ir import parse_quarter_order_page, parse_ls_backlog, parse_ls_new_orders
-from src.collectors.order_ir import merge_ir_scope
+from src.collectors.order_ir import download_verified_pdf, merge_ir_scope
 
 
 def test_ir_quarter_headers_and_row_units_override_financial_table_unit():
@@ -34,3 +36,14 @@ def test_ir_scope_replay_keeps_other_business_and_legacy_evidence():
     assert replay["evidence"] == [power, updated]
     assert replay["series"] == ["범위 | 미코파워\n수주잔고 | 707", "범위 | HPS\n수주잔고 | 3900"]
     assert old["evidence"]["backlog"] == 3844
+
+
+@pytest.mark.parametrize("fact", [
+    {"code": "028050", "source_url": "https://evil.invalid/", "download_idx": 310},
+    {"code": "006360", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": 310},
+    {"code": "028050", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": -1},
+    {"code": "028050", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": True},
+])
+def test_ir_form_rejects_other_company_host_and_invalid_file_id_before_io(fact):
+    with pytest.raises(ValueError, match="대상 불일치"):
+        download_verified_pdf(fact)

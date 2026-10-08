@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlencode, urljoin
 
+import httpx
 import pymupdf
 from bs4 import BeautifulSoup
 
@@ -23,15 +24,40 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "267260": "HD현대일렉트릭", "010120": "LS일렉트릭", "034020": "두산에너빌리티",
     "298040": "효성중공업", "059090": "미코", "475960": "토모큐브", "044490": "태웅",
     "100090": "SK오션플랜트", "388050": "지투파워", "213420": "덕산네오룩스", "010140": "삼성중공업",
-    "140860": "파크시스템스",
+    "140860": "파크시스템스", "079550": "LIG디펜스앤에어로스페이스", "356860": "티엘비", "006360": "GS건설",
+    "028050": "삼성E&A", "000720": "현대건설",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
     "034020": "https://www.doosanenerbility.com", "298040": "https://www.hyosungheavyindustries.com",
-    "010140": "https://www.samsungshi.com",
+    "010140": "https://www.samsungshi.com", "006360": "https://www.gsenc.com",
+    "028050": "https://sea.samsungena.com", "000720": "https://m.hdec.kr",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
-       for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860")},
+       for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860")},
 }
+OFFICIAL_IR_ADDITIONAL_HOSTS = {"079550": ("https://www.ligdefenseaerospace.com",)}
+
+
+def download_verified_pdf(fact: dict) -> bytes:
+    """폼 전용 자료실은 공개 CSRF 절차로 내려받고 화면에는 자료실을 링크한다."""
+    index = fact.get("download_idx")
+    if index is None:
+        return http_get(fact["source_url"], timeout=90).content
+    library = "https://sea.samsungena.com/kr/ir/event-earnings"
+    if fact["code"] != "028050" or fact["source_url"] != library or type(index) is not int or index <= 0:
+        raise ValueError("공식 IR 폼 다운로드 대상 불일치")
+    with httpx.Client(timeout=90, follow_redirects=True) as client:
+        response = client.get(library)
+        response.raise_for_status()
+        meta = BeautifulSoup(response.text, "html.parser").select_one('meta[name="_csrf"]')
+        if meta is None or not meta.get("content"):
+            raise ValueError("공식 IR 다운로드 폼 검증값 없음")
+        token = meta["content"]
+        response = client.post("https://sea.samsungena.com/kr/filedownload/ir",
+                               data={"idx": str(index), "_csrf": token},
+                               headers={"X-CSRF-TOKEN": token, "Referer": library})
+        response.raise_for_status()
+        return response.content
 
 
 def parse_quarter_order_page(text: str) -> list[dict]:
@@ -71,21 +97,29 @@ def parse_quarter_order_page(text: str) -> list[dict]:
 
 def verified_ir_facts() -> list[dict]:
     facts = []
-    downloads: dict[str, bytes] = {}
+    downloads: dict[tuple[str, int | None], bytes] = {}
     # 벡터/이미지 표는 숫자 위치를 추측하지 않는다. 직접 렌더링 대조한 장부만
     # 원문 해시·페이지를 재검증한 뒤 받아들인다.
     manifest = Path(__file__).resolve().parents[1] / "config" / "order_ir_verified.json"
     for fact in json.loads(manifest.read_text(encoding="utf-8")):
-        if not fact["source_url"].startswith(OFFICIAL_IR_HOSTS.get(fact["code"], "invalid") + "/"):
-            raise ValueError("검증 장부 회사/공식 출처 불일치")
-        if fact["source_url"] not in downloads:
-            downloads[fact["source_url"]] = http_get(fact["source_url"], timeout=90).content
-        data = downloads[fact["source_url"]]
-        if not data.startswith(b"%PDF") or hashlib.sha256(data).hexdigest() != fact["sha256"]:
-            raise ValueError("검증 IR 원문 해시 변경: 수동 재검증 필요")
-        with pymupdf.open(stream=data, filetype="pdf") as document:
-            if not 1 <= fact["source_page"] <= len(document):
-                raise ValueError("IR 근거 페이지 없음")
+        evidence = [(fact["source_url"], fact["sha256"], fact["source_page"])]
+        if fact.get("new_orders_source_url"):
+            evidence.append((fact["new_orders_source_url"], fact.get("new_orders_sha256", fact["sha256"]),
+                             fact["new_orders_source_page"]))
+        hosts = (OFFICIAL_IR_HOSTS.get(fact["code"], "invalid"), *OFFICIAL_IR_ADDITIONAL_HOSTS.get(fact["code"], ()))
+        for url, digest, page in evidence:
+            if not any(url.startswith(host + "/") for host in hosts):
+                raise ValueError("검증 장부 회사/공식 출처 불일치")
+            index = fact.get("download_idx") if url == fact["source_url"] else None
+            key = (url, index)
+            if key not in downloads:
+                downloads[key] = download_verified_pdf(fact) if url == fact["source_url"] else http_get(url, timeout=90).content
+            data = downloads[key]
+            if not data.startswith(b"%PDF") or hashlib.sha256(data).hexdigest() != digest:
+                raise ValueError("검증 IR 원문 해시 변경: 수동 재검증 필요")
+            with pymupdf.open(stream=data, filetype="pdf") as document:
+                if not 1 <= page <= len(document):
+                    raise ValueError("IR 근거 페이지 없음")
         facts.append(fact)
     return facts
 
@@ -226,7 +260,9 @@ def save_facts(facts: list[dict]) -> int:
             metric = (f'범위 | {fact["scope"]}\n단위 | {fact["unit"]}'
                       + (f'\n수주잔고 | {fact["backlog"]:g}' if fact["backlog"] is not None else "")
                       + (f'\n신규수주 | {fact["new_orders"]:g}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
-                      f'\n출처 | {fact["source_url"]}\n출처 페이지 | {fact["source_page"]}\n자료명 | 공식 IR')
+                      f'\n출처 | {fact["source_url"]}' +
+                      (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None else "") +
+                      f'\n자료명 | 공식 IR')
             if fact.get("new_orders_source_url"):
                 metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'
             sections["공식 IR 수주지표"] = merge_ir_scope(sections.get("공식 IR 수주지표", {}), metric, fact)
