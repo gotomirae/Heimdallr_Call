@@ -1,0 +1,192 @@
+{
+  "period": "2026Q2",
+  "companies": 15,
+  "scope_points": 23,
+  "note": "같은 공시 범위·통화의 세 항목 동시 측정. 부분 사업범위 포함이며 회사 전체 전수 확보 완료를 의미하지 않음.",
+  "facts": [
+    {
+      "code": "222080",
+      "scope": "회사 공시 합계",
+      "unit": "억원",
+      "backlog": 2750.7,
+      "quarter_new_orders": 308.29999999999995,
+      "backlog_qoq": -12.581000899392048
+    },
+    {
+      "code": "056190",
+      "scope": "회사 공시 합계",
+      "unit": "억원",
+      "backlog": 9874.99,
+      "quarter_new_orders": 2247.1,
+      "backlog_qoq": 2.2874077081796784
+    },
+    {
+      "code": "348210",
+      "scope": "회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 89.78,
+      "quarter_new_orders": 0,
+      "backlog_qoq": -65.1312723318316
+    },
+    {
+      "code": "010120",
+      "scope": "[LS ELECTRIC] / 회사 공시 합계",
+      "unit": "억원",
+      "backlog": 69998,
+      "quarter_new_orders": 21519,
+      "backlog_qoq": 24.054940186087737
+    },
+    {
+      "code": "047040",
+      "scope": "공식 IR 연결 전체",
+      "unit": "억원",
+      "backlog": 534019,
+      "quarter_new_orders": 37073,
+      "backlog_qoq": 2.9132668596382416
+    },
+    {
+      "code": "267260",
+      "scope": "공식 IR 연결 전체",
+      "unit": "백만USD",
+      "backlog": 8490,
+      "quarter_new_orders": 1440,
+      "backlog_qoq": 7.631845841784979
+    },
+    {
+      "code": "028050",
+      "scope": "공식 IR 전체 사업부문",
+      "unit": "억원",
+      "backlog": 226756,
+      "quarter_new_orders": 30065,
+      "backlog_qoq": 9.949233163787286
+    },
+    {
+      "code": "140860",
+      "scope": "본사 및 해외 자회사 운영 / 회사 공시 합계",
+      "unit": "억원",
+      "backlog": 1125.09,
+      "quarter_new_orders": 784.15,
+      "backlog_qoq": 29.12329427427036
+    },
+    {
+      "code": "140860",
+      "scope": "공식 IR 전체 제품",
+      "unit": "억원",
+      "backlog": 1125,
+      "quarter_new_orders": 784,
+      "backlog_qoq": 29.16188289322619
+    },
+    {
+      "code": "079550",
+      "scope": "공식 IR 전체 수주사업(잔고 조원 단위 반올림)",
+      "unit": "억원",
+      "backlog": 245700,
+      "quarter_new_orders": 3263.5,
+      "backlog_qoq": -2.9237455551165525
+    },
+    {
+      "code": "420770",
+      "scope": "회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 652.66,
+      "quarter_new_orders": 570.13,
+      "backlog_qoq": 251.36473755047106
+    },
+    {
+      "code": "010120",
+      "scope": "[LS메탈] / 회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 666,
+      "quarter_new_orders": 393,
+      "backlog_qoq": 44.15584415584415
+    },
+    {
+      "code": "010120",
+      "scope": "[LS이모빌리티솔루션] / 회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 12179,
+      "quarter_new_orders": 941,
+      "backlog_qoq": 4.567699836867867
+    },
+    {
+      "code": "010120",
+      "scope": "[LS ELECTRIC Vietnam] / 회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 962,
+      "quarter_new_orders": 564,
+      "backlog_qoq": 34.73389355742298
+    },
+    {
+      "code": "010120",
+      "scope": "[LS Energy Solutions] / 회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 178,
+      "quarter_new_orders": 16,
+      "backlog_qoq": 3.488372093023262
+    },
+    {
+      "code": "010120",
+      "scope": "[LS파워솔루션] / 회사 공시 단일행",
+      "unit": "억원",
+      "backlog": 5775,
+      "quarter_new_orders": 3484,
+      "backlog_qoq": 110.92037983929876
+    },
+    {
+      "code": "010120",
+      "scope": "공식 IR 주요제품 수주사업",
+      "unit": "억원",
+      "backlog": 69998,
+      "quarter_new_orders": 20835,
+      "backlog_qoq": 24.054940186087737
+    },
+    {
+      "code": "032820",
+      "scope": "공시 진행기준 수주계약 / 국내계약",
+      "unit": "억원",
+      "backlog": 840.3,
+      "quarter_new_orders": 125.85000000000001,
+      "backlog_qoq": 8.985499727633517
+    },
+    {
+      "code": "032820",
+      "scope": "공시 진행기준 수주계약 / 수출계약",
+      "unit": "백만USD",
+      "backlog": 18.63887025,
+      "quarter_new_orders": 0.0003607799999999998,
+      "backlog_qoq": -1.174971597269625
+    },
+    {
+      "code": "000720",
+      "scope": "공식 IR 연결(2026년 표시 기준)",
+      "unit": "억원",
+      "backlog": 1039831,
+      "quarter_new_orders": 188609,
+      "backlog_qoq": 12.628826617650724
+    },
+    {
+      "code": "230240",
+      "scope": "공시 항목 합산(표 범위)",
+      "unit": "억원",
+      "backlog": 304.56,
+      "quarter_new_orders": 310.34999999999997,
+      "backlog_qoq": 1838.6378103119032
+    },
+    {
+      "code": "034020",
+      "scope": "공식 IR 에너빌리티 부문",
+      "unit": "억원",
+      "backlog": 263509,
+      "quarter_new_orders": 43368,
+      "backlog_qoq": 8.676501519769374
+    },
+    {
+      "code": "375500",
+      "scope": "공식 IR 연결(2026년 표시 기준)",
+      "unit": "억원",
+      "backlog": 298209,
+      "quarter_new_orders": 31181,
+      "backlog_qoq": 8.461328629362242
+    }
+  ]
+}
