@@ -32,6 +32,9 @@ from src.config.constants import (
     ENTRY_M1_RANGE_20D_MAX_PCT,
     ENTRY_M1_TTM_OP_GROWTH_MIN_PCT,
     ENTRY_M1_TTM_REVENUE_GROWTH_MIN_PCT,
+    ENTRY_M1_TURNAROUND_ENABLED,
+    ENTRY_M1_TURNAROUND_OP_YEAR_AGO_MAX,
+    ENTRY_M1_TURNAROUND_REVENUE_YOY_MIN_PCT,
     ENTRY_M2_ALLOW_CROSS_TODAY,
     ENTRY_M2_HIST_RISING_BARS_MIN,
     ENTRY_M2_MACD_PARAMS,
@@ -47,7 +50,8 @@ from src.config.constants import (
     KOREA_MARKET_COMPLETED_HOUR_KST,
 )
 
-#: 부호 전환 라벨. 이 구간의 영업이익 YoY는 만들지 않으며(T12) M1은 탈락이다.
+#: 부호 전환 라벨. 이 구간의 영업이익 YoY는 만들지 않으며(T12) M1 증가·가속 경로는 탈락이다.
+#: 단 '흑전'(+매출 증가)은 M1 의 두 번째 경로인 영업이익 턴어라운드로 통과할 수 있다(JARVIS D68).
 SIGN_CHANGE_LABELS = frozenset({"흑전", "적전", "적자축소", "적자확대"})
 #: MACD(12,26,9) 히스토그램이 안정되는 최소 일봉 수. 기존 기술 신호와 같은 하한이다.
 MIN_MACD_BARS = 60
@@ -159,9 +163,13 @@ def m1_fundamental(
 ) -> dict:
     """M1의 재무 부분. 반환 dict의 `pass`가 True/False/None이다.
 
+    실적 조건 = **증가·가속(`checks` 전부)** 또는 **영업이익 턴어라운드(`turnaround_checks` 전부)**
+    (JARVIS D68). `earnings_path`는 통과한 경로('growth_accel' 우선 · 'turnaround' · None).
+
     손계산(경계): rev_yoy [t-1, t] = [5, 12], op_yoy [t-1, t] = [8, 20], op(t)=10억,
     TTM 매출 1,050 > 1,000, TTM 영업익 120 > 100 → 모두 충족 → True.
     rev_yoy(t)=5=rev_yoy(t-1)이면 가속이 아니므로 False(엄격 부등호).
+    턴어라운드 손계산: op(t)=30 > 0, op(t-4)=−5 ≤ 0(또는 라벨 '흑전'), rev_yoy(t)=12 > 0 → True.
     """
     quarters = ENTRY_M1_CONSECUTIVE_YOY_QUARTERS
     rows = [series.get(index - offset) for offset in range(quarters)]  # [t, t-1, ...]
@@ -207,8 +215,30 @@ def m1_fundamental(
         "annual_consensus": True if annual_ok is None else annual_ok,
         "no_base_effect_warning": base_effect_ok,
     }
+    growth_pass = all_of(checks.values())
+
+    # ── 두 번째 경로: 영업이익 턴어라운드(매출 증가) ──
+    # 흑전은 라벨로 판정하고, 라벨이 없으면 4분기 전 영업이익 부호로 본다. 영업이익 YoY가
+    # 계산돼 있으면 전년 동기도 흑자였다는 뜻이라 턴어라운드가 아니다(False — 판정 불가로 뭉개지 않는다).
+    year_ago_op = _num(base_ttm.get("op"))
+    if current.get("op_status_label") == "흑전":
+        op_turned: bool | None = True
+    elif op_yoy[0] is not None:
+        op_turned = False
+    else:
+        op_turned = None if year_ago_op is None else year_ago_op <= ENTRY_M1_TURNAROUND_OP_YEAR_AGO_MAX
+    turnaround_checks = {
+        "op_positive": op_positive,
+        "op_turned": op_turned,
+        "revenue_yoy_up": None if rev_yoy[0] is None else rev_yoy[0] > ENTRY_M1_TURNAROUND_REVENUE_YOY_MIN_PCT,
+    }
+    turnaround_pass = all_of(turnaround_checks.values()) if ENTRY_M1_TURNAROUND_ENABLED else False
     return {
-        "pass": all_of(checks.values()),
+        "pass": any_of([growth_pass, turnaround_pass]),
+        "earnings_path": "growth_accel" if growth_pass is True else "turnaround" if turnaround_pass is True else None,
+        "growth_pass": growth_pass,
+        "turnaround_pass": turnaround_pass,
+        "turnaround_checks": turnaround_checks,
         "rev_yoy": [_round(value, 2) for value in rev_yoy],
         "op_yoy": [_round(value, 2) for value in op_yoy],
         "op_positive": op_positive,

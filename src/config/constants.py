@@ -159,7 +159,7 @@ TECHNICAL_TELEGRAM_ENABLED = True
 # ★★ JARVIS `config/rules.yaml > entry_core`와 **같은 값**이어야 한다(PRD §8.8).
 #   한쪽만 바꾸면 JARVIS 🟢 판정과 이 테이블이 에러 없이 어긋난다(T216).
 #   `tests/test_entry_checks.py`가 JARVIS 저장소가 있으면 두 값을 대조한다.
-# M1 — 실적 지속·가속 + 주가 미반영
+# M1 — (실적 지속·가속 또는 영업이익 턴어라운드) + 주가 미반영
 ENTRY_M1_CONSECUTIVE_YOY_QUARTERS = 2
 ENTRY_M1_TTM_REVENUE_GROWTH_MIN_PCT = 0.0
 ENTRY_M1_TTM_OP_GROWTH_MIN_PCT = 0.0
@@ -168,6 +168,13 @@ ENTRY_M1_HIGH_52W_DRAWDOWN_MAX_PCT = -15.0
 ENTRY_M1_RANGE_20D_MAX_PCT = 12.0
 ENTRY_M1_ABS_RETURN_20D_MAX_PCT = 5.0
 ENTRY_M1_PRI_MAX = 50
+# M1 실적 조건의 두 번째 경로 — 영업이익 턴어라운드(매출 증가). JARVIS D68(2026-10-08 사용자 지정).
+#   실적 조건 = (위 증가·가속 전부) **또는** (최근 분기 영업이익 흑자 ∧ 전년 동기 영업이익 ≤ 0(흑전) ∧ 매출 YoY > 0).
+#   적자축소는 아직 적자라 제외. 기저효과·연간 컨센서스는 증가·가속 경로에만 적용한다.
+#   JARVIS `entry_core.M1_earnings_up_price_not.turnaround`·`earnings_pass_if_any`와 같은 값.
+ENTRY_M1_TURNAROUND_ENABLED = True
+ENTRY_M1_TURNAROUND_OP_YEAR_AGO_MAX = 0
+ENTRY_M1_TURNAROUND_REVENUE_YOY_MIN_PCT = 0.0
 # JARVIS `tech_display.high_lookback_days`와 같은 52주 = 250거래일 종가 고점.
 ENTRY_HIGH_LOOKBACK_SESSIONS = 250
 ENTRY_SIDEWAYS_SESSIONS = 20

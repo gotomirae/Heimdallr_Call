@@ -1041,7 +1041,7 @@ JARVIS는 국내 🟢 진입을 M1∧M2∧M3∧M4∧M5로 판정하고, **M1·M2
 
 | 조건 | 정의 (모두 충족) | 원천 |
 |---|---|---|
-| **M1 재무** | 최근 2개 분기 매출·영업이익 YoY > 0 · 최근 분기 영업이익 흑자(부호 전환 구간은 탈락) · 매출·영업이익 YoY(t) > YoY(t−1) · TTM 매출·영업이익 > 4분기 전 TTM · 네이버 올해(E) 매출·영업이익 > 전년 확정(컨센서스가 있을 때만) · `base_effect_warning=false` | `quarterly_fundamentals` · `consensus_snapshots`(연간) · `screen_results` |
+| **M1 재무** | **① 증가·가속**: 최근 2개 분기 매출·영업이익 YoY > 0 · 최근 분기 영업이익 흑자(부호 전환 구간은 탈락) · 매출·영업이익 YoY(t) > YoY(t−1) · TTM 매출·영업이익 > 4분기 전 TTM · 네이버 올해(E) 매출·영업이익 > 전년 확정(컨센서스가 있을 때만) · `base_effect_warning=false` **또는 ② 영업이익 턴어라운드**(ADR 38): 최근 분기 영업이익 흑자 ∧ 전년 동기 영업이익 ≤ 0(라벨 '흑전') ∧ 매출 YoY > 0. `m1_detail.earnings_path` = `growth_accel` \| `turnaround` | `quarterly_fundamentals` · `consensus_snapshots`(연간) · `screen_results` |
 | **M1 가격** | (발표 후 고점 대비 ≤ −10% **또는** 52주(250거래일) 종가 고점 대비 ≤ −15% → `PB`) **또는** (20거래일 종가 범위 ≤ 12% **그리고** \|20일 수익률\| ≤ 5% → `SW`), **그리고** PRI < 50 | 네이버 **확정** 일봉 · `screen_results.pri` |
 | **M2** | MACD(12,26,9) < Signal · 히스토그램 2일 연속 개선 · ((Signal−MACD)/종가 ≤ 0.30% **또는** 추정 교차 ≤ 3봉). 당일 교차는 `cross_today=true`로 통과, 교차 다음 날부터는 탈락(추격 방지) | 네이버 확정 일봉 |
 | **M5** | 외국인 2일 연속 순매수 **또는** 기관 2일 연속 **또는** 외국인+기관 합산 2일 연속. 같은 주체 경로를 합산보다 우선하고 `path`·`streak_days`를 기록 | KIS `inquire-investor`(시세 조회) · 장애 시 네이버 폴백(`source`) |

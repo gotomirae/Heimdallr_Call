@@ -84,11 +84,64 @@ def test_m1_fundamental_boundaries_fail(overrides):
     assert _fin(_series(**overrides))["pass"] is False
 
 
-def test_sign_change_quarter_is_fail_not_unknown():
-    series = _series(t__op_yoy=None, t__op_status_label="흑전")
+def test_sign_change_quarter_fails_growth_path_not_unknown():
+    # 증가·가속 경로는 부호 전환이면 판정 불가가 아니라 탈락이다. 매출이 줄면 턴어라운드도 아니다.
+    series = _series(t__op_yoy=None, t__op_status_label="흑전", t__revenue_yoy=-1.0)
     result = _fin(series)
     assert result["pass"] is False
     assert result["checks"]["op_accelerating"] is False
+    assert result["turnaround_checks"]["revenue_yoy_up"] is False
+    assert result["earnings_path"] is None
+    # 적전·적자축소·적자확대는 아직(또는 다시) 적자 — 턴어라운드 아님
+    for label in ("적전", "적자축소", "적자확대"):
+        assert _fin(_series(t__op_yoy=None, t__op=-3, t__op_status_label=label))["pass"] is False
+
+
+# ═══ M1 재무 — 두 번째 경로: 영업이익 턴어라운드 (JARVIS D68) ══════════════
+def test_turnaround_label_with_revenue_growth_passes():
+    """손계산: op(t)=30 > 0, 라벨 '흑전', rev_yoy(t)=12 > 0 → 통과. 증가·가속 경로는 탈락이어도 된다."""
+    result = _fin(_series(t__op_yoy=None, t__op_status_label="흑전", t4__op=-5))
+    assert result["pass"] is True
+    assert result["earnings_path"] == "turnaround"
+    assert result["growth_pass"] is False and result["turnaround_pass"] is True
+    assert result["turnaround_checks"] == {"op_positive": True, "op_turned": True, "revenue_yoy_up": True}
+
+
+def test_turnaround_without_label_uses_year_ago_op_sign():
+    # 라벨·YoY 가 없을 때 4분기 전 영업이익 0 이하면 흑전으로 본다(경계 0 포함)
+    assert _fin(_series(t__op_yoy=None, t4__op=0))["earnings_path"] == "turnaround"
+    assert _fin(_series(t__op_yoy=None, t4__op=-1))["pass"] is True
+    # 4분기 전 영업이익도 모르면 판정 불가
+    assert _fin(_series(t__op_yoy=None, t4__op=None))["turnaround_checks"]["op_turned"] is None
+
+
+@pytest.mark.parametrize("overrides", [
+    {"t__revenue_yoy": 0.0},          # 매출 증가 아님(0, 엄격 부등호)
+    {"t__op": 0},                     # 흑자 아님
+])
+def test_turnaround_boundaries_fail(overrides):
+    base = {"t__op_yoy": None, "t__op_status_label": "흑전", "t1__revenue_yoy": 20.0}
+    assert _fin(_series(**{**base, **overrides}))["pass"] is False
+
+
+def test_growth_path_wins_and_profitable_year_ago_is_not_turnaround():
+    result = _fin()
+    assert result["earnings_path"] == "growth_accel"
+    # 영업이익 YoY 가 계산됐다 = 전년 동기도 흑자 → 턴어라운드는 False(판정 불가 아님)
+    assert result["turnaround_checks"]["op_turned"] is False and result["turnaround_pass"] is False
+
+
+def test_turnaround_ignores_base_effect_and_annual_consensus():
+    series = _series(t__op_yoy=None, t__op_status_label="흑전")
+    assert _fin(series, base_effect_warning=True)["pass"] is True
+    assert _fin(series, base_effect_warning=None)["pass"] is True
+
+
+def test_turnaround_can_be_disabled(monkeypatch):
+    import src.screener.entry_checks as module
+
+    monkeypatch.setattr(module, "ENTRY_M1_TURNAROUND_ENABLED", False)
+    assert _fin(_series(t__op_yoy=None, t__op_status_label="흑전"))["pass"] is False
 
 
 def test_missing_data_is_none_not_false():
@@ -381,6 +434,9 @@ def test_thresholds_match_jarvis_entry_core():
     assert m1["quarterly"]["consecutive_quarters_yoy_positive"] == C.ENTRY_M1_CONSECUTIVE_YOY_QUARTERS
     assert m1["annual"]["ttm_revenue_growth_min_pct"] == C.ENTRY_M1_TTM_REVENUE_GROWTH_MIN_PCT
     assert m1["annual"]["ttm_op_growth_min_pct"] == C.ENTRY_M1_TTM_OP_GROWTH_MIN_PCT
+    assert ("turnaround" in m1["earnings_pass_if_any"]) is C.ENTRY_M1_TURNAROUND_ENABLED
+    assert m1["turnaround"]["op_year_ago_max"] == C.ENTRY_M1_TURNAROUND_OP_YEAR_AGO_MAX
+    assert m1["turnaround"]["revenue_yoy_min_pct"] == C.ENTRY_M1_TURNAROUND_REVENUE_YOY_MIN_PCT
     price = m1["price_not_reflected"]
     assert price["correction"]["from_post_earnings_high_max_pct"] == C.ENTRY_M1_POST_EARNINGS_DRAWDOWN_MAX_PCT
     assert price["correction"]["or_from_52w_high_max_pct"] == C.ENTRY_M1_HIGH_52W_DRAWDOWN_MAX_PCT

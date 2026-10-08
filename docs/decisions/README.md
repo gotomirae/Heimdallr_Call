@@ -25,5 +25,6 @@
 | 15 | 기업 투자 매력도 스코어를 7축으로 확장하고 현재 가격은 PRI로 분리한다 | [`015-current-investment-attractiveness-score.md`](015-current-investment-attractiveness-score.md) |
 | 24 | JARVIS 국내 M1·M2·M5를 `entry_checks`로 제공하고 확정 종가로만 계산한다 | [`024-jarvis-entry-checks.md`](024-jarvis-entry-checks.md) |
 | 25 | 분석 본문에 검증 흔적·깨진 사실 표식·자리표시를 남기지 않는다 (ADR 12 개정) | [`025-trace-free-analysis-output.md`](025-trace-free-analysis-output.md) |
+| 38 | JARVIS M1 실적 조건 = 증가·가속 또는 영업이익 턴어라운드(흑전 + 매출 증가) | [`038-m1-operating-turnaround.md`](038-m1-operating-turnaround.md) |
 
 새 ADR을 쓸 때는 **무엇을 / 왜 / 되돌리면 무엇이 무너지는가**를 반드시 포함한다.
