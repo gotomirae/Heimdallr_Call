@@ -105,6 +105,17 @@ def test_small_dollar_new_orders_keep_cents_through_conversion_chart_and_display
                  [chart[1]["newOrders"], 0, None, 840.30367877]]) == ["0.00036078", "0.00", "—", "840.30"]
 
 
+def test_latest_complete_order_chart_precedes_backlog_only_without_promoting_stale_series():
+    def point(year, quarter, backlog, new):
+        return {"fiscalYear": year, "fiscalQuarter": quarter, "orderScope": "연결", "orderBacklog": backlog, "newOrders": new}
+    series = [{"scope": "현재 잔고만", "points": [point(2026, 1, 100, None), point(2026, 2, 120, None)]},
+              {"scope": "과거 완전", "points": [point(2025, 1, 100, 0), point(2025, 2, 120, 30)]},
+              {"scope": "현재 완전", "points": [point(2026, 1, 100, 0), point(2026, 2, 120, 30)]}]
+    result = _run([{"orderSeries": True, "series": series}])[0]
+    assert [s["scope"] for s in result] == ["현재 완전", "현재 잔고만", "과거 완전"]
+    assert sum(len(s["points"]) for s in result) == 6
+
+
 def test_contract_window_starts_after_actual_period_not_announcement_or_current_quarter():
     rows = [{"disclosedAt": day} for day in ["2026-06-30", "2026-07-01", "2026-08-01", "2026-10-02", "2026-10-04"]]
     result = _run([{"periodWindow": True, "rows": rows, "basisDate": "2026-10-03", "periodEnd": "2026-06-30"}])[0]

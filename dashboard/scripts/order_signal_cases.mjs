@@ -9,7 +9,7 @@ const createJiti = jitiPkg.createJiti ?? jitiPkg;
 const jiti = createJiti(fileURLToPath(import.meta.url), { interopDefault: true });
 const { postPeriodContracts, reportNamePeriodEnd, currentQuarterPostReportContracts, deriveOrderDisclosureSignal, extractOrderContractDisclosure, extractOrderDisclosureMetric, extractOrderDisclosureMetrics, isAttachmentOnlyCorrection, summarizeOrderDisclosure } = jiti(resolve(here, "..", "lib", "orderSignals.ts"));
 const { quarterlyCharacteristics } = jiti(resolve(here, "..", "lib", "metricMeaning.ts"));
-const { withOrderBacklogQoq, attachOrderReportPoints } = jiti(resolve(here, "..", "lib", "chart.ts"));
+const { withOrderBacklogQoq, attachOrderReportPoints, sortOrderChartSeries } = jiti(resolve(here, "..", "lib", "chart.ts"));
 const { orderAmount } = jiti(resolve(here, "..", "lib", "format.ts"));
 
 const input = await new Promise((done) => {
@@ -20,7 +20,9 @@ const input = await new Promise((done) => {
 });
 
 const cases = JSON.parse(input);
-process.stdout.write(JSON.stringify(cases.map((c) => c.orderAmount
+process.stdout.write(JSON.stringify(cases.map((c) => c.orderSeries
+  ? sortOrderChartSeries(c.series)
+  : c.orderAmount
   ? orderAmount(c.value)
   : c.quarterStudy
   ? quarterlyCharacteristics(c.points)

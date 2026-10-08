@@ -51,6 +51,21 @@ export interface ChartPoint {
 /** 상세화면 차트·히스토리의 기본 분기 수. 사용자 요청으로 정확히 10개를 고정한다. */
 export const CHART_QUARTERS = 10;
 
+/** 최신 측정 분기에서 세 항목을 함께 보여주는 범위를 먼저 배치한다. 범위는 합치지 않는다. */
+export function sortOrderChartSeries<T extends { points: ChartPoint[] }>(series: T[]): T[] {
+  const rank = (item: T): number[] => {
+    const points = withOrderBacklogQoq(item.points).filter((p) => p.orderBacklog != null || p.newOrders != null);
+    const period = (p: ChartPoint) => p.orderPeriodEnd
+      ? Number(p.orderPeriodEnd.slice(0, 4)) * 12 + Number(p.orderPeriodEnd.slice(5, 7))
+      : p.fiscalYear * 12 + p.fiscalQuarter * 3;
+    const completeness = (p: ChartPoint) => Number(p.orderBacklog != null) + Number(p.newOrders != null) + Number(p.orderBacklogQoq != null);
+    const latest = points.sort((a, b) => period(b) - period(a) || completeness(b) - completeness(a))[0];
+    return latest ? [period(latest), completeness(latest), points.filter((p) => completeness(p) === 3).length] : [0, 0, 0];
+  };
+  const ranked = series.map((item) => ({ item, rank: rank(item) }));
+  return ranked.sort((a, b) => b.rank[0] - a.rank[0] || b.rank[1] - a.rank[1] || b.rank[2] - a.rank[2]).map(({ item }) => item);
+}
+
 /**
  * 차트 계열 색 — **단일 출처**.
  *

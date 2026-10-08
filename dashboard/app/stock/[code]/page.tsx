@@ -4,7 +4,7 @@ import constants from "@/lib/constants.json";
 import { notFound } from "next/navigation";
 import QuarterlyChart, { OrderQuarterlyChart } from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
-import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, attachOrderReportPoints, chartVerdict, measuredCount, nextQuarterOutlook, quarterNewOrders, toChartPoints, withOrderBacklogQoq } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, attachOrderReportPoints, chartVerdict, measuredCount, nextQuarterOutlook, quarterNewOrders, sortOrderChartSeries, toChartPoints, withOrderBacklogQoq } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -534,12 +534,12 @@ export default async function StockPage({ params }: { params: { code: string } }
   const ordersChartPoints = attachOrderReportPoints(chartPoints, orderMetrics);
   const orderScopeKey = (row: typeof orderMetrics[number]) => `${row.scope} · ${row.amountUnit ?? "억원"}`;
   const orderScopes = [...new Set(orderMetrics.map(orderScopeKey))];
-  const orderChartSeries = orderScopes.map((scope, index) => ({ scope,
+  const orderChartSeries = sortOrderChartSeries(orderScopes.map((scope, index) => ({ scope,
     points: attachOrderReportPoints(chartPoints.map((p) => ({ ...p, orderBacklog: null, newOrders: null,
       orderScope: undefined, disclosedContractEok: index === 0 && scope.endsWith("· 억원") ? p.disclosedContractEok : null,
       postReportContractEok: index === 0 && scope.endsWith("· 억원") ? p.postReportContractEok : null,
     })), orderMetrics.filter((row) => orderScopeKey(row) === scope)),
-  }));
+  })));
   const orderQoq = new Map(orderChartSeries.flatMap(({ points }) => withOrderBacklogQoq(points).map((p) => [
     `${p.orderScope}:${p.orderAmountUnit ?? "억원"}:${p.fiscalYear}:${p.fiscalQuarter}`, p.orderBacklogQoq,
   ] as const)));
