@@ -191,7 +191,9 @@ export function quarterNewOrders(report: OrderReportPoint, reports: OrderReportP
   const previous = reports.filter((r) => r.year === report.year && r.quarter === report.quarter - 1 &&
     r.scope === report.scope && (r.amountUnit ?? "억원") === (report.amountUnit ?? "억원") &&
     r.closingMonth === report.closingMonth && Boolean(r.periodEnd) === Boolean(report.periodEnd) &&
-    index(report) - index(r) === 3 && r.newOrdersPeriod === "보고기간 누적");
+    index(report) - index(r) === 3 && (r.newOrdersPeriod === "보고기간 누적" ||
+      // 첫 회계분기의 단독액은 같은 연도 누적액과 같다. 2Q 단독에는 적용하지 않는다.
+      r.quarter === 1 && r.newOrdersPeriod === "당분기"));
   if (previous.length !== 1) return missing("비교 가능한 직전 분기 누적값 없음");
   const prior = previous[0].newOrdersAmount ?? previous[0].newOrdersEok;
   if (prior == null) return missing("직전 분기 신규수주 미공개");

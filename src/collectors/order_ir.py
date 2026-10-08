@@ -19,8 +19,19 @@ from src.utils.http import decode_html, http_get
 from src.utils.console import enable_utf8_stdout
 
 HD_BASE = "https://www.hd-hyundaielectric.com"
-OFFICIAL_ORDER_IR_COMPANIES = {"267260": "HD현대일렉트릭", "010120": "LS일렉트릭", "034020": "두산에너빌리티"}
-OFFICIAL_IR_HOSTS = {"267260": HD_BASE, "010120": "https://www.ls-electric.com", "034020": "https://www.doosanenerbility.com"}
+OFFICIAL_ORDER_IR_COMPANIES = {
+    "267260": "HD현대일렉트릭", "010120": "LS일렉트릭", "034020": "두산에너빌리티",
+    "298040": "효성중공업", "059090": "미코", "475960": "토모큐브", "044490": "태웅",
+    "100090": "SK오션플랜트", "388050": "지투파워", "213420": "덕산네오룩스", "010140": "삼성중공업",
+    "140860": "파크시스템스",
+}
+OFFICIAL_IR_HOSTS = {
+    "267260": HD_BASE, "010120": "https://www.ls-electric.com",
+    "034020": "https://www.doosanenerbility.com", "298040": "https://www.hyosungheavyindustries.com",
+    "010140": "https://www.samsungshi.com",
+    **{code: "https://kind.krx.co.kr/external/dst/irReference"
+       for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860")},
+}
 
 
 def parse_quarter_order_page(text: str) -> list[dict]:
@@ -60,13 +71,16 @@ def parse_quarter_order_page(text: str) -> list[dict]:
 
 def verified_ir_facts() -> list[dict]:
     facts = []
+    downloads: dict[str, bytes] = {}
     # 벡터/이미지 표는 숫자 위치를 추측하지 않는다. 직접 렌더링 대조한 장부만
     # 원문 해시·페이지를 재검증한 뒤 받아들인다.
     manifest = Path(__file__).resolve().parents[1] / "config" / "order_ir_verified.json"
     for fact in json.loads(manifest.read_text(encoding="utf-8")):
         if not fact["source_url"].startswith(OFFICIAL_IR_HOSTS.get(fact["code"], "invalid") + "/"):
             raise ValueError("검증 장부 회사/공식 출처 불일치")
-        data = http_get(fact["source_url"], timeout=90).content
+        if fact["source_url"] not in downloads:
+            downloads[fact["source_url"]] = http_get(fact["source_url"], timeout=90).content
+        data = downloads[fact["source_url"]]
         if not data.startswith(b"%PDF") or hashlib.sha256(data).hexdigest() != fact["sha256"]:
             raise ValueError("검증 IR 원문 해시 변경: 수동 재검증 필요")
         with pymupdf.open(stream=data, filetype="pdf") as document:
@@ -178,6 +192,17 @@ def collect_ls_electric() -> list[dict]:
     return facts
 
 
+def merge_ir_scope(previous: dict, metric: str, fact: dict) -> dict:
+    """같은 보고서에서 한 범위만 갱신하고 나머지 사업부·근거를 보존한다."""
+    scope_line = f'범위 | {fact["scope"]}'
+    series = [s for s in previous.get("series", []) if s.splitlines()[0] != scope_line]
+    evidence = previous.get("evidence", [])
+    if isinstance(evidence, dict):
+        evidence = [evidence]
+    evidence = [f for f in evidence if f.get("scope") != fact["scope"]]
+    return {"series": [*series, metric], "evidence": [*evidence, fact]}
+
+
 def save_facts(facts: list[dict]) -> int:
     db = get_client()
     stored = 0
@@ -195,14 +220,16 @@ def save_facts(facts: list[dict]) -> int:
             if not candidates:
                 continue
             row = max(candidates, key=lambda r: r["rcept_no"])
-            sections = dict(row["sections"])
+            # 한 보고서의 여러 사업부 IR를 덮어쓰지 않고 범위별 보존한다.
+            checked_row = db.table("disclosure_excerpts").select("sections").eq("rcept_no", row["rcept_no"]).single().execute().data
+            sections = dict(checked_row["sections"])
             metric = (f'범위 | {fact["scope"]}\n단위 | {fact["unit"]}'
                       + (f'\n수주잔고 | {fact["backlog"]:g}' if fact["backlog"] is not None else "")
                       + (f'\n신규수주 | {fact["new_orders"]:g}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
                       f'\n출처 | {fact["source_url"]}\n출처 페이지 | {fact["source_page"]}\n자료명 | 공식 IR')
             if fact.get("new_orders_source_url"):
                 metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'
-            sections["공식 IR 수주지표"] = {"series": [metric], "evidence": fact}
+            sections["공식 IR 수주지표"] = merge_ir_scope(sections.get("공식 IR 수주지표", {}), metric, fact)
             db.table("disclosure_excerpts").update({"sections": sections}).eq("rcept_no", row["rcept_no"]).execute()
             checked = db.table("disclosure_excerpts").select("sections").eq("rcept_no", row["rcept_no"]).single().execute().data
             if checked["sections"].get("공식 IR 수주지표") != sections["공식 IR 수주지표"]:

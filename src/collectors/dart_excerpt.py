@@ -56,7 +56,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v7 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v8 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -507,6 +507,8 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
 
         backlog_column = metric_column(backlog_names)
         new_column = metric_column(new_names)
+        contract_column = metric_column({"수주총액"})
+        delivered_column = metric_column({"기납품액", "기납품금액", "기납품총액"})
         if backlog_column is None and new_column is None:
             continue
 
@@ -620,6 +622,30 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             if column is None or column >= len(chosen):
                 return None
             value = chosen[column].replace(" ", "")
+            # 삼성중공업의 합계 323.129(25Q1)/315.350(24Q4)는 쉼표 오기다.
+            # 배율을 추측하지 않는다. 모든 독립 세부행이 정수 금액이고 그 합이
+            # 점을 제거한 합계와 정확히 같을 때만 원문 세부행 합산액을 채택한다.
+            if len(total_rows) == 1 and chosen is total_rows[0] and re.fullmatch(r"\d{1,3}\.\d{3}", value):
+                details = [row for row in data_rows if row not in total_rows]
+                keys = [tuple(row[:label_columns]) for row in details]
+                if (len(details) >= 2 and len(set(keys)) == len(keys)
+                        and all(row[0].strip() and not any(total_label.fullmatch(_order_header(cell))
+                                for cell in row[:label_columns]) for row in details)
+                        and all(column < len(row) and re.fullmatch(r"\d+(?:,\d{3})*", row[column].replace(" ", ""))
+                                for row in details)):
+                    detail_sum = sum(Decimal(row[column].replace(" ", "").replace(",", "")) for row in details)
+                    if detail_sum == Decimal(value.replace(".", "")):
+                        value = format(detail_sum, ",f")
+            # 한 계약만 있어도 원문 수주총액-기납품액의 명시 금액으로 입증할 수 있다.
+            # 당기 신규수주-매출로 잔고를 추정하는 것이 아니라 같은 계약 행의 오기 대조다.
+            if (column == backlog_column and re.fullmatch(r"\d{1,3}\.\d{3}", value)
+                    and contract_column is not None and delivered_column is not None
+                    and all(c < len(chosen) and re.fullmatch(r"\d+(?:,\d{3})*", chosen[c].replace(" ", ""))
+                            for c in (contract_column, delivered_column))):
+                remaining = (Decimal(chosen[contract_column].replace(" ", "").replace(",", ""))
+                             - Decimal(chosen[delivered_column].replace(" ", "").replace(",", "")))
+                if remaining == Decimal(value.replace(".", "")):
+                    value = format(remaining, ",f")
             return value if numeric.fullmatch(value) and float(value.replace(",", "")) >= 0 else None
 
         backlog = value_at(backlog_column)

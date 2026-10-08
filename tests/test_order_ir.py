@@ -1,5 +1,6 @@
 # PRD Ref: §9.1-3 · 공식 IR 실측 수주표 재생
 from src.collectors.order_ir import parse_quarter_order_page, parse_ls_backlog, parse_ls_new_orders
+from src.collectors.order_ir import merge_ir_scope
 
 
 def test_ir_quarter_headers_and_row_units_override_financial_table_unit():
@@ -20,3 +21,16 @@ def test_ls_quarter_orders_preserve_chart_scale_and_backlog_table_scope():
     assert parse_ls_new_orders(text.replace("십억원", "원")) == []
     table = "단위 : 억원\n수주잔고 현황\n주요 제품\n2Q ‘25\n1Q ‘26\n2Q ‘26\nYoY\n배전반\n20,009\nTotal\n38,557\n56,425\n69,998"
     assert [(r['year'], r['quarter'], r['backlog']) for r in parse_ls_backlog(table)] == [(2025, 2, 38557), (2026, 1, 56425), (2026, 2, 69998)]
+
+
+def test_ir_scope_replay_keeps_other_business_and_legacy_evidence():
+    # 미코의 HPS/미코파워/플랜텍은 같은 분기지만 서로 다른 수주 사업이다.
+    old = {"series": ["범위 | HPS\n수주잔고 | 3844"], "evidence": {"scope": "HPS", "backlog": 3844}}
+    power = {"scope": "미코파워", "backlog": 707}
+    merged = merge_ir_scope(old, "범위 | 미코파워\n수주잔고 | 707", power)
+    assert len(merged["series"]) == len(merged["evidence"]) == 2
+    updated = {"scope": "HPS", "backlog": 3900}
+    replay = merge_ir_scope(merged, "범위 | HPS\n수주잔고 | 3900", updated)
+    assert replay["evidence"] == [power, updated]
+    assert replay["series"] == ["범위 | 미코파워\n수주잔고 | 707", "범위 | HPS\n수주잔고 | 3900"]
+    assert old["evidence"]["backlog"] == 3844

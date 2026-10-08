@@ -312,6 +312,20 @@ def test_company_total_scope_and_reported_new_order_period_are_preserved():
     assert metric["newOrdersPeriod"] == "보고기간 누적"
 
 
+def test_first_quarter_standalone_is_valid_prior_for_half_year_cumulative():
+    base = {"year": 2026, "scope": "연결 전체", "backlogEok": 100}
+    reports = [{**base, "quarter": 1, "newOrdersEok": 628.61, "newOrdersPeriod": "당분기"},
+               {**base, "quarter": 2, "newOrdersEok": 1412.76, "newOrdersPeriod": "보고기간 누적"}]
+    half, third = _run([
+        {"orderReportPoints": True, "points": [], "reports": reports},
+        {"orderReportPoints": True, "points": [], "reports": [
+            {**reports[0], "quarter": 2}, {**reports[1], "quarter": 3}]},
+    ])
+    # 손계산: 1Q 단독은 1Q 누적과 동일 → 2Q=1412.76−628.61=784.15.
+    assert half[1]["newOrders"] == pytest.approx(784.15)
+    assert third[1]["newOrders"] is None  # 2Q 단독은 반기 누적이 아니다.
+
+
 def test_contract_window_is_six_months_post_report_and_current_quarter():
     rows = [
         {"rceptNo": "1", "disclosedAt": "2026-07-02"},

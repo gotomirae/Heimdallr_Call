@@ -530,3 +530,29 @@ def test_structured_rejection_is_not_bypassed_by_flat_fallback():
 <P>(단위 : 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>80</TD></TR></TABLE>
 <TITLE>5. 원재료 및 생산설비</TITLE><P>원재료 조달에 관한 설명을 기재합니다.</P></DOCUMENT>"""
     assert "공시 수주지표" not in build_excerpt("X", xml).sections
+
+
+def test_order_total_dot_typo_requires_exact_independent_item_sum():
+    # 삼성중공업 25Q1 원문: 317,698 + 5,431 = 323,129억원.
+    # 합계의 323.129를 임의 배율로 고치지 않고 명시 세부행 합과 대조한다.
+    xml = '''<P>(단위 : 억원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+<TR><TD>조선해양</TD><TD>317,698</TD></TR><TR><TD>토건</TD><TD>5,431</TD></TR>
+<TR><TD>합계</TD><TD>323.129</TD></TR></TABLE>'''
+    assert '수주잔고 | 323,129' in structured_order_metrics(xml)
+    # 실제 소수는 세부행도 소수이므로 1000배 하지 않는다.
+    decimal = xml.replace('317,698','317.698').replace('5,431','5.431')
+    assert '수주잔고 | 323.129' in structured_order_metrics(decimal)
+    # 공개되지 않은 세부 항목은 합계 오기의 증거가 될 수 없다.
+    assert '수주잔고 | 323.129' in structured_order_metrics(xml.replace('5,431','비공개'))
+
+
+def test_order_dot_typo_requires_explicit_contract_balance_for_single_item():
+    # KT: 595,161 - 142,757 = 452,404백만원. GC녹십자웰빙: 20,362 - 15,244 = 5,118.
+    xml = '''<P>(단위 : 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주총액</TH>
+<TH>기납품액</TH><TH>수주잔고</TH></TR>
+<TR><TD>공사</TD><TD>595,161</TD><TD>142,757</TD><TD>452.404</TD></TR>
+<TR><TD>합계</TD><TD>595,161</TD><TD>142,757</TD><TD>452.404</TD></TR></TABLE>'''
+    assert '수주잔고 | 452,404' in structured_order_metrics(xml)
+    assert '수주잔고 | 5,118' in structured_order_metrics(xml.replace('595,161','20,362').replace('142,757','15,244').replace('452.404','5.118'))
+    # 차감액과 정확히 일치하지 않으면 소수 또는 오기인지 판정할 수 없다.
+    assert '수주잔고 | 452.404' in structured_order_metrics(xml.replace('142,757','142,000'))
