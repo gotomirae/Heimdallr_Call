@@ -1,0 +1,47 @@
+[
+  {
+    "code": "267260",
+    "year": 2024,
+    "quarter": 1,
+    "unit": "백만USD",
+    "scope": "공식 IR 연결 전체",
+    "new_orders_period": "당분기",
+    "new_orders": 1438,
+    "backlog": 5076,
+    "source_page": 4,
+    "source_url": "https://www.hd-hyundaielectric.com/elec/common/fileDown.jsp?fileName=2025_04_22_133830_1.pdf&filePath=%2Fhome%2Fapp%2Fhd_electric%2Fupload%2Felec%2Fpresentation%2F&fileOrgName=HD%ED%98%84%EB%8C%80%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD_1Q25+%EC%8B%A4%EC%A0%81%EB%B0%9C%ED%91%9C+%EC%9E%90%EB%A3%8C.pdf",
+    "source_title": "42 2025년 1분기 실적발표 자료(2025.04.22) 2025-04-22",
+    "sha256": "8cc0bdd07e729a2f43c1455e91a75ea5949767f6a83863d27e678ac905b9f12f",
+    "verification": "PDF p4 직접 렌더링 대조: 과거 비교 열 1Q24 (벡터 표제는 텍스트 추출 불가)"
+  },
+  {
+    "code": "034020",
+    "year": 2026,
+    "quarter": 1,
+    "unit": "억원",
+    "scope": "공식 IR 에너빌리티 부문",
+    "new_orders_period": "당분기",
+    "new_orders": 27857,
+    "backlog": 242471,
+    "source_page": 4,
+    "source_url": "https://www.doosanenerbility.com/kr/investment/ir/down/535",
+    "source_title": "2026년 2분기 경영 실적 - 에너빌리티 부문",
+    "sha256": "28e5bf12a403536cd3bca2283d5fc0a373b4f4a419d8800152cbf619668fd163",
+    "verification": "PDF p4 렌더링 대조: 단위 억원, 에너빌리티 부문, 26.1Q/26.2Q 열. 1H 누적 71,225와 분기 합 27,857+43,368 일치"
+  },
+  {
+    "code": "034020",
+    "year": 2026,
+    "quarter": 2,
+    "unit": "억원",
+    "scope": "공식 IR 에너빌리티 부문",
+    "new_orders_period": "당분기",
+    "new_orders": 43368,
+    "backlog": 263509,
+    "source_page": 4,
+    "source_url": "https://www.doosanenerbility.com/kr/investment/ir/down/535",
+    "source_title": "2026년 2분기 경영 실적 - 에너빌리티 부문",
+    "sha256": "28e5bf12a403536cd3bca2283d5fc0a373b4f4a419d8800152cbf619668fd163",
+    "verification": "PDF p4 렌더링 대조: 단위 억원, 에너빌리티 부문, 26.1Q/26.2Q 열. 1H 누적 71,225와 분기 합 27,857+43,368 일치"
+  }
+]

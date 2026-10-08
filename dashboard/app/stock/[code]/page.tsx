@@ -4,7 +4,7 @@ import constants from "@/lib/constants.json";
 import { notFound } from "next/navigation";
 import QuarterlyChart, { OrderQuarterlyChart } from "@/components/QuarterlyChart";
 import DailyPriceChart from "@/components/DailyPriceChart";
-import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, attachOrderReportPoints, chartVerdict, measuredCount, nextQuarterOutlook, toChartPoints } from "@/lib/chart";
+import { CHART_QUARTERS, SERIES_COLOR, appendNextQuarterConsensus, attachContractDisclosures, attachOrderReportPoints, chartVerdict, measuredCount, nextQuarterOutlook, quarterNewOrders, toChartPoints, withOrderBacklogQoq } from "@/lib/chart";
 import { GradeBadge, WarningBadges } from "@/components/Badges";
 import { PriBreakdown, ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Term, TermTh } from "@/components/Term";
@@ -540,6 +540,9 @@ export default async function StockPage({ params }: { params: { code: string } }
       postReportContractEok: index === 0 && scope.endsWith("· 억원") ? p.postReportContractEok : null,
     })), orderMetrics.filter((row) => orderScopeKey(row) === scope)),
   }));
+  const orderQoq = new Map(orderChartSeries.flatMap(({ points }) => withOrderBacklogQoq(points).map((p) => [
+    `${p.orderScope}:${p.orderAmountUnit ?? "억원"}:${p.fiscalYear}:${p.fiscalQuarter}`, p.orderBacklogQoq,
+  ] as const)));
   const dailyFromDate = chartStartFund
     ? `${chartStartFund.fiscal_year}-${String((chartStartFund.fiscal_quarter - 1) * 3 + 1).padStart(2, "0")}-01`
     : undefined;
@@ -783,9 +786,9 @@ export default async function StockPage({ params }: { params: { code: string } }
           <p className="text-xs leading-6 text-amber-200">🔭 다음 분기 전망 근거: {nextConsensus ? `네이버 컨센서스 ${nextConsensus.snapshot_at?.slice(0, 10) ?? '기준일 미확인'} · 추정기관 ${nextConsensus.n_estimates ?? '미확인'}곳 · 예상 매출 ${eok(nextConsensus.revenue_est)} / 영업이익 ${eok(nextConsensus.op_est)}` : "컨센서스 미수집 — 수치 전망을 만들지 않습니다."} <a href={naverStockUrl(code)} target="_blank" rel="noreferrer" className="underline">네이버 원자료</a></p>
           <p className="text-xs leading-6 text-white">⚖️ 전망 검증: 같은 분기의 전년 실적, 수주 전환 시점, 고객 수요·가동률, 원가·제품믹스, 현금흐름을 대조합니다. 아래 수주·계약은 매출 확정치가 아니며 컨센서스 역시 회사 가이던스가 아닙니다.</p>
         </div>
-        <p className="mt-2 text-xs text-white">수주 수치는 DART 정기보고서 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공시가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
+        <p className="mt-2 text-xs text-white">수주 수치는 DART 정기보고서·공식 IR 원문의 단위·분기가 확인된 값이다. 주요계약 합계는 전체 회사 잔고와 다르다. 공개 수치가 없는 분기와 사업부 합계가 모호한 표는 비워 둔다.</p>
         {orderMetrics.length > 0 && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-sky-300">
-          {orderMetrics.map((metric) => <a key={`${metric.rceptNo}:${metric.scope}:${metric.amountUnit}`} href={dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
+          {orderMetrics.map((metric) => <a key={`${metric.rceptNo}:${metric.scope}:${metric.amountUnit}`} href={metric.sourceUrl ? `${metric.sourceUrl}${metric.sourcePage ? `#page=${metric.sourcePage}` : ""}` : dartReportUrl(metric.rceptNo)} target="_blank" rel="noopener noreferrer" className="underline">
             {metric.periodLabel ?? `${metric.year}년 ${metric.quarter}분기`} {metric.scope} · 원문
           </a>)}
         </div>}
@@ -1041,7 +1044,7 @@ export default async function StockPage({ params }: { params: { code: string } }
       </Card>
 
       {/* 전 종목에 표시한다. 수치가 없으면 비공개·해당 없음·수집 대기를 구분한다. */}
-      <Card title="수주잔고·신규수주" note="OpenDART 정기보고서와 단일판매·공급계약을 교차 확인">
+      <Card title="수주잔고·신규수주" note="DART 정기보고서·공식 IR·단일판매·공급계약을 교차 확인">
         {orderChartSeries.length ? orderChartSeries.map((series) => <div key={series.scope} className="mb-4">
           <p className="mb-1 text-sm font-semibold text-sky-200">📋 {series.scope}</p>
           <OrderQuarterlyChart points={series.points} />
@@ -1064,15 +1067,21 @@ export default async function StockPage({ params }: { params: { code: string } }
         {orderSummaries.length > 0 ? <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="text-left text-xs text-white"><tr className="border-b border-slate-700">
-              <th className="py-2">공시일</th><th>분기</th><th>수주잔고</th><th>신규수주</th><th>공시 범위·상태</th><th>출처</th>
+              <th className="py-2">기준 보고서 공시일</th><th>분기</th><th>수주잔고</th><th>수주잔고 QoQ</th><th>신규수주(분기 단독)</th><th>신규수주(원문)</th><th>공시 범위·상태</th><th>출처</th>
             </tr></thead>
             <tbody>{orderSummaries.map((row) => <tr key={`${row.rceptNo}:${row.scope}`} className="border-b border-slate-800/70 align-top">
               <td className="py-2 text-white">{disclosureDateByReceipt.get(row.rceptNo) ?? DASH}</td>
               <td className="py-2 text-white">{row.periodLabel ?? quarterLabel(row.year, row.quarter)}</td>
               <td className="py-2 tabular-nums">{(row.backlogAmount ?? row.backlogEok) == null ? DASH : `${num(row.backlogAmount ?? row.backlogEok, 2)}${row.amountUnit ?? "억원"}`}</td>
+              <td className="py-2 tabular-nums">{(() => { const value = orderQoq.get(`${row.scope}:${row.amountUnit ?? "억원"}:${row.year}:${row.quarter}`); return value == null ? DASH : `${value >= 0 ? "+" : ""}${num(value, 1)}%`; })()}</td>
+              <td className="py-2 tabular-nums">{(() => {
+                const metric = orderMetrics.find((m) => m.rceptNo === row.rceptNo && m.scope === row.scope);
+                const result = metric ? quarterNewOrders(metric, orderMetrics) : null;
+                return <span title={result?.status}>{result?.value == null ? DASH : `${num(result.value, 2)}${row.amountUnit ?? "억원"}`}{result?.value == null && result?.cumulative != null && <span className="mt-1 block text-[10px] text-amber-200">{result.status}</span>}</span>;
+              })()}</td>
               <td className="py-2 tabular-nums">{(row.newOrdersAmount ?? row.newOrdersEok) == null ? DASH : `${num(row.newOrdersAmount ?? row.newOrdersEok, 2)}${row.amountUnit ?? "억원"}`}</td>
               <td className="py-2 pr-3"><span className="font-medium text-sky-200">{row.statusLabel}</span>{row.scope && <span className="mt-0.5 block text-xs text-white">{row.scope}</span>}{row.newOrdersPeriod && <span className="mt-0.5 block text-[11px] text-amber-200">신규수주: {row.newOrdersPeriod}</span>}</td>
-              <td className="py-2"><a href={dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">DART 원문</a></td>
+              <td className="py-2"><a href={row.sourceUrl ? `${row.sourceUrl}${row.sourcePage ? `#page=${row.sourcePage}` : ""}` : dartReportUrl(row.rceptNo)} target="_blank" rel="noreferrer" className="text-sky-300 underline">{row.sourceLabel ?? "DART 원문"}{row.sourcePage ? ` p${row.sourcePage}` : ""}</a>{row.newOrdersSourceUrl && <a href={row.newOrdersSourceUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-pink-300 underline">신규수주 근거</a>}</td>
             </tr>)}</tbody>
           </table>
         </div> : <div className="rounded border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-100">

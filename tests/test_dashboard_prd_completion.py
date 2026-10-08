@@ -213,7 +213,7 @@ def test_growth_dashboard_title_and_quarter_chart_display_contract():
     assert "원값" in QUARTER_CHART and "connectNulls={false}" in QUARTER_CHART
     assert 'dataKey="orderBacklog"' in QUARTER_CHART
     assert 'dataKey="newOrders"' in QUARTER_CHART
-    assert 'name="신규수주(보고기간 누적)"' in QUARTER_CHART
+    assert 'name="신규수주(분기 단독)"' in QUARTER_CHART
     assert "공시 신규계약(하한·보고서 이후)" in QUARTER_CHART
     assert 'dataKey="orderBacklogQoq"' in QUARTER_CHART
     assert 'name="수주잔고 QoQ"' in QUARTER_CHART

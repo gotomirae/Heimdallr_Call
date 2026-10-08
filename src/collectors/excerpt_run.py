@@ -25,6 +25,7 @@ import zlib
 import httpx
 
 from src.config.constants import ORDER_HISTORY_QUARTERS, ORDER_EXCERPT_HTTP_FAILURE_LIMIT
+from src.collectors.order_ir import OFFICIAL_ORDER_IR_COMPANIES
 from src.collectors.dart_excerpt import (
     ORDER_METRIC_MARKER,
     ExcerptError,
@@ -263,6 +264,11 @@ def main() -> int:
         print(f"  ✓ {label} — {len(ex.sections)}개 절 · {chars:,}자 "
               f"(원문 {ex.full_chars:,}자) · {', '.join(ex.sections)}")
         if db:
+            # DART 재수집이 별도 검증한 공식 IR 출처를 삭제하지 않게 보존한다.
+            if d["code"] in OFFICIAL_ORDER_IR_COMPANIES:
+                old_rows = db.table("disclosure_excerpts").select("sections").eq("rcept_no", d["rcept_no"]).limit(1).execute().data
+                if old_rows and isinstance(old_rows[0].get("sections"), dict) and "공식 IR 수주지표" in old_rows[0]["sections"]:
+                    ex.sections["공식 IR 수주지표"] = old_rows[0]["sections"]["공식 IR 수주지표"]
             db.table("disclosure_excerpts").upsert({
                 "rcept_no": d["rcept_no"],
                 "code": d["code"],

@@ -187,15 +187,15 @@ function OrdersPanel({ points, meaning }: { points: ChartPoint[]; meaning: Metri
       <ReferenceLine yAxisId="percent" y={0} stroke="#64748b" strokeWidth={1} />
       <Tooltip formatter={(v, name) => [fmt(v, String(name).includes("QoQ") ? "%" : suffix), name]} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} />
       <Bar yAxisId="amount" dataKey="orderBacklog" name="수주잔고" fill="#a78bfa" isAnimationActive={false}><LabelList dataKey="orderBacklog" position="top" fill="#ddd6fe" fontSize={9} formatter={valueLabel(suffix)} /></Bar>
-      <Bar yAxisId="amount" dataKey="newOrders" name="신규수주(보고기간 누적)" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel(suffix)} /></Bar>
+      <Bar yAxisId="amount" dataKey="newOrders" name="신규수주(분기 단독)" fill="#fb7185" isAnimationActive={false}><LabelList dataKey="newOrders" position="top" fill="#fecdd3" fontSize={9} formatter={valueLabel(suffix)} /></Bar>
       <Bar yAxisId="amount" dataKey="disclosedContractEok" name="공시 신규계약(하한·보고서일까지)" fill="#22d3ee" isAnimationActive={false}><LabelList dataKey="disclosedContractEok" position="top" fill="#a5f3fc" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Bar yAxisId="amount" dataKey="postReportContractEok" name="공시 신규계약(하한·보고서 이후)" fill="#fb923c" isAnimationActive={false}><LabelList dataKey="postReportContractEok" position="top" fill="#fed7aa" fontSize={9} formatter={valueLabel("억")} /></Bar>
       <Line yAxisId="percent" type="linear" dataKey="orderBacklogQoq" name="수주잔고 QoQ" stroke="#facc15" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false}><LabelList dataKey="orderBacklogQoq" content={(p) => lineLabel("#fde047", "%", -12)({ ...p })} /></Line>
     </ComposedChart></ResponsiveContainer></div>
     {!measured && <p className="mt-1 rounded border border-amber-800/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">막대 축은 유지하되 공개 자료의 구조화 수치가 없어 값을 그리지 않았다. 0원이 아니다.</p>}
     {unit !== "억원" && <p className="mt-1 text-xs text-sky-200">원문 외화({unit}) 기준입니다. 원화 환산이나 원화 계약액 합산은 하지 않습니다.</p>}
-    <p className="mt-1 text-[11px] text-amber-200">분홍 신규수주는 원문 보고기간 누적 공시값입니다. 반기는 6개월, 사업보고서는 12개월이며 분기 단독 신규수주로 읽지 않습니다.</p>
-    <p className="mt-1 text-[10px] leading-4 text-white">보라·분홍 막대는 정기보고서가 각각 명시한 수주잔고·신규수주다. 노란 선은 같은 공시 범위의 연속 분기 수주잔고만 비교한 QoQ이며, 범위가 바뀌거나 분기가 빠지면 선을 잇지 않는다. 정기보고서가 신규수주 합계를 공개하지 않은 종목은 단일판매·공급계약 공시액을 청록·주황 막대의 공개 신규계약 하한으로 따로 표시하며, 이를 회사 전체 신규수주로 바꾸지 않는다.</p>
+    <p className="mt-1 text-[11px] text-amber-200">분홍 막대는 분기 단독 신규수주입니다. 누적 공시는 같은 연도·범위·통화의 직전 분기 누적액을 차감하며, 비교할 원문이 없으면 빈 칸으로 남깁니다.</p>
+    <p className="mt-1 text-[10px] leading-4 text-white">보라·분홍 막대는 정기보고서·공식 IR에서 확인한 수주잔고·신규수주다. 노란 선은 같은 공시 범위의 연속 분기 수주잔고만 비교한 QoQ이며, 범위가 바뀌거나 분기가 빠지면 선을 잇지 않는다. 신규수주 합계를 공개하지 않은 종목은 단일판매·공급계약 공시액을 청록·주황 막대의 공개 신규계약 하한으로 따로 표시하며, 이를 회사 전체 신규수주로 바꾸지 않는다.</p>
     {unit === "억원" && <Explanation items={[meaning]} />}
   </div>;
 }

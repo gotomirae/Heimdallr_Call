@@ -56,7 +56,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v6 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v7 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -317,6 +317,9 @@ def _order_unit(table) -> str | None:
                   if (m := re.fullmatch(r"[\d,]+(?:\.\d+)?\s*(백만원|억원|천원|원)", cell.get_text(" ", strip=True)))}
     if len(cell_units) == 1:
         return cell_units.pop()
+    if any(re.fullmatch(r"[\d,]+조\s*[\d,]+억(?:원)?", cell.get_text(" ", strip=True))
+           for cell in table.find_all(["td", "th"])):
+        return "억원"
     return "USD" if inline_usd else None
 
 
@@ -431,6 +434,21 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
                for cell in table.find_all(["th", "td"]))
     ]
     for table in order_tables:
+        if period_end:
+            # 코미팜은 분기말 표 뒤에 보고서 제출 직전 잔고도 싣는다. 후자를
+            # 같은 분기 잔고로 쓰거나 두 표를 합산하지 않는다.
+            basis = None
+            for tag in table.find_all_previous(["p", "tu", "table", "title"], limit=8):
+                if tag.name == "title" or tag.name == "table" and len(tag.find_all("tr")) > 1:
+                    break
+                basis = re.search(r"기준일\s*[:：]\s*(\d{4})\s*[년./-]\s*(\d{1,2})\s*[월./-]\s*(\d{1,2})", tag.get_text(" ", strip=True))
+                if basis:
+                    end = f"{int(basis[1]):04d}-{int(basis[2]):02d}-{int(basis[3]):02d}"
+                    break
+            else:
+                basis = None
+            if basis and end != period_end:
+                continue
         scope_heading = _order_scope_heading(table)
         unit = _order_unit(table)
         if unit is None:
@@ -442,6 +460,10 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             candidate_items.append(None)
             continue
         grid = _table_grid(table)
+        if unit == "억원":
+            grid = [[str(int(m[1].replace(',', '')) * 10000 + int(m[2].replace(',', '')))
+                     if (m := re.fullmatch(r"([\d,]+)조\s*([\d,]+)억(?:원)?", cell)) else cell
+                     for cell in row] for row in grid]
         grid = [[re.sub(rf"(?<=[\d,])\s*{re.escape(unit)}$", "", cell) for cell in row] for row in grid]
         if unit == "USD":
             grid = [[re.sub(r"^(?:USD\s*|US\$|\$)(?=[\d,])", "", cell) for cell in row] for row in grid]
@@ -550,7 +572,8 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         else:
             usable_rows = [
                 row for row in data_rows
-                if any(numeric.fullmatch(cell.replace(" ", "")) for cell in row)
+                if any(c is not None and c < len(row) and numeric.fullmatch(row[c].replace(" ", ""))
+                       for c in (backlog_column, new_column))
             ]
             item_rows = [row for row in data_rows if row[0].strip() and not re.match(r"주\d|[※*]", row[0].strip())]
             if len(total_rows) == 0 and len(usable_rows) == 1 and len(item_rows) == 1:
@@ -572,13 +595,13 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
                 scope = "공시 항목 합산(표 범위)"
             else:
                 # 같은 표에 해당 없음/비공개 행이 섞여 있어도 공개 항목 각각은 보존한다.
-                # 합계를 만들지 않으며 식별 가능한 두 항목 이상인 경우에만 범위별로 승인한다.
+                # 합계를 만들지 않으며 식별 가능한 공개 항목만 범위별로 승인한다.
                 published = [row for row in usable_rows if row[0].strip()
                              and not re.search(r"합\s*계|소\s*계|총\s*계", row[0])
                              and len(row[0]) <= 100
                              and any(c is not None and c < len(row) and numeric.fullmatch(row[c].replace(" ", ""))
                                      for c in (backlog_column, new_column))]
-                if not total_rows and len(published) >= 2 and len({item_key(row) for row in published}) == len(published):
+                if not total_rows and len(published) >= 1 and len({item_key(row) for row in published}) == len(published):
                     for row in published:
                         scoped = f"공시 공개 항목: {item_key(row)}"
                         if scope_heading:

@@ -51,6 +51,8 @@ jobs:
         run: python -m src.collectors.excerpt_run --all-universe --limit 500 --max-seconds 1800 --save
       - name: 단일판매·공급계약 수시공시 구조화
         run: python -m src.collectors.order_contract_run --limit 300 --save
+      - name: 공식 IR 분기 수주·잔고 보완
+        run: python -m src.collectors.order_ir --save
 
   discover_all:
     needs: mode

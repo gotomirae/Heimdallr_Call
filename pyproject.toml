@@ -40,6 +40,9 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["src*", "telegram_bridge*"]
 
+[tool.setuptools.package-data]
+"src.config" = ["order_ir_verified.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

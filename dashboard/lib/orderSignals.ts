@@ -34,6 +34,10 @@ export interface OrderDisclosureMetric {
   periodEnd?: string;
   periodLabel?: string;
   closingMonth?: number;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  sourcePage?: string;
+  newOrdersSourceUrl?: string;
 }
 
 export interface OrderDisclosureSummary {
@@ -52,6 +56,10 @@ export interface OrderDisclosureSummary {
   evidence: string | null;
   periodEnd?: string;
   periodLabel?: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  sourcePage?: string;
+  newOrdersSourceUrl?: string;
 }
 
 export interface OrderContractDisclosure {
@@ -172,6 +180,11 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     ...(!krw ? { amountUnit, backlogAmount, newOrdersAmount } : {}),
     scope: disclosedScope ?? "공시 명시 수치",
     newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
+    ...(exactText(/^출처$/)?.startsWith("https://") ? {
+      sourceUrl: exactText(/^출처$/)!, sourceLabel: exactText(/^자료명$/) ?? "공식 IR",
+      sourcePage: exactText(/^출처 페이지$/) ?? undefined,
+      newOrdersSourceUrl: exactText(/^신규수주 출처$/) ?? undefined,
+    } : {}),
     ...(period ? { periodEnd: period.end, periodLabel: period.label, closingMonth: period.closingMonth } : {}),
   };
 }
@@ -179,18 +192,28 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
 /** 서로 다른 연결회사/사업부의 원문 표를 합산하거나 한 점으로 덮어쓰지 않는다. */
 export function extractOrderDisclosureMetrics(row: DisclosureExcerptRow): OrderDisclosureMetric[] {
   const series = record(row.sections?.["공시 수주지표 목록"])?.series;
-  if (!Array.isArray(series)) {
-    const metric = extractOrderDisclosureMetric(row);
-    return metric ? [metric] : [];
-  }
-  return series.flatMap((section) => {
+  const irSeries = record(row.sections?.["공식 IR 수주지표"])?.series;
+  const irMetrics = (Array.isArray(irSeries) ? irSeries : []).flatMap((section) => {
     if (typeof section !== "string") return [];
     const metric = extractOrderDisclosureMetric({ ...row, sections: { ...row.sections, "공시 수주지표": section } });
     return metric ? [metric] : [];
   });
+  if (!Array.isArray(series)) {
+    const metric = extractOrderDisclosureMetric(row);
+    return [...(metric ? [metric] : []), ...irMetrics];
+  }
+  return [...series.flatMap((section) => {
+    if (typeof section !== "string") return [];
+    const metric = extractOrderDisclosureMetric({ ...row, sections: { ...row.sections, "공시 수주지표": section } });
+    return metric ? [metric] : [];
+  }), ...irMetrics];
 }
 
 export function summarizeOrderDisclosures(row: DisclosureExcerptRow): OrderDisclosureSummary[] {
+  if (record(row.sections?.["공식 IR 수주지표"])) {
+    return extractOrderDisclosureMetrics(row).map((metric) => ({ ...metric,
+      status: "measured", statusLabel: metric.sourceUrl ? "공식 IR 수치 확인" : "공시 수치 확인", evidence: null }));
+  }
   const series = record(row.sections?.["공시 수주지표 목록"])?.series;
   if (!Array.isArray(series)) {
     const summary = summarizeOrderDisclosure(row);

@@ -141,6 +141,9 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
+- **분기 신규수주·공식 IR 보완 (2026-10-08)** — 누적 차감·IR 3기업18분기·기준일 v7을 반영했다.
+  실제 잔고 **3,786점/372 지표기업**, QoQ **3,007점/353기업**, 단독 신규 **132점/14기업**, **1,323 passed·build 11/11**.
+  전체 3항목 확보는 미완료. ADR36·T261~262·상세 `docs/sessions/2026-10-08-order-quarter-ir.md`.
 - **JARVIS J-5 인증 재시도 (2026-10-08)** — 로그인 소실 30분 pending 재시도·기존 상한, KST 하루1회 개인 알림·구독 OAuth만 통과 구현.
   실제 auth 정상·A1 이미 sent/attempts3·Drive MD94,787B 검증, 시험 Notion/알림0. 실제 재로그아웃·토큰 발급 실험은 안 함.
   ADR35·T260·상세 `docs/sessions/2026-10-08-jarvis-j5.md`; J 기존 미추적 실제 세션 기록 포함.
@@ -245,6 +248,3 @@ python -m pytest tests/
   PRI **1,066/1,150**, ★ **51**·○ **91**, KIS **1,159/1,159 성공**, **815 passed·1 skipped·3 deselected**, build **10/10**, CI·Vercel 배포 성공. T145~146.
 - **종목 상세 현재값·10분기·단계 이력 (2026-09-09)** — 네이버 현재가/PER/F.PER/ROE와 기준일, YoY 공통축+원값, 9개 지표 해설·주봉 MACD·10분기 표·LLM 3단계 이력을 반영했다.
   고영 **27,350원·39.35배·31.55배·ROE 16.52%**, 렌더 **200·212,982B**, **809 passed·1 skipped·3 deselected**, build **10/10**. T143~144.
-- **가치·가격/차트 보강 (2026-09-08)** — 발굴목록 4Q PER·F.PER·ROE, 상세 올해/내년 ROE와 8축 섹터표를 추가했다.
-  네이버/FnGuide 연간 2개 전망 파싱·당일 시세 복사, ISO 주봉 MACD·YoY 독립축을 실화면 검증했다.
-  에스엘 실측 F.PER **6.61·ROE 13.68→13.40**, **804 passed·1 skipped·3 deselected**, build **10/10**. T140~142.

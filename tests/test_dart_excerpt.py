@@ -277,7 +277,9 @@ def test_table_sum_is_only_with_complete_independent_items():
     xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
     <TR><TD>A사업</TD><TD>100</TD></TR><TR><TD>B사업</TD><TD>50</TD></TR></TABLE>'''
     assert '수주잔고 | 150' in structured_order_metrics(xml)
-    assert structured_order_metrics(xml.replace('<TD>50</TD>', '<TD>-</TD>')) is None
+    # 일부 미공개 항목은 더하지 않고 공개 항목 범위로만 남긴다.
+    partial = structured_order_metrics(xml.replace('<TD>50</TD>', '<TD>-</TD>'))
+    assert partial == '범위 | 공시 공개 항목: A사업\n단위 | 백만원\n수주잔고 | 100'
     assert structured_order_metrics(xml.replace('B사업', 'A사업')) is None
 
 
@@ -469,6 +471,30 @@ def test_partly_private_table_preserves_public_items_without_a_total():
     assert len(series) == 2
     assert all("공시 공개 항목:" in s for s in series)
     assert structured_order_metrics(xml) is None
+
+
+def test_single_public_backlog_is_preserved_as_subset_not_company_total():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = '''<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+<TR><TD>연료전지</TD><TD>-</TD></TR><TR><TD>수소충전소</TD><TD>61,071</TD></TR></TABLE>'''
+    assert structured_order_series(xml) == ["범위 | 공시 공개 항목: 수소충전소\n단위 | 백만원\n수주잔고 | 61,071"]
+
+
+def test_compound_won_cell_unit_does_not_require_guessing_scale():
+    xml = '''<TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+<TR><TD>LNG</TD><TD>3조 2474억</TD></TR></TABLE>'''
+    assert "단위 | 억원\n수주잔고 | 32474" in structured_order_metrics(xml)
+    assert structured_order_metrics(xml.replace("3조 2474억", "32474")) is None
+
+
+def test_submission_date_backlog_is_not_used_as_quarter_end_backlog():
+    xml = '''<P>(기준일:2026년 06월 30일)</P><P>(단위: 천원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>9,519,844</TD></TR></TABLE>
+<P>(기준일:2026년 07월 31일)</P><P>(단위: 천원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주잔고</TH></TR><TR><TD>합계</TD><TD>9,343,851</TD></TR></TABLE>'''
+    metric = structured_order_metrics(xml, period_end="2026-06-30")
+    assert "수주잔고 | 9,519,844" in metric
+    assert "2026년" not in metric and "9,343,851" not in metric
 
 
 def test_order_metric_preserves_subsidiary_scope():

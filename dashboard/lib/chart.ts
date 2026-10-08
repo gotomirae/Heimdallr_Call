@@ -23,6 +23,9 @@ export interface ChartPoint {
   /** DART 정형 수치 수집 전에는 null. 단위를 추측해 채우지 않는다. */
   orderBacklog: number | null;
   newOrders: number | null;
+  /** 연초 이후 누적 공시값. 분기 단독 막대와 구분해 보존한다. */
+  newOrdersCumulative?: number | null;
+  newOrdersStatus?: string;
   /** 같은 공시 범위·연속 분기의 수주잔고 QoQ(%). 범위가 다르거나 0 기준이면 null. */
   orderBacklogQoq: number | null;
   /** 해당 분기에 공시된 단일판매·공급계약 합계. 전체 신규수주가 아닌 하한 참고치. */
@@ -166,10 +169,41 @@ export interface ContractDisclosureQuarter {
   postReportEok: number | null;
 }
 
+export interface OrderReportPoint {
+  year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null;
+  scope: string; amountUnit?: string; backlogAmount?: number | null; newOrdersAmount?: number | null;
+  newOrdersPeriod?: string | null; periodEnd?: string; periodLabel?: string; closingMonth?: number;
+}
+
+/** SC: 누적 신규수주는 같은 회계연도·범위·통화의 직전 누적값만 차감한다. */
+export function quarterNewOrders(report: OrderReportPoint, reports: OrderReportPoint[]): {
+  value: number | null; cumulative: number | null; status: string;
+} {
+  const raw = report.newOrdersAmount ?? report.newOrdersEok;
+  const missing = (status: string) => ({ value: null, cumulative: raw, status });
+  if (raw == null) return missing("원문 신규수주 미공개");
+  if (report.newOrdersPeriod === "당분기") return { value: raw, cumulative: null, status: "원문 분기 단독" };
+  if (report.newOrdersPeriod !== "보고기간 누적") return missing("원문 신규수주 기간 미확인");
+  if (report.quarter === 1) return { value: raw, cumulative: raw, status: "1분기 누적=분기 단독" };
+  const index = (r: OrderReportPoint) => r.periodEnd
+    ? Number(r.periodEnd.slice(0, 4)) * 12 + Number(r.periodEnd.slice(5, 7))
+    : r.year * 12 + r.quarter * 3;
+  const previous = reports.filter((r) => r.year === report.year && r.quarter === report.quarter - 1 &&
+    r.scope === report.scope && (r.amountUnit ?? "억원") === (report.amountUnit ?? "억원") &&
+    r.closingMonth === report.closingMonth && Boolean(r.periodEnd) === Boolean(report.periodEnd) &&
+    index(report) - index(r) === 3 && r.newOrdersPeriod === "보고기간 누적");
+  if (previous.length !== 1) return missing("비교 가능한 직전 분기 누적값 없음");
+  const prior = previous[0].newOrdersAmount ?? previous[0].newOrdersEok;
+  if (prior == null) return missing("직전 분기 신규수주 미공개");
+  const value = raw - prior;
+  if (value < 0) return missing("누적액 감소: 정정·범위 변경 확인 필요");
+  return { value, cumulative: raw, status: "당기 누적 − 직전 분기 누적" };
+}
+
 /** 수주 원문은 재무 수집 여부와 독립적이다. 재무가 없는 과거 분기도 수주축에 남긴다. */
 export function attachOrderReportPoints(
   points: ChartPoint[],
-  reports: { year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null; scope: string; amountUnit?: string; backlogAmount?: number | null; newOrdersAmount?: number | null; periodEnd?: string; periodLabel?: string; closingMonth?: number }[],
+  reports: OrderReportPoint[],
 ): ChartPoint[] {
   const merged = new Map(points.map((point) => [`${point.fiscalYear}-${point.fiscalQuarter}`, { ...point }]));
   for (const report of reports) {
@@ -182,8 +216,10 @@ export function attachOrderReportPoints(
       disclosedContractEok: null, postReportContractEok: null,
       opStatusLabel: null, ttmRevenue: null, isEstimate: false, isCurrentQuarter: false,
     };
+    const newOrders = quarterNewOrders(report, reports);
     merged.set(key, { ...point, orderBacklog: report.backlogAmount ?? report.backlogEok,
-      newOrders: report.newOrdersAmount ?? report.newOrdersEok, orderScope: report.scope, orderAmountUnit: report.amountUnit ?? "억원",
+      newOrders: newOrders.value, newOrdersCumulative: newOrders.cumulative, newOrdersStatus: newOrders.status,
+      orderScope: report.scope, orderAmountUnit: report.amountUnit ?? "억원",
       ...(report.periodEnd ? { orderPeriodEnd: report.periodEnd, orderClosingMonth: report.closingMonth } : {}) });
   }
   // 非12월 자료가 있으면 주문 전용 축에서 재무의 가짜 빈 분기점을 제거한다.

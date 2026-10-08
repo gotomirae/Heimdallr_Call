@@ -39,13 +39,43 @@ def _run(cases: list[dict]) -> list[dict | None]:
 def test_order_reports_are_plotted_without_fundamental_rows():
     # 손계산: 재무 0행이어도 100→150의 같은 범위 연속 잔고 QoQ는 +50%다.
     rows = _run([{"orderReportPoints": True, "points": [], "reports": [
-        {"year": 2026, "quarter": 1, "backlogEok": 100, "newOrdersEok": 30, "scope": "별도 합계"},
-        {"year": 2026, "quarter": 2, "backlogEok": 150, "newOrdersEok": 80, "scope": "별도 합계"},
+        {"year": 2026, "quarter": 1, "backlogEok": 100, "newOrdersEok": 30, "scope": "별도 합계", "newOrdersPeriod": "보고기간 누적"},
+        {"year": 2026, "quarter": 2, "backlogEok": 150, "newOrdersEok": 80, "scope": "별도 합계", "newOrdersPeriod": "보고기간 누적"},
     ]}])[0]
     assert len(rows) == 2
     assert rows[0]["revenue"] is None
-    assert rows[1]["newOrders"] == 80
+    assert rows[1]["newOrders"] == 50  # 반기 80 - 1분기 30
     assert rows[1]["orderBacklogQoq"] == 50
+
+
+def test_new_orders_are_quarterized_only_with_comparable_cumulative_sources():
+    base = {"year": 2026, "scope": "연결 전체", "backlogEok": 100,
+            "newOrdersPeriod": "보고기간 누적"}
+    reports = [{**base, "quarter": q, "newOrdersEok": amount}
+               for q, amount in enumerate([30, 80, 120, 170], 1)]
+    cases = [reports, [reports[0], reports[2]],
+             [reports[0], {**reports[1], "scope": "별도 전체"}],
+             [reports[0], {**reports[1], "newOrdersEok": 20}],
+             [{**reports[1], "newOrdersPeriod": "당분기"}],
+             [{**reports[1], "newOrdersPeriod": None}],
+             [reports[0], {**reports[1], "amountUnit": "백만USD", "newOrdersAmount": 80}]]
+    result = _run([{"orderReportPoints": True, "points": [], "reports": rows} for rows in cases])
+    # 손계산: 누적 30/80/120/170 → 단독 30/50/40/50. 범위/통화/기간 혼합 금지.
+    assert [p["newOrders"] for p in result[0]] == [30, 50, 40, 50]
+    assert result[0][1]["newOrdersCumulative"] == 80
+    for index in (1, 2, 3, 5, 6):
+        assert result[index][-1]["newOrders"] is None
+    assert result[4][0]["newOrders"] == 80
+
+
+def test_official_ir_metrics_keep_their_source_and_dart_scope_separate():
+    row = {"rcept_no": "20260814000001", "code": "267260", "fiscal_year": 2026, "fiscal_quarter": 2,
+           "sections": {"공시 수주지표": "범위 | 별도 합계\n단위 | 억원\n수주잔고 | 100",
+                        "공식 IR 수주지표": {"series": ["범위 | 공식 IR 연결 전체\n단위 | 백만USD\n수주잔고 | 8490\n신규수주 | 1440\n신규수주 기간 | 당분기\n출처 | https://www.hd-hyundaielectric.com/ir.pdf\n출처 페이지 | 4\n자료명 | 공식 IR"]}}}
+    result = _run([{"metrics": True, "row": row}])[0]
+    assert len(result) == 2 and result[0]["backlogEok"] == 100
+    assert result[1]["backlogEok"] is None and result[1]["backlogAmount"] == 8490
+    assert result[1]["sourcePage"] == "4" and result[1]["sourceUrl"].startswith("https://www.hd-hyundaielectric.com/")
 
 
 def test_business_scopes_are_preserved_without_replacing_or_adding_totals():
