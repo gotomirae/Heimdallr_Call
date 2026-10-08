@@ -7,6 +7,7 @@ import calendar
 import hashlib
 import json
 import re
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import urlencode, urljoin
 
@@ -25,7 +26,7 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "298040": "효성중공업", "059090": "미코", "475960": "토모큐브", "044490": "태웅",
     "100090": "SK오션플랜트", "388050": "지투파워", "213420": "덕산네오룩스", "010140": "삼성중공업",
     "140860": "파크시스템스", "079550": "LIG디펜스앤에어로스페이스", "356860": "티엘비", "006360": "GS건설",
-    "028050": "삼성E&A", "000720": "현대건설",
+    "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -33,9 +34,12 @@ OFFICIAL_IR_HOSTS = {
     "010140": "https://www.samsungshi.com", "006360": "https://www.gsenc.com",
     "028050": "https://sea.samsungena.com", "000720": "https://m.hdec.kr",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
-       for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860")},
+       for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }
-OFFICIAL_IR_ADDITIONAL_HOSTS = {"079550": ("https://www.ligdefenseaerospace.com",)}
+OFFICIAL_IR_ADDITIONAL_HOSTS = {
+    "079550": ("https://www.ligdefenseaerospace.com",),
+    "000720": ("https://www.hdec.kr",),
+}
 
 
 def download_verified_pdf(fact: dict) -> bytes:
@@ -237,6 +241,27 @@ def merge_ir_scope(previous: dict, metric: str, fact: dict) -> dict:
     return {"series": [*series, metric], "evidence": [*evidence, fact]}
 
 
+def plain_ir_amount(value: int | float) -> str:
+    amount = Decimal(str(value))
+    if not amount.is_finite():
+        raise ValueError("IR 수주 금액은 유한 숫자여야 함")
+    text = format(amount, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def format_ir_metric(fact: dict) -> str:
+    """검증된 수치를 대시보드 계약의 숫자 행으로 직렬화한다."""
+    metric = (f'범위 | {fact["scope"]}\n단위 | {fact["unit"]}'
+              + (f'\n수주잔고 | {plain_ir_amount(fact["backlog"])}' if fact["backlog"] is not None else "")
+              + (f'\n신규수주 | {plain_ir_amount(fact["new_orders"])}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
+              f'\n출처 | {fact["source_url"]}' +
+              (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None else "") +
+              f'\n자료명 | 공식 IR')
+    if fact.get("new_orders_source_url"):
+        metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'
+    return metric
+
+
 def save_facts(facts: list[dict]) -> int:
     db = get_client()
     stored = 0
@@ -257,14 +282,7 @@ def save_facts(facts: list[dict]) -> int:
             # 한 보고서의 여러 사업부 IR를 덮어쓰지 않고 범위별 보존한다.
             checked_row = db.table("disclosure_excerpts").select("sections").eq("rcept_no", row["rcept_no"]).single().execute().data
             sections = dict(checked_row["sections"])
-            metric = (f'범위 | {fact["scope"]}\n단위 | {fact["unit"]}'
-                      + (f'\n수주잔고 | {fact["backlog"]:g}' if fact["backlog"] is not None else "")
-                      + (f'\n신규수주 | {fact["new_orders"]:g}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
-                      f'\n출처 | {fact["source_url"]}' +
-                      (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None else "") +
-                      f'\n자료명 | 공식 IR')
-            if fact.get("new_orders_source_url"):
-                metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'
+            metric = format_ir_metric(fact)
             sections["공식 IR 수주지표"] = merge_ir_scope(sections.get("공식 IR 수주지표", {}), metric, fact)
             db.table("disclosure_excerpts").update({"sections": sections}).eq("rcept_no", row["rcept_no"]).execute()
             checked = db.table("disclosure_excerpts").select("sections").eq("rcept_no", row["rcept_no"]).single().execute().data

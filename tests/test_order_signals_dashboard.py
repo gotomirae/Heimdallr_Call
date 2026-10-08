@@ -339,3 +339,17 @@ def test_contract_window_is_six_months_post_report_and_current_quarter():
         "latestPeriodicReportDate": "2026-08-13",
     }])
     assert [row["rceptNo"] for row in filtered] == ["3", "4"]
+
+
+def test_verified_ir_amount_survives_storage_without_scientific_notation_or_rounding():
+    from src.collectors.order_ir import format_ir_metric
+    # 실제 현대건설 26Q2 1,039,831억원은 :g 기본 정밀도에서 지수 문자열로 바뀐다.
+    fact = {"scope": "공식 IR 연결", "unit": "억원", "backlog": 1039831,
+            "new_orders": 228230.12, "new_orders_period": "보고기간 누적",
+            "source_url": "https://www.hdec.kr/ir.pdf", "source_page": 8}
+    [metric] = _run([{"metric": True, "row": {
+        "rcept_no": "20260814003360", "fiscal_year": 2026, "fiscal_quarter": 2,
+        "sections": {"공시 수주지표": format_ir_metric(fact)},
+    }}])
+    assert metric["backlogEok"] == 1039831
+    assert metric["newOrdersEok"] == 228230.12
