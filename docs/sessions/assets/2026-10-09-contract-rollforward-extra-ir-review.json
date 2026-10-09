@@ -1,0 +1,155 @@
+{
+  "companies": [
+    {
+      "code": "484870",
+      "name": "엠앤씨솔루션",
+      "officialEntry": "https://www.mncsolution.com/kr",
+      "linkedIR": "https://irpage.mncsolution.com/",
+      "pdfs": [
+        {
+          "url": "https://irpage.mncsolution.com/postact/download/36",
+          "sha256": "59f2ccbcf2b28b2a5a85b09fd0e716218623fc9f57485444db9844f2d7246744",
+          "path": ".cache\\orders\\deep\\mnc-59f2ccbcf2b28b2a.pdf",
+          "pages": 21,
+          "textChars": 5708
+        },
+        {
+          "url": "https://irpage.mncsolution.com/postact/download/31",
+          "sha256": "a99e8237ea57b11f4a2cd62a98598fa2ca66fc513a28ddc2954d9bad2c49d8aa",
+          "path": ".cache\\orders\\deep\\mnc-a99e8237ea57b11f.pdf",
+          "pages": 21,
+          "textChars": 5595
+        },
+        {
+          "url": "https://irpage.mncsolution.com/postact/download/20",
+          "sha256": "302cacaf5942af19c5b2ae0a4492c41be37736a652912de332bffbcb24b999e0",
+          "path": ".cache\\orders\\deep\\mnc-302cacaf5942af19.pdf",
+          "pages": 7,
+          "textChars": 2919
+        },
+        {
+          "url": "https://irpage.mncsolution.com/postact/download/13",
+          "sha256": "a9856730a4de09dc1492d095942521a9a07565f049e9039fbe50f403adcfb456",
+          "path": ".cache\\orders\\deep\\mnc-a9856730a4de09dc.pdf",
+          "pages": 7,
+          "textChars": 3071
+        },
+        {
+          "url": "https://irpage.mncsolution.com/postact/download/12",
+          "sha256": "98471604b556160cdc704a8fda1083cdbc07cff90dfc22e77062d347a04503c2",
+          "path": ".cache\\orders\\deep\\mnc-98471604b556160c.pdf",
+          "pages": 7,
+          "textChars": 3000
+        }
+      ],
+      "approvedFacts": 0,
+      "review": "최신 26Q2 전체21페이지 이미지 검토; 26Q1·Q2 실적 PDF의 주요 계약 목록은 전체 분기 신규가 아니며 Q1 실적 PDF에도4월 계약이 포함되어 있다. 주주서한2026-09-01은 배당·자사주 정책으로 신규수주 직접 합계가 없다."
+    },
+    {
+      "code": "092460",
+      "name": "한라IMS",
+      "officialEntry": "https://www.hanlaims.com",
+      "linkedIR": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK",
+      "pdfs": [
+        {
+          "title": "HANLA IMS 2026 2Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=14",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=14&no=0",
+          "sha256": "4d8463f47859ce959a01ac964cfe81282dec157cb1a74ac75ef20c1235d08558",
+          "path": ".cache\\orders\\deep\\hanla-4d8463f47859ce95.pdf",
+          "pages": 29,
+          "textChars": 7317
+        },
+        {
+          "title": "HANLA IMS 2026 1Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=13",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=13&no=0",
+          "sha256": "898696d04571bad78681cd2a673cb9dfb18e7ccaffca7667cb2481eb6d669d7a",
+          "path": ".cache\\orders\\deep\\hanla-898696d04571bad7.pdf",
+          "pages": 29,
+          "textChars": 7314
+        },
+        {
+          "title": "HANLA IMS 2025 4Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=12",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=12&no=0",
+          "sha256": "69e7bd0d946893aa6c7e16e582a7a2377a4ce056533f7d53c164fad6ba84ccb9",
+          "path": ".cache\\orders\\deep\\hanla-69e7bd0d946893aa.pdf",
+          "pages": 29,
+          "textChars": 7323
+        },
+        {
+          "title": "HANLA IMS 2025 3Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=11",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=11&no=0",
+          "sha256": "60ef7f54158bb1c23e68aca68998429f81f0e678224d1084524ef8c9248117b1",
+          "path": ".cache\\orders\\deep\\hanla-60ef7f54158bb1c2.pdf",
+          "pages": 28,
+          "textChars": 7021
+        },
+        {
+          "title": "HANLA IMS 2025 2Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=10",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=10&no=0",
+          "sha256": "45c784ba87755327daa0d7f523fda6d52e8c8f8acff3efc22b5d29201a795869",
+          "path": ".cache\\orders\\deep\\hanla-45c784ba87755327.pdf",
+          "pages": 28,
+          "textChars": 7002
+        },
+        {
+          "title": "HANLA IMS 2025 1Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=9",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=9&no=0",
+          "sha256": "4d52a7d94a0d59aaae12d367e57132bedc7774a67fff61c466b690e34dc75ae3",
+          "path": ".cache\\orders\\deep\\hanla-4d52a7d94a0d59aa.pdf",
+          "pages": 28,
+          "textChars": 7027
+        },
+        {
+          "title": "HANLA IMS 2024 4Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=8",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=8&no=0",
+          "sha256": "09e72a262d5a93f73df4a609503b0db60a714777ba4a682c10c4b723ef29e03a",
+          "path": ".cache\\orders\\deep\\hanla-09e72a262d5a93f7.pdf",
+          "pages": 29,
+          "textChars": 7266
+        },
+        {
+          "title": "HANLA IMS 2024 3Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=7",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=7&no=0",
+          "sha256": "73e2f63d2663c144536de811db4859452e0411f5ce7e93e6b9d94f96c2e2a8fa",
+          "path": ".cache\\orders\\deep\\hanla-73e2f63d2663c144.pdf",
+          "pages": 29,
+          "textChars": 6874
+        },
+        {
+          "title": "HANLA IMS 2024 2Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=6",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=6&no=1",
+          "sha256": "b5c1e642372efd0b402a64b58c1d1f0f781b469cf1ac5ac52f6bcb871eb6b06d",
+          "path": ".cache\\orders\\deep\\hanla-b5c1e642372efd0b.pdf",
+          "pages": 30,
+          "textChars": 7612
+        },
+        {
+          "title": "HANLA IMS 2024 1Q IR BOOK",
+          "postUrl": "https://www.hanlaims.com/bbs/board.php?bo_table=IR_PACK&wr_id=5",
+          "url": "https://www.hanlaims.com/bbs/download.php?bo_table=IR_PACK&wr_id=5&no=0",
+          "sha256": "0ed5cae1b48eb90d3f4edfc81c40e1c37525e01d7b4394968cb522093475604b",
+          "path": ".cache\\orders\\deep\\hanla-0ed5cae1b48eb90d.pdf",
+          "pages": 30,
+          "textChars": 7606
+        }
+      ],
+      "approvedFacts": 0,
+      "review": "최신 26Q2 전체29페이지 이미지 검토. 경영실적은 연결재무/주주 자료만 있고 실제 수주 표 없음. 과거 일부 목차에는 수주실적이 있으나 텍스트 목록만으로 신규/잔고 숫자를 승인하지 않는다."
+    }
+  ],
+  "ci": {
+    "sha": "26d35b22c48db72e55d2a2f6a53a2e9553e5eec2",
+    "run": 37918917773,
+    "status": "success",
+    "vercel": "success"
+  }
+}
