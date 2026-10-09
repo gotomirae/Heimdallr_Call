@@ -188,6 +188,7 @@ export interface OrderReportPoint {
   year: number; quarter: number; backlogEok: number | null; newOrdersEok: number | null;
   scope: string; amountUnit?: string; backlogAmount?: number | null; newOrdersAmount?: number | null;
   newOrdersPeriod?: string | null; periodEnd?: string; periodLabel?: string; closingMonth?: number;
+  newOrdersCumulativeAmount?: number | null;
 }
 
 /** SC: 누적 신규수주는 같은 회계연도·범위·통화의 직전 누적값만 차감한다. */
@@ -197,7 +198,9 @@ export function quarterNewOrders(report: OrderReportPoint, reports: OrderReportP
   const raw = report.newOrdersAmount ?? report.newOrdersEok;
   const missing = (status: string) => ({ value: null, cumulative: raw, status });
   if (raw == null) return missing("원문 신규수주 미공개");
-  if (report.newOrdersPeriod === "당분기") return { value: raw, cumulative: null, status: "원문 분기 단독" };
+  if (report.newOrdersPeriod === "당분기") return {
+    value: raw, cumulative: report.newOrdersCumulativeAmount ?? null, status: "원문 분기 단독",
+  };
   if (report.newOrdersPeriod !== "보고기간 누적") return missing("원문 신규수주 기간 미확인");
   if (report.quarter === 1) return { value: raw, cumulative: raw, status: "1분기 누적=분기 단독" };
   const index = (r: OrderReportPoint) => r.periodEnd
@@ -206,11 +209,11 @@ export function quarterNewOrders(report: OrderReportPoint, reports: OrderReportP
   const previous = reports.filter((r) => r.year === report.year && r.quarter === report.quarter - 1 &&
     r.scope === report.scope && (r.amountUnit ?? "억원") === (report.amountUnit ?? "억원") &&
     r.closingMonth === report.closingMonth && Boolean(r.periodEnd) === Boolean(report.periodEnd) &&
-    index(report) - index(r) === 3 && (r.newOrdersPeriod === "보고기간 누적" ||
+    index(report) - index(r) === 3 && (r.newOrdersCumulativeAmount != null || r.newOrdersPeriod === "보고기간 누적" ||
       // 첫 회계분기의 단독액은 같은 연도 누적액과 같다. 2Q 단독에는 적용하지 않는다.
       r.quarter === 1 && r.newOrdersPeriod === "당분기"));
   if (previous.length !== 1) return missing("비교 가능한 직전 분기 누적값 없음");
-  const prior = previous[0].newOrdersAmount ?? previous[0].newOrdersEok;
+  const prior = previous[0].newOrdersCumulativeAmount ?? previous[0].newOrdersAmount ?? previous[0].newOrdersEok;
   if (prior == null) return missing("직전 분기 신규수주 미공개");
   const value = raw - prior;
   if (value < 0) return missing("누적액 감소: 정정·범위 변경 확인 필요");

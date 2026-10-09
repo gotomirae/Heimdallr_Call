@@ -448,3 +448,23 @@ def test_verified_ir_amount_survives_storage_without_scientific_notation_or_roun
     }}])
     assert metric["backlogEok"] == 1039831
     assert metric["newOrdersEok"] == 228230.12
+
+
+def test_direct_quarter_and_verified_cumulative_are_both_preserved_without_filling_missing_total():
+    def row(q, direct, cumulative=None, scope="제품"):
+        text = f"범위 | {scope}\n단위 | 백만원\n수주잔고 | 15000\n신규수주 | {direct}\n신규수주 기간 | " + ("보고기간 누적" if q == 3 else "당분기")
+        if cumulative is not None: text += f"\n신규수주 누적 | {cumulative}"
+        return {"code": "123456", "rcept_no": f"20260{q}14000001", "fiscal_year": 2026, "fiscal_quarter": q,
+                "sections": {"공시 수주지표 확인": "완료", "공시 수주지표": text}}
+    # 원문 Q2 단독3000백만원과 검증된 H1 합계5000백만원을 모두 보존.
+    # Q1이 없더라도 Q2는30억원; Q3 누적9000−H1합계5000=40억원.
+    verified, unverified, changed = _run([
+        {"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": [row(2, 3000, 5000), row(3, 9000)]},
+        {"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": [row(2, 3000), row(3, 9000)]},
+        {"companyAudit": True, "company": {"code": "123456", "name": "장비사"}, "rows": [row(2, 3000, 5000, "다른 범위"), row(3, 9000)]},
+    ])
+    assert verified["series"][0]["newOrders"] == 40
+    assert verified["series"][0]["history"]["newOrders"] == 2
+    assert unverified["series"][0]["newOrders"] is None
+    assert unverified["series"][0]["history"]["newOrders"] == 1
+    assert changed["series"][0]["newOrders"] is None

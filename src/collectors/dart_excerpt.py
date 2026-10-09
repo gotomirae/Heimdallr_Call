@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import io
+import calendar
 import html
 import re
 import zipfile
@@ -56,7 +57,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v10 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v11 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -484,6 +485,77 @@ def _opening_closing_backlog_series(table, period_end: str | None) -> list[str]:
     return [f"범위 | {heading} / 기초·기말 수주잔고 공시 합계\n단위 | {unit}\n수주잔고 | {value}"]
 
 
+def _quarter_order_rollforward_series(table, period_end: str | None) -> list[str] | None:
+    """명시 신규수주 절의 분기 날짜 행을 읽고 계약 변경·취소와 분리한다."""
+    grid = _table_grid(table)
+    if (not grid or len(grid[0]) != 7
+            or [_order_header(cell) for cell in grid[0]] != ["품목", "수주일자", "전기수주잔고", "수주총액", "수주증가/취소", "제품매출액", "수주잔고"]):
+        return None
+    if not period_end:
+        return []
+    context = " ".join(tag.get_text(" ", strip=True) for tag in table.find_all_previous(["p"], limit=3))
+    unit = _order_unit(table)
+    if not unit or not re.search(r"신규\s*수주상황", context):
+        return []
+    matched = []
+    components = []
+    for row in grid[1:]:
+        if len(row) != 7:
+            continue
+        date_text = row[1].replace(" ", "")
+        annual = re.fullmatch(r"(\d{4})년", date_text)
+        flow_period = "당분기"
+        if annual:
+            if f"{annual[1]}-12-31" != period_end:
+                continue
+            flow_period = "보고기간 누적"
+        else:
+            dates = re.fullmatch(r"(\d{4})\.(\d{2})\.(\d{2})~(\d{4})\.(\d{2})\.(\d{2})", date_text)
+            quarter_label = re.fullmatch(r"(\d{4})년([1-4])분기", date_text)
+            if quarter_label:
+                y, q = map(int, quarter_label.groups())
+                m, day, end_y, end_m = (q - 1) * 3 + 1, 1, y, q * 3
+                end_day = calendar.monthrange(y, end_m)[1]
+            elif dates:
+                y, m, day, end_y, end_m, end_day = map(int, dates.groups())
+            else:
+                continue
+            if (m not in (1, 4, 7, 10) or day != 1 or end_y != y or end_m != m + 2
+                    or end_day != calendar.monthrange(y, end_m)[1]):
+                continue
+        values = [value.replace(",", "") for value in row[2:]]
+        if not all(re.fullmatch(r"-?\d+(?:\.\d+)?", value) or index == 2 and value == "-"
+                   for index, value in enumerate(values)):
+            continue
+        opening, new, change, revenue, closing = (Decimal("0" if value == "-" else value) for value in values)
+        if min(opening, new, revenue, closing) < 0:
+            continue
+        if opening + new + change - revenue != closing:
+            if annual:
+                # 연말 잔고는 명시 연도·단위의 직접값이다. 불일치 신규는 승인하지 않는다.
+                matched.append(f"범위 | 공시 분기별 제품 수주 / {row[0]}\n단위 | {unit}\n수주잔고 | {row[6]}")
+            continue
+        if not annual:
+            end = f"{end_y:04d}-{end_m:02d}-{end_day:02d}"
+            if str(y) == period_end[:4] and end <= period_end:
+                components.append((m, new, row[0]))
+            if end != period_end:
+                continue
+        matched.append(f"범위 | 공시 분기별 제품 수주 / {row[0]}\n단위 | {unit}\n수주잔고 | {row[6]}\n신규수주 | {row[3]}\n신규수주 기간 | {flow_period}")
+    # 원문 보고기간 합계가 있으면 분기별 직접 행의 합과 대조해 누적 원자료로 보존한다.
+    # 잔고는 합산하지 않는다. Q4도 연간 원문−검증된 9개월 누적으로 분해할 수 있다.
+    totals = [row for row in grid[1:] if _order_header(row[0]) in {"합계", "총계"}]
+    expected_months = list(range(1, int(period_end[5:7]), 3))
+    if (len(matched) == 1 and "신규수주 기간 | 당분기" in matched[0]
+            and len(totals) == 1 and len(totals[0]) == 7
+            and re.fullmatch(r"\d+(?:,\d{3})*(?:\.\d+)?", totals[0][3])
+            and sorted(month for month, _, _ in components) == expected_months
+            and len({product for _, _, product in components}) == 1
+            and sum(amount for _, amount, _ in components) == Decimal(totals[0][3].replace(",", ""))):
+        matched[0] += f"\n신규수주 누적 | {totals[0][3]}"
+    return matched if len(matched) == 1 else []
+
+
 def _construction_note_order_series(table) -> list[str]:
     """공사계약 변동표의 기말잔액과 바로 뒤 각주의 명시 신규만 읽는다."""
     grid = _table_grid(table)
@@ -604,6 +676,10 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         for table in soup.find_all("table"):
             vertical_series.extend(_opening_closing_backlog_series(table, period_end))
     for table in order_tables:
+        quarter_series = _quarter_order_rollforward_series(table, period_end)
+        if quarter_series is not None:
+            vertical_series.extend(quarter_series)
+            continue  # 분기별 잔고를 합산해 반기 잔고로 만드는 일반 폴백을 차단한다.
         grouped = _grouped_business_order_series(table, period_end)
         if grouped is not None:
             vertical_series.extend(grouped)
@@ -684,7 +760,13 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             return amount_columns[0] if len(amount_columns) == 1 else None
 
         backlog_column = metric_column(backlog_names)
-        new_column = metric_column(new_names)
+        # SC: 신규계약은 기초·기말 잔액이 함께 있는 계약 변동표에서만 신규수주로 읽는다.
+        # '신규계약 및 계약 변동'처럼 변경액이 섞인 표제는 승인하지 않는다.
+        contract_new_names = {"신규계약액", "신규계약"} if (
+            any(any(part in {"기초계약잔액", "수주총액"} for part in path) for path in paths)
+            and any(any(part in backlog_names for part in path) for path in paths)
+        ) else set()
+        new_column = metric_column(new_names | contract_new_names)
         contract_column = metric_column({"수주총액"})
         delivered_column = metric_column({"기납품액", "기납품금액", "기납품총액"})
         if backlog_column is None and new_column is None:
@@ -846,7 +928,7 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             tag.get_text(" ", strip=True)
             for tag in table.find_all_previous(["p", "title"], limit=4)
         )
-        if re.search(r"주요\s*(?:프로젝트|(?:수주\s*)?계약)|진행률적용|전기\s*매출액의\s*5%\s*이상", nearby):
+        if re.search(r"주요\s*(?:프로젝트|(?:수주\s*)?계약|수주\s*상황)|진행률적용|전기\s*매출액의\s*5%\s*이상", nearby):
             scope = "주요계약(전체 회사 아님)"
         # SC: SNT에너지의 변동표와 개별 주요계약 표는 다른 범위다.
         # 개별계약 표 유무가 바뀌어도 같은 변동표의 분기 계열은 보존한다.
@@ -857,6 +939,16 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         # 가장 가까운 회사 범위 표제를 보존해 연결 전체 잔고로 오인하지 않는다.
         if scope_heading:
             scope = f"{scope_heading} / {scope}"
+        if new_column is not None and any(part in contract_new_names for part in paths[new_column]):
+            scope = f"공시 신규계약 변동표 / {scope}"
+            if _order_header(grid[header_at][0]) == "품목":
+                products = sorted({re.sub(r"\s+(?=\()", "", row[0]) for row in data_rows if row[0].strip()
+                                   and not total_label.fullmatch(_order_header(row[0]))
+                                   and any(column is not None and column < len(row)
+                                           and numeric.fullmatch(row[column].replace(" ", ""))
+                                           for column in (backlog_column, new_column))})
+                if products:
+                    scope += " / 품목: " + " · ".join(products)
         candidates.append((unit, scope, backlog, new_orders))
         items = sorted({row[0] for row in data_rows if row[0].strip()
                         and not total_label.fullmatch(row[0]) and not re.search(r"합\s*계|소\s*계", row[0])})

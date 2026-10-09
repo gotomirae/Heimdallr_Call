@@ -1,0 +1,977 @@
+{
+  "saved": [
+    {
+      "code": "002150",
+      "receipt": "20260813001545",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "9fa17f1aed1b3f06af6ccd1fc02678d9eccab2feba767ace7fe044057f25026b",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,949,413\n신규수주 | 365,500\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 195,874"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20260514001003",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "177a8ba8a674994d0b148c6c88143e079d8745f294a82dfc8c4ed472131f081f",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,898,107\n신규수주 | 123,125\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 267,590"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20260316001627",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "c8565f1cb1b623e0f105eeca983016a63d2f75239c012dd9d8c2626aade76393",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,910,691\n신규수주 | 807,888\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 285,948"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20251114000615",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "126300818c6fae6164f66c96a4089dc8429bbd8fcc64b283babb56280e16820a",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,849,930\n신규수주 | 542,122\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 302,917"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20250814002693",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "6472c93fbc270356899e569d28ab1566fda24d4a4a28ee32ff6aaa0bed4db2a9",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,866,875\n신규수주 | 379,940\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 329,238"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20250813001273",
+      "period": {
+        "end": "2024-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "4891240cb80ef3c8810a1855b20d1c72d184b3f4c2002419c836ab65107fed60",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,840,976\n신규수주 | 667,383\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 277,990"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20250514001137",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "bf48645a4cf7c73d0e7d6171fcc8b96f7ef6e2992f0bfbc4abaeda7b56d95afc",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,812,379\n신규수주 | 153,929\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 328,489"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20241114001623",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "622a1772964493383d7e321064e7ffc2137ede17d7f78dc6361ad30a85739247",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,867,042\n신규수주 | 447,610\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 401,234"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20240814001964",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "211109b2550b4c269150fc16a99c03a190fc9f1c3b3acd74287ecd5fbe3ec95b",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,916,274\n신규수주 | 294,020\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 425,916"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "002150",
+      "receipt": "20240514001664",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "f02ca0bfbed3f8c4b5dd320e722059ea6e99f9d8e20c2d126db304609b1ce6a6",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,872,250\n신규수주 | 120,051\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 429,666"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20260814001752",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "c48c5e86104be5d526fe9c06c845765a4ef3d0d178444c6b0b48046acf40e52c",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(FSRU, FSU, EPLO, EGCS 등)\n단위 | 백만원\n수주잔고 | 206,776\n신규수주 | 26,596\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20260515001212",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "c3e92cd53e4468d1e898b5751b821eb3af9d9097265ffd9d44bf67d9b4674f00",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(FSRU, FSU, EPLO, EGCS 등)\n단위 | 백만원\n수주잔고 | 224,108\n신규수주 | 11,168\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20260316001512",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "088786cd1203571c1bdeee69b7c68eba47d615fd1ee2dc0dd1de4a0b189a9add",
+      "series": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 230,592"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20251114001631",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "5f18bb243abe1e54a5c04ace65bc92a4f0604a223a1c33ef02eb789e02bf8f85",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(재액화, FSRU, FSU, EPLO, AMP 등)\n단위 | 백만원\n수주잔고 | 245,057\n신규수주 | 171,174\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20250814000330",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "254e1d9d9c29c9538d439b705f7b9b7b4f1d4af71db0305cbe08be7de9b501e6",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(재액화, FSU, EPLO, AMP 등)\n단위 | 백만원\n수주잔고 | 198,690\n신규수주 | 94,015\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20250515000692",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "4956ccf101ccb42943e1acf3b075c911936204b4e0dbf6c3990b53c323bfaa9d",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션( EGCS, BWTS, 재액화, AMP, EPLO 등)\n단위 | 백만원\n수주잔고 | 166,251\n신규수주 | 31,002\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20250509000499",
+      "period": {
+        "end": "2024-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "3313989cdec5b7deb53b3219579c96fd3cae65b2a40a3643b8b07a0651f51780",
+      "series": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 189,745"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20241114001662",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "2e745de4f2a82a58433e6c17c533d47a61fb4001e46730c0504321becd70115a",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경개조\n단위 | 백만원\n수주잔고 | 208,069\n신규수주 | 140,035\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "443060",
+      "receipt": "20240814003800",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "71a66bc85a3d81edad2c188b7816be58a20fc17a486bf51527aecc45a01b4692",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경개조\n단위 | 백만원\n수주잔고 | 212,169\n신규수주 | 107,081\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20260814002295",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "0887ceef23421c62c7984a9ae67af5522c5422731cf94a2c9664209785897379",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사\n단위 | 천원\n수주잔고 | 14,303,229\n신규수주 | 14,278,700\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20260515002145",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "f10650d95795616b8704dbf4536d86a2b51289b008721774767eebb633a30051",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사\n단위 | 천원\n수주잔고 | 10,529,250\n신규수주 | 7,090,701\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20260313001045",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "5752c5b83ad44e6788542bbea52bf771f7cf3e8e44e3e76a73e556b5c53d8e58",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사\n단위 | 천원\n수주잔고 | 5,379,590\n신규수주 | 11,510,100\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20251114001120",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "f5b807b1c53b426ad9e89aa301785a102733beada7715848f71018d6cfcb1cb9",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사\n단위 | 천원\n수주잔고 | 4,324,569\n신규수주 | 6,622,500\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20250814001910",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "7152862eae4bcb073901910292ed3859ac27948cb005cd17ca9d6a4720d8d6e3",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사\n단위 | 천원\n수주잔고 | 4,927,681\n신규수주 | 560,000\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20250515001208",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "0c664ada4d8fe2d44b77bdc2109349dde1bc9223c24187d6b33ddc9ce66303b8",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 단일행\n단위 | 천원\n수주잔고 | 13,046,891"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20250317000724",
+      "period": {
+        "end": "2024-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "35400b4ff2fa19a8f5f5e0b29e6a9795164005cdf482f0268b9422779252bec1",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 단일행\n단위 | 천원\n수주잔고 | 23,807,433\n신규수주 | 60,705,168\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20241114000853",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "ef4e722bd7b885ad5dcc9d1fab00e0439c1ccf38a79bb097b79bad37bb937419",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 단일행\n단위 | 천원\n수주잔고 | 19,232,675\n신규수주 | 43,891,768\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20240814000664",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "356fa0e4fc23b4f6ff7c9a1990250436828df90b9be3152058e5b45df25be8eb",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 단일행\n단위 | 천원\n수주잔고 | 15,399,084\n신규수주 | 25,701,068\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "322000",
+      "receipt": "20240516000806",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "4b3ff663a854ef4eca43eaa1f9d4b9d2a9fcdef9bc2dc56dae69a2688b4fb294",
+      "series": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 단일행\n단위 | 천원\n수주잔고 | 27,217,550\n신규수주 | 24,111,067\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20260814002063",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "6bce907afa4b03a6ec9d5cd736219aca2a2351eb4de2336d0b16d06f145dfae7",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 184,956\n신규수주 | 99,814\n신규수주 기간 | 당분기\n신규수주 누적 | 195,783"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20260515001369",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "c99bbd2fffd64f7587905bb2b83f3a269f7a802b56a85af493cd2bf34925aed4",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 184,145\n신규수주 | 95,969\n신규수주 기간 | 당분기\n신규수주 누적 | 95,969"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20260318001708",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "73aa7bce11b321b7d49ed354a7ebbed9183de50e954612a493bd8620e7cd0bed",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 173,267\n신규수주 | 368,899\n신규수주 기간 | 보고기간 누적"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20251114001402",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "e68d08bac661b9465f4f404bda33fef4612d919f2de0a5ef90b2e01a7f1e2368",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 171,935\n신규수주 | 83,504\n신규수주 기간 | 당분기"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20250814002133",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "23632dd17731b90afe0660e785ba77df613970ef866db5267085eb8e0a611272",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 173,638\n신규수주 | 95,269\n신규수주 기간 | 당분기\n신규수주 누적 | 198,770"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20250515001059",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "2ef8e16611ffb8ed7ad6b48bce7b7155f2dc253e355ae08d7b69743a022c4275",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 162,389\n신규수주 | 103,501\n신규수주 기간 | 당분기\n신규수주 누적 | 103,501"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20250320000535",
+      "period": {
+        "end": "2024-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "sha256": "1f0f07e0571ae0cd6976b677a092f5db1ee83c27c71fb3052eb6785f650fd6fb",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 140,451"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20241114000759",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "aeea87e4a89dd45c07ccd7138b6cae571498c5482c69bc9bea65b252f0bf1db4",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 135,972\n신규수주 | 76,711\n신규수주 기간 | 당분기\n신규수주 누적 | 285,149"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20240814001245",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "sha256": "0c9ccf12064ec021befe0576e03665196c6ed09c8e0d98a8fbb67fdb9df175f2",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 140,581\n신규수주 | 102,277\n신규수주 기간 | 당분기"
+      ],
+      "fullSectionsEqual": true
+    },
+    {
+      "code": "044490",
+      "receipt": "20240516001022",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "sha256": "aacaabe7788e75a911359e8d7b82cda29c2d494887538f0f94ab1471a6a99eb3",
+      "series": [
+        "범위 | 공시 분기별 제품 수주 / 제품\n단위 | 백만원\n수주잔고 | 133,417\n신규수주 | 106,161\n신규수주 기간 | 당분기"
+      ],
+      "fullSectionsEqual": true
+    }
+  ],
+  "audits": [
+    {
+      "code": "002150",
+      "name": "도화엔지니어링",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+      "generatedAt": "2026-10-09T11:11:33.571917+00:00",
+      "anchorReceipt": "20260813001545",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 19494.13,
+          "newOrders": 2423.75,
+          "qoq": 2.7030088398599217,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+          "history": {
+            "backlog": 6,
+            "newOrders": 4,
+            "qoq": 4,
+            "complete": 4
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1958.74,
+          "newOrders": null,
+          "qoq": -26.800702567360513,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 18499.3,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "비교 가능한 직전 분기 누적값 없음",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000615",
+          "history": {
+            "backlog": 4,
+            "newOrders": 3,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "443060",
+      "name": "HD현대마린솔루션",
+      "sector": "소프트웨어·IT",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001752",
+      "generatedAt": "2026-10-09T11:11:33.571917+00:00",
+      "anchorReceipt": "20260814001752",
+      "latestPeriod": "2026-06",
+      "reportCount": 9,
+      "series": [
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(FSRU, FSU, EPLO, EGCS 등)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2067.76,
+          "newOrders": 154.27999999999997,
+          "qoq": -7.733771217448715,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001752",
+          "history": {
+            "backlog": 2,
+            "newOrders": 2,
+            "qoq": 1,
+            "complete": 1
+          }
+        },
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-12",
+          "backlog": 2305.92,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316001512",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(재액화, FSRU, FSU, EPLO, AMP 등)",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 2450.57,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "비교 가능한 직전 분기 누적값 없음",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114001631",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션(재액화, FSU, EPLO, AMP 등)",
+          "unit": "억원",
+          "period": "2025-06",
+          "backlog": 1986.9,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "비교 가능한 직전 분기 누적값 없음",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250814000330",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경솔루션( EGCS, BWTS, 재액화, AMP, EPLO 등)",
+          "unit": "억원",
+          "period": "2025-03",
+          "backlog": 1662.51,
+          "newOrders": 310.02,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250515000692",
+          "history": {
+            "backlog": 1,
+            "newOrders": 1,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 친환경개조",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 2080.69,
+          "newOrders": 329.53999999999996,
+          "qoq": -1.932421795832573,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114001662",
+          "history": {
+            "backlog": 2,
+            "newOrders": 1,
+            "qoq": 1,
+            "complete": 1
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "322000",
+      "name": "HD현대에너지솔루션",
+      "sector": "신재생에너지",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002295",
+      "generatedAt": "2026-10-09T11:11:33.571917+00:00",
+      "anchorReceipt": "20260814002295",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계 / 품목: 모듈설치 공사",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 143.03,
+          "newOrders": 71.88,
+          "qoq": 35.84385981574698,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002295",
+          "history": {
+            "backlog": 5,
+            "newOrders": 4,
+            "qoq": 4,
+            "complete": 4
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2025-03",
+          "backlog": 130.47,
+          "newOrders": null,
+          "qoq": -45.19679085983114,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250515001208",
+          "history": {
+            "backlog": 5,
+            "newOrders": 4,
+            "qoq": 4,
+            "complete": 3
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "044490",
+      "name": "태웅",
+      "sector": "철강·금속",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002063",
+      "generatedAt": "2026-10-09T11:11:33.571917+00:00",
+      "anchorReceipt": "20260814002063",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공시 분기별 제품 수주 / 제품",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1849.56,
+          "newOrders": 998.14,
+          "qoq": 0.44041380433896826,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002063",
+          "history": {
+            "backlog": 10,
+            "newOrders": 8,
+            "qoq": 9,
+            "complete": 7
+          }
+        },
+        {
+          "scope": "공식 IR 회사 전체",
+          "unit": "억원",
+          "period": "2025-06",
+          "backlog": 1736,
+          "newOrders": 953,
+          "qoq": 6.896551724137923,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보"
+          ],
+          "sourceUrl": "https://kind.krx.co.kr/external/dst/irReference/17401/IR25.2Q(국문)_2025.08.20.pdf",
+          "history": {
+            "backlog": 6,
+            "newOrders": 6,
+            "qoq": 5,
+            "complete": 5
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 2,
+        "candidates": 2,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 6
+      }
+    }
+  ]
+}

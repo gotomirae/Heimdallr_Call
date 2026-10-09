@@ -681,3 +681,71 @@ def test_construction_note_new_orders_excludes_contract_changes_and_converts_dec
     assert not structured_order_series(xml.replace("618,056백만원", "618,056단위불명"))
     assert not structured_order_series(xml.replace("신규수주 도급증가액", "계약 변경증가액"))
     assert not structured_order_series(xml.replace("당반기 중", "전기 중"))
+
+
+@pytest.mark.parametrize("label", ["신규계약", "신규계약액"])
+@pytest.mark.parametrize("opening", ["기초계약잔액", "수주총액"])
+def test_new_contract_column_requires_opening_and_closing_balance_and_keeps_product_scope(label, opening):
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = f'<P>(단위: 백만원)</P><TABLE><TR><TH>품목</TH><TH>{opening}</TH><TH>{label}</TH><TH>기말계약잔액</TH></TR><TR><TD>친환경솔루션</TD><TD>230,302</TD><TD>26,596</TD><TD>206,776</TD></TR><TR><TD>합계</TD><TD>230,302</TD><TD>26,596</TD><TD>206,776</TD></TR></TABLE>'
+    [metric] = structured_order_series(xml, period_end="2026-06-30")
+    assert "신규수주 | 26,596" in metric
+    assert "품목: 친환경솔루션" in metric
+    assert "신규수주 기간 | 보고기간 누적" in metric
+    for unsafe in [xml.replace(label, "신규계약 및 계약 변동"), xml.replace(opening, "전기매출액")]:
+        assert not any("신규수주 |" in row for row in structured_order_series(unsafe))
+
+
+def test_dated_orders_preserve_verified_report_total_without_adding_changes_or_quarter_backlogs():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 태웅 26Q2: 184145+99814+117-99120=184956백만원.
+    # 원문 반기 합계195783을 두 분기 직접행과 대조한다. Q2=195783−95969=99814. 변경117은 제외한다.
+    xml = """<P>본 보고서 작성기준일 현재 신규 수주상황은 다음과 같습니다.</P><P>(단위: 백만원)</P>
+<TABLE><TR><TH>품목</TH><TH>수주일자</TH><TH>전기수주잔고</TH><TH>수주총액</TH><TH>수주증가/취소</TH><TH>제품매출액</TH><TH>수주잔고</TH></TR>
+<TR><TD rowspan="2">제품</TD><TD>2026.01.01~2026.03.31</TD><TD>173,267</TD><TD>95,969</TD><TD>-162</TD><TD>84,929</TD><TD>184,145</TD></TR>
+<TR><TD>2026.04.01~2026.06.30</TD><TD>184,145</TD><TD>99,814</TD><TD>117</TD><TD>99,120</TD><TD>184,956</TD></TR>
+<TR><TD>합계</TD><TD></TD><TD></TD><TD>195,783</TD><TD>-45</TD><TD>184,049</TD><TD>184,956</TD></TR></TABLE>"""
+    direct = [row for row in structured_order_series(xml, period_end="2026-06-30") if "공시 분기별 제품 수주" in row]
+    assert len(direct) == 1 and "신규수주 | 99,814" in direct[0]
+    assert len(structured_order_series(xml, period_end="2026-06-30")) == 1
+    assert "신규수주 기간 | 당분기" in direct[0]
+    assert "신규수주 누적 | 195,783" in direct[0]
+    # 원문 합계195783−Q1직접95969=Q2직접99814. 누적 보존 후 표준 분기 분해를 쓴다.
+    inconsistent = xml.replace("195,783", "195,782")
+    [explicit] = structured_order_series(inconsistent, period_end="2026-06-30")
+    assert "신규수주 | 99,814" in explicit and "신규수주 기간 | 당분기" in explicit
+    assert "신규수주 누적 |" not in explicit
+    for unsafe in [xml.replace("99,120", "99,119"), xml.replace("2026.04.01", "2026.01.01"), xml.replace("신규 수주상황", "계약목록"), xml.replace("백만원", "단위불명")]:
+        assert not any("공시 분기별 제품 수주" in row for row in structured_order_series(unsafe, period_end="2026-06-30"))
+    assert not any("공시 분기별 제품 수주" in row for row in structured_order_series(xml))
+
+
+def test_quarter_order_change_dash_is_zero_only_when_explicit_balance_matches():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 태웅25Q2: 162389+95269-84020=173638. '-' 변경액은 이 식의 검증에만 0으로 쓴다.
+    xml = """<P>신규 수주상황</P><P>(단위: 백만원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주일자</TH><TH>전기수주잔고</TH><TH>수주총액</TH><TH>수주증가/취소</TH><TH>제품매출액</TH><TH>수주잔고</TH></TR>
+<TR><TD>제품</TD><TD>2025.04.01~2025.06.30</TD><TD>162,389</TD><TD>95,269</TD><TD>-</TD><TD>84,020</TD><TD>173,638</TD></TR>
+<TR><TD>합계</TD><TD></TD><TD></TD><TD>198,770</TD><TD>-901</TD><TD>164,682</TD><TD></TD></TR></TABLE>"""
+    [metric] = structured_order_series(xml, period_end="2025-06-30")
+    assert "수주잔고 | 173,638" in metric
+    assert "신규수주 | 95,269" in metric
+    assert not structured_order_series(xml.replace("173,638", "173,639"), period_end="2025-06-30")
+    # 금액이 없는 합계행을 보고 분기 잔고들을 합산하는 일반 폴백을 금지한다.
+    assert not structured_order_series(xml.replace("신규 수주상황", "계약목록"), period_end="2025-06-30")
+    annual = xml.replace("2025.04.01~2025.06.30", "2025년")
+    [metric] = structured_order_series(annual, period_end="2025-12-31")
+    assert "신규수주 기간 | 보고기간 누적" in metric
+    assert not structured_order_series(annual, period_end="2025-06-30")
+
+
+def test_named_quarter_order_rows_keep_direct_value_and_conflicting_annual_only_keeps_stock():
+    from src.collectors.dart_excerpt import structured_order_series
+    xml = """<P>신규 수주상황</P><P>(단위: 백만원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주일자</TH><TH>전기수주잔고</TH><TH>수주총액</TH><TH>수주증가/취소</TH><TH>제품매출액</TH><TH>수주잔고</TH></TR>
+<TR><TD>제품</TD><TD>2024년 2분기</TD><TD>133,417</TD><TD>102,277</TD><TD>-37</TD><TD>95,076</TD><TD>140,581</TD></TR></TABLE>"""
+    [metric] = structured_order_series(xml, period_end="2024-06-30")
+    assert "신규수주 | 102,277" in metric and "신규수주 기간 | 당분기" in metric
+    annual = xml.replace("2024년 2분기", "2024년").replace("140,581", "140,580")
+    [stock] = structured_order_series(annual, period_end="2024-12-31")
+    assert "수주잔고 | 140,580" in stock and "신규수주" not in stock

@@ -31,6 +31,7 @@ export interface OrderDisclosureMetric {
   amountUnit?: string;
   backlogAmount?: number | null;
   newOrdersAmount?: number | null;
+  newOrdersCumulativeAmount?: number | null;
   periodEnd?: string;
   periodLabel?: string;
   closingMonth?: number;
@@ -166,6 +167,7 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
   };
   const backlogAmount = exactValue(/^수주\s*잔고$/);
   const newOrdersAmount = exactValue(/^신규\s*수주$/);
+  const newOrdersCumulativeAmount = exactValue(/^신규\s*수주\s*누적$/);
   if (backlogAmount == null && newOrdersAmount == null) return null;
   const backlogEok = krw ? backlogAmount : null, newOrdersEok = krw ? newOrdersAmount : null;
   const exactText = (label: RegExp): string | null => {
@@ -185,6 +187,7 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     ? boundary.toScope : null;
   return { year: period?.year ?? row.fiscal_year!, quarter: period?.quarter ?? row.fiscal_quarter!, rceptNo: row.rcept_no,
     backlogEok, newOrdersEok,
+    ...(newOrdersCumulativeAmount != null ? { newOrdersCumulativeAmount } : {}),
     ...(!krw ? { amountUnit, backlogAmount, newOrdersAmount } : {}),
     scope: overrideScope ?? disclosedScope ?? "공시 명시 수치",
     newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
