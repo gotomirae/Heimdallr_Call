@@ -56,7 +56,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v9 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v10 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -484,6 +484,86 @@ def _opening_closing_backlog_series(table, period_end: str | None) -> list[str]:
     return [f"범위 | {heading} / 기초·기말 수주잔고 공시 합계\n단위 | {unit}\n수주잔고 | {value}"]
 
 
+def _construction_note_order_series(table) -> list[str]:
+    """공사계약 변동표의 기말잔액과 바로 뒤 각주의 명시 신규만 읽는다."""
+    grid = _table_grid(table)
+    if (len(grid) < 3 or any(len(row) != 5 for row in grid)
+            or _order_header(grid[0][0]) != "구분"
+            or len(set(_order_header(cell) for cell in grid[0][1:])) != 1
+            or _order_header(grid[0][1]) not in {"당기", "당분기", "당반기"}
+            or [_order_header(cell) for cell in grid[1]] != ["구분", "기초잔액", "증감액", "공사수익인식", "기말잔액"]):
+        return []
+    unit = _order_unit(table)
+    factors = {"원": Decimal(1), "천원": Decimal(1000), "백만원": Decimal(1000000), "억원": Decimal(100000000)}
+    totals = [row for row in grid[2:] if _order_header(row[0]) in {"합계", "총계"}]
+    if unit not in factors or len(totals) != 1:
+        return []
+    values = [value.replace(",", "") for value in totals[0][1:]]
+    if not all(re.fullmatch(r"-?\d+(?:\.\d+)?", value) for value in values):
+        return []
+    opening, change, revenue, closing = map(Decimal, values)
+    if opening + change - revenue != closing or closing < 0:
+        return []
+    notes = []
+    for sibling in table.find_next_siblings(limit=2):
+        if sibling.name == "table" and len(sibling.find_all("tr")) != 1:
+            break
+        notes.append(sibling.get_text(" ", strip=True))
+    pattern = rf"{_order_header(grid[0][1])}\s*중\s*신규수주\s*도급증가액은\s*([\d,]+(?:\.\d+)?)\s*(억원|백만원|천원|원)"
+    matches = re.findall(pattern, " ".join(notes))
+    if len(matches) != 1:
+        return []
+    amount, note_unit = matches[0]
+    # SC: 신규는 각주 직접 금액이다. 증감액에는 계약 변경도 있으므로 신규로 바꾸지 않는다.
+    new_orders = Decimal(amount.replace(",", "")) * factors[note_unit] / factors[unit]
+    return [f"범위 | 공시 공사계약 변동표 (신규·변경 구분)\n단위 | {unit}\n수주잔고 | {totals[0][4]}"
+            f"\n신규수주 | {format(new_orders, ',f')}\n신규수주 기간 | 보고기간 누적"]
+
+
+def _grouped_business_order_series(table, period_end: str | None) -> list[str] | None:
+    """복수 법인에 걸친 원문 금액 셀을 한 번만 읽고 회사 구성도 범위에 보존한다."""
+    rows = table.find_all("tr")
+    if not rows:
+        return None
+    headers = rows[0].find_all(["td", "th"], recursive=False)
+    names = [_order_header(cell.get_text(" ", strip=True)) for cell in headers]
+    if (len(names) != 8 or names[:3] != ["사업부문", "지배회사및주요종속회사", "품목"]
+            or names[4] != "당기수주액" or names[6] != "당기말수주잔"):
+        return None
+    if not period_end or not (unit := _order_unit(table)):
+        return []
+    closing = re.search(r"\((\d{4})\.(\d{1,2})\.(\d{1,2})\)", headers[6].get_text())
+    if not closing or f"{int(closing[1]):04d}-{int(closing[2]):02d}-{int(closing[3]):02d}" != period_end:
+        return []
+    results = []
+    for index, row in enumerate(rows[1:], 1):
+        cells = row.find_all(["td", "th"], recursive=False)
+        if len(cells) != 8:
+            continue
+        try:
+            span = int(cells[4].get("rowspan", 1))
+            if (span <= 1 or index + span > len(rows)
+                    or any(int(cells[col].get("rowspan", 1)) != span for col in (0, 2, 3, 5, 6, 7))):
+                continue
+        except (ValueError, TypeError):
+            continue
+        company_cells = [tr.find_all(["td", "th"], recursive=False) for tr in rows[index + 1:index + span]]
+        if any(len(group) != 1 for group in company_cells):
+            continue
+        if index + span < len(rows) and len(rows[index + span].find_all(["td", "th"], recursive=False)) == 1:
+            continue  # 금액 셀 범위 밖에 회사명만 남으면 잘못된 병합 구조다.
+        companies = [cells[1].get_text(" ", strip=True), *(group[0].get_text(" ", strip=True) for group in company_cells)]
+        if not all(companies) or len(set(companies)) != span:
+            continue
+        new_orders, backlog = [cells[col].get_text("", strip=True) for col in (4, 6)]
+        if not all(re.fullmatch(r"\d+(?:,\d{3})*(?:\.\d+)?", value) for value in (new_orders, backlog)):
+            continue
+        # SC: 공시가 한 셀로 단순합산한 부분범위다. 회사별 반복 행을 재합산하지 않는다.
+        scope = f"공시 사업부문 수주 (부분범위·원문 합산) / {cells[0].get_text(' ', strip=True)} / " + " · ".join(companies)
+        results.append(f"범위 | {scope}\n단위 | {unit}\n수주잔고 | {backlog}\n신규수주 | {new_orders}\n신규수주 기간 | 보고기간 누적")
+    return results
+
+
 def structured_order_series(section_xml: str, *, period_end: str | None = None) -> list[str]:
     """다단 머리글을 포함한 DART 수주표에서 검증 가능한 합계만 구조화한다.
 
@@ -498,7 +578,7 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
     backlog_names = {"수주잔고", "수주잔고액", "기말수주잔고액", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
                      "당분기말수주잔고", "당반기말수주잔고",
                      "당분기수주잔고", "당반기수주잔고", "당기수주잔고",
-                     "계약잔액", "수주잔액", "기말계약잔액"}
+                     "계약잔액", "수주잔액", "기말계약잔액", "이월계약잔액"}
     new_names = {"신규수주", "당기수주", "신규수주액", "당기수주액", "당기수주금액", "당기신규수주액", "당기신규수주",
                  "당반기수주총액", "당기수주총액", "당분기수주총액", "당해신규수주액",
                  "당반기수주", "당분기수주", "신규수주계약금액"}
@@ -510,6 +590,8 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
     total_label = re.compile(r"^(?:(?:총|전체|전사|수주)\s*)?(?:합\s*계|총\s*계|계)$")
     candidates: list[tuple[str, str, str | None, str | None]] = []
     vertical_series: list[str] = []
+    for table in soup.find_all("table"):
+        vertical_series.extend(_construction_note_order_series(table))
     candidate_items: list[str | None] = []
     period_labels: dict[str, str] = {}
     order_tables = [
@@ -522,6 +604,10 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         for table in soup.find_all("table"):
             vertical_series.extend(_opening_closing_backlog_series(table, period_end))
     for table in order_tables:
+        grouped = _grouped_business_order_series(table, period_end)
+        if grouped is not None:
+            vertical_series.extend(grouped)
+            continue
         rollforward = _contract_rollforward_series(table)
         if rollforward is not None:
             vertical_series.extend(rollforward)
@@ -760,8 +846,13 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
             tag.get_text(" ", strip=True)
             for tag in table.find_all_previous(["p", "title"], limit=4)
         )
-        if re.search(r"주요\s*(?:프로젝트|(?:수주\s*)?계약)|진행률적용", nearby):
+        if re.search(r"주요\s*(?:프로젝트|(?:수주\s*)?계약)|진행률적용|전기\s*매출액의\s*5%\s*이상", nearby):
             scope = "주요계약(전체 회사 아님)"
+        # SC: SNT에너지의 변동표와 개별 주요계약 표는 다른 범위다.
+        # 개별계약 표 유무가 바뀌어도 같은 변동표의 분기 계열은 보존한다.
+        if (backlog_column is not None and new_column is not None
+                and any(part == "이월계약잔액" for part in paths[backlog_column])):
+            scope = "공시 공사계약 변동표 (진행 계약 범위)"
         # 연결 수주표가 하나라도 종속회사만 공시한 수치일 수 있다.
         # 가장 가까운 회사 범위 표제를 보존해 연결 전체 잔고로 오인하지 않는다.
         if scope_heading:
@@ -946,7 +1037,8 @@ def build_excerpt(
         _order_header(cell.get_text(" ", strip=True)) in {
             "수주잔고", "기말수주잔고", "당기말수주잔고", "당기말수주잔액",
             "당분기말수주잔고", "당반기말수주잔고",
-            "계약잔액", "수주잔액", "기말계약잔액", "수주잔고액", "기말수주잔고액",
+            "계약잔액", "수주잔액", "기말계약잔액", "이월계약잔액", "수주잔고액", "기말수주잔고액",
+            "당기말수주잔", "당기수주액",
             "신규수주", "당기수주", "신규수주액", "당기수주액", "당기신규수주액", "당기신규수주",
             "당반기수주", "당분기수주", "신규수주계약금액",
         }

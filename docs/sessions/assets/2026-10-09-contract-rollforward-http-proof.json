@@ -1,0 +1,20 @@
+[
+  {
+    "code": "100840",
+    "status": 200,
+    "bytes": 364615,
+    "scopeInResponse": true
+  },
+  {
+    "code": "298040",
+    "status": 200,
+    "bytes": 401223,
+    "scopeInResponse": true
+  },
+  {
+    "code": "002780",
+    "status": 200,
+    "bytes": 335065,
+    "scopeInResponse": true
+  }
+]

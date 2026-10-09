@@ -1,0 +1,57 @@
+[
+  {
+    "receipt": "20250814003328",
+    "period": "2025-06-30",
+    "chars": 14232,
+    "sha256": "39a663ece869d168c9fa1c1c599e4dc0cce68cbe88e579fdab624829aab1f0fb",
+    "series": [
+      "범위 | 공시 사업부문 수주 (부분범위·원문 합산) / 중공업 / 효성중공업(주) · Nantong Hyosung Transformer Co., Ltd. · Hyosung T&D India Pvt. Ltd. · Hyosung HICO, Ltd. · HICO America Sales&Tech, Inc.\n단위 | 백만원\n수주잔고 | 13,344,998\n신규수주 | 5,203,801\n신규수주 기간 | 보고기간 누적"
+    ]
+  },
+  {
+    "receipt": "20251113000749",
+    "period": "2025-09-30",
+    "chars": 13292,
+    "sha256": "5e96b757c64d74f5eb0de37b2bb810f2771136d8f5fe2f7832aba0faab09cda6",
+    "series": [
+      "범위 | 공시 사업부문 수주 (부분범위·원문 합산) / 중공업 / 효성중공업(주) · Nantong Hyosung Transformer Co., Ltd. · Hyosung T&D India Pvt. Ltd. · Hyosung HICO, Ltd. · HICO America Sales&Tech, Inc.\n단위 | 백만원\n수주잔고 | 13,853,724\n신규수주 | 7,183,802\n신규수주 기간 | 보고기간 누적"
+    ]
+  },
+  {
+    "receipt": "20250514000949",
+    "period": "2025-03-31",
+    "chars": 13701,
+    "sha256": "f53ae77efa06046870ffb8624924551762098fcf58c8ba0000f443a70175b799",
+    "series": [
+      "범위 | 공시 사업부문 수주 (부분범위·원문 합산) / 중공업 / 효성중공업(주) · Nantong Hyosung Transformer Co., Ltd. · Hyosung T&D India Pvt. Ltd. · Hyosung HICO, Ltd. · HICO America Sales&Tech, Inc.\n단위 | 백만원\n수주잔고 | 12,425,286\n신규수주 | 2,737,576\n신규수주 기간 | 보고기간 누적"
+    ]
+  },
+  {
+    "receipt": "20241113000602",
+    "period": "2024-09-30",
+    "chars": 15699,
+    "sha256": "5d19fdc6319cc96bf6fb27d202a06c4416d42556939b3598c17e2f0d75534bf1",
+    "series": []
+  },
+  {
+    "receipt": "20250814003044",
+    "period": "2024-12-31",
+    "chars": 15855,
+    "sha256": "54c38f53bb2ff8e139337d43271bdbcf74729632321cea697bee6d22f3a9b71e",
+    "series": []
+  },
+  {
+    "receipt": "20240813001311",
+    "period": "2024-06-30",
+    "chars": 15474,
+    "sha256": "3cd7c79025529abfd2e840aa50505f92ff90f01f59834a5ccc07910387d18327",
+    "series": []
+  },
+  {
+    "receipt": "20240517000380",
+    "period": "2024-03-31",
+    "chars": 14858,
+    "sha256": "b7b07acec6907d0fa0619b275fb2de8d8e0829fc7b3b336b999d91d651e9b7fa",
+    "series": []
+  }
+]

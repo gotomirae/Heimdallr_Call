@@ -1,0 +1,73 @@
+{
+  "saved": [
+    "20260812000070",
+    "20260512000140",
+    "20260220002472",
+    "20251112000037",
+    "20250814000594",
+    "20250512000032",
+    "20250220001320",
+    "20241107000153",
+    "20240808000120",
+    "20240509000279"
+  ],
+  "audit": {
+    "code": "100840",
+    "name": "SNT에너지",
+    "sector": "로봇기계",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 신규수주",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+    "generatedAt": "2026-10-09T10:19:39.336718+00:00",
+    "anchorReceipt": "20260812000070",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "공시 공사계약 변동표 (진행 계약 범위)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 5180.05,
+        "newOrders": 1081.1000000000001,
+        "qoq": 1.4168859443034698,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+        "history": {
+          "backlog": 10,
+          "newOrders": 10,
+          "qoq": 9,
+          "complete": 9
+        }
+      },
+      {
+        "scope": "주요계약(전체 회사 아님)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 3019.32,
+        "newOrders": null,
+        "qoq": -16.77637019151258,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+        "history": {
+          "backlog": 9,
+          "newOrders": 0,
+          "qoq": 7,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 0
+    }
+  },
+  "fullSectionsEqual": true
+}

@@ -1,0 +1,89 @@
+{
+  "saved": [
+    "20260813001554",
+    "20260514001390",
+    "20260323001004",
+    "20251113000749",
+    "20250814003328",
+    "20250514000949"
+  ],
+  "audit": {
+    "code": "298040",
+    "name": "효성중공업",
+    "sector": "전력인프라",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "공시 사업부문 수주 (부분범위·원문 합산) / 중공업 / 효성중공업(주) · Nantong Hyosung Transformer Co., Ltd. · Hyosung T&D India Pvt. Ltd. · Hyosung HICO, Ltd. · HICO America Sales&Tech, Inc.",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001554",
+    "generatedAt": "2026-10-09T10:29:16.719055+00:00",
+    "anchorReceipt": "20260813001554",
+    "latestPeriod": "2026-06",
+    "reportCount": 9,
+    "series": [
+      {
+        "scope": "공시 사업부문 수주 (부분범위·원문 합산) / 중공업 / 효성중공업(주) · Nantong Hyosung Transformer Co., Ltd. · Hyosung T&D India Pvt. Ltd. · Hyosung HICO, Ltd. · HICO America Sales&Tech, Inc.",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 238344.04,
+        "newOrders": 47772.78,
+        "qoq": 18.01292653876785,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001554",
+        "history": {
+          "backlog": 6,
+          "newOrders": 6,
+          "qoq": 5,
+          "complete": 5
+        }
+      },
+      {
+        "scope": "공식 IR 중공업 연결",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 175070,
+        "newOrders": 33242,
+        "qoq": null,
+        "complete": false,
+        "missing": [
+          "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+        ],
+        "sourceUrl": "https://www.hyosungheavyindustries.com/download/5816",
+        "history": {
+          "backlog": 1,
+          "newOrders": 9,
+          "qoq": 0,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "공식 IR 건설 연결",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": null,
+        "newOrders": 9190,
+        "qoq": null,
+        "complete": false,
+        "missing": [
+          "수주잔고 미확보: 공시표·단위·범위 추가 대조 필요",
+          "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+        ],
+        "sourceUrl": "https://www.hyosungheavyindustries.com/download/5816",
+        "history": {
+          "backlog": 0,
+          "newOrders": 9,
+          "qoq": 0,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 20
+    }
+  },
+  "fullSectionsEqual": true
+}

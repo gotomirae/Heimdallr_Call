@@ -619,3 +619,65 @@ def test_opening_closing_order_balance_reads_dated_ending_money_not_quantity():
     assert structured_order_series(xml.replace('단위 : 억원', '단위 미상'), period_end='2025-09-30') == []
     assert structured_order_series(xml.replace('262,673', '비공개'), period_end='2025-09-30') == []
     assert structured_order_series(xml.replace('기말(2025.09.30)', '기말(2024.09.30)'), period_end='2025-09-30') == []
+
+
+def test_carried_contract_balance_is_closing_balance_not_opening_or_partial_contracts():
+    from src.collectors.dart_excerpt import structured_order_series
+    # SNT에너지 26H1: 기초594100509 + 신규123215697 + 기타27511761
+    # - 공사수익226822576 = 기말518005391천원. 개별 주요계약 잔고는 별도 범위다.
+    xml = """<TABLE><TR><TD colspan="6">(단위: 천원)</TD></TR>
+<TR><TH>구분</TH><TH>기초계약잔액</TH><TH>신규수주</TH><TH>기타증감(*)</TH><TH>공사수익</TH><TH>이월계약잔액</TH></TR>
+<TR><TD>해 외</TD><TD>466,413,744</TD><TD>115,895,097</TD><TD>27,216,119</TD><TD>(181,943,004)</TD><TD>427,581,956</TD></TR>
+<TR><TD>국 내</TD><TD>127,686,765</TD><TD>7,320,600</TD><TD>295,642</TD><TD>(44,879,572)</TD><TD>90,423,435</TD></TR>
+<TR><TD>합 계</TD><TD>594,100,509</TD><TD>123,215,697</TD><TD>27,511,761</TD><TD>(226,822,576)</TD><TD>518,005,391</TD></TR></TABLE>
+<P>2) 주요수주상황</P><P>(단위: 천원)</P><TABLE><TR><TH>품목</TH><TH>수주잔고</TH></TR>
+<TR><TD>AFC</TD><TD>301,932,011</TD></TR></TABLE>"""
+    rows = structured_order_series(xml, period_end="2026-06-30")
+    total = next(row for row in rows if "신규수주 | 123,215,697" in row)
+    assert "수주잔고 | 518,005,391" in total
+    assert "신규수주 | 123,215,697" in total
+    assert "신규수주 기간 | 보고기간 누적" in total
+    assert "수주잔고 | 594,100,509" not in total
+    assert len(rows) == 2
+    # 헤더가 기초잔액이면 기말로 승인하지 않는다. 미확정 단위도 승인하지 않는다.
+    assert not any("수주잔고 | 518,005,391" in row for row in
+                   structured_order_series(xml.replace("이월계약잔액", "기초계약잔액")))
+    assert not structured_order_series(xml.replace("천원", "단위불명"))
+
+
+def test_business_company_rowspan_order_amount_is_read_once_with_membership_scope():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 효성중공업 26H1: 여러 회사에 걸친 단일 금액을 법인 수만큼 곱하지 않는다.
+    header = "<TR>" + "".join(f"<TH>{h}</TH>" for h in ["사업부문", "지배회사 및 주요종속회사", "품목", "전기말 수주잔(2025.12.31)", "당기 수주액(2026.1~6월)", "당기 매출액(2026.1~6월)", "당기말 수주잔(2026.6.30)", "비고"]) + "</TR>"
+    row = '<TR><TD rowspan="3">중공업</TD><TD>모회사</TD>' + "".join(f'<TD rowspan="3">{v}</TD>' for v in ["전력기기", "15,936,349", "11,010,478", "2,924,567", "23,834,404", "환율 적용"]) + '</TR><TR><TD>자회사 A</TD></TR><TR><TD>자회사 B</TD></TR>'
+    xml = f"<P>(단위: 백만원)</P><TABLE>{header}{row}</TABLE>"
+    [metric] = structured_order_series(xml, period_end="2026-06-30")
+    assert "수주잔고 | 23,834,404" in metric
+    assert "신규수주 | 11,010,478" in metric
+    assert "부분범위·원문 합산" in metric
+    assert "모회사 · 자회사 A · 자회사 B" in metric
+    assert not structured_order_series(xml, period_end="2026-03-31")
+    assert not structured_order_series(xml)
+    assert not structured_order_series(xml.replace('rowspan="3"', 'rowspan="2"'), period_end="2026-06-30")
+    assert not structured_order_series(xml.replace("백만원", "단위불명"), period_end="2026-06-30")
+    assert not structured_order_series(xml.replace("23,834,404", "비공개"), period_end="2026-06-30")
+
+
+def test_construction_note_new_orders_excludes_contract_changes_and_converts_declared_unit():
+    from src.collectors.dart_excerpt import structured_order_series
+    # 진흥기업 26H1: 3531185748 + 673807035 - 403761669 = 3801231114천원.
+    # 신규 각주는 618056백만원; 증감673807035천원을 신규로 쓰면 변경 계약이 섞인다.
+    xml = """<P>(단위 : 천원)</P><TABLE>
+<TR><TH rowspan="2">구분</TH><TH colspan="4">당반기</TH></TR>
+<TR><TH>기초잔액</TH><TH>증감액(*1)</TH><TH>공사수익인식(*2)</TH><TH>기말잔액</TH></TR>
+<TR><TD>합계</TD><TD>3,531,185,748</TD><TD>673,807,035</TD><TD>403,761,669</TD><TD>3,801,231,114</TD></TR></TABLE>
+<TABLE><TR><TD>(*1) 당반기 중 신규수주 도급증가액은 618,056백만원이며, 공사규모의 변동 등으로 인한 도급증가액은 55,751백만원입니다.</TD></TR></TABLE>"""
+    [metric] = structured_order_series(xml, period_end="2026-06-30")
+    assert "단위 | 천원" in metric
+    assert "수주잔고 | 3,801,231,114" in metric
+    assert "신규수주 | 618,056,000" in metric
+    assert "신규수주 | 673,807,035" not in metric
+    assert not structured_order_series(xml.replace("3,801,231,114", "3,801,231,115"))
+    assert not structured_order_series(xml.replace("618,056백만원", "618,056단위불명"))
+    assert not structured_order_series(xml.replace("신규수주 도급증가액", "계약 변경증가액"))
+    assert not structured_order_series(xml.replace("당반기 중", "전기 중"))
