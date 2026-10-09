@@ -1,0 +1,231 @@
+[
+  {
+    "code": "042660",
+    "name": "한화오션",
+    "sector": "조선·해운",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000829",
+    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "anchorReceipt": "20260812000829",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "공식 IR 상선 인도기준 수주잔량 (부분범위)",
+        "unit": "백만USD",
+        "period": "2026-06",
+        "backlog": 25250,
+        "newOrders": 1890,
+        "qoq": -2.959262106072247,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://www.hanwhaocean.com/attach?et=9252jgL%2B5wt4PHfDS29YF%2FI64gDb%2Fsry%2FNkvy%2Byxx%2FmwgDbg0hy7k2mQJmz1TLT3zZLFVZqqwVRlubfqFWKK%2BADadW%2BbpoQwpxmFeK%2FgwKK7zt2RNq%2F9L5qRSV%2B3t19PN6o9Yu8Mi9RIKnjenNABtQ%3D%3D",
+        "history": {
+          "backlog": 6,
+          "newOrders": 6,
+          "qoq": 5,
+          "complete": 5
+        }
+      },
+      {
+        "scope": "회사 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 330084.1,
+        "newOrders": null,
+        "qoq": -6.6885351859401805,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000829",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 6
+    }
+  },
+  {
+    "code": "062040",
+    "name": "산일전기",
+    "sector": "전력인프라",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003544",
+    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "anchorReceipt": "20260814003544",
+    "latestPeriod": "2026-06",
+    "reportCount": 8,
+    "series": [
+      {
+        "scope": "공식 IR K-IFRS 별도 전사",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 5567,
+        "newOrders": 2435,
+        "qoq": 16.61080854629242,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://www.sanil.co.kr/site/download.php?bid=1&file=2026년 2Q 산일전기 실적 IR 자료 [KOR]_bedc3.pdf",
+        "history": {
+          "backlog": 8,
+          "newOrders": 8,
+          "qoq": 7,
+          "complete": 7
+        }
+      },
+      {
+        "scope": "회사 공시 단일행",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 5567.88,
+        "newOrders": null,
+        "qoq": 16.619470509383394,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003544",
+        "history": {
+          "backlog": 8,
+          "newOrders": 0,
+          "qoq": 7,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 1,
+      "candidates": 1,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 8
+    }
+  },
+  {
+    "code": "329180",
+    "name": "HD현대중공업",
+    "sector": "조선·해운",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 기초수주잔액, 기말수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002879",
+    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "anchorReceipt": "20260814002879",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "공식 IR 현대미포 합병 이후 전사 (매출기준)",
+        "unit": "백만USD",
+        "period": "2026-06",
+        "backlog": 45177,
+        "newOrders": 8652,
+        "qoq": 9.724819663371619,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://hd-hhi.com/common/fileDownload?folderName=irDataMonth&fileName=50870_1_715d810a-8418-42c5-9c82-d581ef80cf0f.pdf&originalFileName=IR%EB%89%B4%EC%8A%A4+26.7%EC%9B%94_HD%ED%98%84%EB%8C%80%EC%A4%91%EA%B3%B5%EC%97%85_%EA%B5%AD%EB%AC%B8.pdf",
+        "history": {
+          "backlog": 3,
+          "newOrders": 2,
+          "qoq": 2,
+          "complete": 2
+        }
+      },
+      {
+        "scope": "공식 IR 현대미포 합병 이후 전사 (인도기준)",
+        "unit": "백만USD",
+        "period": "2026-06",
+        "backlog": 60882,
+        "newOrders": 8652,
+        "qoq": 8.344455715124655,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://hd-hhi.com/common/fileDownload?folderName=irDataMonth&fileName=50870_1_715d810a-8418-42c5-9c82-d581ef80cf0f.pdf&originalFileName=IR%EB%89%B4%EC%8A%A4+26.7%EC%9B%94_HD%ED%98%84%EB%8C%80%EC%A4%91%EA%B3%B5%EC%97%85_%EA%B5%AD%EB%AC%B8.pdf",
+        "history": {
+          "backlog": 3,
+          "newOrders": 2,
+          "qoq": 2,
+          "complete": 2
+        }
+      },
+      {
+        "scope": "[엔진기계부문] / 회사 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 695141.54,
+        "newOrders": null,
+        "qoq": 11.811621720603549,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002879",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "공식 IR 현대미포 합병 이전 전사 (매출기준)",
+        "unit": "백만USD",
+        "period": "2025-09",
+        "backlog": 32201,
+        "newOrders": 1320,
+        "qoq": -5.998949089210647,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보"
+        ],
+        "sourceUrl": "https://hd-hhi.com/common/fileDownload?folderName=irDataMonth&fileName=38454_1_4931dff2-ef0f-4db7-838f-223883cb7961.pdf&originalFileName=IR%EB%89%B4%EC%8A%A4+25.10%EC%9B%94_HD%ED%98%84%EB%8C%80%EC%A4%91%EA%B3%B5%EC%97%85_%EA%B5%AD%EB%AC%B8.pdf",
+        "history": {
+          "backlog": 7,
+          "newOrders": 7,
+          "qoq": 6,
+          "complete": 6
+        }
+      },
+      {
+        "scope": "공식 IR 현대미포 합병 이전 전사 (인도기준)",
+        "unit": "백만USD",
+        "period": "2025-09",
+        "backlog": 42594,
+        "newOrders": 1320,
+        "qoq": -3.6596399167646787,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보"
+        ],
+        "sourceUrl": "https://hd-hhi.com/common/fileDownload?folderName=irDataMonth&fileName=38454_1_4931dff2-ef0f-4db7-838f-223883cb7961.pdf&originalFileName=IR%EB%89%B4%EC%8A%A4+25.10%EC%9B%94_HD%ED%98%84%EB%8C%80%EC%A4%91%EA%B3%B5%EC%97%85_%EA%B5%AD%EB%AC%B8.pdf",
+        "history": {
+          "backlog": 7,
+          "newOrders": 7,
+          "qoq": 6,
+          "complete": 6
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 20
+    }
+  }
+]

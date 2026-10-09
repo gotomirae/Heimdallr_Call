@@ -1,0 +1,20 @@
+[
+  {
+    "code": "062040",
+    "status": 200,
+    "bytes": 298307,
+    "verified_scope_in_response": true
+  },
+  {
+    "code": "042660",
+    "status": 200,
+    "bytes": 450722,
+    "verified_scope_in_response": true
+  },
+  {
+    "code": "329180",
+    "status": 200,
+    "bytes": 446413,
+    "verified_scope_in_response": true
+  }
+]

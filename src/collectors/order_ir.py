@@ -29,6 +29,7 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "028050": "삼성E&A", "000720": "현대건설", "299030": "하나기술", "375500": "DL이앤씨",
     "047040": "대우건설", "294870": "IPARK현대산업개발", "022100": "포스코DX",
     "064350": "현대로템", "047810": "한국항공우주", "082740": "한화엔진",
+    "062040": "산일전기", "042660": "한화오션", "329180": "HD현대중공업",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -41,6 +42,9 @@ OFFICIAL_IR_HOSTS = {
     "064350": "https://www.hyundai-rotem.co.kr",
     "047810": "https://www.koreaaero.com",
     "082740": "https://www.hanwha-engine.com",
+    "062040": "https://www.sanil.co.kr",
+    "042660": "https://www.hanwhaocean.com",
+    "329180": "https://hd-hhi.com",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }
@@ -115,6 +119,81 @@ def parse_quarter_order_page(text: str) -> list[dict]:
     return [{"year": year, "quarter": quarter, "unit": units["backlog"], "scope": "공식 IR 연결 전체",
              "new_orders_period": "당분기", **{key: numbers[i] for key, numbers in values.items()}}
             for i, (year, quarter) in enumerate(periods)]
+
+
+def parse_separate_quarter_order_page(text: str) -> list[dict]:
+    """산일전기의 명시 별도·억원·당분기 표만 읽고 연간/누적/범위 미상은 거절한다."""
+    # SC: 단위·사업범위·측정기간을 확인하지 못하면 금액을 추정하지 않는다.
+    lines = [re.sub(r"\s+", "", line) for line in text.splitlines() if line.strip()]
+    compact = "".join(lines)
+    if not all(token in compact for token in ("K-IFRS별도기준", "단위:억원,%", "분기실적", "신규수주")):
+        return []
+    if any(token in compact for token in ("누적수주", "수주누적", "연간목표", "연결기준")) or lines.count("구분") != 1:
+        return []
+    header = lines.index("구분") + 1
+    periods = []
+    while header < len(lines) and (match := re.fullmatch(r"([1-4])Q(\d{2})", lines[header])):
+        periods.append((2000 + int(match[2]), int(match[1])))
+        header += 1
+    if len(periods) != 3 or len(set(periods)) != 3 or lines[header:header + 2] != ["QoQ", "YoY"]:
+        return []
+    values = {}
+    for label, key in (("수주", "new_orders"), ("수주잔고", "backlog")):
+        # 본문 소제목에도 수주가 있으므로 표 안의 행만 검사한다.
+        table = lines[header + 2:lines.index("분기실적")] if lines.index("분기실적") > header else []
+        if table.count(label) != 1:
+            return []
+        at = table.index(label) + 1
+        numbers = table[at:at + len(periods)]
+        if len(numbers) != len(periods) or not all(re.fullmatch(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?", n) for n in numbers):
+            return []
+        values[key] = [float(n.replace(",", "")) for n in numbers]
+    return [{"year": year, "quarter": quarter, "unit": "억원", "scope": "공식 IR K-IFRS 별도 전사",
+             "new_orders_period": "당분기", **{key: numbers[i] for key, numbers in values.items()}}
+            for i, (year, quarter) in enumerate(periods)]
+
+
+def collect_sanil(verified: list[dict]) -> list[dict]:
+    """KIND 미제출 분기도 회사 공개 자료실의 실제 첨부 링크에서 수집한다."""
+    base = OFFICIAL_IR_HOSTS["062040"]
+    library = base + "/kr/sub/reference/ir.php"
+    facts = {}
+    seen = set()
+    for page in range(1, ORDER_IR_LIST_PAGES + 1):
+        soup = BeautifulSoup(decode_html(http_get(library, params={"bid": 1, "mode": "list", "page": page})), "html.parser")
+        new_views = 0
+        for anchor in soup.select('a[href*="mode=view"][href*="idx="]'):
+            view = urljoin(library, anchor["href"])
+            if view in seen or not view.startswith(library + "?"):
+                continue
+            seen.add(view)
+            new_views += 1
+            row = anchor.find_parent("tr")
+            title = row.get_text(" ", strip=True) if row else ""
+            if not re.search(r"20\d{2}년\s*[1-4]분기.*IR자료", title):
+                continue
+            detail = BeautifulSoup(decode_html(http_get(view)), "html.parser")
+            for link in detail.select('a[href*="/site/download.php?"]'):
+                url = urljoin(base, link["href"])
+                if not url.startswith(base + "/site/download.php?"):
+                    continue
+                data = http_get(url, timeout=90).content
+                if not data.startswith(b"%PDF"):
+                    continue
+                digest = hashlib.sha256(data).hexdigest()
+                with pymupdf.open(stream=data, filetype="pdf") as document:
+                    for index, pdf_page in enumerate(document):
+                        for fact in parse_separate_quarter_order_page(pdf_page.get_text()):
+                            # 자료실 최신 발표본의 과거 비교 열이 이전 발표본보다 우선한다.
+                            facts.setdefault((fact["year"], fact["quarter"], fact["scope"]), {
+                                **fact, "code": "062040", "source_url": url, "source_page": index + 1,
+                                "source_title": "산일전기 공식 분기 실적 IR", "sha256": digest})
+        if len(facts) >= ORDER_IR_QUARTERS or not new_views:
+            break
+    for fact in verified:
+        if fact["code"] == "062040":
+            facts.setdefault((fact["year"], fact["quarter"], fact["scope"]), fact)
+    return sorted(facts.values(), key=lambda f: (f["year"], f["quarter"]))[-ORDER_IR_QUARTERS:]
 
 
 def verified_ir_facts() -> list[dict]:
@@ -316,7 +395,7 @@ def main() -> int:
     parser.add_argument("--save", action="store_true")
     args = parser.parse_args()
     verified = verified_ir_facts()
-    facts = collect_hd_electric(verified) + collect_ls_electric() + [f for f in verified if f["code"] not in {"267260", "010120"}]
+    facts = collect_hd_electric(verified) + collect_ls_electric() + collect_sanil(verified) + [f for f in verified if f["code"] not in {"267260", "010120", "062040"}]
     if not facts:
         raise RuntimeError("공식 IR 명시 수주표를 확보하지 못함")
     print(json.dumps({"facts": facts, "stored": save_facts(facts) if args.save else 0}, ensure_ascii=False))

@@ -3,6 +3,19 @@ import pytest
 
 from src.collectors.order_ir import parse_quarter_order_page, parse_ls_backlog, parse_ls_new_orders
 from src.collectors.order_ir import download_verified_pdf, merge_ir_scope
+from src.collectors.order_ir import parse_separate_quarter_order_page
+
+
+def test_separate_order_table_requires_quarter_scope_and_unit():
+    # 산일전기 26Q2 실제 p2: 손계산 5567 / 4774 - 1 = 16.6108085%.
+    text = "구분\n2Q25\n1Q26\n2Q26\nQoQ\nYoY\n매출액\n1,283\n1,503\n1,642\n수주\n924\n1,790\n2,435\n36.1%\n163.4%\n수주잔고\n4,195\n4,774\n5,567\n16.6%\n32.7%\n분기실적\n단위:억원, %\n주1: K-IFRS 별도기준\n신규수주YoY +163.4%\n수주"
+    rows = parse_separate_quarter_order_page(text)
+    assert [(r['year'], r['quarter'], r['new_orders'], r['backlog']) for r in rows] == [
+        (2025, 2, 924, 4195), (2026, 1, 1790, 4774), (2026, 2, 2435, 5567)]
+    assert all(r['new_orders_period'] == '당분기' and r['unit'] == '억원' for r in rows)
+    for old, replacement in [('별도기준', '기준'), ('억원', '백만원'), ('2,435', '-'),
+                             ('2Q26', '1Q26'), ('수주\n924', '수주\n수주\n924'), ('신규수주', '누적수주')]:
+        assert parse_separate_quarter_order_page(text.replace(old, replacement)) == []
 
 
 def test_ir_quarter_headers_and_row_units_override_financial_table_unit():

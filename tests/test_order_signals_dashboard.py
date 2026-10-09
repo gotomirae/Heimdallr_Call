@@ -48,6 +48,29 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_verified_shipbuilding_ir_cumulative_orders_reach_real_chart_contract():
+    from src.collectors.order_ir import format_ir_metric
+    manifest = json.loads((DASHBOARD.parent / "src/config/order_ir_verified.json").read_text(encoding="utf-8"))
+    cases = []
+    for code in ("042660", "062040", "329180"):
+        facts = [f for f in manifest if f['code'] == code]
+        rows = []
+        for f in facts:
+            # 검증 장부의 원문 누적값을 실제 저장 문자열→실제 대시보드 계산으로 재생.
+            rows.append({'code': code, 'rcept_no': f"{f['year']}0{f['quarter']}14000001", 'fiscal_year': f['year'],
+                         'fiscal_quarter': f['quarter'], 'sections': {'공시 수주지표 확인': '완료',
+                         '공식 IR 수주지표': {'series': [format_ir_metric(f)]}}})
+        cases.append({'companyAudit': True, 'company': {'code': code, 'name': code}, 'rows': rows})
+    ocean, sanil, hhi = _run(cases)
+    # 손계산: Ocean (38.0−19.1)×100=1890백만USD, HHI 14771−6119=8652백만USD.
+    assert ocean['series'][0]['complete'] and ocean['series'][0]['newOrders'] == 1890
+    assert ocean['series'][0]['qoq'] == pytest.approx((25250 / 26020 - 1) * 100)
+    assert sanil['series'][0]['complete'] and sanil['series'][0]['newOrders'] == 2435
+    assert sanil['series'][0]['history'] == {'backlog': 8, 'newOrders': 8, 'qoq': 7, 'complete': 7}
+    assert hhi['series'][0]['complete'] and hhi['series'][0]['newOrders'] == 8652
+    assert hhi['series'][0]['qoq'] == pytest.approx((45177 / 41173 - 1) * 100)
+
+
 def test_verified_acquisition_scope_survives_report_recollection():
     def row(q, backlog):
         end = "2026-03-31" if q == 1 else "2026-06-30"
