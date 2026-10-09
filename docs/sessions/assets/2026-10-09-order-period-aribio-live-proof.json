@@ -1,0 +1,11 @@
+{
+  "receipt": "20260930000794",
+  "liveChars": 21449,
+  "limits": [
+    "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-31; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+  ],
+  "cachedEqual": true,
+  "liveMetricCount": 0,
+  "originalUnit": "천원",
+  "unitWasNotGuessed": true
+}

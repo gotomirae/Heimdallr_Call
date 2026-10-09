@@ -1,0 +1,62 @@
+{
+  "receipt": "20260930000794",
+  "beforeMetric": "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 67,936,548,093",
+  "limits": [
+    "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-31; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+  ],
+  "fullSectionsEqual": true,
+  "audit": {
+    "code": "290690",
+    "name": "아리바이오홀딩스",
+    "sector": "디스플레이",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002480",
+    "generatedAt": "2026-10-09T11:43:59.714279+00:00",
+    "anchorReceipt": "20260930000794",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "회사 공시 합계",
+        "unit": "억원",
+        "period": "2026-03",
+        "backlog": 289.08,
+        "newOrders": null,
+        "qoq": -14.351742118985545,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보",
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002480",
+        "history": {
+          "backlog": 9,
+          "newOrders": 0,
+          "qoq": 8,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 0
+    }
+  },
+  "summary": {
+    "year": 2026,
+    "quarter": 2,
+    "rceptNo": "20260930000794",
+    "backlogEok": null,
+    "newOrdersEok": null,
+    "scope": null,
+    "newOrdersPeriod": null,
+    "status": "private",
+    "statusLabel": "보고기말 이후 수주 포함·기준일 확인 필요",
+    "evidence": "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-31; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+  }
+}

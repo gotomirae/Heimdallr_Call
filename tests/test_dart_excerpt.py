@@ -749,3 +749,21 @@ def test_named_quarter_order_rows_keep_direct_value_and_conflicting_annual_only_
     annual = xml.replace("2024년 2분기", "2024년").replace("140,581", "140,580")
     [stock] = structured_order_series(annual, period_end="2024-12-31")
     assert "수주잔고 | 140,580" in stock and "신규수주" not in stock
+
+
+def test_order_date_after_reporting_end_blocks_stock_but_future_delivery_does_not():
+    from src.collectors.dart_excerpt import order_period_limits, structured_order_series
+    # 반기 표에 7월 계약이 포함되면 6월말 잔고로 승인할 수 없다.
+    # 납기는 2029년이어도 6월 이전 수주라면 정상이다. 단위 오류를 추측 보정하지 않는다.
+    xml = """<P>(단위: 천원)</P><TABLE>
+<TR><TH>품목</TH><TH>수주일자</TH><TH>납기일자</TH><TH>수주총액</TH><TH>수주잔고</TH></TR>
+<TR><TD>공사</TD><TD>2026-07-31</TD><TD>2029-07-31</TD><TD>1000000</TD><TD>800000</TD></TR>
+<TR><TD>합계</TD><TD>-</TD><TD>-</TD><TD>1000000</TD><TD>800000</TD></TR></TABLE>"""
+    assert structured_order_series(xml, period_end="2026-06-30") == []
+    [reason] = order_period_limits(xml, "2026-06-30")
+    assert "2026-07-31" in reason and "2026-06-30" in reason and "2029" not in reason
+    valid = xml.replace("2026-07-31", "2026-06-30")
+    assert not order_period_limits(valid, "2026-06-30")
+    [metric] = structured_order_series(valid, period_end="2026-06-30")
+    assert "수주잔고 | 800000" in metric
+    assert structured_order_series(xml, period_end="2026-09-30")

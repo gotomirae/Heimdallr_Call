@@ -57,7 +57,7 @@ SECTION_PATTERNS: list[tuple[str, str]] = [
 DEFAULT_BUDGET_CHARS = EXCERPT_BUDGET_CHARS
 #: 한 절이 독차지하지 못하게 하는 상한. 수주상황 표 하나가 예산을 다 먹는 것을 막는다.
 PER_SECTION_CHARS = 700
-ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v11 완료"
+ORDER_METRIC_MARKER = "정기보고서 수주지표 파서 v12 완료"
 
 
 class ExcerptError(RuntimeError):
@@ -636,6 +636,45 @@ def _grouped_business_order_series(table, period_end: str | None) -> list[str] |
     return results
 
 
+def _future_order_dates(table, period_end: str | None) -> list[str]:
+    """납기일과 구분한 명시 수주일자가 보고기말 뒤면 그 표를 분기 잔고로 쓰지 않는다."""
+    if not period_end:
+        return []
+    grid = _table_grid(table)
+    columns = {i for row in grid[:6] for i, cell in enumerate(row)
+               if _order_header(cell) in {"수주일자", "계약일자", "수주일"}}
+    if len(columns) != 1:
+        return []
+    column = next(iter(columns))
+    dates = set()
+    for row in grid:
+        if column >= len(row):
+            continue
+        match = re.fullmatch(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2})", row[column].strip())
+        if not match:
+            continue
+        year, month, day = map(int, match.groups())
+        if not 1 <= month <= 12 or not 1 <= day <= calendar.monthrange(year, month)[1]:
+            continue
+        date = f"{year:04d}-{month:02d}-{day:02d}"
+        if date > period_end:
+            dates.add(date)
+    return sorted(dates)
+
+
+def order_period_limits(section_xml: str, period_end: str | None) -> list[str]:
+    """수치 대신 화면과 장부에 남길 명시 기준일 충돌 근거."""
+    limits = []
+    for table in BeautifulSoup(section_xml, "html.parser").find_all("table"):
+        if "수주잔고" not in _order_header(table.get_text(" ", strip=True)):
+            continue
+        dates = _future_order_dates(table, period_end)
+        if dates:
+            limits.append(f"수주잔고 기준일 확인 필요: 보고기말 {period_end} 이후 수주일자 "
+                          + " · ".join(dates) + "; 해당 표를 분기 잔고·QoQ로 승인하지 않음")
+    return limits
+
+
 def structured_order_series(section_xml: str, *, period_end: str | None = None) -> list[str]:
     """다단 머리글을 포함한 DART 수주표에서 검증 가능한 합계만 구조화한다.
 
@@ -676,6 +715,8 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         for table in soup.find_all("table"):
             vertical_series.extend(_opening_closing_backlog_series(table, period_end))
     for table in order_tables:
+        if _future_order_dates(table, period_end):
+            continue
         quarter_series = _quarter_order_rollforward_series(table, period_end)
         if quarter_series is not None:
             vertical_series.extend(quarter_series)
@@ -1115,6 +1156,10 @@ def build_excerpt(
         remaining -= take
     order_section = sections.get("매출 및 수주상황")
     order_section_xml = _section_xml(xml, "매출 및 수주상황")
+    if order_section_xml:
+        limits = order_period_limits(order_section_xml, report_period_end)
+        if limits:
+            picked["공시 수주지표 한계"] = "\n".join(limits)
     if order_section_xml:
         from src.collectors.order_company import classify_order_section
         picked["order_business_evidence"] = classify_order_section(order_section_xml)

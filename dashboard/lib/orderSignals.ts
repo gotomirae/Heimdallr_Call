@@ -221,20 +221,27 @@ export function extractOrderDisclosureMetrics(row: DisclosureExcerptRow): OrderD
 }
 
 export function summarizeOrderDisclosures(row: DisclosureExcerptRow): OrderDisclosureSummary[] {
+  const limit = row.sections?.["공시 수주지표 한계"];
+  const limitSummary = typeof limit === "string" && limit.trim() ? summarizeOrderDisclosure({
+    ...row, sections: { "공시 보고기간": row.sections?.["공시 보고기간"], "공시 수주지표 한계": limit },
+  }) : null;
+  const withLimit = (summaries: OrderDisclosureSummary[]) => limitSummary &&
+    !summaries.some((summary) => summary.evidence === limitSummary.evidence)
+    ? [...summaries, limitSummary] : summaries;
   if (record(row.sections?.["공식 IR 수주지표"])) {
-    return extractOrderDisclosureMetrics(row).map((metric) => ({ ...metric,
-      status: "measured", statusLabel: metric.sourceUrl ? "공식 IR 수치 확인" : "공시 수치 확인", evidence: null }));
+    return withLimit(extractOrderDisclosureMetrics(row).map((metric) => ({ ...metric,
+      status: "measured", statusLabel: metric.sourceUrl ? "공식 IR 수치 확인" : "공시 수치 확인", evidence: null })));
   }
   const series = record(row.sections?.["공시 수주지표 목록"])?.series;
   if (!Array.isArray(series)) {
     const summary = summarizeOrderDisclosure(row);
-    return summary ? [summary] : [];
+    return withLimit(summary ? [summary] : []);
   }
-  return series.flatMap((section) => {
+  return withLimit(series.flatMap((section) => {
     if (typeof section !== "string") return [];
     const summary = summarizeOrderDisclosure({ ...row, sections: { ...row.sections, "공시 수주지표": section } });
     return summary ? [summary] : [];
-  });
+  }));
 }
 
 /** 최근 6개월 중 최근 정기보고서 이후이면서 현재 분기에 속한 계약만 남긴다. */
@@ -318,6 +325,12 @@ export function deriveOrderDisclosureSignal(
     return null;
   }
 
+  const periodLimit = row.sections["공시 수주지표 한계"];
+  if (typeof periodLimit === "string" && periodLimit.trim()) return {
+    status: "limited", evidence: periodLimit.trim(),
+    sourceLabel: `${expectedYear}년 ${expectedQuarter}분기 정기보고서`, truncated: false,
+  };
+
   for (const body of Object.values(row.sections)) {
     if (typeof body !== "string" || body.trim() === "") continue;
     const normalized = body.replace(/\s+/g, " ").trim();
@@ -368,7 +381,8 @@ function summarizeOrderDisclosureBase(row: DisclosureExcerptRow): OrderDisclosur
   if (signal?.status === "limited") return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,
     backlogEok: null, newOrdersEok: null, scope: null, newOrdersPeriod: null, status: "private",
-    statusLabel: "비공개·기재 생략", evidence,
+    statusLabel: typeof row.sections?.["공시 수주지표 한계"] === "string"
+      ? "보고기말 이후 수주 포함·기준일 확인 필요" : "비공개·기재 생략", evidence,
   };
   if (signal?.truncated) return {
     year: row.fiscal_year, quarter: row.fiscal_quarter, rceptNo: row.rcept_no,

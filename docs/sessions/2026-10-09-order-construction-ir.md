@@ -33,3 +33,5 @@ GS건설은 이전 영문 자료실이2026Q1까지만 조사된 상태였다. �
 전체 오프라인 최종 **1,408 passed·2 skipped·3 deselected**,22.18초.
 
 운영 삼성물산·GS·코오롱 페이지 HTTP200·실제 신규 IR 범위3/3 확인(471565/485678/399627바이트). 브라우저 시각 검증과 혼동하지 않는다. 근거 assets/2026-10-09-construction-ir-http-proof.json.
+
+커밋996f720 CI37924865964 success·Vercel success를 확인했다. 운영 DB 및 페이지 검증 수치는 위 증거에 보존한다.

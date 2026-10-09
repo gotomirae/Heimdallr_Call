@@ -468,3 +468,27 @@ def test_direct_quarter_and_verified_cumulative_are_both_preserved_without_filli
     assert unverified["series"][0]["newOrders"] is None
     assert unverified["series"][0]["history"]["newOrders"] == 1
     assert changed["series"][0]["newOrders"] is None
+
+
+def test_explicit_order_period_conflict_is_shown_before_normal_order_mentions():
+    reason = "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-31"
+    row = {"code": "290690", "rcept_no": "20260930000794", "fiscal_year": 2026,
+           "fiscal_quarter": 2, "sections": {"매출 및 수주상황": "수주잔고 합계 67,936,548,093",
+                                               "공시 수주지표 한계": reason}}
+    signal, summary, metric = _run([
+        {"row": row, "year": 2026, "quarter": 2},
+        {"summary": True, "row": row}, {"metric": True, "row": row},
+    ])
+    assert signal["status"] == "limited" and signal["evidence"] == reason
+    assert summary["backlogEok"] is None and summary["newOrdersEok"] is None
+    assert "기준일 확인 필요" in summary["statusLabel"] and summary["evidence"] == reason
+    assert metric is None
+
+    # 같은 보고서의 검증된 다른 범위/IR 수치는 남기되 충돌 경고도 사라지지 않는다.
+    row["sections"]["공식 IR 수주지표"] = {"series": [
+        "범위 | 검증된 사업부\n단위 | 억원\n수주잔고 | 80\n신규수주 | 20\n신규수주 기간 | 당분기",
+    ]}
+    [summaries] = _run([{"summaries": True, "row": row}])
+    assert len(summaries) == 2
+    assert summaries[0]["backlogEok"] == 80 and summaries[0]["newOrdersEok"] == 20
+    assert summaries[1]["backlogEok"] is None and summaries[1]["evidence"] == reason

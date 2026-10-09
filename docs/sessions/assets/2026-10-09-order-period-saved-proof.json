@@ -1,0 +1,3648 @@
+{
+  "reports": [
+    {
+      "rcept_no": "20260813001184",
+      "code": "004690",
+      "report_nm": "반기보고서 (2026.06)",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 156,812"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "f0a99b579c1ca78cd485d898bcb52b4e3df177287be6e0356539f1e6ebcf7694",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260814001521",
+      "code": "092870",
+      "report_nm": "반기보고서 (2026.06)",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-07; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 84,598"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "d8763a07acf734a98ae34bbf93d0bba35c78c0e8159aa1adbc2bda5b1bb517f1",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260814001518",
+      "code": "304100",
+      "report_nm": "반기보고서 (2026.06)",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 12,920,384"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "8789949b2ffdedf0004fa2d95424ee9a4576d335613056e20bc3a4e1dabde568",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260814000772",
+      "code": "086390",
+      "report_nm": "반기보고서 (2026.06)",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-23; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 120,967"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "0d4bca412d0704b73ebf015a92cc3a68f3c452b90b60bf816acbcb96aaf2841e",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515001227",
+      "code": "253590",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-04-03 · 2026-04-14 · 2026-05-06; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [],
+      "after": [],
+      "changed": false,
+      "fullSectionsPresent": true,
+      "sha256": "fbe4ccbcd29e97b313bfb1c33cf40ba5ff6f9ae8d4c5c364b113e118fd0a5683",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240813001399",
+      "code": "003670",
+      "report_nm": "반기보고서 (2024.06)",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-06-30 이후 수주일자 2024-07-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 57,316"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "535a19442a4c8a5abffe164c977e42dae0945ec8e001700637d522fbd9e0feb1",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240814003519",
+      "code": "005490",
+      "report_nm": "반기보고서 (2024.06)",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-06-30 이후 수주일자 2024-07-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | [인프라(건설부문)] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 40,554,889",
+        "범위 | [인프라(물류등부문)] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,057,746",
+        "범위 | [이차전지소재부문] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 57,316"
+      ],
+      "after": [
+        "범위 | [인프라(건설부문)] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 40,554,889",
+        "범위 | [인프라(물류등부문)] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,057,746"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "f9dff7ebc39d6812cc1b5ebba7a53a51a0fab4b9e7e05b6813dbfd0afdeec4c4",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250813001542",
+      "code": "214430",
+      "report_nm": "[기재정정]반기보고서 (2025.06)",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-06-30 이후 수주일자 2025-08-01 · 2025-09-15; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 113,230"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "33f6705d38f40a18f3860b42fcc8fa9ca30abcf358d124ce71eedb4854ea768e",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250814001300",
+      "code": "011560",
+      "report_nm": "반기보고서 (2025.06)",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-06-30 이후 수주일자 2025-07-07; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 천원\n수주잔고 | 193,488,878"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "ae8d544a729839b7e43bd4182e328eb586767302af0f6243b7e2bb97ea9c2bac",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240514000436",
+      "code": "462350",
+      "report_nm": "분기보고서 (2024.03)",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-03-31 이후 수주일자 2024-04-01 · 2024-04-03; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | USD\n수주잔고 | 12,608"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "c0c9f92691f21905ece49fd9a2a96d99c63a38b020080df4618c6d653f688a4a",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240814004167",
+      "code": "053300",
+      "report_nm": "반기보고서 (2024.06)",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-06-30 이후 수주일자 2024-10-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | OTP 사업 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 6,796"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "86b927750f6927c1c5a39db896a83004a587d7d0e9977fec23a2e7a476aa78af",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250514001040",
+      "code": "250060",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-04-03; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 6,634,185"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "8228b0464f7c1d90250650f2f90c0806d517c73de81415f499da272e9887e10a",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240814003960",
+      "code": "250060",
+      "report_nm": "반기보고서 (2024.06)",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-06-30 이후 수주일자 2024-07-12; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 6,974,162"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "817a11efbc6d1fb888709fdccd03333597a0440ff71a722c86762adf878b182b",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20251113000290",
+      "code": "328130",
+      "report_nm": "분기보고서 (2025.09)",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-09-30 이후 수주일자 2025-10-02 · 2025-10-06 · 2025-10-07 · 2025-10-08 · 2025-10-10 · 2025-10-14 · 2025-10-15 · 2025-10-16 · 2025-10-17 · 2025-10-20 · 2025-10-21 · 2025-10-22 · 2025-10-23 · 2025-10-24 · 2025-10-27 · 2025-10-28; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 1,027,482",
+        "범위 | 회사 공시 단일행\n단위 | 백만USD\n수주잔고 | 94"
+      ],
+      "after": [
+        "범위 | 회사 공시 단일행\n단위 | 백만USD\n수주잔고 | 94"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "0e0b2ce82208b18548edff3a22b91762e95d0d077ccaf4f11f13f853c7aab470",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250813001323",
+      "code": "328130",
+      "report_nm": "반기보고서 (2025.06)",
+      "period": {
+        "end": "2025-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-06-30 이후 수주일자 2025-07-01 · 2025-07-02 · 2025-07-03; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 96,424",
+        "범위 | 회사 공시 단일행\n단위 | USD\n수주잔고 | 87"
+      ],
+      "after": [
+        "범위 | 회사 공시 단일행\n단위 | USD\n수주잔고 | 87"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "c44fe02de1a6476bc6193ad7088694145cf3a58d2c5eed642116db1bbc5b8323",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515001551",
+      "code": "092870",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-05-06; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 31,886"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "c41888c916f0ba6656d3bcdd4aae4cb91cc019264c3e4b3d34c6860c9a75774c",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20251114001559",
+      "code": "092870",
+      "report_nm": "분기보고서 (2025.09)",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-09-30 이후 수주일자 2025-10-23; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 29,215"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "756e07a634ed1af03c056b4e47188afe1870855fb7f0fc905c591024b6585be1",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250514000989",
+      "code": "092870",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-04-13 · 2025-04-23; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 7,778"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "ed14c8b818e00b3cb1c8a6961a699cf2447b738b7e56d772c0e13e146b8c1416",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240514001121",
+      "code": "092870",
+      "report_nm": "분기보고서 (2024.03)",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-03-31 이후 수주일자 2024-04-30; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 5,870"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "0b3eebf8db4cf2c8fa3c2e048e5ce0352ea369962c287266331cc3795e0e2f96",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260318000929",
+      "code": "388720",
+      "report_nm": "사업보고서 (2025.12)",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-12-31 이후 수주일자 2026-02-13; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 5,925"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "d066627150c12d146d26426e026c1d25076798ecc61749dc8ecd42df4fef20b6",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20241114001623",
+      "code": "002150",
+      "report_nm": "분기보고서 (2024.09)",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-09-30 이후 수주일자 2025-12-31; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,867,042\n신규수주 | 447,610\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 401,234"
+      ],
+      "after": [
+        "범위 | 공시 신규계약 변동표 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 1,867,042\n신규수주 | 447,610\n신규수주 기간 | 보고기간 누적"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "622a1772964493383d7e321064e7ffc2137ede17d7f78dc6361ad30a85739247",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515001829",
+      "code": "090350",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-05-15; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 59,021"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "d6adbf38ebb78e479f131657e5a371b09319dc9e7d7bbc40e9a9267b2d07cac8",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250515001653",
+      "code": "090350",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-05-15; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 65,415"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "29f7aad3a9cd79f6088f692f6a748ba0b2db3403bb67d28c87184e96e0573de2",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240516000961",
+      "code": "090350",
+      "report_nm": "분기보고서 (2024.03)",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-03-31 이후 수주일자 2024-05-16; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 61,881"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "f958aa638b195cba5b55a57e6510163aeead59cbb08b1ed481be17c72e0865e2",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20251113000785",
+      "code": "004690",
+      "report_nm": "분기보고서 (2025.09)",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-09-30 이후 수주일자 2026-01-03; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 335,104"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "9739cdded796c4009a156d9175bbed70d846806359b3836b187ed60174f6c3df",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20241107000153",
+      "code": "100840",
+      "report_nm": "분기보고서 (2024.09)",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-09-30 이후 수주일자 2024-10-02; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 공시 공사계약 변동표 (진행 계약 범위)\n단위 | 천원\n수주잔고 | 651,955,161\n신규수주 | 486,105,913\n신규수주 기간 | 보고기간 누적",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 천원\n수주잔고 | 542,414,205"
+      ],
+      "after": [
+        "범위 | 공시 공사계약 변동표 (진행 계약 범위)\n단위 | 천원\n수주잔고 | 651,955,161\n신규수주 | 486,105,913\n신규수주 기간 | 보고기간 누적"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "190f67c32d76f7b74a7cd62d2885ffdd6e3a40e01bc49dab14768d298700cd49",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515000677",
+      "code": "039440",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-04-10; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 233,963,325",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 천원\n수주잔고 | 85,765,070"
+      ],
+      "after": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 233,963,325"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "0e0922b41dbb90dffc23883be1ed491b0fda4dd773c433756cddb8d7550695b1",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250714000213",
+      "code": "039440",
+      "report_nm": "[기재정정]사업보고서 (2024.12)",
+      "period": {
+        "end": "2024-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-12-31 이후 수주일자 2025-02-28; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 168,988,142",
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 천원\n수주잔고 | 140,329,953"
+      ],
+      "after": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 168,988,142"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "800a1f7d616a82926b9c6ddf5913729cba4c96ace01cda22b942533a15dec2fb",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260319001029",
+      "code": "304100",
+      "report_nm": "사업보고서 (2025.12)",
+      "period": {
+        "end": "2025-12-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 4,
+        "reportKind": "사업보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-12-31 이후 수주일자 2026-01-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 3,860,077"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "f5e92dd9b950b50f0406498541ade91043ce3d1fd9ccf8c348f35fcf2c733e18",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240514001574",
+      "code": "163730",
+      "report_nm": "분기보고서 (2024.03)",
+      "period": {
+        "end": "2024-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-03-31 이후 수주일자 2024-04-02; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 인력관리 노하우를 통한 높은 가동률 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 35,312"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "b7937d6e5e33174abf9f8ca031fb69e8cb293eb2ee0551120628d692a1aa4eb7",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515002177",
+      "code": "046120",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-05-11; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 방사선관리 용역 등 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 36,205",
+        "범위 | ISI 사업본부 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 7,869",
+        "범위 | 항공기 부품 제조 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 24,595"
+      ],
+      "after": [
+        "범위 | 방사선관리 용역 등 / 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 36,205",
+        "범위 | 항공기 부품 제조 / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 24,595"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "b93140acf95f54cfd3518dd7eac13ffa0d3b53f047470e15df95abed0a9a75bc",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20241113000714",
+      "code": "036190",
+      "report_nm": "분기보고서 (2024.09)",
+      "period": {
+        "end": "2024-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-09-30 이후 수주일자 2024-10-01 · 2024-10-07; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 62,181",
+        "범위 | 주요계약(전체 회사 아님) / 표 품목: 국내\n단위 | 백만원\n수주잔고 | 159,027"
+      ],
+      "after": [
+        "범위 | 주요계약(전체 회사 아님)\n단위 | 백만원\n수주잔고 | 159,027"
+      ],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "504f708d467c7955fb75e21b6a6e0eb0c6c880d7d2592914e15d30ae106a7190",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260515001819",
+      "code": "232140",
+      "report_nm": "분기보고서 (2026.03)",
+      "period": {
+        "end": "2026-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-03-31 이후 수주일자 2026-04-10; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [],
+      "after": [],
+      "changed": false,
+      "fullSectionsPresent": true,
+      "sha256": "1a3eeff7d7247ca26ae3ebe7b2dbf0d92caf3382310d18dd05eed924c4644316",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20251114002139",
+      "code": "041960",
+      "report_nm": "분기보고서 (2025.09)",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-09-30 이후 수주일자 2025-10-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 1,943,954"
+      ],
+      "after": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 1,943,954"
+      ],
+      "changed": false,
+      "fullSectionsPresent": true,
+      "sha256": "6025bf25a4ea89b1a4f71ebae5828fe49c566b86d917dc96b7a8875300b1d9ab",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250514001016",
+      "code": "101970",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-04-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | [3] / 회사 공시 합계\n단위 | 백만원\n수주잔고 | 74,946"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "1fae5c9fb75c0243f4b882847fce8a42645dd5272bb92a633a1e5cca11245cdc",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20251114001748",
+      "code": "107640",
+      "report_nm": "분기보고서 (2025.09)",
+      "period": {
+        "end": "2025-09-30",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 3,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-09-30 이후 수주일자 2025-10-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 58,956"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "a3d2f376cfa074ee2cd8921c8731eb9f5dca1c2084bc30d0ff2134249cf6da6b",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250515001841",
+      "code": "008350",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-04-07; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 15,432"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "d14a4dc6b5bae22c5cca5f5f7d7e4268a904dd292fffa4d73facb8995d896c6b",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20240814003721",
+      "code": "001780",
+      "report_nm": "반기보고서 (2024.06)",
+      "period": {
+        "end": "2024-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2024,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2024-06-30 이후 수주일자 2024-08-01; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 백만원\n수주잔고 | 231,026"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "65816db28f3f723dae7c75a63145ca7ffe044cef3592112787c394e2cb00ac4a",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20250515002854",
+      "code": "091440",
+      "report_nm": "분기보고서 (2025.03)",
+      "period": {
+        "end": "2025-03-31",
+        "closingMonth": 12,
+        "fiscalYear": 2025,
+        "fiscalQuarter": 1,
+        "reportKind": "분기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2025-03-31 이후 수주일자 2025-04-09; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [
+        "범위 | 회사 공시 합계\n단위 | 천원\n수주잔고 | 4,173,851"
+      ],
+      "after": [],
+      "changed": true,
+      "fullSectionsPresent": true,
+      "sha256": "660f62254eab5d6893381266d8735bd09c6bd42ada079f4b4955b6c7c59b2220",
+      "fullSectionsEqual": true
+    },
+    {
+      "rcept_no": "20260930000794",
+      "code": "290690",
+      "report_nm": "[기재정정]반기보고서 (2026.06)",
+      "period": {
+        "end": "2026-06-30",
+        "closingMonth": 12,
+        "fiscalYear": 2026,
+        "fiscalQuarter": 2,
+        "reportKind": "반기보고서"
+      },
+      "limits": [
+        "수주잔고 기준일 확인 필요: 보고기말 2026-06-30 이후 수주일자 2026-07-31; 해당 표를 분기 잔고·QoQ로 승인하지 않음"
+      ],
+      "before": [],
+      "after": [],
+      "changed": false,
+      "fullSectionsPresent": true,
+      "sha256": "868b790f3f88c1ae0be8e3cf46f360309dba39c255e21fb7d23d245c69f26e4f",
+      "fullSectionsEqual": true
+    }
+  ],
+  "audits": [
+    {
+      "code": "001780",
+      "name": "알루코",
+      "sector": "철강·금속",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003458",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814003458",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1167.17,
+          "newOrders": null,
+          "qoq": 31.259207611250428,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003458",
+          "history": {
+            "backlog": 8,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: N PJT",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 502.39,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: R PJT",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 22.78,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: T PJT",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 160.18,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: S PJT",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 203.5,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Q PTJ",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 65.24,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: O PTJ",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 14.2,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Iconic (Embed)( west lake)",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 2.22,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: LETRUC",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 0.35,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: LOTTEMALL",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 20.42,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: WestlakeVilla",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 8.07,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Bason",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 34.8,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: DAEWOO B3CC1",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 45.97,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 기타",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 44.86,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000211",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "002150",
+      "name": "도화엔지니어링",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813001545",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공시 신규계약 변동표 / 사업별 현황 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 19494.13,
+          "newOrders": 2423.75,
+          "qoq": 2.7030088398599217,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+          "history": {
+            "backlog": 6,
+            "newOrders": 4,
+            "qoq": 4,
+            "complete": 4
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1958.74,
+          "newOrders": null,
+          "qoq": -26.800702567360513,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001545",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 신규계약 변동표 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-09",
+          "backlog": 18499.3,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "비교 가능한 직전 분기 누적값 없음",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000615",
+          "history": {
+            "backlog": 4,
+            "newOrders": 3,
+            "qoq": 2,
+            "complete": 2
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "003670",
+      "name": "포스코퓨처엠",
+      "sector": "건자재",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260902000346",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260902000346",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 259.58,
+          "newOrders": null,
+          "qoq": -28.15388873512318,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260902000346",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "004690",
+      "name": "삼천리",
+      "sector": "전력인프라",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514000869",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813001184",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 1877.51,
+          "newOrders": null,
+          "qoq": -10.917579628109575,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514000869",
+          "history": {
+            "backlog": 7,
+            "newOrders": 0,
+            "qoq": 4,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "005490",
+      "name": "POSCO홀딩스",
+      "sector": "철강·금속",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000957",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814000957",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "[인프라(건설부문)] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 514246.1,
+          "newOrders": null,
+          "qoq": 6.513506159996685,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000957",
+          "history": {
+            "backlog": 8,
+            "newOrders": 0,
+            "qoq": 6,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[인프라(물류등부문)] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 9566.76,
+          "newOrders": null,
+          "qoq": -0.3667993476345388,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000957",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 8,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[이차전지소재부문] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 259.58,
+          "newOrders": null,
+          "qoq": -28.15388873512318,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000957",
+          "history": {
+            "backlog": 7,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[에너지소재부문] / 회사 공시 합계 / 표 품목: 국내 · 국내외",
+          "unit": "억원",
+          "period": "2025-03",
+          "backlog": 410819.47,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250515002741",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[에너지소재부문] / 회사 공시 합계 / 표 품목: S-OIL 2025년 No.1 RFCC TA 내화물 공사 · 광양 2고로 2차 부분개수 · 광양 전기로 신설 TLC 축로공사 · 포항 2열연 5가열로 신설 · 포항 3FINEX 부분개수 내화물 공사 · 현대제철 당진제철소 CDQ 신설 내화물공사",
+          "unit": "억원",
+          "period": "2025-03",
+          "backlog": 559.83,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250515002741",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 3346.93,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114002845",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[친환경인프라(건설부문)] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-03",
+          "backlog": 389087.99,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240516002077",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[친환경인프라(물류등부문)] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-03",
+          "backlog": 11724.26,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240516002077",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[친환경미래소재부문] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-03",
+          "backlog": 748.04,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240516002077",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "008350",
+      "name": "남선알미늄",
+      "sector": "철강·금속",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250320001238",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814002837",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 375.31,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250320001238",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[알미늄부문] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 338.27,
+          "newOrders": null,
+          "qoq": 211.8270648967551,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114002484",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 2,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "011560",
+      "name": "세보엠이씨",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515000437",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814000801",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 4002.15,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515000437",
+          "history": {
+            "backlog": 4,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 복합동 배관공사 A",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 2.78,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Ph.1 배관공사 A",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 79.51,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 복합동 배관A",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 18.68,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 복합동 신축공사",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 737.46,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 일반배관 2 공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 109.76,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: PH4 일반배관3공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 31.9,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Ph2 마감공사",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 500.94,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 공사 3공구(3)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 1.15,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: PH2 배관훅업",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 17.1,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 일반설비 2 공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 105.47,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: [설비]일반덕트공사 1공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 256.16,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 소방기계공사(남)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 33.32,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: UT배관공사-2(2)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 1.83,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Ph 덕트 1공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 60.48,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 소방설비공사",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 0.24,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 3일반덕트2공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 29.18,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 공사 3공구(2)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 4.74,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 기계설비공사업",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 119.65,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: UT배관공사-(2)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 7.1,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: P3-(3)배관",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 2.82,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 22 DS Site 통합",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 8.63,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 공사-1공구(1)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 8.28,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 기계설비(추가)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 21.71,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 기계설비공사(2차)",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 0.73,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 2일반덕트2공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 6.51,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 공사 1공구",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 10.24,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: 소방기계공사",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 5.04,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001619",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "036190",
+      "name": "금화피에스시",
+      "sector": "기타",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001555",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813001555",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1309.73,
+          "newOrders": null,
+          "qoq": -7.615856669253018,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001555",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님) / 표 품목: 국내 · 국외",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2501.04,
+          "newOrders": null,
+          "qoq": -9.028611335413906,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001555",
+          "history": {
+            "backlog": 6,
+            "newOrders": 0,
+            "qoq": 3,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-12",
+          "backlog": 2914.72,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630000672",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님) / 표 품목: 국내",
+          "unit": "억원",
+          "period": "2024-06",
+          "backlog": 1275.83,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240814001977",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "039440",
+      "name": "에스티아이",
+      "sector": "반도체 장비",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001073",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814001073",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2143.5,
+          "newOrders": null,
+          "qoq": -8.382949440723541,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001073",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 511.78,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001073",
+          "history": {
+            "backlog": 8,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "041960",
+      "name": "코미팜",
+      "sector": "바이오·제약",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001159",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813001159",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 95.2,
+          "newOrders": null,
+          "qoq": -23.72406057206955,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001159",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "046120",
+      "name": "오르비텍",
+      "sector": "우주방산",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002604",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814002604",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "항공기 부품 제조 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 241.05,
+          "newOrders": null,
+          "qoq": -1.992274852612308,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002604",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "방사선관리 용역 등 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 333.31,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002604",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "ISI 사업본부 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 61.08,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002604",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "방사선관리 용역 등 / 주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 362.05,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002177",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "053300",
+      "name": "한국정보인증",
+      "sector": "소프트웨어·IT",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250813001197",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813001697",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "인증사업 / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2025-06",
+          "backlog": 0.82,
+          "newOrders": null,
+          "qoq": -87.5,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250813001197",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 2,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "OTP 사업 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 59.62,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114002391",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공공 전자문서솔루션 서비스 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-03",
+          "backlog": 71.08,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240514001597",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "086390",
+      "name": "유니테스트",
+      "sector": "반도체 장비",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001556",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814000772",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 268.67,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001556",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "090350",
+      "name": "노루페인트",
+      "sector": "건자재",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002330",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814002330",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 386.35,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002330",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 2,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "091440",
+      "name": "한울소재과학",
+      "sector": "통신·네트워크",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002428",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814002428",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 8.16,
+          "newOrders": null,
+          "qoq": 216.27906976744185,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002428",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 1,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "092870",
+      "name": "엑시콘",
+      "sector": "반도체 장비",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316001681",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814001521",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-12",
+          "backlog": 41.12,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316001681",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 1,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "100840",
+      "name": "SNT에너지",
+      "sector": "로봇기계",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 신규수주",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260812000070",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공시 공사계약 변동표 (진행 계약 범위)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 5180.05,
+          "newOrders": 1081.1000000000001,
+          "qoq": 1.4168859443034698,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        },
+        {
+          "scope": "주요계약(전체 회사 아님)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 3019.32,
+          "newOrders": null,
+          "qoq": -16.77637019151258,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000070",
+          "history": {
+            "backlog": 8,
+            "newOrders": 0,
+            "qoq": 6,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "101970",
+      "name": "우양에이치씨",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004059",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814004059",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 1083.31,
+          "newOrders": null,
+          "qoq": 35.49335234450239,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004059",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 4,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[3] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 1001.56,
+          "newOrders": null,
+          "qoq": -9.864377188009044,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250326000506",
+          "history": {
+            "backlog": 4,
+            "newOrders": 0,
+            "qoq": 3,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 2,
+        "candidates": 1,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "107640",
+      "name": "한중엔시에스",
+      "sector": "전력인프라",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250814002589",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814003007",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2025-06",
+          "backlog": 486.04,
+          "newOrders": null,
+          "qoq": 14.31393762641704,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250814002589",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 4,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 6,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "163730",
+      "name": "핑거",
+      "sector": "금융",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003937",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814003937",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "인력관리 노하우를 통한 높은 가동률 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 399.91,
+          "newOrders": null,
+          "qoq": 0,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003937",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 8,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "214430",
+      "name": "아이쓰리시스템",
+      "sector": "전자부품",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000390",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260813000390",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 963.55,
+          "newOrders": null,
+          "qoq": -11.891916605705921,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000390",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 7,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "232140",
+      "name": "와이씨",
+      "sector": "반도체 장비",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001745",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814001745",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2142.1,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001745",
+          "history": {
+            "backlog": 4,
+            "newOrders": 0,
+            "qoq": 2,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 3,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "250060",
+      "name": "모비스",
+      "sector": "소프트웨어·IT",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261006000433",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20261006000433",
+      "latestPeriod": "2026-06",
+      "reportCount": 11,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 58.78,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261006000433",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "253590",
+      "name": "네오셈",
+      "sector": "반도체 장비",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000817",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814000817",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "[공시통화별표/KRW] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 68.99,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000817",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[공시통화별표/USD] / 회사 공시 합계",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 26.26,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814000817",
+          "history": {
+            "backlog": 6,
+            "newOrders": 0,
+            "qoq": 2,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[공시통화별표/KRW] / 회사 공시 단일행",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 44.8,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114000475",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[공시통화별표/USD] / 회사 공시 단일행",
+          "unit": "백만USD",
+          "period": "2024-03",
+          "backlog": 12.761,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240513000108",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "290690",
+      "name": "아리바이오홀딩스",
+      "sector": "디스플레이",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002480",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260930000794",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 289.08,
+          "newOrders": null,
+          "qoq": -14.351742118985545,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002480",
+          "history": {
+            "backlog": 9,
+            "newOrders": 0,
+            "qoq": 8,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "304100",
+      "name": "솔트룩스",
+      "sector": "AI",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514000748",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814001518",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-03",
+          "backlog": 31.56,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514000748",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공시 공개 항목: Luxia",
+          "unit": "억원",
+          "period": "2025-03",
+          "backlog": 3.91,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250515000191",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "지역별 거점 연계 활용 / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 0.19,
+          "newOrders": null,
+          "qoq": -99.92449231013791,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20241114002412",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "지역별 거점 연계 활용 / 공시 항목 합산(표 범위)",
+          "unit": "억원",
+          "period": "2024-03",
+          "backlog": 12.49,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240516001188",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 1,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "328130",
+      "name": "루닛",
+      "sector": "소프트웨어·IT",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811000657",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260811000657",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 2.18,
+          "newOrders": null,
+          "qoq": -78.77312560856863,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811000657",
+          "history": {
+            "backlog": 8,
+            "newOrders": 0,
+            "qoq": 6,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 단일행 / 표 품목: SaaS Software",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 0.000101,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811000657",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 단일행 / 표 품목: LunitSCOPE",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 3e-06,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811000657",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 단일행",
+          "unit": "백만USD",
+          "period": "2026-03",
+          "backlog": 101,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260512000512",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 3,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 5,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "388720",
+      "name": "유일로보틱스",
+      "sector": "로봇기계",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002610",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814002610",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 111.2,
+          "newOrders": null,
+          "qoq": 87.67932489451478,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002610",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 5,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "462350",
+      "name": "이노스페이스",
+      "sector": "우주방산",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003448",
+      "generatedAt": "2026-10-09T11:46:56.226519+00:00",
+      "anchorReceipt": "20260814003448",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 59.23,
+          "newOrders": null,
+          "qoq": -27.3073146784487,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003448",
+          "history": {
+            "backlog": 6,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "회사 공시 합계",
+          "unit": "백만USD",
+          "period": "2025-06",
+          "backlog": 0.014432,
+          "newOrders": null,
+          "qoq": 0.29883939120161074,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000732",
+          "history": {
+            "backlog": 5,
+            "newOrders": 0,
+            "qoq": 4,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 7,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    }
+  ]
+}
