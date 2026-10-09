@@ -1,0 +1,218 @@
+[
+  {
+    "code": "171090",
+    "company": "선익시스템",
+    "title": "SUNIC SYSTEM_IR BOOK_26.2Q_v1_ENG.pdf",
+    "date": "2026-09-28",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19363/SUNIC SYSTEM_IR BOOK_26.2Q_v1_ENG.pdf",
+    "sha256": "84efaecdb907db528be9e784a93f5804ca82d4997c397b57817cc3810363d4b0",
+    "reviewed_text_pages": [
+      20,
+      21
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "26Q2 IR 잔고642.0십억원과 비공개 계약 일부만 공개. 당분기 전체 신규 직접값 미확인; DART 누적 계약총액을 신규로 전환하지 않음."
+  },
+  {
+    "code": "137400",
+    "company": "피엔티",
+    "title": "피엔티_IR_BOOK_Kor.pdf",
+    "date": "2026-08-27",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19191/피엔티_IR_BOOK_Kor.pdf",
+    "sha256": "d8aeec1477b87227d686d37d39de8fbc221caaff8a901cc4bde818035446b658",
+    "reviewed_text_pages": [
+      10,
+      20
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "IR 신규는21~25년 연간 및 잔고+매출 정의의 추정식. 26Q2 직접 신규 없음. DART 회사/중국/엠에스 범위를 분리해야 함."
+  },
+  {
+    "code": "058970",
+    "company": "엠로",
+    "title": "엠로 26년 2분기 실적발표자료.pdf",
+    "date": "2026-08-18",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19088/엠로 26년 2분기 실적발표자료.pdf",
+    "sha256": "0823d2f48c944ff20538b784636cb069741f9f59b67e6be6ddbad14d4ff82d3b",
+    "reviewed_text_pages": [
+      3,
+      8
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "월별 잔고만 공개; 분기말 표 가능하나 전체 신규는 없음."
+  },
+  {
+    "code": "099320",
+    "company": "쎄트렉아이",
+    "title": "쎄트렉아이 IR BOOK_26.03.31.pdf",
+    "date": "2026-07-02",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/18887/쎄트렉아이 IR BOOK_26.03.31.pdf",
+    "sha256": "03bfac629a97e1264e52b503baaa796f9d0db29f98a889182f65d23cc59cca3a",
+    "reviewed_text_pages": [
+      2,
+      3
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "26Q1 그래프 신규 총2915(해외2857+국내58), 잔고5690. 신규 차트의 명시 단위를 확인하지 못했고 최신26Q2도 아님. 공식 사이트 공지 목록은 IR 첨부 미확인. 숫자2857만 총액으로 사용하지 않음."
+  },
+  {
+    "code": "383310",
+    "company": "에코프로에이치엔",
+    "title": "에코프로HN IR Book (2026.03).pdf",
+    "date": "2026-05-19",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/18585/에코프로HN IR Book (2026.03).pdf",
+    "sha256": "e7abfae28dcf1a3eb5ba2ebf62703c8895b076ef1dffa9dd8fc6b5196f7f990e",
+    "reviewed_text_pages": [
+      17
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "후보 페이지는 수주잔고 증가 서술만 있어 세 항목의 명시 값 미확인."
+  },
+  {
+    "code": "101970",
+    "company": "우양에이치씨",
+    "title": "WOOYANG HC IR Book.pdf",
+    "date": "2026-08-25",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19153/WOOYANG HC IR Book.pdf",
+    "sha256": "999802fe8e89029b22dcaf4ac8f62355761e369cfb3ff37042a2cc77eb29e07e",
+    "reviewed_text_pages": [
+      3,
+      14,
+      18
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "2026 주요 계약 합계는7월말 환율로 표시되어6월말 분기 전체 신규와 다름."
+  },
+  {
+    "code": "394280",
+    "company": "오픈엣지테크놀로지",
+    "title": "OPENDEGES IR Book_260630 (KOR).pdf",
+    "date": "2026-09-18",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19305/OPENDEGES IR Book_260630 (KOR).pdf",
+    "sha256": "ab6ace39662a93e0f43fb81203bccc606531178d30560a206b60a4434d6a9fba",
+    "reviewed_text_pages": [
+      13
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "후보 표는 매출/영업이익. 수주 지연 서술을 수주 금액으로 오인하지 않음."
+  },
+  {
+    "code": "237690",
+    "company": "에스티팜",
+    "title": "에스티팜_IR (26.08).pdf",
+    "date": "2026-09-11",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19293/에스티팜_IR (26.08).pdf",
+    "sha256": "ee65f1651f0d4a06e0ffc08427454bf7a6d54b4ddbecb89216c03102069b1caf",
+    "reviewed_text_pages": [
+      4,
+      8
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "연말 및26년반기 잔고/프로젝트 구성만 확인; CHF→USD 회사고정환율 표시. 분기 전체 신규 직접값 미확인."
+  },
+  {
+    "code": "322180",
+    "company": "LS티라유텍",
+    "title": "2026 티라유텍 IR BOOK_LS THiRA UTECH_ 20260930_복호화.pdf",
+    "date": "2026-09-30",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19372/2026 티라유텍 IR BOOK_LS THiRA UTECH_ 20260930_복호화.pdf",
+    "sha256": "ef5de6f8935b19a73349daeb15c230162cd782a2dad990e09810160b0808692c",
+    "reviewed_text_pages": [
+      10
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "최신 별도 잔고134억원만 확인; 전체 신규/연속 비교분기 미확인."
+  },
+  {
+    "code": "189330",
+    "company": "씨이랩",
+    "title": "씨이랩 IR Book_260911.pdf",
+    "date": "2026-09-17",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19324/씨이랩 IR Book_260911.pdf",
+    "sha256": "6f366d03c8c43d37daf8b4f92aae7bceda7524f82f66c636d273e6cf75eb4fc2",
+    "reviewed_text_pages": [
+      26
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "GPU 수주 사업 전략 서술만 확인, 금액 없음."
+  },
+  {
+    "code": "437730",
+    "company": "삼현",
+    "title": "260708_삼현 IR자료_기업설명회.pdf",
+    "date": "2026-07-08",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/18907/260708_삼현 IR자료_기업설명회.pdf",
+    "sha256": "5a834f35a9a5c60908451926e326e7054cce30bbc698344751fea3569f276c19",
+    "reviewed_text_pages": [
+      3,
+      14
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "잔고 증가 및 파이프라인 서술과 이미지, 단위/분기 전체 신규 미확인."
+  },
+  {
+    "code": "416180",
+    "company": "신성에스티",
+    "title": "신성에스티 IR Book_2026.1Q_fin((Public).pdf",
+    "date": "2026-08-06",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/18999/신성에스티 IR Book_2026.1Q_fin((Public).pdf",
+    "sha256": "3850c0ef64636be6cd27f73270e65eb9be318507a74759a62295f250d2055617",
+    "reviewed_text_pages": [
+      7
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "후보 금액표는 사업장별 매출; 신규 수주 증가는 서술만."
+  },
+  {
+    "code": "077360",
+    "company": "덕산하이메탈",
+    "title": "DSHM_2026_2Q_IR_KR_B.pdf",
+    "date": "2026-08-07",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19010/DSHM_2026_2Q_IR_KR_B.pdf",
+    "sha256": "2f0e32b0e4b635f81f8d0e73acd15f4bfe3c52cbfcfdb0972efbbec36b8af690",
+    "reviewed_text_pages": [
+      15
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "제목2Q26이나 후보 손익표 실제1Q26; 수주 수치 없음."
+  },
+  {
+    "code": "347700",
+    "company": "스피어",
+    "title": "ENG_IR Book_SPHERE_압축.pdf",
+    "date": "2026-09-03",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19236/ENG_IR Book_SPHERE_압축.pdf",
+    "sha256": "0e1c289c8c7422a151cda4003f5f3eec29f72a2c6686702881ccbe66bf5ea1e5",
+    "reviewed_text_pages": [
+      22
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "합병후 공개 계약 일부 및Confirmed2026·Q1·Q2를 합산한 수주표; 총 잔고 아닌 공개계약 부분범위. 반기 전체 신규로 표시하지 않음."
+  },
+  {
+    "code": "002380",
+    "company": "케이씨씨",
+    "title": "2026년 2분기 IR자료.pdf",
+    "date": "2026-08-19",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/19089/2026년 2분기 IR자료.pdf",
+    "sha256": "26a5a42ce5d98467a6b929ed1cd8f715995c1689d161e47a92932e877dbe6f47",
+    "reviewed_text_pages": [
+      13
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "회사 수주 아닌 국내 건설시장 전체 수주 통계."
+  },
+  {
+    "code": "459510",
+    "company": "나우로보틱스",
+    "title": "NAU Robotics_IR 2606_R2.pdf",
+    "date": "2026-06-25",
+    "url": "https://kind.krx.co.kr/external/dst/irReference/18852/NAU Robotics_IR 2606_R2.pdf",
+    "sha256": "24cb8fea1280275cbbcc79a9d323096498eb44b787eec9357c70795bf3810f4c",
+    "reviewed_text_pages": [
+      10
+    ],
+    "status": "additional_primary_source_required",
+    "reason": "26Q1 수주잔액130.1억원만 확인, Q2 전체 신규 미확인."
+  }
+]
