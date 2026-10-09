@@ -30,6 +30,7 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "047040": "대우건설", "294870": "IPARK현대산업개발", "022100": "포스코DX",
     "064350": "현대로템", "047810": "한국항공우주", "082740": "한화엔진",
     "062040": "산일전기", "042660": "한화오션", "329180": "HD현대중공업",
+    "012450": "한화에어로스페이스",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -45,6 +46,7 @@ OFFICIAL_IR_HOSTS = {
     "062040": "https://www.sanil.co.kr",
     "042660": "https://www.hanwhaocean.com",
     "329180": "https://hd-hhi.com",
+    "012450": "https://www.hanwhaaerospace.com",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }

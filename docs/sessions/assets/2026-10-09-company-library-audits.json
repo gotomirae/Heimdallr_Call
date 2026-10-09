@@ -1,5 +1,65 @@
 [
   {
+    "code": "012450",
+    "name": "한화에어로스페이스",
+    "sector": "우주방산",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003198",
+    "generatedAt": "2026-10-09T10:00:28.288519+00:00",
+    "anchorReceipt": "20260814003198",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "회사 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 1149182.38,
+        "newOrders": null,
+        "qoq": -2.716703938569398,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003198",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "공식 IR 지상방산 (부분범위·조원 반올림 표시)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 383000,
+        "newOrders": null,
+        "qoq": 0.2617801047120505,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://www.hanwhaaerospace.com/files/down.do?id=c54680e1-e72c-481a-b075-6eb702153637",
+        "history": {
+          "backlog": 4,
+          "newOrders": 0,
+          "qoq": 2,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 4
+    }
+  },
+  {
     "code": "042660",
     "name": "한화오션",
     "sector": "조선·해운",
@@ -7,7 +67,7 @@
     "basis": "정기보고서·공식 IR 수주 수치 확인",
     "evidence": "원문 수주표: 수주잔고",
     "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260812000829",
-    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "generatedAt": "2026-10-09T10:00:28.288519+00:00",
     "anchorReceipt": "20260812000829",
     "latestPeriod": "2026-06",
     "reportCount": 10,
@@ -65,7 +125,7 @@
     "basis": "정기보고서·공식 IR 수주 수치 확인",
     "evidence": "원문 수주표: 수주잔고",
     "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003544",
-    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "generatedAt": "2026-10-09T10:00:28.288519+00:00",
     "anchorReceipt": "20260814003544",
     "latestPeriod": "2026-06",
     "reportCount": 8,
@@ -123,7 +183,7 @@
     "basis": "정기보고서·공식 IR 수주 수치 확인",
     "evidence": "원문 수주표: 기초수주잔액, 기말수주잔고",
     "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002879",
-    "generatedAt": "2026-10-09T09:43:17.659892+00:00",
+    "generatedAt": "2026-10-09T10:00:28.288519+00:00",
     "anchorReceipt": "20260814002879",
     "latestPeriod": "2026-06",
     "reportCount": 10,
