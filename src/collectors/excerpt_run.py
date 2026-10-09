@@ -266,7 +266,7 @@ def main() -> int:
             # DART 재수집이 별도 검증한 공식 IR 출처를 삭제하지 않게 보존한다.
             old_rows = db.table("disclosure_excerpts").select("sections").eq("rcept_no", d["rcept_no"]).limit(1).execute().data
             if old_rows and isinstance(old_rows[0].get("sections"), dict):
-                for key in ("공식 IR 수주지표", "order_company_audit"):
+                for key in ("공식 IR 수주지표", "order_company_audit", "수주 범위 변경 근거"):
                     if key in old_rows[0]["sections"]:
                         ex.sections[key] = old_rows[0]["sections"][key]
             db.table("disclosure_excerpts").upsert({

@@ -29,3 +29,7 @@ Telegram 리서치·시험 Notion·유료 LLM·메시지 발송0건. 다른 작�
 집중 Python/수주 회귀67 passed, 대시보드 수주 순수함수25 passed(새 인수 범위 회귀 포함), Next 운영 빌드12/12 성공. 일반 sandbox 실행은 pytest 임시 폴더와 constants.json 접근 오류가 있어 고유 basetemp 및 빌드 승인 실행으로 재검증했다. 운영 KAI HTTP200/512153바이트·한화엔진 HTTP200/275921바이트, 각 검증 범위가 응답에 포함됐고 KAI273,437억원이 응답에 포함됨을 확인했다. 스크린샷 확인과 HTTP/계산 확인은 구별한다.
 
 전체 현재 작업트리 오프라인 회귀1391 passed·2 skipped·3 needs_network deselected(80.20초). 최종 검증은 고유 basetemp를 사용한 승인 실행이며 이전 일반 실행은 권한 제약으로 중단했다. 현재 작업트리에는 별도 Telegram/분석 정책 작업의 미커밋 변경도 포함되므로 해당 기능을 이번 수주 커밋에 포함하지 않는다. 원격 최신 main의 자동 스냅샷3커밋은 macro-daily.json/season-strategies.json 두 파일뿐임을 확인하고 보존한다.
+
+코드 aed2283a0ae1b2a7cd45c0355807d64f91e218a7 main push·CI37904790774 success. 후속 확인에서 `excerpt_run`의 전체 sections 갱신은 IR/장부만 보존하고 새 범위 변경 근거를 버리는 경로임을 찾아, 보존 키에 `수주 범위 변경 근거`를 추가했다. 이 보존과 대시보드 변환을 함께 유지해야 재수집이 잘못된 QoQ를 되살리지 않는다.
+
+수주 재수집·대시보드 최종 회귀32 passed(28.05초). aed2283의 Vercel Production deployment6956318107 success 확인. 재수집 보존 키 보완은 후속 커밋으로 분리한다.
