@@ -9,7 +9,7 @@ import json
 import re
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import urlencode, urljoin
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 
 import httpx
 import pymupdf
@@ -31,6 +31,8 @@ OFFICIAL_ORDER_IR_COMPANIES = {
     "064350": "현대로템", "047810": "한국항공우주", "082740": "한화엔진",
     "062040": "산일전기", "042660": "한화오션", "329180": "HD현대중공업",
     "012450": "한화에어로스페이스",
+    "028260": "삼성물산",
+    "003070": "코오롱글로벌",
 }
 OFFICIAL_IR_HOSTS = {
     "267260": HD_BASE, "010120": "https://www.ls-electric.com",
@@ -47,6 +49,8 @@ OFFICIAL_IR_HOSTS = {
     "042660": "https://www.hanwhaocean.com",
     "329180": "https://hd-hhi.com",
     "012450": "https://www.hanwhaaerospace.com",
+    "028260": "https://www.samsungcnt.com",
+    "003070": "https://www.kolonglobal.com",
     **{code: "https://kind.krx.co.kr/external/dst/irReference"
        for code in ("059090", "475960", "044490", "100090", "388050", "213420", "140860", "079550", "356860", "299030")},
 }
@@ -58,6 +62,29 @@ OFFICIAL_IR_ADDITIONAL_HOSTS = {
 
 def download_verified_pdf(fact: dict) -> bytes:
     """폼 전용 자료실은 공개 CSRF 절차로 내려받고 화면에는 자료실을 링크한다."""
+    board_id = fact.get("download_board_id")
+    if board_id is not None:
+        library = "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report"
+        if fact["code"] != "003070" or fact["source_url"] != library or type(board_id) is not int or board_id <= 0:
+            raise ValueError("공식 IR 폼 다운로드 대상 불일치")
+        with httpx.Client(timeout=90, follow_redirects=True) as client:
+            response = client.get(library)
+            response.raise_for_status()
+            links = []
+            for anchor in BeautifulSoup(response.text, "html.parser").find_all("a", href=True):
+                url = urljoin(library, anchor["href"])
+                parts = urlsplit(url)
+                query = parse_qs(parts.query)
+                if (parts.scheme == "https" and parts.netloc == "www.kolonglobal.com"
+                        and parts.path == "/bbs/download.php" and query.get("bo_table") == ["ir_report"]
+                        and query.get("wr_id") == [str(board_id)] and query.get("no") == ["0"]
+                        and query.get("nonce")):
+                    links.append(url)
+            if len(set(links)) != 1:
+                raise ValueError("공식 IR 다운로드 항목 없음 또는 중복: 수동 재검증 필요")
+            response = client.get(links[0], headers={"Referer": library})
+            response.raise_for_status()
+            return response.content
     storage_key = fact.get("download_key")
     if storage_key is not None:
         library = "https://ipark-dvp.com/ko/ir/information/materials"
@@ -200,7 +227,7 @@ def collect_sanil(verified: list[dict]) -> list[dict]:
 
 def verified_ir_facts() -> list[dict]:
     facts = []
-    downloads: dict[tuple[str, int | None, str | None], bytes] = {}
+    downloads: dict[tuple[str, int | None, str | None, int | None], bytes] = {}
     # 벡터/이미지 표는 숫자 위치를 추측하지 않는다. 직접 렌더링 대조한 장부만
     # 원문 해시·페이지를 재검증한 뒤 받아들인다.
     manifest = Path(__file__).resolve().parents[1] / "config" / "order_ir_verified.json"
@@ -214,7 +241,8 @@ def verified_ir_facts() -> list[dict]:
             if not any(url.startswith(host + "/") for host in hosts):
                 raise ValueError("검증 장부 회사/공식 출처 불일치")
             index = fact.get("download_idx") if url == fact["source_url"] else None
-            key = (url, index, fact.get("download_key") if url == fact["source_url"] else None)
+            key = (url, index, fact.get("download_key") if url == fact["source_url"] else None,
+                   fact.get("download_board_id") if url == fact["source_url"] else None)
             if key not in downloads:
                 downloads[key] = download_verified_pdf(fact) if url == fact["source_url"] else http_get(url, timeout=90).content
             data = downloads[key]
@@ -354,7 +382,8 @@ def format_ir_metric(fact: dict) -> str:
               + (f'\n수주잔고 | {plain_ir_amount(fact["backlog"])}' if fact["backlog"] is not None else "")
               + (f'\n신규수주 | {plain_ir_amount(fact["new_orders"])}\n신규수주 기간 | {fact["new_orders_period"]}' if fact["new_orders"] is not None else "") +
               f'\n출처 | {fact["source_url"]}' +
-              (f'\n출처 페이지 | {fact["source_page"]}' if fact.get("download_idx") is None and fact.get("download_key") is None else "") +
+              (f'\n출처 페이지 | {fact["source_page"]}' if all(fact.get(key) is None for key in
+                   ("download_idx", "download_key", "download_board_id")) else "") +
               f'\n자료명 | 공식 IR')
     if fact.get("new_orders_source_url"):
         metric += f'\n신규수주 출처 | {fact["new_orders_source_url"]}#page={fact["new_orders_source_page"]}'

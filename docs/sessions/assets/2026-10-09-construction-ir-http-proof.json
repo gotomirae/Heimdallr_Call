@@ -1,0 +1,20 @@
+[
+  {
+    "code": "028260",
+    "status": 200,
+    "bytes": 471565,
+    "scopePresent": true
+  },
+  {
+    "code": "006360",
+    "status": 200,
+    "bytes": 485678,
+    "scopePresent": true
+  },
+  {
+    "code": "003070",
+    "status": 200,
+    "bytes": 399627,
+    "scopePresent": true
+  }
+]

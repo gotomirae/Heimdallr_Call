@@ -1,0 +1,384 @@
+{
+  "sources": [
+    {
+      "code": "028260",
+      "year": 2024,
+      "quarter": 1,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=769a5710-944a-489f-b0bb-8e70ad741fd2",
+      "sha256": "40225e5c3affaa6e6dcc3264cf71938ec02a4818c7f2208df9a0bed8ddd77b9d",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2024,
+      "quarter": 2,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=374e44d7-cd27-4117-9022-cc2dea3d0109",
+      "sha256": "3841680853da3ca2f647d61940bb8eae39eb2db3a2234dc44bfd8d6b0c18e1db",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2024,
+      "quarter": 3,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=0f1181b3-3b6f-485d-ad8a-a8dee7d01455",
+      "sha256": "e2d0b7fd46a5b981032fd22492ab1f3c1883947f0d22dac735266ada768475d0",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2024,
+      "quarter": 4,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=e361b454-b797-40f1-8e06-6a05e7002702",
+      "sha256": "8a15e4d3bac8de4155d5e272c162a48ac213e3f915bc308c9a6d2c80f0e1b605",
+      "pageCount": 16,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2025,
+      "quarter": 1,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=a5cf0c17-5b3b-4a25-b6d5-bf7d9a3f5ec0",
+      "sha256": "b20e2436436f123b4748a4c6a1588dfc51de4fb742bd6ced1a55ea751cb4b39c",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2025,
+      "quarter": 2,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=340c68d3-adbb-4af3-8a15-d35b9c20d718",
+      "sha256": "7efe9fb139c986ef6da8e02e7d790dfe2227cd5a4984a1949de9d6a1a87a26c7",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2025,
+      "quarter": 3,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=7b30db3d-36c8-4db7-912d-6b54e07fd1d0",
+      "sha256": "000def8737e018b2b1a35b225bc01719596196aaa3b02f40eecbc4546f128ac5",
+      "pageCount": 12,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2025,
+      "quarter": 4,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=d178d64b-7fc0-400c-b657-f62211fca59b",
+      "sha256": "638408bc755803a39d9d606a478f02d96f24d3e3cf618c070b652e1d698d2364",
+      "pageCount": 14,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2026,
+      "quarter": 1,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=ff4e6a64-a3e3-4f2e-8867-c395d786820f",
+      "sha256": "e7c2bcb9fbc61991c2b2157e10336d043576a4f4982c416fc1b428433af70962",
+      "pageCount": 11,
+      "hashEqual": true
+    },
+    {
+      "code": "028260",
+      "year": 2026,
+      "quarter": 2,
+      "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=55ddedc9-f26b-49d7-8d45-bad70530f577",
+      "sha256": "f87d9ebcac37f51e173804c68737d89a9f1ac1c23d906ee008b6921a3197552f",
+      "pageCount": 11,
+      "hashEqual": true
+    },
+    {
+      "code": "006360",
+      "year": 2026,
+      "quarter": 2,
+      "sourceUrl": "https://www.gsenc.com/data/investment/2Q26_GS 건설_[확정]_최종_1.pdf",
+      "sha256": "bae799839d4d5714bc0fb1dedc9b8054fab3a8bec7c17989e00e5b5dcd7c9e47",
+      "pageCount": 10,
+      "hashEqual": true
+    }
+  ],
+  "fullSectionsEqual": 11,
+  "audits": [
+    {
+      "code": "028260",
+      "name": "삼성물산",
+      "sector": "유통·소비재",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002969",
+      "generatedAt": "2026-10-09T11:29:30.350303+00:00",
+      "anchorReceipt": "20260814002969",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공식 IR 건설부문 합계(레저 GSS 포함·주택시공권 별도)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 342440,
+          "newOrders": 54480,
+          "qoq": 7.936708062787612,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.samsungcnt.com/file/down.do?id=55ddedc9-f26b-49d7-8d45-bad70530f577",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        },
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 342454.77,
+          "newOrders": null,
+          "qoq": 7.939165709479656,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002969",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "바이오 사업(바이오로직스) / 최소구매물량(확정 계약)",
+          "unit": "백만USD",
+          "period": "2026-06",
+          "backlog": 9923,
+          "newOrders": null,
+          "qoq": -3.397585669781933,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002969",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    },
+    {
+      "code": "006360",
+      "name": "GS건설",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "[국내공사] / 회사 공시 합계",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002722",
+      "generatedAt": "2026-10-09T11:29:30.350303+00:00",
+      "anchorReceipt": "20260814002722",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "공식 IR 사업부문 합계(약정수주 제외)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 734737,
+          "newOrders": 33024,
+          "qoq": 1.8620391345697929,
+          "complete": true,
+          "missing": [],
+          "sourceUrl": "https://www.gsenc.com/data/investment/2Q26_GS 건설_[확정]_최종_1.pdf",
+          "history": {
+            "backlog": 10,
+            "newOrders": 10,
+            "qoq": 9,
+            "complete": 9
+          }
+        },
+        {
+          "scope": "[국내공사] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 485361.68,
+          "newOrders": null,
+          "qoq": 2.8021407916787977,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002722",
+          "history": {
+            "backlog": 6,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[해외공사] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 249375.18,
+          "newOrders": null,
+          "qoq": 0.08061424951872898,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002722",
+          "history": {
+            "backlog": 6,
+            "newOrders": 0,
+            "qoq": 5,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[관급공사] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 51952.03,
+          "newOrders": null,
+          "qoq": 9.668823648867452,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000540",
+          "history": {
+            "backlog": 4,
+            "newOrders": 0,
+            "qoq": 3,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[민간공사] / 회사 공시 합계",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 312036.71,
+          "newOrders": null,
+          "qoq": 7.1784782632067445,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000540",
+          "history": {
+            "backlog": 2,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[민간공사] / 회사 공시 합계 / 표 품목: CBRE코리아 외 · ㈜과천포럼 · ㈜성안디엠피 · 기타 · 동천지베스코피에프브이2차 · 수강㈜ · 워너 프로퍼티㈜ · 제이영동고속도로(주) 외 · 파주양주강군(주) 외 · 한국투자부동산신탁㈜ · 휴고파트너스",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 17367.22,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000540",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[민간공사] / 회사 공시 합계 / 표 품목: LG BCM · LG C · LG D · LG ES · LG IT · LG U · 기타",
+          "unit": "억원",
+          "period": "2024-12",
+          "backlog": 7509.43,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000540",
+          "history": {
+            "backlog": 3,
+            "newOrders": 0,
+            "qoq": 1,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[민간공사] / 회사 공시 합계 / 표 품목: CBRE코리아 외 · STS개발㈜ · ㈜과천포럼 · ㈜성안디엠피 · 기 타 · 동천지베스코피에프브이2차 · 워너 프로퍼티㈜ · 제이영동고속도로(주) 외 · 파주양주강군(주) 외 · 한국투자부동산신탁㈜ · 휴고파트너스",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 17618.03,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000523",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "[민간공사] / 회사 공시 합계 / 표 품목: LG BCM · LG C · LG D · LG ES · LG IT · LG U · 기 타",
+          "unit": "억원",
+          "period": "2024-09",
+          "backlog": 8714.78,
+          "newOrders": null,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "최신 정기보고서 기간의 수치 미확보",
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000523",
+          "history": {
+            "backlog": 1,
+            "newOrders": 0,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 10
+      }
+    }
+  ]
+}

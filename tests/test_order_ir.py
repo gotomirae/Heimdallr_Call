@@ -56,6 +56,10 @@ def test_ir_scope_replay_keeps_other_business_and_legacy_evidence():
     {"code": "006360", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": 310},
     {"code": "028050", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": -1},
     {"code": "028050", "source_url": "https://sea.samsungena.com/kr/ir/event-earnings", "download_idx": True},
+    {"code": "003070", "source_url": "https://evil.invalid/", "download_board_id": 34},
+    {"code": "006360", "source_url": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report", "download_board_id": 34},
+    {"code": "003070", "source_url": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report", "download_board_id": -1},
+    {"code": "003070", "source_url": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report", "download_board_id": True},
 ])
 def test_ir_form_rejects_other_company_host_and_invalid_file_id_before_io(fact):
     with pytest.raises(ValueError, match="대상 불일치"):

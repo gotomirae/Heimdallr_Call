@@ -1,0 +1,86 @@
+{
+  "sources": [
+    {
+      "code": "003070",
+      "year": 2026,
+      "quarter": 1,
+      "sourceUrl": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report",
+      "sha256": "bd9b781bb936888728788d6ca9cd6bac84313109bce154e7940b142949dd058c",
+      "pageCount": 8,
+      "hashEqual": true
+    },
+    {
+      "code": "003070",
+      "year": 2026,
+      "quarter": 2,
+      "sourceUrl": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report",
+      "sha256": "b5c7d6d58cf49db8975418f1cd3fbfe17ed3f43e55cf80c1281cda653c536da8",
+      "pageCount": 8,
+      "hashEqual": true
+    }
+  ],
+  "fullSectionsEqual": 2,
+  "audits": [
+    {
+      "code": "003070",
+      "name": "코오롱글로벌",
+      "sector": "건설",
+      "status": "confirmed",
+      "basis": "정기보고서·공식 IR 수주 수치 확인",
+      "evidence": "원문 수주표: 수주잔고",
+      "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003744",
+      "generatedAt": "2026-10-09T11:34:15.342905+00:00",
+      "anchorReceipt": "20260814003744",
+      "latestPeriod": "2026-06",
+      "reportCount": 10,
+      "series": [
+        {
+          "scope": "회사 공시 합계",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": 118495.67,
+          "newOrders": null,
+          "qoq": 3.1395162205654303,
+          "complete": false,
+          "missing": [
+            "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+          ],
+          "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003744",
+          "history": {
+            "backlog": 10,
+            "newOrders": 0,
+            "qoq": 9,
+            "complete": 0
+          }
+        },
+        {
+          "scope": "공식 IR 건설부문 신규수주(잔고 범위 대조 대기)",
+          "unit": "억원",
+          "period": "2026-06",
+          "backlog": null,
+          "newOrders": 5810,
+          "qoq": null,
+          "complete": false,
+          "missing": [
+            "수주잔고 미확보: 공시표·단위·범위 추가 대조 필요",
+            "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+          ],
+          "sourceUrl": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report",
+          "history": {
+            "backlog": 0,
+            "newOrders": 2,
+            "qoq": 0,
+            "complete": 0
+          }
+        }
+      ],
+      "irResearch": {
+        "failures": 0,
+        "documents": 0,
+        "candidates": 0,
+        "throughDate": "2026-10-08",
+        "verifiedFacts": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "code": "003070",
+    "year": 2026,
+    "quarter": 1,
+    "unit": "억원",
+    "scope": "공식 IR 건설부문 신규수주(잔고 범위 대조 대기)",
+    "new_orders_period": "당분기",
+    "new_orders": 4044,
+    "backlog": null,
+    "source_url": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report",
+    "download_board_id": 33,
+    "source_page": 6,
+    "sha256": "bd9b781bb936888728788d6ca9cd6bac84313109bce154e7940b142949dd058c",
+    "source_title": "2026 2026.1Q IR Report",
+    "verification": "PDF p6 직접 렌더링: 건설사업·인프라사업 신규 합계 4,044억원, 당분기. 최신2Q PDF는 텍스트36자로 전체표 이미지여서 텍스트검색만으로 누락됨. 공식IR에 기말잔고 없음, DART 합계와 전사 범위를 검증 없이 혼합하지 않음. 새 nonce는 공개 목록에서 매번 다시 받으며 화면에는 자료실 링크만 표시."
+  },
+  {
+    "code": "003070",
+    "year": 2026,
+    "quarter": 2,
+    "unit": "억원",
+    "scope": "공식 IR 건설부문 신규수주(잔고 범위 대조 대기)",
+    "new_orders_period": "보고기간 누적",
+    "new_orders": 9854,
+    "backlog": null,
+    "source_url": "https://www.kolonglobal.com/bbs/board.php?bo_table=ir_report",
+    "download_board_id": 34,
+    "source_page": 5,
+    "sha256": "b5c7d6d58cf49db8975418f1cd3fbfe17ed3f43e55cf80c1281cda653c536da8",
+    "source_title": "2026 2026.2Q IR Report",
+    "verification": "PDF p5 직접 렌더링: 건설사업·인프라사업 신규 합계 9,854억원, 반기 누적. 최신2Q PDF는 텍스트36자로 전체표 이미지여서 텍스트검색만으로 누락됨. 공식IR에 기말잔고 없음, DART 합계와 전사 범위를 검증 없이 혼합하지 않음. 새 nonce는 공개 목록에서 매번 다시 받으며 화면에는 자료실 링크만 표시."
+  }
+]
