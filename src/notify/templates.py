@@ -622,10 +622,17 @@ def technical_setup_message(ctx: dict) -> str:
     sector_op = sector.get("op_yoy") or []
     strong = technical.get("strong_recommendation") is True
     early = ctx.get("early_priority") is True
-    sma_state = "당일 상향 교차" if technical.get("sma_crossed") else "상향 교차 접근"
-    macd_state = "당일 상향 교차" if technical.get("macd_crossed") else "상향 교차 접근"
+    def _cross_state(days, crossed) -> str:
+        if crossed or days == 1:
+            return "당일 상향 교차"
+        return f"상향 교차 {days}일째(직후)" if days else "상향 교차 접근"
+
+    sma_state = _cross_state(technical.get("sma_days_since_cross"), technical.get("sma_crossed"))
+    macd_state = _cross_state(technical.get("macd_days_since_cross"), technical.get("macd_crossed"))
+    path = technical.get("position_path")
+    path_line = {"A": "A 5·10일선 상향 교차", "B": "B 고점 대비 10~20% 조정 후 횡보", "A+B": "A 5·10일선 교차 + B 조정 후 횡보"}.get(path or "", "—")
     lines = [
-        f"{PREFIX}<b>{'🔥 오늘의 강력 추천 종목' if strong else '📈 오늘의 추천 종목'} · 5·20일선/MACD</b>",
+        f"{PREFIX}<b>{'🔥 오늘의 강력 추천 종목' if strong else '📈 오늘의 추천 종목'} · 주가 위치/MACD</b>",
         "",
         f"<b>{esc(ctx.get('name'))}</b> <code>{esc(ctx.get('code'))}</code>"
         f" · {esc(ctx.get('sector'))} · {esc(ctx.get('grade'))}",
@@ -654,7 +661,9 @@ def technical_setup_message(ctx: dict) -> str:
         f"🗓 최근 분기 실적 발표 {esc(technical.get('announcement_date'))} · 발표 다음 거래일 종가 대비 "
         f"{_pct(technical.get('announcement_return_pct'))} · 발표 후 고점 대비 "
         f"{_pct(technical.get('post_announcement_drawdown_pct'))}",
-        f"📐 5일선 {_num(technical.get('sma5'), 1)} / 20일선 {_num(technical.get('sma20'), 1)} "
+        f"📍 주가 위치: <b>{esc(path_line)}</b>"
+        + (f" · 횡보 {technical.get('base_days')}거래일" if path in ("B", "A+B") else ""),
+        f"📐 5일선 {_num(technical.get('sma5'), 1)} / 10일선 {_num(technical.get('sma10') or technical.get('sma20'), 1)} "
         f"· 간격 {signed(technical.get('sma_gap_pct'), 0, 2, '%')} · {sma_state}",
         f"〰️ MACD {signed(technical.get('macd'), 0, 2, '')} / Signal "
         f"{signed(technical.get('signal'), 0, 2, '')} · Gap "

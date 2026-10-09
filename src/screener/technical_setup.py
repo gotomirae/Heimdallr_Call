@@ -1,7 +1,10 @@
 # PRD Ref: §8.6 — 산업·기업 성장 지속 + 일봉 MACD 상향 접근
 """기술적 매수 관찰 신호 — 순수 함수. 외부 I/O 금지.
 
-펀더멘털·주가 미반영을 먼저 확인하고 5·20일선과 MACD 상향 교차 접근을 본다.
+펀더멘털을 먼저 확인하고, 주가 위치(둘 중 하나)와 MACD 상향 교차(직전·당일·3거래일 이내 직후)를 본다.
+  주가 위치 A: 주가 미반영 구간(조정 후 회복·횡보·반등) + 5·10일선 상향 교차 직전·당일·3거래일 이내 직후
+  주가 위치 B: 52주 고점 대비 10~20% 조정 후 10거래일 이상 좁은 폭 횡보
+(JARVIS D69, 사용자 지정 2026-10-09 — 5·20일선 → 5·10일선, B 추가. 모든 프로젝트 공통)
 RSI 회복은 필수가 아니라 강력 추천 표시를 위한 보강 근거다.
 """
 
@@ -11,7 +14,10 @@ import statistics
 from dataclasses import dataclass
 
 from src.config.constants import (
+    TECHNICAL_BASE_DRAWDOWN_RANGE_PCT,
+    TECHNICAL_BASE_SIDEWAYS_DAYS_MIN,
     TECHNICAL_COMPANY_GROWTH_QUARTERS,
+    TECHNICAL_CROSS_JUST_AFTER_DAYS,
     TECHNICAL_FALLING_RET_20D_RANGE_PCT,
     TECHNICAL_MACD_GAP_MAX_ABS_PCT,
     TECHNICAL_MIN_HIGH_DRAWDOWN_PCT,
@@ -22,7 +28,9 @@ from src.config.constants import (
     TECHNICAL_SECTOR_MIN_MEMBERS,
     TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT,
     TECHNICAL_SIDEWAYS_RET_10D_ABS_MAX_PCT,
+    TECHNICAL_SMA_FAST,
     TECHNICAL_SMA_GAP_MAX_ABS_PCT,
+    TECHNICAL_SMA_SLOW,
 )
 
 
@@ -71,6 +79,11 @@ class TechnicalSetup:
     macd_crossed: bool
     rsi_rising: bool
     strong_recommendation: bool
+    sma10: float = 0.0
+    sma_days_since_cross: int | None = None   # 5일선이 10일선 위로 올라선 지 며칠째(당일 = 1), 아래면 None
+    macd_days_since_cross: int | None = None
+    base_days: int = 0                        # 끝에서부터 좁은 폭(≤8%)으로 횡보한 거래일 수
+    position_path: str | None = None          # "A" 5·10일선 · "B" 조정 후 횡보 · "A+B" · None
 
 
 def _number(row: dict, key: str) -> float | None:
@@ -213,13 +226,38 @@ def _return(values: list[float], sessions: int) -> float:
     return (values[-1] / values[-sessions - 1] - 1.0) * 100.0
 
 
+def _days_above(gaps: list[float]) -> int | None:
+    """끝에서부터 양수(빠른 선이 위)가 이어진 일수. 마지막 값이 음수면 None."""
+    if not gaps or gaps[-1] < 0:
+        return None
+    days = 0
+    for gap in reversed(gaps):
+        if gap < 0:
+            break
+        days += 1
+    return days
+
+
+def _base_days(values: list[float], max_range_pct: float) -> int:
+    """끝에서부터 (최고 ÷ 최저 − 1)이 max_range_pct 이하로 유지된 거래일 수."""
+    high = low = None
+    days = 0
+    for value in reversed(values):
+        high = value if high is None else max(high, value)
+        low = value if low is None else min(low, value)
+        if (high / low - 1.0) * 100.0 > max_range_pct:
+            break
+        days += 1
+    return days
+
+
 def technical_setup(
     closes: dict[str, float], *, announcement_date: str | None = None
 ) -> TechnicalSetup | None:
-    """5·20일선과 MACD의 상향 교차 직전 또는 당일을 판정한다.
+    """주가 위치(A 5·10일선 교차 직전·직후 / B 조정 후 횡보)와 MACD 상향 교차 직전·직후를 판정한다.
 
-    손계산 기준: gap은 5일선−20일선, histogram은 MACD−Signal이다.
-    두 값 모두 음수권에서 좁혀지거나 직전 음수→당일 양수 교차해야 한다.
+    손계산 기준: gap은 5일선−10일선, histogram은 MACD−Signal이다.
+    음수권에서 좁혀지면 "직전", 양수로 올라선 지 3거래일 이내면 "당일·직후"다.
     3거래일 연속 상승은 요구하지 않는다.
     """
     clean: dict[str, float] = {}
@@ -290,20 +328,28 @@ def technical_setup(
                 <= TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT
             )
     histogram_pct = recent_hist[-1] / close * 100.0
-    sma5 = sum(values[-5:]) / 5
+    fast_n, slow_n = TECHNICAL_SMA_FAST, TECHNICAL_SMA_SLOW
+    sma5 = sum(values[-fast_n:]) / fast_n
+    sma10 = sum(values[-slow_n:]) / slow_n
     sma20 = sum(values[-20:]) / 20
-    previous_sma5 = sum(values[-6:-1]) / 5
-    previous_sma20 = sum(values[-21:-1]) / 20
-    sma_gap_pct = (sma5 / sma20 - 1.0) * 100.0
-    previous_sma_gap_pct = (previous_sma5 / previous_sma20 - 1.0) * 100.0
+    previous_sma5 = sum(values[-fast_n - 1:-1]) / fast_n
+    previous_sma10 = sum(values[-slow_n - 1:-1]) / slow_n
+    sma_gap_pct = (sma5 / sma10 - 1.0) * 100.0
+    previous_sma_gap_pct = (previous_sma5 / previous_sma10 - 1.0) * 100.0
     sma_crossed = previous_sma_gap_pct < 0 <= sma_gap_pct
+    # 최근 (직후 일수 + 1)일의 5·10일선 간격 — 돌파 후 며칠째인지(당일 = 1)
+    recent_gaps = [
+        (sum(values[len(values) - k - fast_n:len(values) - k]) / fast_n)
+        / (sum(values[len(values) - k - slow_n:len(values) - k]) / slow_n) * 100.0 - 100.0
+        for k in reversed(range(TECHNICAL_CROSS_JUST_AFTER_DAYS + 1))
+    ]
+    sma_days = _days_above(recent_gaps)
+    sma_days_since_cross = sma_days if sma_days is not None and sma_days <= TECHNICAL_CROSS_JUST_AFTER_DAYS else None
     sma_approaching = (
-        sma5 > previous_sma5
-        and (
-            (-TECHNICAL_SMA_GAP_MAX_ABS_PCT <= sma_gap_pct < 0
-             and sma_gap_pct > previous_sma_gap_pct)
-            or sma_crossed
-        )
+        (sma5 > previous_sma5
+         and -TECHNICAL_SMA_GAP_MAX_ABS_PCT <= sma_gap_pct < 0
+         and sma_gap_pct > previous_sma_gap_pct)
+        or sma_days_since_cross is not None
     )
     ret_20d, ret_10d = _return(values, 20), _return(values, 10)
     high_50d = max(values[-50:])
@@ -328,14 +374,15 @@ def technical_setup(
     )
     previous_macd = macd[previous]
     macd_crossed = recent_hist[-2] < 0 <= recent_hist[-1]
+    hist_tail = [float(histogram[index]) for index in measured_indices[-(TECHNICAL_CROSS_JUST_AFTER_DAYS + 1):] if histogram[index] is not None]
+    macd_days = _days_above(hist_tail)
+    macd_days_since_cross = macd_days if macd_days is not None and macd_days <= TECHNICAL_CROSS_JUST_AFTER_DAYS else None
     approaching = (
-        previous_macd is not None
-        and float(latest_macd) > float(previous_macd)
-        and (
-            (-TECHNICAL_MACD_GAP_MAX_ABS_PCT <= histogram_pct < 0
-             and recent_hist[-1] > recent_hist[-2])
-            or macd_crossed
-        )
+        (previous_macd is not None
+         and float(latest_macd) > float(previous_macd)
+         and -TECHNICAL_MACD_GAP_MAX_ABS_PCT <= histogram_pct < 0
+         and recent_hist[-1] > recent_hist[-2])
+        or macd_days_since_cross is not None
     )
     # RSI 45 미만에서 단기·5거래일 방향이 함께 위면 강력 보강. 연속 상승은 요구하지 않는다.
     prior_rsi = rsi_values[-TECHNICAL_RSI_TREND_DAYS - 1]
@@ -354,7 +401,15 @@ def technical_setup(
         "조정 후 횡보" if sideways else
         "조정 후 회복" if price_underreflected else None
     )
-    qualifies = bool(regime and sma_approaching and approaching)
+    # 주가 위치 B — 52주 고점 대비 10~20% 조정 후 10거래일 이상 좁은 폭 횡보
+    base_days = _base_days(values, TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT)
+    base_low, base_high = TECHNICAL_BASE_DRAWDOWN_RANGE_PCT
+    base = base_low <= drawdown_52w <= base_high and base_days >= TECHNICAL_BASE_SIDEWAYS_DAYS_MIN
+    path_a = bool(regime and sma_approaching)
+    position_path = "A+B" if path_a and base else "A" if path_a else "B" if base else None
+    if regime is None and base:
+        regime = "고점 대비 10~20% 조정 후 횡보"
+    qualifies = bool(position_path and approaching)
     return TechnicalSetup(
         qualifies=qualifies,
         as_of=days[-1], close=close,
@@ -374,4 +429,7 @@ def technical_setup(
         macd_crossed=macd_crossed,
         rsi_rising=rsi_rising,
         strong_recommendation=qualifies and rsi_rising,
+        sma10=sma10, sma_days_since_cross=sma_days_since_cross,
+        macd_days_since_cross=macd_days_since_cross,
+        base_days=base_days, position_path=position_path,
     )

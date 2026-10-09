@@ -1077,6 +1077,14 @@
     "technical_sideways_range_10d_max_pct": 8.0,
     "technical_macd_gap_max_abs_pct": 0.3,
     "technical_sma_gap_max_abs_pct": 2.0,
+    "technical_sma_fast": 5,
+    "technical_sma_slow": 10,
+    "technical_cross_just_after_days": 3,
+    "technical_base_drawdown_range_pct": [
+      -20.0,
+      -10.0
+    ],
+    "technical_base_sideways_days_min": 10,
     "technical_rsi_strong_max": 45.0,
     "technical_rsi_trend_days": 5,
     "technical_price_max_age_calendar_days": 5,

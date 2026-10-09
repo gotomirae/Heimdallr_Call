@@ -101,7 +101,8 @@ def _crossing_prices() -> dict[str, float]:
     return {f"2026{index + 1:04d}": value for index, value in enumerate(values)}
 
 
-def test_far_below_sma_does_not_qualify_even_when_macd_approaches():
+def test_five_ten_day_cross_turns_earlier_than_twenty_day_line():
+    # JARVIS D69: 5·20일선 → 5·10일선. 20일선과는 아직 멀어도 5일선이 10일선을 넘는 날(당일 = 1일째)이면 주가 위치 A 통과.
     result = technical_setup(_approaching_prices(), announcement_date="20260001")
     assert result is not None
     assert result.histogram < 0
@@ -110,8 +111,35 @@ def test_far_below_sma_does_not_qualify_even_when_macd_approaches():
     assert result.price_regime in {"하락 중 반등 접근", "조정 후 횡보", "조정 후 회복"}
     assert result.announcement_return_pct is not None and result.announcement_return_pct < 0
     assert result.macd_approaching is True
-    assert result.sma_approaching is False
-    assert result.qualifies is False
+    assert result.sma5 < result.sma20  # 20일선 기준이면 아직 아래
+    assert result.sma_approaching is True and result.sma_days_since_cross == 1
+    assert result.position_path == "A"
+    assert result.qualifies is True
+
+
+def test_far_below_ten_day_line_does_not_qualify_without_base():
+    # 계속 하락 — 5일선이 10일선 아래로 벌어지고 좁은 폭 횡보도 아니면 주가 위치 탈락
+    values = [100.0] * 60 + [100.0 - 1.5 * index for index in range(1, 16)]
+    result = technical_setup({f"2026{index + 1:04d}": value for index, value in enumerate(values)}, announcement_date="20260001")
+    assert result is not None
+    assert result.sma_approaching is False and result.sma_days_since_cross is None
+    assert result.position_path is None and result.qualifies is False
+
+
+def test_base_after_ten_to_twenty_percent_correction_is_position_path_b():
+    # 250일 100원 → 85원 근처로 15% 조정 후 12거래일 좁은 폭 횡보 → 주가 위치 B (5·10일선과 무관)
+    values = [100.0] * 250 + [96.0, 92.0, 88.0, 85.0] + [85.0, 84.6, 85.3, 84.8, 85.5, 84.9, 85.2, 85.6, 85.1, 85.8, 86.0, 86.4]
+    result = technical_setup({f"2026{index + 1:04d}": value for index, value in enumerate(values)})
+    assert result is not None
+    assert -20 <= result.drawdown_52w_pct <= -10
+    assert result.base_days >= 10
+    assert result.position_path in {"B", "A+B"}
+    assert result.price_regime in {"고점 대비 10~20% 조정 후 횡보", "하락 중 반등 접근", "조정 후 횡보", "조정 후 회복"}
+    assert result.qualifies is result.macd_approaching
+    # 조정이 20% 를 넘으면 B 아님
+    deep = [100.0] * 250 + [90.0, 80.0, 76.0] + [76.0, 75.8, 76.3, 75.9, 76.2, 76.0, 76.4, 76.1, 75.7, 76.0, 76.2]
+    deep_result = technical_setup({f"2026{index + 1:04d}": value for index, value in enumerate(deep)})
+    assert deep_result is not None and deep_result.position_path in {None, "A"}
 
 
 def test_sma_and_macd_crosses_are_mandatory_but_rsi_is_optional(monkeypatch):

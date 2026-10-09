@@ -327,8 +327,8 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
             stale += 1
             continue
         price_pass += bool(setup.price_regime)
-        sma_pass += bool(setup.price_regime and setup.sma_approaching)
-        macd_pass += bool(setup.price_regime and setup.sma_approaching and setup.macd_approaching)
+        sma_pass += bool(setup.position_path)
+        macd_pass += bool(setup.qualifies)
         rsi_pass += bool(setup.strong_recommendation)
         if setup.qualifies:
             try:
@@ -354,7 +354,7 @@ def run(*, send: bool, limit: int, summary_path: str | None = None) -> int:
     ))
     attempted = len(candidates) - missing_anchor
     print(f"일봉 성공 {fetched}/{attempted} · 빈 일봉 {empty} · 기술 신호 {len(matches)} · 실패 {failed}")
-    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 가격+5/20일선 {sma_pass} · 가격+5/20일선+MACD {macd_pass} · 3일 연속 수급 {flow_pass} · RSI 보강 {rsi_pass}")
+    print(f"발표일 누락 {missing_anchor} · 일봉 지연 {stale} · 가격 {price_pass} · 주가 위치(A 5/10일선·B 횡보) {sma_pass} · +MACD {macd_pass} · 3일 연속 수급 {flow_pass} · RSI 보강 {rsi_pass}")
     summary = {
         "date": today.isoformat(), "status": "complete", "candidates": len(candidates),
         "evaluated": fetched, "price": price_pass, "sma": sma_pass, "macd": macd_pass,
