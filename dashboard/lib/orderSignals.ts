@@ -176,10 +176,17 @@ export function extractOrderDisclosureMetric(row: Partial<DisclosureExcerptRow>)
     return values.length === 1 ? values[0] : null;
   };
   const disclosedScope = exactText(/^범위$/);
+  // 공식 원문으로 확인한 인수 전후 범위는 재수집해도 같은 시계열로 연결하지 않는다.
+  const boundary = record(row.sections["수주 범위 변경 근거"]);
+  const overrideScope = boundary && period?.end === boundary.effectivePeriodEnd &&
+    disclosedScope === boundary.fromScope && typeof boundary.toScope === "string" &&
+    boundary.toScope.trim() && typeof boundary.sourceUrl === "string" && boundary.sourceUrl.startsWith("https://") &&
+    typeof boundary.sha256 === "string" && /^[a-f0-9]{64}$/.test(boundary.sha256)
+    ? boundary.toScope : null;
   return { year: period?.year ?? row.fiscal_year!, quarter: period?.quarter ?? row.fiscal_quarter!, rceptNo: row.rcept_no,
     backlogEok, newOrdersEok,
     ...(!krw ? { amountUnit, backlogAmount, newOrdersAmount } : {}),
-    scope: disclosedScope ?? "공시 명시 수치",
+    scope: overrideScope ?? disclosedScope ?? "공시 명시 수치",
     newOrdersPeriod: exactText(/^신규\s*수주\s*기간$/),
     ...(exactText(/^출처$/)?.startsWith("https://") ? {
       sourceUrl: exactText(/^출처$/)!, sourceLabel: exactText(/^자료명$/) ?? "공식 IR",

@@ -1,0 +1,257 @@
+[
+  {
+    "code": "047810",
+    "name": "한국항공우주",
+    "sector": "우주방산",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+    "generatedAt": "2026-10-09T08:04:31.181166+00:00",
+    "anchorReceipt": "20260814003309",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "공식 IR 사업부 공시 합계 (분기 경영실적 표)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 257502,
+        "newOrders": 3194,
+        "qoq": -3.0241176204751197,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://www.koreaaero.com/KO/Services/Common/DownloadFile.aspx?FilePid=14770",
+        "history": {
+          "backlog": 10,
+          "newOrders": 10,
+          "qoq": 9,
+          "complete": 9
+        }
+      },
+      {
+        "scope": "[ 지배회사의 내용 ] / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 257502,
+        "newOrders": null,
+        "qoq": -3.0241176204751197,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "(주)에비오시스 테크놀러지스 / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 229.92,
+        "newOrders": null,
+        "qoq": -7.699718988358095,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "한국항공서비스(주) / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 919.6,
+        "newOrders": null,
+        "qoq": 1.9161928827121644,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "에스앤케이항공(주) / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 823.36,
+        "newOrders": null,
+        "qoq": -16.046210475870016,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+        "history": {
+          "backlog": 10,
+          "newOrders": 0,
+          "qoq": 9,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "(주)제노코 / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 644.92,
+        "newOrders": null,
+        "qoq": -5.833223823499356,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003309",
+        "history": {
+          "backlog": 3,
+          "newOrders": 0,
+          "qoq": 2,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "한 국표면처리(주) / 기초·기말 수주잔고 공시 합계",
+        "unit": "억원",
+        "period": "2025-12",
+        "backlog": 69.06,
+        "newOrders": null,
+        "qoq": null,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보",
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+          "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001461",
+        "history": {
+          "backlog": 1,
+          "newOrders": 0,
+          "qoq": 0,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "(주)제노코 / 회사 공시 합계",
+        "unit": "억원",
+        "period": "2025-09",
+        "backlog": 821.49,
+        "newOrders": null,
+        "qoq": null,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보",
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+          "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114002303",
+        "history": {
+          "backlog": 1,
+          "newOrders": 0,
+          "qoq": 0,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 10
+    }
+  },
+  {
+    "code": "082740",
+    "name": "한화엔진",
+    "sector": "조선·해운",
+    "status": "confirmed",
+    "basis": "정기보고서·공식 IR 수주 수치 확인",
+    "evidence": "원문 수주표: 수주잔고",
+    "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002747",
+    "generatedAt": "2026-10-09T08:09:09.041001+00:00",
+    "anchorReceipt": "20260814002747",
+    "latestPeriod": "2026-06",
+    "reportCount": 10,
+    "series": [
+      {
+        "scope": "공식 IR 선박엔진 부문 (SEAM 제외 부분범위)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 55832,
+        "newOrders": 7896,
+        "qoq": 11.265668905318948,
+        "complete": true,
+        "missing": [],
+        "sourceUrl": "https://www.hanwha-engine.com/attach/download/ea9227a1-8abc-41c2-ae78-01c5d552015d",
+        "history": {
+          "backlog": 2,
+          "newOrders": 2,
+          "qoq": 1,
+          "complete": 1
+        }
+      },
+      {
+        "scope": "연결 공시 합계 (2026Q2 SEAM 편입 이후)",
+        "unit": "억원",
+        "period": "2026-06",
+        "backlog": 59789,
+        "newOrders": null,
+        "qoq": null,
+        "complete": false,
+        "missing": [
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요",
+          "QoQ 미확보: 같은 범위·통화의 연속 분기 잔고 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002747",
+        "history": {
+          "backlog": 1,
+          "newOrders": 0,
+          "qoq": 0,
+          "complete": 0
+        }
+      },
+      {
+        "scope": "회사 공시 합계",
+        "unit": "억원",
+        "period": "2026-03",
+        "backlog": 52430,
+        "newOrders": null,
+        "qoq": 26.559972964491752,
+        "complete": false,
+        "missing": [
+          "최신 정기보고서 기간의 수치 미확보",
+          "신규수주 직접값 미확보: 원문표·그림·기업 IR 추가 조사 필요"
+        ],
+        "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514001038",
+        "history": {
+          "backlog": 9,
+          "newOrders": 0,
+          "qoq": 8,
+          "complete": 0
+        }
+      }
+    ],
+    "irResearch": {
+      "failures": 0,
+      "documents": 0,
+      "candidates": 0,
+      "throughDate": "2026-10-08",
+      "verifiedFacts": 2
+    }
+  }
+]

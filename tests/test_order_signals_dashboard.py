@@ -48,6 +48,26 @@ def test_order_reports_are_plotted_without_fundamental_rows():
     assert rows[1]["orderBacklogQoq"] == 50
 
 
+def test_verified_acquisition_scope_survives_report_recollection():
+    def row(q, backlog):
+        end = "2026-03-31" if q == 1 else "2026-06-30"
+        return {"code": "082740", "rcept_no": f"20260{q}14000001", "fiscal_year": 2026, "fiscal_quarter": q,
+                "sections": {"공시 수주지표 확인": "완료", "공시 보고기간": {"end": end, "closingMonth": 12, "fiscalYear": 2026, "fiscalQuarter": q, "reportKind": "분기보고서" if q == 1 else "반기보고서"},
+                             "공시 수주지표": f"범위 | 회사 공시 합계\n단위 | 억원\n수주잔고 | {backlog}"}}
+    first, second = row(1, 52430), row(2, 59789)
+    second["sections"]["수주 범위 변경 근거"] = {
+        "effectivePeriodEnd": "2026-06-30", "fromScope": "회사 공시 합계",
+        "toScope": "연결 공시 합계 (2026Q2 SEAM 편입 이후)",
+        "sourceUrl": "https://www.hanwha-engine.com/attach/download/report", "sha256": "a" * 64,
+    }
+    [audit] = _run([{"companyAudit": True, "company": {"code": "082740", "name": "한화엔진"}, "rows": [first, second]}])
+    # 59,789 / 52,430 - 1 ≈ 14.04%는 인수 범위가 달라 계산하지 않는다.
+    current = next(s for s in audit["series"] if s["period"] == "2026-06")
+    assert current["scope"] == "연결 공시 합계 (2026Q2 SEAM 편입 이후)"
+    assert current["qoq"] is None
+    assert len(audit["series"]) == 2
+
+
 def test_company_classification_is_independent_from_metric_coverage():
     base = {"code": "123456", "rcept_no": "20260814000001", "fiscal_year": 2026, "fiscal_quarter": 2,
             "sections": {"공시 수주지표 확인": "완료", "order_business_evidence": {"status": "confirmed", "basis": "수주 내역 비공개", "evidence": "기밀"}}}

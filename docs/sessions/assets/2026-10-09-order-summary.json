@@ -1,0 +1,10 @@
+{
+  "stored_company_audits": 1201,
+  "classification": {
+    "confirmed": 446,
+    "review": 743,
+    "not_applicable": 12
+  },
+  "latest_all_three_including_partial": 20,
+  "confirmed_incomplete": 426
+}

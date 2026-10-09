@@ -600,3 +600,22 @@ def test_unbracketed_subsidiary_heading_keeps_parent_and_subsidiary_apart():
     assert len(rows) == 2
     assert any('[ 지배회사의 내용 ]' in row and '262,673' in row for row in rows)
     assert any('(주)제노코 / 회사 공시 합계' in row and '82,149,293' in row for row in rows)
+
+
+def test_opening_closing_order_balance_reads_dated_ending_money_not_quantity():
+    from src.collectors.dart_excerpt import structured_order_series
+    # KAI 25Q3 지배회사. 기초246,994와 기말262,673의 차액은 신규수주가 아니다.
+    xml = '''<P>[ 지배회사의 내용 ]</P><P>기초 수주잔고에서 당기 중 납품액과 신규 수주분을 감안한 순증감액을 표시한 후 기말잔고를 표시하였습니다.</P>
+<P>(단위 : 억원)</P><TABLE><TR><TH rowspan="2">구분</TH><TH colspan="2">기초(2025.01.01)</TH><TH colspan="2">기말(2025.09.30)</TH><TH rowspan="2">비고</TH></TR>
+<TR><TH>수량</TH><TH>금액</TH><TH>수량</TH><TH>금액</TH></TR>
+<TR><TD>방산</TD><TD>2</TD><TD>83,618</TD><TD>9</TD><TD>97,056</TD><TD>-</TD></TR>
+<TR><TD>합계</TD><TD>317</TD><TD>246,994</TD><TD>260</TD><TD>262,673</TD><TD>-</TD></TR></TABLE>'''
+    [row] = structured_order_series(xml, period_end='2025-09-30')
+    assert '수주잔고 | 262,673' in row and '신규수주' not in row
+    assert '[ 지배회사의 내용 ]' in row
+    assert structured_order_series(xml, period_end='2025-06-30') == []
+    assert structured_order_series(xml) == []
+    assert structured_order_series(xml.replace('기초 수주잔고', '기초 재고자산'), period_end='2025-09-30') == []
+    assert structured_order_series(xml.replace('단위 : 억원', '단위 미상'), period_end='2025-09-30') == []
+    assert structured_order_series(xml.replace('262,673', '비공개'), period_end='2025-09-30') == []
+    assert structured_order_series(xml.replace('기말(2025.09.30)', '기말(2024.09.30)'), period_end='2025-09-30') == []

@@ -1,0 +1,52 @@
+[
+  {
+    "receipt": "20240516002087",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20240814003776",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20241114002482",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20250318001067",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20250515002580",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20250814004141",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20251114002303",
+    "new_balances": 4,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20260318001461",
+    "new_balances": 6,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20260515001698",
+    "new_balances": 5,
+    "ir_preserved": true
+  },
+  {
+    "receipt": "20260814003309",
+    "new_balances": 5,
+    "ir_preserved": true
+  }
+]

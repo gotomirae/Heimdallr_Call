@@ -453,6 +453,37 @@ def _contract_rollforward_series(table) -> list[str] | None:
     return results
 
 
+def _opening_closing_backlog_series(table, period_end: str | None) -> list[str]:
+    """수주잔고 정의가 있는 절의 명시 날짜·금액·합계 열만 읽는다."""
+    if period_end is None or not (unit := _order_unit(table)):
+        return []
+    grid = _table_grid(table)
+    if len(grid) < 3 or len(grid[0]) != len(grid[1]):
+        return []
+    opening, closing = [], []
+    for column, cell in enumerate(grid[0]):
+        match = re.fullmatch(r"(기초|기말)\((\d{4})\.(\d{2})\.(\d{2})\)", re.sub(r"\s+", "", cell))
+        if not match or _order_header(grid[1][column]) != "금액":
+            continue
+        date_label = f"{match[2]}-{match[3]}-{match[4]}"
+        (opening if match[1] == "기초" else closing).append((column, date_label))
+    if len(opening) != 1 or len(closing) != 1 or closing[0][1] != period_end or opening[0][1] >= period_end:
+        return []
+    totals = [row for row in grid[2:] if re.fullmatch(r"합계|총계|계", _order_header(row[0]))]
+    if len(totals) != 1 or len(totals[0]) <= closing[0][0]:
+        return []
+    value = re.sub(r"\s+", "", totals[0][closing[0][0]])
+    if not re.fullmatch(r"\d+(?:,\d{3})*(?:\.\d+)?", value):
+        return []
+    heading = _order_scope_heading(table)
+    if not heading:
+        return []
+    # 회사 내용 표제 뒤의 보안 설명 문장은 범위 이름에 붙이지 않는다.
+    label = re.match(r"\[\s*(?:지배|종속)회사의\s*내용\s*\]", heading)
+    heading = label[0] if label else heading
+    return [f"범위 | {heading} / 기초·기말 수주잔고 공시 합계\n단위 | {unit}\n수주잔고 | {value}"]
+
+
 def structured_order_series(section_xml: str, *, period_end: str | None = None) -> list[str]:
     """다단 머리글을 포함한 DART 수주표에서 검증 가능한 합계만 구조화한다.
 
@@ -486,6 +517,10 @@ def structured_order_series(section_xml: str, *, period_end: str | None = None) 
         if any(_order_header(cell.get_text(" ", strip=True)) in backlog_names | new_names
                for cell in table.find_all(["th", "td"]))
     ]
+    # SC: 실제 원문이 기초/기말 값을 수주잔고로 정의해야 한다. 재고·수량 표는 승인하지 않는다.
+    if re.search(r"기초\s*수주잔고[^。.]{0,180}기말\s*잔고", soup.get_text(" ", strip=True)):
+        for table in soup.find_all("table"):
+            vertical_series.extend(_opening_closing_backlog_series(table, period_end))
     for table in order_tables:
         rollforward = _contract_rollforward_series(table)
         if rollforward is not None:

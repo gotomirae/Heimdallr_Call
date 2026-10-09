@@ -1,0 +1,16 @@
+[
+  {
+    "code": "047810",
+    "status": 200,
+    "bytes": 512153,
+    "scope_visible": true,
+    "q4_visible": true
+  },
+  {
+    "code": "082740",
+    "status": 200,
+    "bytes": 275921,
+    "scope_visible": true,
+    "q4_visible": null
+  }
+]
