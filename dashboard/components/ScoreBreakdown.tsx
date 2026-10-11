@@ -312,7 +312,7 @@ export function PriBreakdown({
           </div>
         </div>
       )}
-      <p className="rounded border border-violet-900/60 p-2 text-[11px] leading-5 text-violet-200">🔁 PRI 피드백: 발표 당시 점수와 확정 D+60 시장 초과수익을 매일 대조합니다. 서로 다른 분기의 충분한 표본과 시간순 검증 전에는 가중치를 임의 변경하지 않습니다. 가격 반영도는 투자 매력도와 별도 축입니다.</p>
+      <p className="rounded border border-violet-900/60 p-2 text-[11px] leading-5 text-violet-200">🔁 PRI 피드백: 발표 당시 점수와 확정 D+60 수익률(절대)을 매일 대조합니다. 서로 다른 분기의 충분한 표본과 시간순 검증 전에는 가중치를 임의 변경하지 않습니다. 가격 반영도는 투자 매력도와 별도 축입니다.</p>
 
       {pri == null && denominator > 0 && (
         <p className="rounded border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-xs text-amber-300">

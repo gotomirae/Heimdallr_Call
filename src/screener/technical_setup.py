@@ -22,6 +22,7 @@ from src.config.constants import (
     TECHNICAL_MACD_GAP_MAX_ABS_PCT,
     TECHNICAL_MIN_HIGH_DRAWDOWN_PCT,
     TECHNICAL_POST_ANNOUNCEMENT_CORRECTION_PCT,
+    TECHNICAL_PULLBACK_2_PCT,
     TECHNICAL_RSI_STRONG_MAX,
     TECHNICAL_RSI_TREND_DAYS,
     TECHNICAL_SECTOR_GROWTH_QUARTERS,
@@ -84,6 +85,7 @@ class TechnicalSetup:
     macd_days_since_cross: int | None = None
     base_days: int = 0                        # 끝에서부터 좁은 폭(≤8%)으로 횡보한 거래일 수
     position_path: str | None = None          # "A" 5·10일선 · "B" 조정 후 횡보 · "A+B" · None
+    pullback_stage: int = 0                   # 눌림 단계 — 1차(고점 대비 −10%) · 2차(−20% 이상) · 0 아님 (10/9)
 
 
 def _number(row: dict, key: str) -> float | None:
@@ -410,6 +412,9 @@ def technical_setup(
     if regime is None and base:
         regime = "고점 대비 10~20% 조정 후 횡보"
     qualifies = bool(position_path and approaching)
+    # 눌림 단계 — 52주 고점과 발표 후 고점 중 더 깊은 쪽
+    deepest = min(drawdown_52w, post_announcement_drawdown_pct if post_announcement_drawdown_pct is not None else 0.0)
+    pullback_stage = 2 if deepest <= TECHNICAL_PULLBACK_2_PCT else 1 if deepest <= TECHNICAL_MIN_HIGH_DRAWDOWN_PCT else 0
     return TechnicalSetup(
         qualifies=qualifies,
         as_of=days[-1], close=close,
@@ -432,4 +437,5 @@ def technical_setup(
         sma10=sma10, sma_days_since_cross=sma_days_since_cross,
         macd_days_since_cross=macd_days_since_cross,
         base_days=base_days, position_path=position_path,
+        pullback_stage=pullback_stage,
     )

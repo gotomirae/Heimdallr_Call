@@ -5,7 +5,7 @@
 //   어느 쪽이 최신인지 모르게 된다.
 import Link from "next/link";
 import DiscoveryTable from "@/components/DiscoveryTable";
-import { HORIZONS, excessField, type OutcomeRow, getDiscoveryOutcomes } from "@/lib/outcome";
+import { HORIZONS, scoreField, type OutcomeRow, getDiscoveryOutcomes } from "@/lib/outcome";
 import {
   getAllLatestDiscoveryConsensus,
   getAllQuarterlyDiscoveryConsensus,
@@ -124,7 +124,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
       : null;
     const excess: DiscoveryRow["excess"] = {};
     for (const d of HORIZONS) {
-      excess[d] = o ? ((o[excessField(d)] as number | null) ?? null) : null;
+      excess[d] = o ? ((o[scoreField(d)] as number | null) ?? null) : null;
     }
     return {
       code: s.code,
@@ -330,7 +330,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
             <tr>
               <td className="whitespace-nowrap pr-3 font-semibold text-indigo-200">분기실적 발표 전후 주가 변화</td>
               <td className="text-white">
-                발표 당일 종가를 기준점으로 계산한 지수 대비 초과수익 (영업일) ·{" "}
+                발표 당일 종가를 기준점으로 계산한 수익률 (영업일, 절대 수익률) ·{" "}
                 <Link href="/outcome" className="text-sky-300 underline">시기별 전략</Link>
               </td>
             </tr>

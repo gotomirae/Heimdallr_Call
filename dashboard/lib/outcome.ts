@@ -71,6 +71,7 @@ const COLUMNS = [
 
 const DISCOVERY_COLUMNS = [
   "code", "fiscal_year", "fiscal_quarter",
+  "ret_dm5", "ret_d0", "ret_d5", "ret_d20", "ret_d40", "ret_d60",
   "excess_dm5", "excess_d0", "excess_d5", "excess_d20", "excess_d40", "excess_d60",
 ];
 
@@ -132,6 +133,11 @@ export function excessField(days: Horizon): keyof OutcomeRow {
   return `excess_d${horizonSuffix(days)}` as keyof OutcomeRow;
 }
 
+/** 사후 검증 채점 필드 = 발표일 기준 절대 수익률 (JARVIS D69, 10/9 모든 프로젝트 통일 — 초과수익은 참고) */
+export function scoreField(days: Horizon): keyof OutcomeRow {
+  return retField(days);
+}
+
 export function retField(days: Horizon): keyof OutcomeRow {
   return `ret_d${horizonSuffix(days)}` as keyof OutcomeRow;
 }
@@ -168,7 +174,7 @@ export interface GroupStat {
 }
 
 /**
- * 그룹별 초과수익 요약.
+ * 그룹별 수익률 요약 (발표일 기준 절대 수익률).
  *
  * ★ 측정 못 한 행을 조용히 빼면 "표본 26개"가 실제로는 2개인 걸 못 알아본다.
  *   `total`과 `n`을 **둘 다** 돌려주고 화면에서 함께 보여준다.
@@ -178,7 +184,7 @@ export function groupStats(
   key: (row: OutcomeRow) => string,
   days: Horizon
 ): GroupStat[] {
-  const field = excessField(days);
+  const field = scoreField(days);
   const buckets = new Map<string, { total: number; values: number[] }>();
 
   for (const row of rows) {
@@ -258,7 +264,7 @@ export function bestHorizon(rows: OutcomeRow[]): Horizon {
   let best: Horizon = HORIZONS[0];
   let bestCount = -1;
   for (const days of HORIZONS) {
-    const field = excessField(days);
+    const field = scoreField(days);
     const count = rows.filter((r) => typeof r[field] === "number").length;
     if (count > bestCount) {
       best = days;

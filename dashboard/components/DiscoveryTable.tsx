@@ -136,7 +136,7 @@ function sortValue(r: DiscoveryRow, key: SortKey): number | null {
     case "forwardRoe": return r.forwardRoe;
     case "ret5d": return r.ret5d;
     default: {
-      // `d-5`·`d0`·`d5`… — 실적 발표일 기준 초과수익
+      // `d-5`·`d0`·`d5`… — 실적 발표일 기준 수익률(절대)
       const day = Number(key.slice(1));
       if (!Number.isFinite(day)) return null;
       return r.excess[day as (typeof HORIZONS)[number]] ?? null;
@@ -995,7 +995,7 @@ export default function DiscoveryTable({
                       onSort={toggleSort}
                       tone="text-indigo-200"
                       className="bg-slate-800/80"
-                      title={`실적 발표일 기준 ${horizonLabel(d)} 지수 대비 초과수익(영업일)`}
+                      title={`실적 발표일 기준 ${horizonLabel(d)} 수익률(영업일, 절대 수익률)`}
                     />
                   ))
                 : <th scope="col" className="px-3 py-2 text-left font-medium">분류 근거</th>}

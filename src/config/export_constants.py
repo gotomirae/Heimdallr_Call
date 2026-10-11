@@ -147,6 +147,7 @@ def build() -> dict:
             "technical_sideways_range_10d_max_pct": constants.TECHNICAL_SIDEWAYS_RANGE_10D_MAX_PCT,
             "technical_macd_gap_max_abs_pct": constants.TECHNICAL_MACD_GAP_MAX_ABS_PCT,
             "technical_sma_gap_max_abs_pct": constants.TECHNICAL_SMA_GAP_MAX_ABS_PCT,
+            "technical_pullback_2_pct": constants.TECHNICAL_PULLBACK_2_PCT,
             "technical_sma_fast": constants.TECHNICAL_SMA_FAST,
             "technical_sma_slow": constants.TECHNICAL_SMA_SLOW,
             "technical_cross_just_after_days": constants.TECHNICAL_CROSS_JUST_AFTER_DAYS,

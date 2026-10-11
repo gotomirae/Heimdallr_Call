@@ -265,22 +265,22 @@ def test_m2_check_on_real_series_shape():
 
 
 # ═══ M5 ═══════════════════════════════════════════════════════════
-def test_m5_two_day_paths_and_preference():
-    foreign = m5_check([("20260930", 5, -1), ("20260929", 3, -2), ("20260926", -1, 9)])
-    # 합산은 3일(4·1·8)이지만 같은 주체 2일 연속이 더 강한 증거라 외국인을 쓴다.
-    assert foreign["pass"] is True and foreign["path"] == "foreign" and foreign["streak_days"] == 2
-    assert foreign["streaks"]["combined"] == 3
-    inst = m5_check([("20260930", 5, 3), ("20260929", -1, 2)])
+def test_m5_three_day_paths_and_preference():
+    # 10/9 수급 연속일 3일 통일(옛 2일). 같은 주체 3일 연속이 없으면 합산 3일을 쓴다.
+    mixed = m5_check([("20260930", 5, -1), ("20260929", 3, -2), ("20260926", -1, 9)])
+    assert mixed["streaks"] == {"foreign": 2, "institution": 0, "combined": 3}
+    assert mixed["pass"] is True and mixed["path"] == "combined" and mixed["streak_days"] == 3
+    foreign = m5_check([("20260930", 5, -1), ("20260929", 3, -2), ("20260926", 1, 9)])
+    assert foreign["path"] == "foreign" and foreign["streak_days"] == 3
+    inst = m5_check([("20260930", 5, 3), ("20260929", -1, 2), ("20260926", -1, 1)])
     assert inst["path"] == "institution" and inst["streaks"]["foreign"] == 1
-    combined = m5_check([("20260930", 5, -1), ("20260929", -1, 3)])
-    assert combined["path"] == "combined" and combined["streak_days"] == 2
-    one_day = m5_check([("20260930", 5, 5), ("20260929", -5, -5)])
-    assert one_day["pass"] is False and one_day["path"] is None
-    assert m5_check([("20260930", 1, 1)]) is None
+    two_day = m5_check([("20260930", 5, 5), ("20260929", 5, 5), ("20260926", -5, -5)])
+    assert two_day["pass"] is False and two_day["path"] is None  # 2일 연속은 이제 탈락
+    assert m5_check([("20260930", 1, 1), ("20260929", 1, 1)]) is None
 
 
 def test_m5_zero_is_not_net_buying_and_longest_streak_wins():
-    zero = m5_check([("20260930", 0, 0), ("20260929", 5, 5)])
+    zero = m5_check([("20260930", 0, 0), ("20260929", 5, 5), ("20260926", 5, 5)])
     assert zero["pass"] is False
     longest = m5_check([
         ("20260930", 1, 1), ("20260929", 1, 1), ("20260926", -1, 1), ("20260925", 1, 1),
@@ -399,7 +399,7 @@ def test_stale_bars_make_m1_unknown_and_m2_null():
 def test_stale_flow_is_unknown():
     screen = {"fiscal_year": 2026, "fiscal_quarter": 2, "pri": 30, "base_effect_warning": False}
     fin = stage1("000001", screen, _series(), annual=None, year=2026)
-    flow = m5_check([("20260929", 5, 5), ("20260926", 5, 5)])
+    flow = m5_check([("20260929", 5, 5), ("20260926", 5, 5), ("20260925", 5, 5)])
     row = compose_row("000001", "20260930", fin, bars=None, flow=flow, announcement_date=None,
                       pri=30, notes=[], computed_at="x")
     assert row["m5_pass"] is None and row["m5_detail"]["path"] == "foreign"

@@ -8,14 +8,14 @@
 //   그럴듯하게 읽히지만 완전히 틀린 조언이 된다. 최소 표본을 못 넘기면
 //   결론 대신 "아직 판단할 수 없다"와 그 이유를 돌려준다.
 //
-// ★ 초과수익(지수 대비)으로만 판단한다. 절대수익은 시장이 오른 건지
-//   종목이 좋았던 건지 구분하지 못한다.
+// ★ 발표일 기준 **절대 수익률**로 판단한다(JARVIS D69 · 10/9 사용자 지정, 모든 프로젝트 통일).
+//   시장 전체가 오른 효과는 그룹 간 비교(같은 기간·같은 표본)로 상쇄해서 읽는다.
 
 import {
   HORIZONS,
   type Horizon,
   type OutcomeRow,
-  excessField,
+  scoreField,
   horizonLabel,
   median,
 } from "./outcome";
@@ -24,7 +24,7 @@ import type { ScreenRow, UniverseRow } from "./types";
 
 /** 결론을 내기 위한 최소 표본. 이보다 적으면 **숫자를 보여주되 결론은 내지 않는다.** */
 export const MIN_SAMPLE = 8;
-/** "이 정도면 의미 있다"고 부를 초과수익 문턱(%p). */
+/** "이 정도면 의미 있다"고 부를 수익률 문턱(%). */
 export const MEANINGFUL_EDGE = 1.5;
 
 export interface EnrichedOutcome extends OutcomeRow {
@@ -78,7 +78,7 @@ export interface Cell {
   total: number;
   median: number | null;
   mean: number | null;
-  /** 초과수익이 양(+)인 비율. 중앙값만 보면 "몇 종목이나 통했나"를 못 본다. */
+  /** 수익률이 양(+)인 비율. 중앙값만 보면 "몇 종목이나 통했나"를 못 본다. */
   winRate: number | null;
 }
 
@@ -121,7 +121,7 @@ export function crosstab(
     .map(([key, list]) => {
       const cells = new Map<Horizon, Cell>();
       for (const days of HORIZONS) {
-        const field = excessField(days);
+        const field = scoreField(days);
         const values = list
           .map((r) => r[field])
           .filter((v): v is number => typeof v === "number");
@@ -218,7 +218,7 @@ export interface Insight {
 
 function fmtPp(value: number | null): string {
   if (value == null) return "—";
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%p`;
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
 function confidenceOf(n: number): Confidence {
@@ -230,20 +230,20 @@ function confidenceOf(n: number): Confidence {
 /** 표본이 충분한 시점만 돌려준다. 없으면 빈 배열. */
 export function usableHorizons(rows: EnrichedOutcome[]): Horizon[] {
   return HORIZONS.filter((days) => {
-    const field = excessField(days);
+    const field = scoreField(days);
     return rows.filter((r) => typeof r[field] === "number").length >= MIN_SAMPLE;
   });
 }
 
 /**
- * "언제 샀어야 했나" — 시점별 전체 중앙 초과수익.
+ * "언제 샀어야 했나" — 시점별 전체 중앙 수익률.
  *
  * ★ 발표 **전** 구간이 크면 정보가 미리 반영된 것이고, 발표 **후**가 크면
  *   발표를 보고 들어가도 늦지 않았다는 뜻이다. 이 대비가 전략의 핵심이다.
  */
 export function timingProfile(rows: EnrichedOutcome[]): { days: Horizon; cell: Cell }[] {
   return HORIZONS.map((days) => {
-    const field = excessField(days);
+    const field = scoreField(days);
     const values = rows
       .map((r) => r[field])
       .filter((v): v is number => typeof v === "number");
@@ -306,7 +306,7 @@ export function buildInsights(
     const positive = best.cell.median > 0;
     insights.push({
       headline: positive
-        ? `초과수익이 가장 컸던 구간은 **${horizonLabel(best.days)}**이다 ` +
+        ? `수익률이 가장 컸던 구간은 **${horizonLabel(best.days)}**이다 ` +
           `(중앙값 ${fmtPp(best.cell.median)}).`
         : `**어느 구간에서도 지수를 이기지 못했다.** 그중 가장 나았던 구간이 ` +
           `${horizonLabel(best.days)}인데 그마저 중앙값 ${fmtPp(best.cell.median)}다.`,
@@ -363,7 +363,7 @@ export function buildInsights(
     insights.push({
       headline:
         `**${horizonLabel(days)}** 기준으로 가장 강했던 섹터는 **${head.key}**다 ` +
-        `(중앙 초과수익 ${fmtPp(head.cell.median)}).`,
+        `(중앙 수익률 ${fmtPp(head.cell.median)}).`,
       evidence: top
         .map((t) => `${t.key} ${fmtPp(t.cell.median)}(${t.cell.n}건)`)
         .join(" · "),
@@ -494,7 +494,7 @@ export function sectorTiming(
   for (const [sector, list] of buckets) {
     const cells = new Map<Horizon, Cell>();
     for (const days of HORIZONS) {
-      const field = excessField(days);
+      const field = scoreField(days);
       const values = list
         .map((r) => r[field])
         .filter((v): v is number => typeof v === "number");

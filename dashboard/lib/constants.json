@@ -1068,7 +1068,7 @@
     "technical_company_growth_quarters": 2,
     "technical_sector_growth_quarters": 2,
     "technical_sector_min_members": 5,
-    "technical_post_announcement_correction_pct": -20.0,
+    "technical_post_announcement_correction_pct": -10.0,
     "technical_falling_ret_20d_range_pct": [
       -100.0,
       0.0
@@ -1077,6 +1077,7 @@
     "technical_sideways_range_10d_max_pct": 8.0,
     "technical_macd_gap_max_abs_pct": 0.3,
     "technical_sma_gap_max_abs_pct": 2.0,
+    "technical_pullback_2_pct": -20.0,
     "technical_sma_fast": 5,
     "technical_sma_slow": 10,
     "technical_cross_just_after_days": 3,

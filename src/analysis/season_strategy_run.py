@@ -56,7 +56,7 @@ def refresh(output: Path = OUTPUT, *, save: bool = False) -> dict:
         consensus = select_all("consensus_snapshots", "code,fiscal_year,fiscal_quarter,revenue_est,op_est,n_estimates,snapshot_at,source", filters={"fiscal_year": season["target_year"], "fiscal_quarter": season["target_quarter"]})
         analyses = select_all("analyses", "code,fiscal_year,fiscal_quarter,payload,created_at")
         disclosures = select_all("earnings_disclosures", "code,rcept_no,report_nm,disclosed_at")
-        outcomes = select_all("outcome_tracking", "code,fiscal_year,fiscal_quarter,excess_d20,excess_d60")
+        outcomes = select_all("outcome_tracking", "code,fiscal_year,fiscal_quarter,ret_d20,ret_d60,excess_d20,excess_d60")
         macro = json.loads((ROOT / "dashboard/lib/macro-daily.json").read_text(encoding="utf-8"))
         # 실패한 원천의 오래된 자료는 그대로 날짜와 함께 알린다.
         macro["stale"] = str(macro.get("checkedAt", ""))[:10] < (today - timedelta(days=7)).isoformat()

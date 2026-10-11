@@ -63,7 +63,7 @@ def test_failed_price_refresh_preserves_measured_review():
 
 def test_feedback_requires_mature_dated_results_and_two_seasons():
     prior = {"id": "2026-07", "review": {"stocks": [{"sector": "장비",
-        "horizons": {"60": {"date": "2026-09-30", "excess": -1}}} for _ in range(10)]}}
+        "horizons": {"60": {"date": "2026-09-30", "excess": -1, "return": -1}}} for _ in range(10)]}}
     assert feedback([prior], "2026-10-01")[0]["applied"] is False
     second = deepcopy(prior)
     second["id"] = "2026-04"
@@ -116,7 +116,7 @@ def test_catalysts_require_future_six_month_dates_and_verification_metric():
 
 def test_same_earnings_season_multiple_recommendations_do_not_fake_two_seasons():
     p = {"id":"2026-10-w1", "target_year":2026,"target_quarter":3,
-        "review":{"stocks":[{"code":str(i),"sector":"장비","horizons":{"60":{"date":"2026-12-20","excess":-1}}} for i in range(10)]}}
+        "review":{"stocks":[{"code":str(i),"sector":"장비","horizons":{"60":{"date":"2026-12-20","excess":-1,"return":-1}}} for i in range(10)]}}
     q = deepcopy(p); q["id"]="2026-11-w1"
     r = feedback([p,q],"2027-01-01")[0]
     assert r["n"] == 10 and r["seasons"] == 1 and not r["applied"]

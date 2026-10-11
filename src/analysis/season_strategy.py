@@ -139,7 +139,7 @@ def feedback(plans: list[dict], before: str) -> list[dict]:
     for plan in sorted(plans, key=lambda p: p.get("created_at", p["id"])):
         for row in plan.get("review", {}).get("stocks", []):
             point = row.get("horizons", {}).get("60", {})
-            value = number(point.get("excess"))
+            value = number(point.get("return"))   # 채점 = 절대 수익률 (10/9 모든 프로젝트 통일)
             if value is not None and point.get("date", "9999") < before:
                 quarter = f'{plan["target_year"]}.{plan["target_quarter"]}' if "target_year" in plan else plan["id"]
                 code = row.get("code", str(len(sectors[row["sector"]])))
@@ -226,7 +226,7 @@ def create_plan(today: date, universe: list[dict], screens: list[dict], funds: l
         r["pri"] is None, r["pri"] if r["pri"] is not None else float("inf"),
         -(r["score"] if r["score"] is not None else -float("inf")), r["code"]))
     # 기존 시즌 성과는 회고 근거이며 새 전략 수익률과 합치지 않는다.
-    historical = [number(r.get("excess_d60")) for r in outcomes
+    historical = [number(r.get("ret_d60")) for r in outcomes
                   if r["fiscal_year"] * 4 + r["fiscal_quarter"] < target]
     historical = [v for v in historical if v is not None]
     universe_by_code = {r["code"]: r for r in universe}
@@ -234,7 +234,7 @@ def create_plan(today: date, universe: list[dict], screens: list[dict], funds: l
     for r in outcomes:
         if r["fiscal_year"] * 4 + r["fiscal_quarter"] != target - 1:
             continue
-        value = number(r.get("excess_d20"))
+        value = number(r.get("ret_d20"))
         if value is not None:
             sector = universe_by_code.get(r["code"], {}).get("sector") or "기타"
             previous_results[sector].append(value)
@@ -302,19 +302,19 @@ def review_plan(plan: dict, today: date, closes: dict[str, dict[str, float]],
     summaries = {}
     for horizon in STRATEGY_HORIZONS:
         points = [r["horizons"].get(str(horizon), {}) for r in stocks]
-        excess = [number(p.get("excess")) for p in points]
-        values = [v for v in excess if v is not None]
+        rets = [number(p.get("return")) for p in points]
+        values = [v for v in rets if v is not None]
         summaries[str(horizon)] = {"n": len(values), "total": len(stocks), "median": median(values),
             "win_rate": sum(v > 0 for v in values) / len(values) if values else None,
             "status": "검증 완료" if stocks and len(values) == len(stocks) else "검증 진행 중"}
     lessons = []
     for sector in sorted({r["sector"] for r in stocks}):
         selected = [r for r in stocks if r["sector"] == sector]
-        values = [r["horizons"]["60"]["excess"] for r in selected if "60" in r["horizons"]]
+        values = [r["horizons"]["60"]["return"] for r in selected if "60" in r["horizons"] and r["horizons"]["60"].get("return") is not None]
         m = median(values)
         lessons.append({"sector": sector, "n": len(values), "total": len(selected), "median": m,
             "message": "D+60 미성숙: 검증 대기" if m is None else
-                "지수 대비 부진: 기대 실적 미달·마진 훼손·선반영을 재점검" if m < 0 else
-                "지수 대비 양호: 가속 지속·기대치 충족 여부 확인",
+                "수익률 부진: 기대 실적 미달·마진 훼손·선반영을 재점검" if m < 0 else
+                "수익률 양호: 가속 지속·기대치 충족 여부 확인",
             "earnings_measured": sum(r["earnings"]["revenue"] is not None for r in selected)})
     return {"checked_at": today.isoformat(), "stocks": stocks, "summary": summaries, "lessons": lessons}

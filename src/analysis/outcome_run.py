@@ -195,7 +195,7 @@ def report(results: list[Outcome], screens: dict) -> None:
         label = grade or "판정불가"
         print(f"    {label:6}{len(subset):>6}", end="")
         for days in HORIZONS:
-            field = f"excess_d{horizon_column(days)}"
+            field = f"ret_d{horizon_column(days)}"
             values = [r[field] for r in subset if r[field] is not None]
             # 값과 표본 수를 함께 낸다 — n=1짜리 중앙값을 신호로 읽으면 안 된다.
             cell = f"{statistics.median(values):+.2f}({len(values)})" if values else "—"
@@ -208,7 +208,7 @@ def report(results: list[Outcome], screens: dict) -> None:
     #   측정 가능한 시점 **전부**에서 계산하고 어느 시점인지 명시한다 —
     #   D+1 IC를 D+20 IC로 읽으면 완전히 다른 결론이 나온다.
     for days in HORIZONS:
-        excess = [r[f"excess_d{horizon_column(days)}"] for r in rows]
+        excess = [r[f"ret_d{horizon_column(days)}"] for r in rows]
         n_measured = sum(1 for v in excess if v is not None)
         if n_measured < 3:
             print(f"    {horizon_label(days)}: 측정 {n_measured}건 — 3건 미만이라 계산하지 않는다")
@@ -233,14 +233,14 @@ def report(results: list[Outcome], screens: dict) -> None:
         pri_ic = spearman([r["pri_at_announce"] for r in rows], excess)
         print(f"      {'스코어 총점':12} IC {f'{score_ic:+.3f}' if score_ic is not None else '—'}")
         print(f"      {'PRI':12} IC {f'{pri_ic:+.3f}' if pri_ic is not None else '—'}"
-              f"   (음수여야 정상 — 미반영일수록 초과수익이 커야 한다)")
+              f"   (음수여야 정상 — 미반영일수록 이후 수익률이 커야 한다)")
 
     # ★ 측정 건수가 가장 많은 시점으로 비교한다 — D+20이 비면 D+5로 내려간다.
     #   비어 있는 시점으로 비교하면 "n=1 vs n=1"을 근거로 SC6를 판정하게 된다.
     best = max(
         HORIZONS,
         key=lambda d: sum(
-            1 for r in rows if r[f"excess_d{horizon_column(d)}"] is not None
+            1 for r in rows if r[f"ret_d{horizon_column(d)}"] is not None
         ),
     )
     print(f"\n[4] SC6 · SC8 검증 그룹 비교 ({horizon_label(best)})")
@@ -250,7 +250,7 @@ def report(results: list[Outcome], screens: dict) -> None:
         for r in rows:
             s = screens.get((r["code"], r["fiscal_year"], r["fiscal_quarter"])) or {}
             merged.append({**r, key: s.get(key)})
-        stats = group_stats(merged, key, f"excess_d{horizon_column(best)}")
+        stats = group_stats(merged, key, f"ret_d{horizon_column(best)}")
         parts = []
         for k, v in sorted(stats.items(), key=lambda x: str(x[0])):
             med = v["median"]
@@ -287,14 +287,14 @@ def save(results: list[Outcome]) -> int:
 
 
 def pri_feedback_review(rows: list[dict]) -> dict:
-    """발표 당시 PRI와 이후 확정 초과수익만 평가한다. 사후 현재 PRI 혼합 금지."""
-    measured = [r for r in rows if r.get("pri_at_announce") is not None and r.get("excess_d60") is not None]
+    """발표 당시 PRI와 이후 확정 수익률만 평가한다(절대 수익률 — JARVIS D69 10/9 모든 프로젝트 통일). 사후 현재 PRI 혼합 금지."""
+    measured = [r for r in rows if r.get("pri_at_announce") is not None and r.get("ret_d60") is not None]
     quarters = {(r["fiscal_year"], r["fiscal_quarter"]) for r in measured}
-    ic = spearman([r["pri_at_announce"] for r in measured], [r["excess_d60"] for r in measured])
+    ic = spearman([r["pri_at_announce"] for r in measured], [r["ret_d60"] for r in measured])
     per_quarter = {f"{y}.{q}": [r for r in measured if (r["fiscal_year"], r["fiscal_quarter"]) == (y, q)] for y, q in sorted(quarters)}
     adequate = sum(len(group) >= PRI_REVIEW_MIN_ROWS for group in per_quarter.values()) >= PRI_REVIEW_MIN_QUARTERS
     return {"version": PRI_RULE_VERSION, "measured_d60": len(measured), "quarters": len(quarters),
-            "pri_vs_excess_ic": ic, "review_ready": adequate,
+            "pri_vs_return_ic": ic, "review_ready": adequate,
             "quarter_samples": {q: len(group) for q, group in per_quarter.items()},
             "action": "시간순 학습/검증 분리 후 후보 기준과 기존 기준 비교 필요" if adequate else "표본 부족 — 기준 변경 보류",
             "automatic_weight_change": False}

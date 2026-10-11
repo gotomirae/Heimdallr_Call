@@ -656,7 +656,9 @@ def technical_setup_message(ctx: dict) -> str:
         "",
         "📈 <b>현재 주가·기술 위치</b>",
         f"💵 현재가 {_num(technical.get('close'))}원 · {esc(technical.get('as_of'))} 기준",
-        f"📉 가격 {esc(technical.get('price_regime'))} · 52주 고점 대비 "
+        f"📉 가격 {esc(technical.get('price_regime'))}"
+        + ({1: " · <b>1차 눌림</b>", 2: " · <b>2차 눌림</b>"}.get(technical.get("pullback_stage") or 0, ""))
+        + " · 52주 고점 대비 "
         f"{_pct(technical.get('drawdown_52w_pct'))} · 20일 {_pct(technical.get('ret_20d_pct'))}",
         f"🗓 최근 분기 실적 발표 {esc(technical.get('announcement_date'))} · 발표 다음 거래일 종가 대비 "
         f"{_pct(technical.get('announcement_return_pct'))} · 발표 후 고점 대비 "
