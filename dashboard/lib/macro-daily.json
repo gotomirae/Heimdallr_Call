@@ -1,6 +1,6 @@
 {
   "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
-  "checkedAt": "2026-10-11 09:27 KST",
+  "checkedAt": "2026-10-12 09:43 KST",
   "marketDate": "2026-10-09",
   "koreaMarketDate": "2026-10-08",
   "items": [
@@ -1321,10 +1321,6 @@
       "changePct": 0.51,
       "history": [
         {
-          "date": "2025-10-10",
-          "value": 24221.74
-        },
-        {
           "date": "2025-10-13",
           "value": 24750.25
         },
@@ -2332,10 +2328,6 @@
       "changePct": -2.62,
       "history": [
         {
-          "date": "2026-07-10",
-          "value": 7475.94
-        },
-        {
           "date": "2026-07-13",
           "value": 6806.93
         },
@@ -2579,10 +2571,6 @@
       "changePct": -0.69,
       "history": [
         {
-          "date": "2026-07-10",
-          "value": 837.43
-        },
-        {
           "date": "2026-07-13",
           "value": 799.36
         },
@@ -2824,18 +2812,14 @@
   "recentIssues": [],
   "recentIssueFailures": [],
   "recentIssueWindow": {
-    "from": "2026-10-05",
-    "through": "2026-10-11"
+    "from": "2026-10-06",
+    "through": "2026-10-12"
   },
   "fearGreed": {
     "date": "2026-10-09",
     "value": 45.0,
     "label": "중립",
     "history": [
-      {
-        "date": "2025-10-10",
-        "value": 30.1
-      },
       {
         "date": "2025-10-13",
         "value": 29.7
