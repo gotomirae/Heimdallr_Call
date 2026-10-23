@@ -1,23 +1,23 @@
 {
   "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
-  "checkedAt": "2026-10-22 21:55 KST",
-  "marketDate": "2026-10-21",
-  "koreaMarketDate": "2026-10-22",
+  "checkedAt": "2026-10-23 09:09 KST",
+  "marketDate": "2026-10-22",
+  "koreaMarketDate": "2026-10-21",
   "items": [
     {
-      "title": "미국 2026-10-21 전 거래일 종가 · TradingView",
+      "title": "미국 2026-10-22 전 거래일 종가 · TradingView",
       "url": "https://www.tradingview.com/markets/stocks-usa/market-movers-all-stocks/",
-      "publishedAt": "2026-10-21"
+      "publishedAt": "2026-10-22"
     },
     {
       "title": "CBOE VIX · 향후 30일 예상 변동성",
       "url": "https://www.cboe.com/tradable-products/vix",
-      "publishedAt": "2026-10-21"
+      "publishedAt": "2026-10-22"
     },
     {
       "title": "Fear & Greed Index · 시장 심리",
       "url": "https://fearandgreedgraph.com/",
-      "publishedAt": "2026-10-21"
+      "publishedAt": "2026-10-22"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-09-16)",
@@ -81,14 +81,10 @@
   ],
   "markets": {
     "sp500": {
-      "date": "2026-10-21",
-      "close": 7757.17,
-      "changePct": 0.58,
+      "date": "2026-10-22",
+      "close": 7663.43,
+      "changePct": -1.21,
       "history": [
-        {
-          "date": "2026-07-29",
-          "value": 7316.15
-        },
         {
           "date": "2026-07-30",
           "value": 7437.63
@@ -324,18 +320,18 @@
         {
           "date": "2026-10-21",
           "value": 7757.17
+        },
+        {
+          "date": "2026-10-22",
+          "value": 7663.43
         }
       ]
     },
     "nasdaq": {
-      "date": "2026-10-21",
-      "close": 26702.86,
-      "changePct": 1.05,
+      "date": "2026-10-22",
+      "close": 26008.86,
+      "changePct": -2.6,
       "history": [
-        {
-          "date": "2026-07-29",
-          "value": 24442.94
-        },
         {
           "date": "2026-07-30",
           "value": 25122.18
@@ -571,18 +567,18 @@
         {
           "date": "2026-10-21",
           "value": 26702.86
+        },
+        {
+          "date": "2026-10-22",
+          "value": 26008.86
         }
       ]
     },
     "dow": {
-      "date": "2026-10-21",
-      "close": 52856.09,
-      "changePct": 0.69,
+      "date": "2026-10-22",
+      "close": 52867.98,
+      "changePct": 0.02,
       "history": [
-        {
-          "date": "2026-07-29",
-          "value": 51594.14
-        },
         {
           "date": "2026-07-30",
           "value": 52208.06
@@ -818,18 +814,18 @@
         {
           "date": "2026-10-21",
           "value": 52856.09
+        },
+        {
+          "date": "2026-10-22",
+          "value": 52867.98
         }
       ]
     },
     "semiconductor": {
-      "date": "2026-10-21",
-      "close": 11505.56,
-      "changePct": 1.97,
+      "date": "2026-10-22",
+      "close": 10731.98,
+      "changePct": -6.72,
       "history": [
-        {
-          "date": "2026-07-29",
-          "value": 10447.49
-        },
         {
           "date": "2026-07-30",
           "value": 11302.99
@@ -1065,18 +1061,18 @@
         {
           "date": "2026-10-21",
           "value": 11505.56
+        },
+        {
+          "date": "2026-10-22",
+          "value": 10731.98
         }
       ]
     },
     "vix": {
-      "date": "2026-10-21",
-      "close": 16.68,
-      "changePct": -3.64,
+      "date": "2026-10-22",
+      "close": 19.03,
+      "changePct": 14.09,
       "history": [
-        {
-          "date": "2026-07-30",
-          "value": 17.09
-        },
         {
           "date": "2026-07-31",
           "value": 15.99
@@ -1312,18 +1308,18 @@
         {
           "date": "2026-10-21",
           "value": 16.68
+        },
+        {
+          "date": "2026-10-22",
+          "value": 19.03
         }
       ]
     },
     "nasdaq100": {
-      "date": "2026-10-21",
-      "close": 29822.52,
-      "changePct": 1.13,
+      "date": "2026-10-22",
+      "close": 28958.69,
+      "changePct": -2.9,
       "history": [
-        {
-          "date": "2025-10-22",
-          "value": 24879.01
-        },
         {
           "date": "2025-10-23",
           "value": 25097.41
@@ -2323,14 +2319,22 @@
         {
           "date": "2026-10-21",
           "value": 29822.52
+        },
+        {
+          "date": "2026-10-22",
+          "value": 28958.69
         }
       ]
     },
     "kospi": {
-      "date": "2026-10-22",
-      "close": 5533.77,
-      "changePct": -3.52,
+      "date": "2026-10-21",
+      "close": 5735.66,
+      "changePct": 3.29,
       "history": [
+        {
+          "date": "2026-07-23",
+          "value": 7096.89
+        },
         {
           "date": "2026-07-24",
           "value": 6690.62
@@ -2566,18 +2570,18 @@
         {
           "date": "2026-10-21",
           "value": 5735.66
-        },
-        {
-          "date": "2026-10-22",
-          "value": 5533.77
         }
       ]
     },
     "kosdaq": {
-      "date": "2026-10-22",
-      "close": 764.1,
-      "changePct": -3.62,
+      "date": "2026-10-21",
+      "close": 792.76,
+      "changePct": 1.38,
       "history": [
+        {
+          "date": "2026-07-23",
+          "value": 790.28
+        },
         {
           "date": "2026-07-24",
           "value": 748.22
@@ -2813,10 +2817,6 @@
         {
           "date": "2026-10-21",
           "value": 792.76
-        },
-        {
-          "date": "2026-10-22",
-          "value": 764.1
         }
       ]
     }
@@ -2824,13 +2824,13 @@
   "recentIssues": [],
   "recentIssueFailures": [],
   "recentIssueWindow": {
-    "from": "2026-10-16",
-    "through": "2026-10-22"
+    "from": "2026-10-17",
+    "through": "2026-10-23"
   },
   "fearGreed": {
-    "date": "2026-10-21",
-    "value": 31.4,
-    "label": "공포",
+    "date": "2026-10-22",
+    "value": 19.8,
+    "label": "극도의 공포",
     "history": [
       {
         "date": "2025-10-22",
@@ -2842,7 +2842,7 @@
       },
       {
         "date": "2025-10-24",
-        "value": 32.5
+        "value": 32.4
       },
       {
         "date": "2025-10-27",
@@ -2862,7 +2862,7 @@
       },
       {
         "date": "2025-10-31",
-        "value": 34.5
+        "value": 34.4
       },
       {
         "date": "2025-11-03",
@@ -2890,7 +2890,7 @@
       },
       {
         "date": "2025-11-11",
-        "value": 30.5
+        "value": 30.4
       },
       {
         "date": "2025-11-12",
@@ -3130,7 +3130,7 @@
       },
       {
         "date": "2026-02-09",
-        "value": 48.5
+        "value": 48.4
       },
       {
         "date": "2026-02-10",
@@ -3310,7 +3310,7 @@
       },
       {
         "date": "2026-04-16",
-        "value": 61.5
+        "value": 61.4
       },
       {
         "date": "2026-04-17",
@@ -3326,7 +3326,7 @@
       },
       {
         "date": "2026-04-22",
-        "value": 68.5
+        "value": 68.4
       },
       {
         "date": "2026-04-23",
@@ -3430,11 +3430,11 @@
       },
       {
         "date": "2026-05-29",
-        "value": 60.5
+        "value": 60.4
       },
       {
         "date": "2026-06-01",
-        "value": 59.5
+        "value": 59.4
       },
       {
         "date": "2026-06-02",
@@ -3494,11 +3494,11 @@
       },
       {
         "date": "2026-06-23",
-        "value": 28.5
+        "value": 28.4
       },
       {
         "date": "2026-06-24",
-        "value": 26.5
+        "value": 26.4
       },
       {
         "date": "2026-06-25",
@@ -3798,7 +3798,7 @@
       },
       {
         "date": "2026-10-09",
-        "value": 46.5
+        "value": 46.4
       },
       {
         "date": "2026-10-12",
@@ -3830,7 +3830,11 @@
       },
       {
         "date": "2026-10-21",
-        "value": 31.4
+        "value": 27.2
+      },
+      {
+        "date": "2026-10-22",
+        "value": 19.8
       }
     ],
     "sourceUrl": "https://fearandgreedgraph.com/",
@@ -3907,23 +3911,21 @@
   "flags": {
     "rates": true,
     "industry": true,
-    "geopolitics": false
+    "geopolitics": true
   },
-  "sortMode": "earnings_growth",
+  "sortMode": "quality_price",
   "preferredSectors": [
-    "반도체 장비",
-    "반도체 소재",
-    "반도체 부품",
-    "AI",
     "전력인프라",
-    "통신·네트워크",
-    "로봇기계",
     "우주방산",
     "조선·해운",
+    "AI",
+    "반도체 장비",
+    "반도체 부품",
+    "통신·네트워크",
+    "로봇기계",
     "자동차",
     "유통·소비재",
-    "반도체 DSP",
-    "반도체 OSAT",
+    "반도체 소재",
     "반도체 IDM"
   ],
   "globalSectorTilts": [
@@ -3942,10 +3944,10 @@
     "KOSPI",
     "KOSDAQ"
   ],
-  "koreaMode": "risk_off",
+  "koreaMode": "risk_on",
   "summary": {
-    "current": "🇺🇸 2026-10-21 미국 마감 · S&P 500 +0.58% / 나스닥 +1.05% / 반도체 +1.97%\n🌡️ VIX 16.68 · Fear & Greed 31.4 (공포)\n🇰🇷 2026-10-22 한국 마감 · KOSPI -3.52%, KOSDAQ -3.62%\n🧭 종합 판단 · 미국 반도체 상대강세. 지수 방향과 실제 기업 이익을 함께 확인합니다.",
+    "current": "🇺🇸 2026-10-22 미국 마감 · S&P 500 -1.21% / 나스닥 -2.60% / 반도체 -6.72%\n🌡️ VIX 19.03 · Fear & Greed 19.8 (극도의 공포)\n🇰🇷 2026-10-21 한국 마감 · KOSPI +3.29%, KOSDAQ +1.38%\n🧭 종합 판단 · 변동성 확대·위험 회피. 지수 방향과 실제 기업 이익을 함께 확인합니다.",
     "forward": "지난밤을 포함한 최근 7일 공식 발표를 확인합니다. 아래 영향 설명은 조건부 해석이며 실제 발표 결과나 확정 전망이 아닙니다.",
-    "recommendedSort": "추천 정렬: 미국·글로벌 적합 섹터 → 한국 상대강세 시장(KOSPI) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
+    "recommendedSort": "추천 정렬: 미국·글로벌 적합 섹터 → 한국 상대강세 시장(KOSPI) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 낮은 주가반영도 → 낮은 내년 F.PER → 높은 내년 F.ROE → 영업이익 YoY → 등급 → 최신 분기"
   }
 }
