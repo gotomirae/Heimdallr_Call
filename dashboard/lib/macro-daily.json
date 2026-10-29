@@ -1,8 +1,8 @@
 {
   "source": "미국·한국 전 거래일 종가: Yahoo Finance·TradingView · 통화정책: Federal Reserve · 글로벌: IMF",
-  "checkedAt": "2026-10-29 10:35 KST",
+  "checkedAt": "2026-10-29 23:11 KST",
   "marketDate": "2026-10-28",
-  "koreaMarketDate": "2026-10-28",
+  "koreaMarketDate": "2026-10-29",
   "items": [
     {
       "title": "미국 2026-10-28 전 거래일 종가 · TradingView",
@@ -17,7 +17,7 @@
     {
       "title": "Fear & Greed Index · 시장 심리",
       "url": "https://fearandgreedgraph.com/",
-      "publishedAt": "2026-10-28"
+      "publishedAt": "2026-10-29"
     },
     {
       "title": "미 연준 FOMC 성명 (2026-10-28)",
@@ -2327,14 +2327,10 @@
       ]
     },
     "kospi": {
-      "date": "2026-10-28",
-      "close": 6012.44,
-      "changePct": 6.63,
+      "date": "2026-10-29",
+      "close": 5937.66,
+      "changePct": -1.24,
       "history": [
-        {
-          "date": "2026-07-30",
-          "value": 5593.56
-        },
         {
           "date": "2026-07-31",
           "value": 6595.45
@@ -2570,18 +2566,18 @@
         {
           "date": "2026-10-28",
           "value": 6012.44
+        },
+        {
+          "date": "2026-10-29",
+          "value": 5937.66
         }
       ]
     },
     "kosdaq": {
-      "date": "2026-10-28",
-      "close": 771.28,
-      "changePct": 3.69,
+      "date": "2026-10-29",
+      "close": 753.23,
+      "changePct": -2.34,
       "history": [
-        {
-          "date": "2026-07-30",
-          "value": 644.78
-        },
         {
           "date": "2026-07-31",
           "value": 719.76
@@ -2817,6 +2813,10 @@
         {
           "date": "2026-10-28",
           "value": 771.28
+        },
+        {
+          "date": "2026-10-29",
+          "value": 753.23
         }
       ]
     }
@@ -2831,6 +2831,26 @@
       "label": "연준 정책 관련 발표",
       "emoji": "🏦",
       "marketImpact": "새 정책 결정인지 과거 회의 기록인지 원문을 구분합니다. 긴축적인 금리 경로는 기술주 밸류와 원화에 부담, 완화적인 경로는 부담 완화 요인이지만 경기 악화 여부를 함께 확인해야 합니다."
+    },
+    {
+      "title": "Personal Income and Outlays, September 2026",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-september-2026",
+      "publishedAt": "2026-10-29",
+      "source": "BEA",
+      "label": "미국 소비·물가 발표",
+      "emoji": "🛒",
+      "marketImpact": "근원 물가가 재가속하면 장기금리와 고PER 주식 부담을 확인합니다. 물가 둔화와 소비 유지가 함께 나타나면 실적이 뒷받침되는 성장주에 우호적일 수 있습니다.",
+      "fact": "PCE 물가 전월 대비 +0.5% · 근원 PCE 전월 대비 +0.3%"
+    },
+    {
+      "title": "GDP (Advance Estimate), 3rd Quarter 2026",
+      "url": "https://www.bea.gov/news/2026/gdp-advance-estimate-3rd-quarter-2026",
+      "publishedAt": "2026-10-29",
+      "source": "BEA",
+      "label": "미국 성장·기업 이익 발표",
+      "emoji": "🏭",
+      "marketImpact": "민간 최종수요·기업 이익 개선이 확인되면 수출·경기민감 업종의 실적 지속성을 점검합니다. 성장 둔화와 물가 상승이 겹치면 마진 및 밸류 부담이 커질 수 있습니다.",
+      "fact": "실질 GDP 전분기 대비 연율 +3.4%"
     }
   ],
   "recentIssueFailures": [
@@ -2843,14 +2863,10 @@
     "through": "2026-10-29"
   },
   "fearGreed": {
-    "date": "2026-10-28",
-    "value": 35.9,
+    "date": "2026-10-29",
+    "value": 35.1,
     "label": "공포",
     "history": [
-      {
-        "date": "2025-10-28",
-        "value": 39.3
-      },
       {
         "date": "2025-10-29",
         "value": 42.1
@@ -3849,7 +3865,11 @@
       },
       {
         "date": "2026-10-28",
-        "value": 35.9
+        "value": 35.1
+      },
+      {
+        "date": "2026-10-29",
+        "value": 35.1
       }
     ],
     "sourceUrl": "https://fearandgreedgraph.com/",
@@ -3952,9 +3972,9 @@
     "KOSPI",
     "KOSDAQ"
   ],
-  "koreaMode": "risk_on",
+  "koreaMode": "risk_off",
   "summary": {
-    "current": "🇺🇸 2026-10-28 미국 마감 · S&P 500 +0.28% / 나스닥 +0.27% / 반도체 +1.75%\n🌡️ VIX 16.91 · Fear & Greed 35.9 (공포)\n🇰🇷 2026-10-28 한국 마감 · KOSPI +6.63%, KOSDAQ +3.69%\n🧭 종합 판단 · 미국 반도체 상대강세. 지수 방향과 실제 기업 이익을 함께 확인합니다.",
+    "current": "🇺🇸 2026-10-28 미국 마감 · S&P 500 +0.28% / 나스닥 +0.27% / 반도체 +1.75%\n🌡️ VIX 16.91 · Fear & Greed 35.1 (공포)\n🇰🇷 2026-10-29 한국 마감 · KOSPI -1.24%, KOSDAQ -2.34%\n🧭 종합 판단 · 미국 반도체 상대강세. 지수 방향과 실제 기업 이익을 함께 확인합니다.",
     "forward": "지난밤을 포함한 최근 7일 공식 발표를 확인합니다. 아래 영향 설명은 조건부 해석이며 실제 발표 결과나 확정 전망이 아닙니다.",
     "recommendedSort": "추천 정렬: 미국·글로벌 적합 섹터 → 한국 상대강세 시장(KOSPI) → 섹터 5일 흐름 확인 → 초기 흑전·낮은 주가반영도 후보 → 높은 투자 매력도 → 높은 영업이익 YoY → 높은 내년 F.ROE → 낮은 주가반영도 → 등급 → 최신 분기"
   }
