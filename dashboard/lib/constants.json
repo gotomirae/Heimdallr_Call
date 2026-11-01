@@ -1,4 +1,14 @@
 {
+  "pro_analysis": {
+    "model": "gpt-6.1-sol",
+    "history_max_items": 100,
+    "daily_limit": 20
+  },
+  "indicator_details": {
+    "history_years": 3,
+    "concurrency": 2,
+    "page_size": 1000
+  },
   "_generated_by": "python -m src.config.export_constants",
   "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
   "dashboard_refresh_seconds": 60,

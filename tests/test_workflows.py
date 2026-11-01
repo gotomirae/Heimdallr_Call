@@ -160,19 +160,11 @@ def test_telegram_cloud_listener_is_disabled_to_keep_single_consumer():
     assert spec["jobs"]["listen"]["if"] == "${{ false }}"
 
 
-def test_daily_recommendation_has_three_staggered_retries():
-    """정시 3회는 pg_cron(T228), GitHub schedule은 각 30분 뒤 예비 3회다.
-
-    정시 쪽 값과 SQL 대조는 `test_daily_dispatch.py`가 한다.
-    """
-    yaml = pytest.importorskip("yaml")
+def test_daily_recommendation_runs_once_at_1600_with_holiday_gate():
+    import yaml
     spec = yaml.safe_load(_text(WORKFLOWS / "daily_digest.yml"))
-    schedules = _trigger_map(spec)["schedule"]
-    crons = [row["cron"] for row in schedules]
-    assert crons == ["7 9 * * 1-5", "47 9 * * 1-5", "37 10 * * 1-5"]
-    assert "workflow_dispatch" in _trigger_map(spec)
-    body = _text(WORKFLOWS / "daily_digest.yml")
-    assert "오늘의 종목 추천 · 최대 2개" in body
+    assert _trigger_map(spec)["schedule"] == [{"cron": "0 7 * * 1-5"}]
+    assert "operating_calendar indicators" in _text(WORKFLOWS / "daily_digest.yml")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -294,11 +286,13 @@ def test_flash_notification_is_wired_on_schedule():
     )
 
 
-def test_periodic_disclosure_refreshes_final_analysis_automatically():
-    body = _text(WORKFLOWS / "disclosure_poll.yml")
-    assert "--recent-periodic-days 7" in body
-    assert "--refresh-finalized" in body
-    assert "collectors.excerpt_run" in body
+def test_periodic_disclosure_collects_facts_without_automatic_analysis():
+    import yaml
+    text = _text(WORKFLOWS / "disclosure_poll.yml")
+    spec = yaml.safe_load(text)
+    assert _trigger_map(spec)["schedule"] == [{"cron": "0 1-23/2 * * *"}]
+    assert "src.finance.backfill" in text and "src.analysis.batch" not in text
+    assert "operating_calendar disclosure" in text
 
 
 def test_order_disclosure_backfills_ten_quarters():
@@ -314,21 +308,20 @@ def test_quarterly_backfill_has_manual_code_refresh():
     assert "--refresh-finalized" in body
 
 
-def test_daily_sector_classification_precedes_investment_scoring():
-    body = _text(WORKFLOWS / "universe_daily.yml")
-    sector = body.index("python -m src.universe.sector_map --save")
-    screen = body.index("python -m src.screener.run --save")
-    assert sector < screen, "새 섹터를 저장하기 전에 점수를 계산하면 당일 피어 비교가 옛 분류를 쓴다"
+def test_daily_indicator_pipeline_does_not_rewrite_fixed_classification():
+    text = _text(WORKFLOWS / "universe_daily.yml")
+    assert "src.collectors.price_run --save" in text and "src.screener.run --save" in text
+    assert "src.universe.sector_map" not in text and "src.analysis.batch" not in text
 
 
-def test_daily_digest_sends_technical_setup_before_summary():
-    body = _text(WORKFLOWS / "daily_digest.yml")
-    technical = body.index("python -m src.notify.technical_alert --send")
-    digest = body.index("python -m src.notify.batch --digest --send")
-    assert technical < digest
-    assert "continue-on-error: true" not in body[:digest]
-    assert "if: always()" in body[technical:digest]
-    assert "python -m src.notify.technical_alert --summary-path technical-scan.json" in body
+def test_daily_digest_sends_technical_setup_before_summary_with_calendar_gate():
+    import yaml
+    spec = yaml.safe_load(_text(WORKFLOWS / "daily_digest.yml"))
+    steps = next(iter(spec["jobs"].values()))["steps"]
+    commands = [s.get("run", "") for s in steps]
+    assert next(i for i,c in enumerate(commands) if "src.notify.technical_alert --send" in c) < next(i for i,c in enumerate(commands) if "src.notify.batch --digest --send" in c)
+    summary = next(s for s in steps if "src.notify.batch --digest --send" in s.get("run", ""))
+    assert "steps.calendar.outputs.run" in summary["if"] and "always()" in summary["if"]
 
 
 def test_scheduled_quarterly_backfill_is_incremental():

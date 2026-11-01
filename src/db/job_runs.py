@@ -78,12 +78,23 @@ def mark_complete(job: str, day: date, detail: dict | None = None) -> None:
 
 def gate(job: str, timeout_minutes: int, output: str | None) -> int:
     now = datetime.now(KST)
+    from src.utils.operating_calendar import indicators_due
+    if not indicators_due(now):
+        if output:
+            with open(output, "a", encoding="utf-8") as stream:
+                stream.write("skip=true\n")
+        print("ADR50: 16시 이전/토·일/한국 공휴일 — 모델·수집 호출 없이 생략")
+        return 0
     day = run_day(now)
     try:
         complete = is_complete(job, day)
     except Exception as exc:
         print(f"⚠ {TABLE} 조회 실패({type(exc).__name__}) — 완료 여부 모름으로 진행")
-        complete = False
+        # No duplicate whole-universe refresh when the durable completion ledger is unavailable.
+        if output:
+            with open(output, "a", encoding="utf-8") as stream:
+                stream.write("skip=true\n")
+        return 1
     skip, reason = gate_decision(complete, now, timeout_minutes)
     print(f"{job} · run_day {day} · {now:%H:%M} KST · {reason} → skip={str(skip).lower()}")
     if output:

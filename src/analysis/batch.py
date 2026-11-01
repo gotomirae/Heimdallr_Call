@@ -426,6 +426,8 @@ def run(
     report_final: bool = False,
     notify_only: bool = False,
 ) -> int:
+    if send:
+        raise RuntimeError("자동 분석 중단: 분석 버튼의 Pro 과거분기 큐를 사용하세요 (ADR50)")
     names = {u["code"]: u["name"] for u in select_all("krx_universe", "code,name")}
     picked = targets(top, min_score=min_score, notify_only=notify_only)
     closures: list[tuple[dict, str]] = []

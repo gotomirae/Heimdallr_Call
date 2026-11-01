@@ -67,15 +67,13 @@ def test_gate_decision(complete: bool, kst: str, skip: bool):
     assert job_runs.gate_decision(complete, _at(kst), 95)[0] is skip
 
 
-def test_gate_fails_open(monkeypatch, tmp_path):
-    def _down(job, day):
-        raise ConnectionError("no table")
-
-    monkeypatch.setattr(job_runs, "is_complete", _down)
-    monkeypatch.setattr(job_runs, "unsafe_start", lambda now, minutes: False)
+def test_gate_fails_closed_when_completion_ledger_unavailable(monkeypatch, tmp_path):
+    import src.utils.operating_calendar as calendar
+    monkeypatch.setattr(calendar, "indicators_due", lambda now: True)
+    monkeypatch.setattr(job_runs, "is_complete", lambda *args: (_ for _ in ()).throw(ConnectionError()))
     out = tmp_path / "out"
-    assert job_runs.gate("universe_daily", 95, str(out)) == 0
-    assert out.read_text("utf-8").strip() == "skip=false"
+    assert job_runs.gate("universe_daily", 185, str(out)) == 1
+    assert out.read_text(encoding="utf-8").strip() == "skip=true"
 
 
 def test_done_never_fails_the_job(monkeypatch):
@@ -117,11 +115,10 @@ def test_pg_cron_slots_are_outside_market_hours():
         assert not job_runs.unsafe_start(kst, 95), f"{cron}은 게이트가 스스로 거부하는 시각이다"
 
 
-def test_schedule_is_backup_thirty_minutes_after_pg_cron():
-    on = _spec().get(True) or _spec().get("on")
-    backups = [_minutes(row["cron"]) for row in on["schedule"]]
-    primaries = [_minutes(cron) for _, cron, _ in _pg_cron_jobs()]
-    assert backups == [(m + 30) % (24 * 60) for m in primaries]
+def test_indicator_schedule_is_1600_kst_with_runtime_calendar():
+    on = _spec().get("on") or _spec().get(True)
+    assert on["schedule"] == [{"cron": "0 7 * * 1-5"}]
+    assert "src.db.job_runs gate" in str(_spec()["jobs"]["gate"])
 
 
 def test_dispatched_inputs_are_declared():
@@ -131,13 +128,11 @@ def test_dispatched_inputs_are_declared():
         assert set(inputs) <= declared, f"{name}: {set(inputs) - declared}"
 
 
-def test_gate_margin_covers_refresh_timeout():
-    """게이트가 장중 겹침을 재는 시간 ≥ refresh 제한시간 + 5분(gate 잡 소요)."""
+def test_gate_margin_covers_refresh_timeout_and_does_not_fail_open():
     jobs = _spec()["jobs"]
-    gate_run = next(step["run"] for step in jobs["gate"]["steps"] if step.get("id") == "gate")
-    margin = int(re.search(r"--timeout-minutes (\d+)", gate_run).group(1))
-    assert margin >= jobs["refresh"]["timeout-minutes"] + 5
-    assert '|| echo "skip=false"' in gate_run, "게이트가 죽으면 refresh가 통째로 건너뛰어진다 — fail-open"
+    gate_run = next(s["run"] for s in jobs["gate"]["steps"] if s.get("id") == "gate")
+    assert int(re.search(r"--timeout-minutes (\d+)", gate_run).group(1)) >= jobs["refresh"]["timeout-minutes"] + 5
+    assert '|| echo "skip=false"' not in gate_run
 
 
 def test_refresh_waits_for_gate_and_marks_done_last():

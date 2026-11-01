@@ -1,27 +1,12 @@
-# PRD Ref: §10 · §9 /outcome
-#
-# D+1/5/20/60 초과수익 갱신
-#
-# ★ D+1/5/20/60은 시간이 지나야 채워진다. 매일 다시 돌려 **빈 칸을 메운다** —
-#   한 번 돌고 끝나는 잡이 아니다. upsert라 재실행이 안전하다.
-# ★ 측정 못 한 시점은 **0이 아니라 NULL**로 남는다(`outcome.py`).
-#   0으로 채우면 평균이 0 쪽으로 끌려가 "아무 효과 없음"으로 보인다.
-
+# PRD Ref: §10 · ADR50
 name: outcome_update
-
-on:
-  schedule:
-    - cron: "0 22 * * 1-5" # 07:00 KST
-  workflow_dispatch:
-
 concurrency:
   group: outcome-update
   cancel-in-progress: false
-
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # 실측 1,086건은 15분을 초과한다. 수집 중에도 분할 저장한다.
+    timeout-minutes: 60
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -29,18 +14,25 @@ jobs:
       KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
       HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
-      # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
+      KOREA_EXTRA_HOLIDAYS: ${{ vars.KOREA_EXTRA_HOLIDAYS }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-
-      - run: python -m src.analysis.outcome_run --save
-      - name: PRI 기준 피드백 검증 (발표 당시값·확정 D+60)
-        if: always()
-        run: python -m src.analysis.outcome_run --pri-review
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - id: calendar
+      name: 한국 거래일16시 판정
+      run: python -m src.utils.operating_calendar indicators --output "$GITHUB_OUTPUT"
+    - run: python -m src.analysis.outcome_run --save
+      if: steps.calendar.outputs.run == 'true'
+    - name: PRI 기준 피드백 검증 (발표 당시값·확정 D+60)
+      if: steps.calendar.outputs.run == 'true' && (always())
+      run: python -m src.analysis.outcome_run --pri-review
+'on':
+  schedule:
+  - cron: 0 7 * * 1-5
+  workflow_dispatch: null

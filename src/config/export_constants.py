@@ -43,6 +43,11 @@ OUTPUT = Path(__file__).resolve().parents[2] / "dashboard" / "lib" / "constants.
 def build() -> dict:
     """대시보드가 보여줄 임계값만 추린다. 전부 내보내면 무엇이 중요한지 흐려진다."""
     return {
+        "pro_analysis": {"model": constants.CODEX_ANALYSIS_MODEL, "history_max_items": constants.ANALYSIS_HISTORY_MAX_ITEMS,
+                         "daily_limit": constants.ANALYSIS_REQUEST_DAILY_LIMIT},
+        "indicator_details": {"history_years": constants.INDICATOR_DETAIL_HISTORY_YEARS,
+                              "concurrency": constants.INDICATOR_DETAIL_CONCURRENCY,
+                              "page_size": constants.POSTGREST_PAGE_SIZE},
         "_generated_by": "python -m src.config.export_constants",
         "_warning": "손으로 고치지 마라. src/config/constants.py가 유일한 출처다.",
         "dashboard_refresh_seconds": constants.DASHBOARD_REFRESH_SECONDS,

@@ -20,6 +20,15 @@ from src.config.constants import POSTGREST_PAGE_SIZE
 from src.utils.env import require_env
 
 
+def service_error_code(exc: Exception) -> str:
+    """운영 제한만 고정 코드로 알린다. 원문 오류에는 자격증명이 있을 수 있다."""
+    if str(getattr(exc, "code", "")) == "402" and "exceed_egress_quota" in str(
+        getattr(exc, "details", "")
+    ):
+        return "SUPABASE_EGRESS_QUOTA"
+    return type(exc).__name__
+
+
 class ReadBudgetExceeded(RuntimeError):
     """승인된 PostgREST HTTP read 횟수를 모두 사용함."""
 

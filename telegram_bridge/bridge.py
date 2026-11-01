@@ -21,7 +21,7 @@ import sqlite3
 import subprocess
 import sys
 
-from src.db.supabase_client import get_client, select_all
+from src.db.supabase_client import get_client, select_all, service_error_code
 from src.notify.kairos_requests import drive_industry_folder_matches
 from src.notify.listen import allowed_chats
 from src.notify.telegram import TelegramClient, bot_id_of
@@ -33,6 +33,8 @@ HEIMDALLR_BOT_ID = "8933940541"
 TABLE = "kairos_requests"
 WAKE_RETRY = timedelta(minutes=5)
 STAGES = {
+    "claude": "75% · Codex 원고 저장 완료 · Codex 검수·최종 Notion 작성 중",
+    "complete": "100% · 최종 Notion 분석 검수 완료",
     "sources": "15% · 최근 3개월 Drive·Notion 자료 선별 중",
     "industry": "30% · 산업 구조·사이클·시장 성장 조사 중",
     "company": "50% · 기업 공시·실적·리포트 검증 중",
@@ -53,7 +55,11 @@ FAILURE_MESSAGES = {
 }
 
 
-def connect() -> sqlite3.Connection:
+def connect(*, read_only: bool = False) -> sqlite3.Connection:
+    if read_only:
+        db = sqlite3.connect(STATE.resolve().as_uri() + "?mode=ro", uri=True, timeout=30)
+        db.row_factory = sqlite3.Row
+        return db
     STATE.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(STATE, timeout=30)
     db.row_factory = sqlite3.Row
@@ -151,6 +157,8 @@ def ensure_checkpoint(db: sqlite3.Connection, job_id: int) -> Path:
                 "- Telegram 발송: 미완료\n"
                 "- 사용량 재설정 시각: 해당 없음\n"
                 "- 다음 행동: 자료 조사 시작\n"
+                "- 공통 패키지 필수: handoff-v1 (optimization_policy.md)\n"
+                "- 실행 방식: file-first-v1 (JARVIS N절). Codex는 Notion에 게시하지 않고 전체 양식 원고·출처·표·차트·template snapshot을 파일로 보존한다. complete-codex ID --industry 산업명으로 Codex 검수·게시 큐에 전달한다. API/Claude 호출 없이 같은 Pro 구독으로 검수한다.\n"
             )
     except FileExistsError:
         pass
@@ -390,7 +398,7 @@ def ask_folder(
                 "📁 Drive 산업 폴더 확인이 필요합니다.\n\n"
                 f"요청 산업명: {row['target_name']}\n"
                 f"선택 후보: {folder_name}\n"
-                "이 폴더의 가장 최근 하위 폴더 자료를 사용할까요?\n"
+                "이 폴더의 최근 3개월 이내 발행 자료를 사용할까요?\n"
                 "이 메시지에 '예' 또는 '아니오'로 답장해 주세요."
             ),
             "disable_web_page_preview": True,
@@ -447,6 +455,7 @@ def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
     ).fetchone()
     if not row or row["status"] != "working":
         raise RuntimeError("NOT_WORKING")
+    usage_state(db, job_id, stage == "usage")
     if row["progress_stage"] == stage:
         return {"status": "progress", "id": job_id, "stage": stage,
                 "updated_at": row["progress_updated_at"]}
@@ -483,6 +492,24 @@ def set_progress(db: sqlite3.Connection, job_id: int, stage: str) -> dict:
             "telegram_updated": telegram_updated, "telegram_error": telegram_error}
 
 
+def usage_state(db: sqlite3.Connection, job_id: int, paused: bool) -> dict:
+    from telegram_bridge.usage_notices import usage_event
+    row = db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
+    if not row or row['status'] not in {'pending', 'working'}:
+        raise RuntimeError('NO_ACTIVE_JOB')
+    return {'id': job_id, **usage_event(f'C{job_id}', dict(row), paused, 'Codex')}
+
+
+def save_handoff(db: sqlite3.Connection, job_id: int, data: dict) -> dict:
+    from telegram_bridge.research_handoff import save_package
+    row = db.execute('SELECT status FROM jobs WHERE id=?', (job_id,)).fetchone()
+    if not row or row['status'] != 'working':
+        raise RuntimeError('NOT_WORKING')
+    path = checkpoint_path(job_id).with_name(f'{job_id}-handoff.json')
+    save_package(path, data, job_id)
+    return {'id': job_id, 'handoff': str(path), 'facts': len(data['facts']), 'gaps': len(data['gaps'])}
+
+
 def find_codex() -> str | None:
     found = shutil.which("codex.exe") or shutil.which("codex")
     if found:
@@ -494,8 +521,20 @@ def find_codex() -> str | None:
 
 
 def wake_pending(db: sqlite3.Connection) -> dict:
+    # ADR50: the local Python runner owns dispatch; no model heartbeat for an empty queue.
+    return {"status": "python_queue", "model_calls": 0}
     # J절: intake alone schedules claims; queue must not start a competing turn.
     if setting(db, "trigger_mode") == "heartbeat":
+        # M절 shadow preflight: inspect only real work; never starts a competing turn.
+        if setting(db, "intake_readiness_enabled") == "1":
+            try:
+                from telegram_bridge.intake_readiness import inspect
+                executable = find_codex()
+                if executable:
+                    inspect(poll(db), executable)
+            except Exception:
+                # Migration diagnostics must not break the existing collector/intake.
+                pass
         return {"status": "heartbeat"}
     thread = setting(db, "trigger_thread")
     if not thread:
@@ -624,7 +663,7 @@ def poll(db: sqlite3.Connection) -> dict:
         "wake_sent_at,wake_error,progress_stage,progress_updated_at,failure_reason,"
         "drive_folder_name,drive_folder_url,drive_folder_confirmed,confirmation_message_id,"
         "confirmation_response,confirmation_responded_at,resume_requested,source,market,ticker,industry,created_at "
-        "FROM jobs WHERE status NOT IN ('sent','rejected','failed') "
+        "FROM jobs WHERE status NOT IN ('sent','rejected','failed','claude') "
         "ORDER BY CASE WHEN status='working' THEN 0 "
         "WHEN status='pending' THEN 2 ELSE 1 END,created_at,id DESC LIMIT 20"
     ).fetchall()
@@ -672,6 +711,11 @@ def claim(db: sqlite3.Connection, job_id: int) -> dict:
         return {"status": "not_claimed", "id": job_id}
     with db:
         db.execute("UPDATE jobs SET status='working' WHERE id=?", (job_id,))
+    try:
+        from src.notify.kairos_followups import notify_codex
+        notify_codex(dict(db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()), 'started')
+    except Exception:
+        pass  # A notification outage must not undo a successful claim.
     receipt = db.execute(
         "SELECT telegram_message_id FROM jobs WHERE id=?", (job_id,)
     ).fetchone()[0]
@@ -805,6 +849,15 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
     ).fetchone()
     if not row or row["status"] != "working":
         raise RuntimeError("NOT_WORKING_OR_ALREADY_SENT")
+    ledger = checkpoint_path(job_id)
+    if ledger.is_file() and 'file-first-v1' in ledger.read_text(encoding='utf-8'):
+        raise ValueError('FILE_FIRST_USE_COMPLETE_CODEX')
+    if ledger.is_file() and 'handoff-v1' in ledger.read_text(encoding='utf-8'):
+        from telegram_bridge.research_handoff import validate_package
+        path = ledger.with_name(f'{job_id}-handoff.json')
+        if not path.is_file():
+            raise ValueError('HANDOFF_REQUIRED')
+        validate_package(json.loads(path.read_text(encoding='utf-8')), job_id)
     resolved_industry = industry.strip() or (
         row["target_name"] if row["request_kind"] == "industry" else ""
     )
@@ -832,6 +885,7 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
             summary = f"🏭 산업: {resolved_industry}\n🏢 기업: {row['company']}"
         else:
             summary = f"🏭 산업: {row['target_name']}"
+        from src.notify.kairos_followups import keyboard
         result = client.call("sendMessage", {
             "chat_id": row["chat_id"],
             "text": (
@@ -839,9 +893,7 @@ def deliver(db: sqlite3.Connection, job_id: int, notion: str, industry: str = ""
                 f"{summary}\n\n{notion}"
             ),
             "disable_web_page_preview": True,
-            "reply_markup": {"inline_keyboard": [[
-                {"text": "📝 Notion 분석 페이지 열기", "url": notion}
-            ]]},
+            "reply_markup": keyboard(job_id, notion),
         })
         message_id = result["result"]["message_id"]
         if not change_remote(job_id, "sending", "sent",
@@ -885,6 +937,14 @@ def main() -> int:
     sub.add_parser("ingest")
     sub.add_parser("status")
     sub.add_parser("checkpoint").add_argument("id", type=int)
+    for command in ('usage-wait', 'usage-resume'):
+        sub.add_parser(command).add_argument('id', type=int)
+    handoff = sub.add_parser('handoff')
+    handoff.add_argument('id', type=int)
+    handoff.add_argument('--json-stdin', action='store_true', required=True)
+    complete_codex = sub.add_parser('complete-codex')
+    complete_codex.add_argument('id', type=int)
+    complete_codex.add_argument('--industry', required=True)
     trigger = sub.add_parser("configure-trigger")
     trigger.add_argument("--thread", required=True)
     trigger.add_argument("--mode", choices=("queue", "heartbeat"), default="queue")
@@ -909,7 +969,7 @@ def main() -> int:
     delivery.add_argument("--notion", required=True)
     delivery.add_argument("--industry", default="")
     args = parser.parse_args()
-    db = connect()
+    db = connect(read_only=args.command in {"poll", "status"})
     try:
         if args.command == "configure-trigger":
             result = configure_trigger(db, args.thread, args.mode)
@@ -924,14 +984,16 @@ def main() -> int:
                         save_setting(db, "registry_day", today)
                         save_setting(db, "registry_error", "")
                     except Exception as exc:
-                        save_setting(db, "registry_error", type(exc).__name__)
+                        save_setting(db, "registry_error", service_error_code(exc))
                         # Retry at most daily; explicit jarvis_registry command can retry immediately.
                         save_setting(db, "registry_day", today)
                 count = sync_pending(db)
                 confirmations = sync_folder_confirmations(db)
+                from telegram_bridge.file_first import repair_handoffs
+                repair_handoffs(db)
                 wake = wake_pending(db)
             except Exception as exc:
-                save_setting(db, "last_error", type(exc).__name__)
+                save_setting(db, "last_error", service_error_code(exc))
                 raise
             save_setting(db, "last_success", datetime.now(timezone.utc).isoformat())
             save_setting(db, "last_error", "")
@@ -945,6 +1007,13 @@ def main() -> int:
                       "checkpoint": str(ensure_checkpoint(db, args.id))}
         elif args.command == "claim":
             result = claim(db, args.id)
+        elif args.command in {'usage-wait', 'usage-resume'}:
+            result = usage_state(db, args.id, args.command == 'usage-wait')
+        elif args.command == 'handoff':
+            result = save_handoff(db, args.id, json.load(sys.stdin))
+        elif args.command == 'complete-codex':
+            from telegram_bridge.file_first import submit
+            result = submit(db, args.id, args.industry)
         elif args.command == "reject":
             result = reject(db, args.id)
         elif args.command == "fail":
@@ -974,5 +1043,5 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except Exception as exc:
         print(json.dumps({"error": str(exc) if isinstance(exc, (RuntimeError, ValueError))
-                          else type(exc).__name__}, ensure_ascii=False))
+                          else service_error_code(exc)}, ensure_ascii=False))
         raise SystemExit(1) from None

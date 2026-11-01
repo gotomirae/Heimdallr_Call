@@ -58,9 +58,7 @@ export default async function SettingsPage() {
     selectAll<NotificationRow>("notifications", "id,kind,sent_at,payload"),
   ]);
 
-  const ceiling = constants.cost.monthly_ceiling_usd;
   const spent = cost?.spentUsd ?? 0;
-  const usedPct = ceiling > 0 ? (spent / ceiling) * 100 : 0;
   const monthKey = cost?.monthKey ?? "";
 
   // ★ 실제 발송과 억제를 **갈라서** 센다. 합쳐 세면 보내지도 않은 건이
@@ -97,86 +95,20 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <Card
-        title="LLM 비용"
-        note={`이번 달(${monthKey}) 실호출 기준. 실링에 닿으면 호출을 멈추고 다음 달로 이월한다.`}
-      >
-        {!cost?.available && (
-          <p className="mb-3 rounded border border-amber-800/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">
-            ⚠ 비용을 읽지 못했다 — {cost?.reason ?? "서버 응답 없음"}
-            <br />
-            아래 숫자를 <strong>&ldquo;비용 0&rdquo;으로 읽지 마라.</strong>
-          </p>
-        )}
-        <div className="space-y-3">
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold tabular-nums">
-              {cost?.available ? `$${spent.toFixed(4)}` : "—"}
-            </span>
-            <span className="text-sm text-white">/ ${ceiling}</span>
-            {cost?.available && (
-              <span className="text-sm text-white">({usedPct.toFixed(1)}%)</span>
-            )}
-          </div>
-          <div className="h-3 overflow-hidden rounded bg-slate-800">
-            <div
-              className={usedPct >= 80 ? "h-full bg-amber-500" : "h-full bg-emerald-600"}
-              style={{ width: `${Math.min(usedPct, 100)}%` }}
-            />
-          </div>
-          <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <Row
-              label="이번 달 호출"
-              value={cost?.available ? `${cost.monthCalls}건` : "—"}
-            />
-            <Row
-              label="누적 호출(prod)"
-              value={cost?.available ? `${cost.totalCalls}건` : "—"}
-            />
-            <Row label="모델" value={String(constants.cost.model)} />
-            <Row
-              label="단가"
-              value={`$${constants.cost.input_per_mtok}/$${constants.cost.output_per_mtok} per Mtok`}
-            />
-            <Row
-              label="입력 토큰 예산"
-              value={`${Number(constants.cost.input_token_budget).toLocaleString("ko-KR")}`}
-              hint="초과 시 호출 안 함"
-            />
-          </div>
-          <div className="mt-4 rounded border border-sky-800/70 bg-sky-950/30 p-3">
-            <p className="text-xs text-sky-200">다음 달({cost?.nextMonthKey ?? "—"}) 예측</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-white">
-              {cost?.available && cost.nextMonthForecastUsd != null
-                ? `$${cost.nextMonthForecastUsd.toFixed(4)}`
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-white">
-              {cost?.forecastBasis ?? "예측할 실호출 이력이 없다."}
-              {" · 실제 배치 규모에 따라 달라질 수 있다."}
-            </p>
-          </div>
-
-          <div className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold text-white">월별 실호출 비용 · 최근 12개월</h3>
-            {cost?.available && cost.months.length > 0 ? (
-              <div className="overflow-hidden rounded border border-slate-800">
-                {cost.months.map((item) => (
-                  <div key={item.monthKey}
-                       className="grid grid-cols-3 border-b border-slate-800/70 px-3 py-2 text-sm last:border-b-0">
-                    <span className="text-white">{item.monthKey}</span>
-                    <span className="text-right font-mono tabular-nums text-white">
-                      ${item.spentUsd.toFixed(4)}
-                    </span>
-                    <span className="text-right text-white">{item.calls}건</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-white">월별 비용 기록이 없다.</p>
-            )}
-          </div>
+      <Card title="분석 실행·비용" note="ChatGPT Pro로 로그인한 Codex가 작성·검수합니다.">
+        <div className="grid gap-x-6 sm:grid-cols-2">
+          <Row label="모델" value={constants.pro_analysis.model} />
+          <Row label="추가 API 사용" value="없음" />
+          <Row label="추가 크레딧 자동 구매" value="사용 안 함" />
+          <Row label="사용량 한도 도달" value="저장 후 갱신 시각까지 대기" />
+          <Row label="변동 지표" value="한국 평일 16시 · 공휴일 제외" />
+          <Row label="해설·보고서" value="분석 버튼 요청 시" />
         </div>
+        <p className="mt-3 text-sm">Pro 구독료와 저장소·호스팅·PC 전기료는 별도입니다. Pro 포함 사용량은 유한하며 다른 Codex 작업과 공유합니다.</p>
+        <details className="mt-4 text-sm">
+          <summary className="cursor-pointer">이전 API 사용 비용 기록</summary>
+          <p className="mt-2">{cost?.available ? `${monthKey} $${spent.toFixed(4)} · 누적 ${cost.totalCalls}건` : "이전 비용 기록을 읽지 못했습니다."}</p>
+        </details>
       </Card>
 
       <Card title="발송 이력" note="같은 (종목, 분기, 종류)는 두 번 나가지 않는다.">

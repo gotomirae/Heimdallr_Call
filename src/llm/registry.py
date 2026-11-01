@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from src.config.constants import ANALYSIS_LLM_PROVIDER, ANALYSIS_MODEL
+from src.config.constants import ANALYSIS_LLM_PROVIDER, ANALYSIS_MODEL, CODEX_ANALYSIS_MODEL
 from src.llm.provider import StructuredLLMProvider
 from src.llm.providers.anthropic import AnthropicProvider
 from src.llm.providers.openai import OpenAIProvider
@@ -15,12 +15,8 @@ def resolve_provider(
     model: str | None = None,
 ) -> tuple[StructuredLLMProvider, str]:
     selected = (provider_name or ANALYSIS_LLM_PROVIDER).strip().lower()
-    if selected == "anthropic":
-        return AnthropicProvider(), model or ANALYSIS_MODEL
-    if selected == "openai":
-        # 모델 alias/snapshot은 운영자가 같은 replay 평가 후 명시한다. 최신 모델을
-        # 추측해 자동 선택하면 비용과 출력이 예고 없이 바뀐다.
-        return OpenAIProvider(), model or require_env("OPENAI_ANALYSIS_MODEL")
-    raise ValueError(
-        f"지원하지 않는 ANALYSIS_LLM_PROVIDER={selected!r}; anthropic 또는 openai만 가능"
-    )
+    if selected == "codex_subscription":
+        from src.llm.providers.codex_subscription import CodexSubscriptionProvider
+        return CodexSubscriptionProvider(), model or CODEX_ANALYSIS_MODEL
+    # ADR50: 명시적 provider 인자로도 유료 API를 되살리지 않는다.
+    raise ValueError("API_DISABLED_PRO_SUBSCRIPTION_ONLY")

@@ -942,6 +942,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           quarter={quarter}
           hasAnalysis={!analysis.isEmpty}
           analyzedAt={successfulAnalysisAt}
+          needsUpdate={!!successfulAnalysisAt && disclosures.some(row => !!row.disclosed_at && row.disclosed_at > String(analysisMeta?.input_built_at ?? successfulAnalysisAt))}
         />}
         <div className="mb-4 rounded border border-violet-800/70 p-3">
           <h3 className="font-bold text-violet-200">🧭 이전 분석과 비교</h3>

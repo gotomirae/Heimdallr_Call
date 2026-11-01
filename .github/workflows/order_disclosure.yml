@@ -1,21 +1,8 @@
-# PRD Ref: §9.1-3 · §10 — 전 종목 공시 수주 자료 점진 수집
+# PRD Ref: §7/10 · ADR50 — Pro 전용·거래일16시, 자동 모델 호출 없음
 name: order_disclosure
-
-on:
-  schedule:
-    - cron: "37 17 * * 1-5" # 평일 02:37 KST, 다른 야간 작업과 분리
-  workflow_dispatch:
-    inputs:
-      full_backfill:
-        description: "전체 과거 목록 발견 후 중복 없는 4개 작업으로 원문 백필"
-        required: false
-        type: boolean
-        default: false
-
 concurrency:
   group: order-disclosure
   cancel-in-progress: false
-
 jobs:
   mode:
     runs-on: ubuntu-latest
@@ -23,57 +10,55 @@ jobs:
     outputs:
       full: ${{ steps.mode.outputs.full }}
     steps:
-      - id: mode
-        env:
-          FULL_BACKFILL: ${{ inputs.full_backfill || false }}
-        run: echo "full=$FULL_BACKFILL" >> "$GITHUB_OUTPUT"
-
+    - id: mode
+      env:
+        FULL_BACKFILL: ${{ inputs.full_backfill || false }}
+      run: echo "full=$FULL_BACKFILL" >> "$GITHUB_OUTPUT"
+    if: ${{ false }}
   collect:
     needs: mode
-    if: ${{ needs.mode.outputs.full != 'true' }}
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-      - name: 과거 정기보고서 목록 점진 발견
-        run: python -m src.collectors.order_history_run --save
-      - name: 전 종목 최신 정기보고서 수주 원문 점진 수집
-        run: python -m src.collectors.excerpt_run --all-universe --limit 500 --max-seconds 1800 --save
-      - name: 단일판매·공급계약 수시공시 구조화
-        run: python -m src.collectors.order_contract_run --limit 300 --save
-      - name: 공식 IR 분기 수주·잔고 보완
-        run: python -m src.collectors.order_ir --save
-
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 과거 정기보고서 목록 점진 발견
+      run: python -m src.collectors.order_history_run --save
+    - name: 전 종목 최신 정기보고서 수주 원문 점진 수집
+      run: python -m src.collectors.excerpt_run --all-universe --limit 500 --max-seconds 1800 --save
+    - name: 단일판매·공급계약 수시공시 구조화
+      run: python -m src.collectors.order_contract_run --limit 300 --save
+    - name: 공식 IR 분기 수주·잔고 보완
+      run: python -m src.collectors.order_ir --save
   discover_all:
     needs: mode
-    if: ${{ needs.mode.outputs.full == 'true' }}
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-      - name: 미발견 기업 전체 과거 목록 조회
-        run: python -m src.collectors.order_history_run --limit 10000 --save
-
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 미발견 기업 전체 과거 목록 조회
+      run: python -m src.collectors.order_history_run --limit 10000 --save
   backfill:
     needs: discover_all
     runs-on: ubuntu-latest
@@ -82,65 +67,79 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        shard: [0, 1, 2, 3]
+        shard:
+        - 0
+        - 1
+        - 2
+        - 3
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-      - name: 기업별 독립 분할 원문 수집
-        run: >-
-          python -m src.collectors.excerpt_run --all-universe --limit 20000
-          --max-seconds 3600 --shard-index ${{ matrix.shard }} --shard-count 4 --save
-
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 기업별 독립 분할 원문 수집
+      run: python -m src.collectors.excerpt_run --all-universe --limit 20000 --max-seconds 3600 --shard-index ${{ matrix.shard
+        }} --shard-count 4 --save
+    if: ${{ false }}
   contracts:
-    needs: [mode, backfill]
-    if: ${{ always() && needs.mode.outputs.full == 'true' && needs.backfill.result != 'skipped' }}
+    needs:
+    - mode
+    - backfill
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-      - run: python -m src.collectors.order_contract_run --limit 10000 --save
-
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - run: python -m src.collectors.order_contract_run --limit 10000 --save
   company_audit:
-    needs: [collect, contracts]
-    if: ${{ always() && (needs.collect.result == 'success' || needs.contracts.result == 'success') }}
+    needs:
+    - collect
+    - contracts
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
-      - run: pip install -e .
-      - run: npm ci --ignore-scripts
-        working-directory: dashboard
-      - name: 수주기업 분류 후 최신 세 항목 확보·미확보 장부 갱신
-        run: python -m src.collectors.order_company --save
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: dashboard/package-lock.json
+    - run: pip install -e .
+    - run: npm ci --ignore-scripts
+      working-directory: dashboard
+    - name: 수주기업 분류 후 최신 세 항목 확보·미확보 장부 갱신
+      run: python -m src.collectors.order_company --save
+'on':
+  workflow_dispatch:
+    inputs:
+      full_backfill:
+        description: 전체 과거 목록 발견 후 중복 없는 4개 작업으로 원문 백필
+        required: false
+        type: boolean
+        default: false

@@ -229,23 +229,16 @@ def test_llm_workflows_pass_budget_env(path: Path):
         )
 
 
-def test_budget_env_guard_actually_catches_it():
-    """★ 검사기를 **반드시 걸려야 하는 입력**으로 먼저 검증한다(T54).
-
-    `_llm_workflows()`가 빈 목록을 주면 parametrize가 0건이 되어
-    **아무것도 검사하지 않고 통과**한다 — 가장 위험한 실패 모양이다.
-    """
-    assert _llm_workflows(), "LLM 워크플로를 하나도 못 찾았다 — 검사기가 무력화됐다"
-
-    good = "    MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}\n"
-    bad = "    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}\n"
-    pattern = r"^\s*MONTHLY_COST_CEILING_USD:\s*\$\{\{\s*vars\.MONTHLY_COST_CEILING_USD\s*\}\}"
-    assert re.search(pattern, good, re.M)
-    assert not re.search(pattern, bad, re.M)
-    # secrets로 잘못 넘기는 형태도 걸러야 한다 — 상한은 비밀이 아니라 설정이다
-    assert not re.search(
-        pattern, "    MONTHLY_COST_CEILING_USD: ${{ secrets.MONTHLY_COST_CEILING_USD }}\n", re.M
-    )
+def test_pro_only_workflow_guard_is_not_vacuous():
+    from pathlib import Path
+    import yaml
+    paths = list((ROOT / ".github/workflows").glob("*.yml"))
+    scheduled = [p for p in paths if (yaml.safe_load(p.read_text(encoding="utf-8")).get("on", {}) or {}).get("schedule")]
+    assert len(scheduled) >= 4
+    for path in scheduled:
+        text = path.read_text(encoding="utf-8")
+        assert "ANTHROPIC_API_KEY" not in text and "OPENAI_API_KEY" not in text
+        assert "src.analysis.batch" not in text
 
 
 def test_workflow_comments_do_not_hardcode_budget_numbers():

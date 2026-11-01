@@ -707,7 +707,7 @@ export default function DiscoveryTable({
               </div>
             </div>
             {macroContext.refreshOverdue && (
-              <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">⚠️ 07:00 기준 미국 장·매크로 갱신 지연 또는 미국 휴장입니다. 표시된 거래일을 확인하세요.</p>
+              <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">⚠️ 매크로 지표 기준일을 확인하세요. 한국 평일 16시 갱신하며 공휴일에는 쉽니다.</p>
             )}
           </header>
 
@@ -716,8 +716,9 @@ export default function DiscoveryTable({
               <article className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-xl" aria-hidden="true">🌡️</span>
-                  <h3 className="font-extrabold text-emerald-200">오늘의 시장 온도</h3>
+                  <h3 className="font-extrabold text-emerald-200">저장된 시장 해설</h3>
                 </div>
+                <p className="mb-2 text-xs">해설 기준 {macroContext.commentaryCheckedAt ?? macroContext.checkedAt} · 새 해설은 상단 분석 메뉴에서 요청할 수 있습니다.</p>
                 <div className="grid gap-2 text-sm leading-6 text-white lg:grid-cols-2">{macroContext.summary.current.split("\n").filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>
               </article>
               <article className="rounded-xl border border-violet-500/30 bg-violet-950/20 p-4">

@@ -63,6 +63,7 @@ export interface MacroEvent {
 export interface MacroContext {
   source: string;
   checkedAt: string;
+  commentaryCheckedAt?: string;
   marketDate: string;
   refreshOverdue?: boolean;
   items: MacroItem[];

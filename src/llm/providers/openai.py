@@ -21,6 +21,8 @@ class OpenAIProvider:
         self._max_retries = max_retries
 
     def _client(self):
+        if self._provided_client is None:
+            raise RuntimeError("API_DISABLED_PRO_SUBSCRIPTION_ONLY")
         if self._provided_client is not None:
             return self._provided_client
         from openai import OpenAI

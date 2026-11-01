@@ -1,44 +1,28 @@
-# PRD Ref: §9, §10 — 미국 07:00·한국 16:00 완료 거래일 자료 갱신
+# PRD Ref: §7/10 · ADR50 — Pro 전용·거래일16시, 자동 모델 호출 없음
 name: macro_daily
-
-on:
-  schedule:
-    - cron: "45 21 * * *"   # 06:45 KST 사전 갱신 — 겨울 미국 장마감+45분 이후
-    - cron: "0,15,30 22 * * *" # 07:00 기준 확인·07:15/07:30 지연 재시도
-    - cron: "0,30 23 * * *" # 08:00/08:30 KST 공급자 지연 재시도
-    - cron: "0 0 * * *"     # 09:00 KST 마지막 안전 재시도
-    - cron: "10,25,40 7 * * 1-5" # 16:10/16:25/16:40 KST 한국 정규장 종가 갱신
-  workflow_dispatch:
-
 permissions:
   contents: write
-
 concurrency:
   group: macro-daily
   cancel-in-progress: false
-
 jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: main
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-      - run: python -m src.collectors.us_macro_daily --write
-      - name: Publish verified snapshot
-        run: |
-          if git diff --quiet -- dashboard/lib/macro-daily.json; then
-            echo "Same KST date and US market session; no update."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dashboard/lib/macro-daily.json
-          git commit -m "chore: refresh US macro snapshot"
-          git push origin HEAD:main
+    - uses: actions/checkout@v7
+      with:
+        ref: main
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - run: python -m src.collectors.us_macro_daily --write
+    - name: Publish verified snapshot
+      run: "if git diff --quiet -- dashboard/lib/macro-daily.json; then\n  echo \"Same KST date and US market session; no\
+        \ update.\"\n  exit 0\nfi\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\
+        \ngit add dashboard/lib/macro-daily.json\ngit commit -m \"chore: refresh US macro snapshot\"\ngit push origin HEAD:main\n"
+    if: ${{ false }}
+'on':
+  workflow_dispatch: null

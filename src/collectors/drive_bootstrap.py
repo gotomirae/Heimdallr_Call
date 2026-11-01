@@ -45,7 +45,24 @@ def source_cutoff(today: date) -> date:
 def source_date(path: Path) -> date | None:
     match = re.match(r'^(\d{6})_', path.name)
     if match:
-        return datetime.strptime(match[1], '%y%m%d').date()
+        try:
+            return datetime.strptime(match[1], '%y%m%d').date()
+        except ValueError:
+            return None
+    match = re.match(r'^(\d{4})[-.]?(\d{2})[-.]?(\d{2})(?:_|\s)', path.name)
+    if match:
+        try:
+            return date(*map(int, match.groups()))
+        except ValueError:
+            return None
+    dates = set()
+    for match in re.finditer(r'(?<!\d)(20\d{2})[-.]?(\d{2})[-.]?(\d{2})(?!\d)', path.stem):
+        try:
+            dates.add(date(*map(int, match.groups())))
+        except ValueError:
+            return None
+    if len(dates) == 1:
+        return dates.pop()
     # SC: Upload/sync modification time is not a publication date (ADR 21).
     return None
 
@@ -333,7 +350,10 @@ def bootstrap(job: dict, *, root: Path = DRIVE_ROOT, today: date | None = None) 
         folder, created = industry_folder(job['target_name'], root / '1. 산업분석', today)
         children = [p for p in folder.iterdir() if p.is_dir() and re.fullmatch(r'\d{6}', p.name)]
         latest = max(children, key=lambda p: p.name) if children else folder
-        return {'folder': str(folder), 'created': created, 'source_folder': str(latest),
+        return {'folder': str(folder), 'created': created, 'source_folder': str(folder),
+                'source_cutoff': source_cutoff(today).isoformat(), 'source_through': today.isoformat(),
+                'reused_sources': [str(p) for p in recent_sources(folder, today)],
+                'source_date_unverified': [str(p) for p in folder.rglob('*') if p.is_file() and source_date(p) is None],
                 'files': [], 'failures': [], 'industry_pdf_destination': str(latest)}
     industry_result = {}
     if job.get("industry"):
@@ -343,6 +363,8 @@ def bootstrap(job: dict, *, root: Path = DRIVE_ROOT, today: date | None = None) 
             children = [p for p in industry_path.iterdir() if p.is_dir() and re.fullmatch(r"\d{6}", p.name)]
             latest = max(children, key=lambda p: p.name) if children else industry_path
             industry_result = {"industry_folder": str(industry_path), "industry_created": industry_created,
+                               'industry_reused_sources': [str(p) for p in recent_sources(industry_path, today)],
+                               'industry_source_cutoff': source_cutoff(today).isoformat(),
                                "industry_pdf_destination": str(latest)}
         except Exception as exc:
             industry_result = {"industry_failure": type(exc).__name__}

@@ -146,7 +146,8 @@ export async function getUniverseForCode(code: string): Promise<UniverseRow | nu
     UNIVERSE_COLUMNS,
     (q, cols) => q.select(cols).eq("code", code).limit(1)
   );
-  return rows[0] ?? null;
+  const fixed = (await fixedSnapshot(code)).company_info;
+  return rows[0] ? {...rows[0], ...(fixed ?? {})} : null;
 }
 
 /**
@@ -265,18 +266,21 @@ export async function getScreenForCode(
   return { row: sorted[0] ?? null, history: sorted, dropped };
 }
 
+async function fixedSnapshot(code: string): Promise<{fundamentals?: FundamentalRow[]; excerpts?: DisclosureExcerptRow[]; company_info?: Partial<UniverseRow>}> {
+  const {analysisAdmin} = await import("./pro-analysis-server");
+  const admin = analysisAdmin();
+  if (!admin) throw new Error("고정 지표 저장소 연결 설정 없음");
+  const {data,error} = await admin.from("stock_analysis_snapshots").select("payload").eq("code",code).limit(1);
+  if (error) throw new Error("분석 지표 스냅샷 조회 실패");
+  const value = data?.[0]?.payload ?? {};
+  const pick = (row: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.map(key => [key, row[key]]));
+  return {fundamentals: (value.fundamentals ?? []).map((r: Record<string, unknown>) => pick(r, FUND_COLUMNS)) as unknown as FundamentalRow[],
+    excerpts: (value.excerpts ?? []).map((r: Record<string, unknown>) => pick(r, ["rcept_no","code","fiscal_year","fiscal_quarter","sections","excerpt_chars","full_chars"])) as unknown as DisclosureExcerptRow[],
+    company_info: value.company_info ? pick(value.company_info, ["name","industry","products"]) as Partial<UniverseRow> : undefined};
+}
 export async function getFundamentals(code: string): Promise<FundamentalRow[]> {
-  const { rows } = await selectWithOptionalColumns<FundamentalRow>(
-    "quarterly_fundamentals",
-    FUND_COLUMNS,
-    (q, cols) =>
-      q
-        .select(cols)
-        .eq("code", code)
-        .order("fiscal_year", { ascending: true })
-        .order("fiscal_quarter", { ascending: true })
-  );
-  return rows;
+  const rows = (await fixedSnapshot(code)).fundamentals ?? [];
+  return [...rows].sort((a,b) => a.fiscal_year-b.fiscal_year || a.fiscal_quarter-b.fiscal_quarter);
 }
 
 export async function getLatestPrice(code: string): Promise<PriceRow | null> {
@@ -400,34 +404,16 @@ export async function getWeeklyPrices(code: string): Promise<WeeklyPriceRow[]> {
 }
 
 /** 종목 상세용 정기보고서 발췌 — 평가 분기와 정확히 같은 행만 읽는다(T99). */
-export async function getDisclosureExcerpt(
-  code: string,
-  year: number,
-  quarter: number
-): Promise<DisclosureExcerptRow | null> {
-  try {
-    const { data, error } = await supabase
-      .from("disclosure_excerpts")
-      .select("rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars")
-      .eq("code", code)
-      .eq("fiscal_year", year)
-      .eq("fiscal_quarter", quarter)
-      .order("fetched_at", { ascending: false })
-      .limit(1);
-    if (error) return null;
-    return ((data as unknown as DisclosureExcerptRow[]) ?? [])[0] ?? null;
-  } catch {
-    return null;
-  }
+export async function getDisclosureExcerpt(code: string, year: number, quarter: number): Promise<DisclosureExcerptRow | null> {
+  const rows = (await fixedSnapshot(code)).excerpts ?? [];
+  return rows.find(row => row.fiscal_year === year && row.fiscal_quarter === quarter) ?? null;
 }
 
 /** 최근 정기보고서 수주 표 + 단일판매·공급계약 수시공시. */
 export async function getOrderDisclosureExcerpts(code: string): Promise<DisclosureExcerptRow[]> {
     // 조회 실패를 []로 삼키면 실제 저장된 수주를 '수치 없음'으로 표시한다.
     // 공통 재시도를 적용하고 최종 실패는 상세 페이지의 경고 경계로 전달한다.
-    const allRows = await selectAll<DisclosureExcerptRow>("disclosure_excerpts",
-      "rcept_no,code,fiscal_year,fiscal_quarter,sections,excerpt_chars,full_chars",
-      (q) => q.eq("code", code).order("rcept_no", { ascending: false }));
+    const allRows = (await fixedSnapshot(code)).excerpts ?? [];
     const seen = new Set<string>();
     return allRows.filter((row) => {
       if (row.sections && typeof row.sections === "object" &&

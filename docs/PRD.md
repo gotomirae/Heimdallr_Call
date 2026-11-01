@@ -1,5 +1,7 @@
 # Heimdallr_Call — PRD v2.1 (Final)
 
+> **2026-11-01 최신 구현 기준(배포 검증 진행 중)**: 분기실적 국내종목 자동/수동발굴. 매일변경지표는16시KST 자동갱신(토/일·한국공휴일제외),종목포함 고정지표/내용/해설/보고서는 `분석` 버튼으로만 갱신. 시즌2시간공시확인/정량발굴은유지하되새공시만으로AI보고서자동갱신하지않는다. 과거분기까지Pro로그인Codex 순차처리,OpenAI/Anthropic/Batch API사용안함·자동크레딧구매금지. [ADR50](decisions/050-trading-day-indicators-pro-only-analysis.md)이ADR49와관련이전규칙보다우선한다. SC3는 시즌 2시간 감지 + 처리 지연이다. 적용 실측은 2026-11-01-pro-only-implementation 세션을 따른다.
+
 > **이 문서 하나만으로 구현이 가능해야 한다.** Claude Code 세션 시작 시 이 파일을 먼저 읽힌다.
 > 버전: v2.1 · 작성일: 2026-08-13
 > 참고 프로젝트: `C:\Claude\dev\HermesCall` (코드 패턴 참고, 인프라·스키마는 완전 분리)
@@ -42,9 +44,9 @@ KOSPI/KOSDAQ 시가총액 1,000억원 이상 약 1,300종목을 대상으로, **
 |---|---|---|---|
 | SC1 | 유니버스 누락 0건 | KIND 원문 `<tr>` 수 대조 + 네이버 전수 스캔 교차 | 100% |
 | SC2 | 분기 수치 정확도 | 대형·중형·소형 3사 × 8분기를 DART 원문과 수동 대조 | 100% 일치 |
-| SC3 | 감지 → 알림 지연 | `disclosed_at` vs `notifications.sent_at` | 30분 이내 |
+| SC3 | 시즌 공시 감지 → 사실 알림 | `disclosed_at` vs `notifications.sent_at` | 2시간 + 처리 지연 |
 | SC4 | 중복 알림 | `notifications` UNIQUE 제약 위반 건수 | 0건 |
-| SC5 | 월 LLM 비용 | `cost_log` where env='prod' | $27 하드실링 이내, 동일 근거 재호출 0건 |
+| SC5 | 추가 LLM API 비용 | API 호출 차단·구독 실행 로그 | API $0, 추가 크레딧 자동 구매 0, 동일 근거 재호출 0 |
 | SC6 | **커버리지 편향 부재** | 분기 상위 20종목 중 `has_consensus=false` 비율 | ≥ 30% |
 | SC7 | **발굴 유효성** | ★등급 종목의 D+20 지수대비 초과수익 중앙값 | > 0% (시즌 2회 후 평가) |
 | SC8 | **기저효과 오탐** | `base_effect_warning=true`인데 ★로 분류된 비율 | < 10% |
@@ -594,6 +596,10 @@ CREATE TABLE cost_log (
 
 ## 7. LLM 분석
 
+현재: 기업·산업·시장·전략 및 과거 분기는 사용자가 분석 버튼으로 접수한 작업만 Pro 로그인 Codex로 작성→검수→저장한다. 신규 공시는 원자료·정량 선별과 갱신 필요 표시만 바꾼다. API/Batch/Claude 자동 단계는 비활성이다. 동일 종목·분기·근거는 재사용하며 명시적 강제 재분석은 별도 선택한다. 한도 대기와 실행·게시 체크포인트는 로컬 영속 장부로 재개한다.
+
+### 이전 API 설계 기록 (ADR50으로 비활성)
+
 자동 유료 대상은 **성장 가속 종목 중 투자 알림 등급 ★·○만**이다. 한 분기 분석은
 다음 세 번을 최대치로 삼되, 해당 이벤트와 실제 정보 변화가 있을 때만 호출한다(ADR 11).
 
@@ -974,7 +980,7 @@ Telegram 리서치 채널·게시물·첨부·재배포 링크는 분석 소스�
 
 Kairos는 Google Drive 자료, Notion 모니터링·직전 완성본, 공시·IR, 증권사 기업/산업 리포트, 신뢰 가능한 웹 원문을 조사하고 지정 Notion 위치에 작성한다. 기업은 `1. 기업 투자 분석 → 기업명 (코드·시장) → 날짜별 분석`, 산업은 `2. 산업 투자 분석 → 산업명 → 날짜별 분석` 구조를 쓴다. 기업 보고서는 [1_1. 기업 투자 분석 양식](https://app.notion.com/p/3d39c770aa6180b3b438d1fabe9db676), 산업 보고서는 [2_2. 산업 투자 분석 양식](https://app.notion.com/p/3e79c770aa6180e69466da9dd3d4abff)의 실행 시점 전체 본문과 순서를 기준으로 한다. 반복 분석에서 모든 대상에 필요한 일반 항목이 새로 확인되면 기존 항목과 과거 보고서를 보존한 채 해당 기본 양식과 Kairos 검증 규칙에 함께 추가하고, 일회성 대상 특화 항목은 해당 보고서에만 추가한다. 첫 화면에는 짧은 투자 판단과 핵심 수치 표를 둔다. 본문은 장문 서술 대신 결론·수치·성장 영향·다음 확인을 표와 짧은 항목으로 제시한다. 중요한 판단·위험은 의미에 맞는 색상·굵기·밑줄로 강조한다. 투자 판단, 시장 규모·성장률, 실적·가이던스·컨센서스, 계약·고객, 주가·밸류에이션, 촉매·위험·정책과 모든 핵심 표·그래프에는 독자가 실제 확인한 원문을 바로 열 수 있는 직접 링크를 같은 문장·행 또는 바로 아래 `📎 원문`에 둔다. 검색 결과·기관 홈페이지·재배포 목록은 원문 링크로 인정하지 않고 공시 본문·IR/PDF·공식 통계표·보고서의 해당 문서로 연결한다. 링크가 막히거나 회원 전용이면 열람 범위와 대체 공개 원문을 표시하고, 읽지 못한 자료를 근거로 쓰지 않는다. 분석과 관련성이 있으나 네이버 블로그·뉴스 등의 본문을 열지 못했거나 이미지·영상·문맥 부족으로 판단할 수 없는 자료는 누락하지 않고 `⚠️ 직접 확인 필요` 표에 자료 유형·제목/작성자·게시일시·확인 필요 사유·예상 관련성·직접 링크를 남긴다. 해당 내용은 사실·근거로 사용하지 않는다. 분석일 기준 최근 3개월 내 성장에 큰 영향을 준 뉴스·공시·이벤트는 날짜, 확정/전망, 영향, 원문 링크를 표시한다. 기업 보고서는 분기 실적·수주·수출·제품·현금흐름, 산업 보고서는 시장 규모·사이클·기술·수급·Peer·선행지표의 비교 가능한 숫자를 표와 그래프로 보여 준다. 그래프에는 기간·단위·출처·해석을 붙이고 원자료가 없으면 추정 그래프를 만들지 않는다. Peer Group 표와 보고서 본문에 실제로 언급하는 모든 상장사는 정식명·티커·시장으로 식별하고 종목명에 네이버증권 종목 상세 직접 링크를 건다. 국내 종목은 검증된 6자리 코드로 `https://finance.naver.com/item/main.naver?code={code}`를 만들고, 해외 종목은 네이버증권의 실제 종목 페이지를 확인했을 때만 연결한다. 전체 언급 종목은 중복을 제거한 `종목 바로가기` 표에도 모으며, 코드가 모호하면 링크를 추측하지 않고 확인 필요로 표시한다. 기업에는 네이버 증권·StockEasy 직접 링크와 공개 근거로 답한 주담 질문 5개 이상을 포함한다. 네이버 블로그 등 공개 투자자 자료는 정확한 원문 링크·작성일·검증 상태를 표시하고 관점·반대논거에 활용하되 핵심 수치는 1차 자료로 재검증한다. 작업 중 Telegram 접수 메시지를 최근자료 선별→산업 조사→기업 검증(기업 요청)→웹 보완→직전 분석 비교→Notion 작성→저장 검증 단계로 갱신한다. 저장 위치·양식·출처·완료 상태와 핵심 원문 링크의 실제 열림을 재조회한 후에만 원래 개인 채팅으로 Notion 링크와 바로 열기 버튼을 보낸다. PDF를 만들지 않는다. 작업은 `pending → working → sending → sent`를 기본으로 하고 산업 폴더 확인이 필요하면 `working → awaiting_input → working`을 거쳐 같은 ID를 재개한다. 거절은 `rejected`, 실패는 `failed`와 사용자용 원인을 기록한다. 중복 update ID는 재처리하지 않는다. 전송 결과가 불확실하면 `uncertain`으로 두고 자동 재전송하지 않는다. `pending` 깨우기는 claim이 없으면 5분 후 다시 시도한다. 로컬 컴퓨터와 Codex 앱이 꺼져 있으면 요청은 DB의 `pending`으로 보존된다.
 
-조사는 산업부터 시작하여 시장 정의·규모·성장률·현재 사이클·핵심 기술과 트렌드·수급·가격 결정·경쟁 구조·시장이 기대하는 시점을 숫자·도식·표로 설명한다. 기업 요청은 이어서 기업의 위치·실적·현금흐름·현재 가격 판단으로 연결한다. 산업 요청은 국내외 Peer, 투자 가능한 가치사슬 단계, 강세/기준/약세 시나리오와 반증 조건을 제시한다. [지정 산업분석 루트](https://drive.google.com/drive/folders/1JchyHt19WRQacnLIDO1daQd3HLvfb15s)에서 해당 산업 폴더의 **가장 최근 하위 폴더 하나**만 선택한다. 숫자 순서 접두어·공백·밑줄·하이픈만 제거한 정규화 이름이 요청 산업명과 다르면, 추정 선택하지 않고 Telegram 확인 메시지의 `예/아니오` 답장을 받는다. 답장 전에는 `awaiting_input`으로 멈추며, `예`는 같은 ID를 재개하고 `아니오`는 거절 원인을 회신한다. 산업 분석 후 해당 산업의 분석 대상 기업은 [지정 기업분석 루트](https://drive.google.com/drive/folders/17Kwbq5u7jiFb7jH14ddV0tI8zfyGcCsk)에서 기업별로 찾고 **최근 3개월 이내 발행 자료만** 사용한다. 같은 규칙은 기업 직접 요청에도 적용한다. Notion 참고 루트는 [1. 기업 투자 분석](https://app.notion.com/p/3d29c770aa6180469edceca9fb363529), [2. 산업 투자 분석](https://app.notion.com/p/3e69c770aa61808aa0e8e136d62dc59a), [2_1. 산업 & 종목](https://app.notion.com/p/36a9c770aa61809c95e5c1117f9779b5), [2. Invest_WiKi](https://app.notion.com/p/3999c770aa6180ecb514e74eb998e127)이다. SnowBall Heritage 노션 페이지(https://app.notion.com/p/3d29c770aa61804783f2db8f1c9ddf4a)는 SnowBall 앱 개발 요청 메모라 투자 분석 근거로 조회하지 않는다(2026-10-06 사용자 결정). 투자 논지·훼손조건·확신도는 JARVIS `GET /api/public/stock-context?entity=KR:005930`(헤더 `X-Jarvis-Token`)으로 읽는다. 기업 요청은 기업 루트의 동일 기업과 산업 루트의 관련 산업을, 산업 요청은 산업 루트의 동일 산업과 보고서에서 실제 비교·추천하는 기업을 기업 루트에서 찾아 본문을 읽는다. 본문에 명시된 분석일·발행일이 최근 3개월인 자료만 현재 판단에 반영하고, 그보다 오래된 직전 완성본은 변화 비교용 역사 기준으로만 사용하여 최신 원문으로 재검증한다. 단순 수정일로 자료일을 대체하지 않고, 작성 중·실패·이번 실행 페이지는 이전 분석으로 선택하지 않는다. 검색 실패를 최초 분석으로 처리하지 않으며, 관련 페이지가 없으면 관련 최신 Notion 자료 미확인을 기록한다. 결과 저장 부모는 참고 조회 루트 역할도 하지만 새 결과는 기존 대상별/날짜별 계층에 저장하며, 현재 페이지나 기존 Notion 주장을 독립 외부 근거로 자기 인용하지 않는다. 웹 조사는 발행·갱신일이 최근 3개월인 원문을 우선하며, 구조적 배경에 불가피한 구자료는 기준일과 한계를 표시한다.  채널 접근이 막히면 반복 우회하지 않고 실패 범위를 기록한 뒤 다른 공개 원문으로 분석을 끝낸다. 채널 접근 실패만으로 `working` 유지·Notion 게시 보류·Telegram 링크 발송 보류를 하지 않는다.
+조사는 산업부터 시작하여 시장 정의·규모·성장률·현재 사이클·핵심 기술과 트렌드·수급·가격 결정·경쟁 구조·시장이 기대하는 시점을 숫자·도식·표로 설명한다. 기업 요청은 이어서 기업의 위치·실적·현금흐름·현재 가격 판단으로 연결한다. 산업 요청은 국내외 Peer, 투자 가능한 가치사슬 단계, 강세/기준/약세 시나리오와 반증 조건을 제시한다. [지정 산업분석 루트](https://drive.google.com/drive/folders/1JchyHt19WRQacnLIDO1daQd3HLvfb15s)에서 해당 산업 폴더의 전체 하위 폴더에서 **분석일 기준 최근 달력상 3개월 이내 발행 자료 전체**를 선택한다. 숫자 순서 접두어·공백·밑줄·하이픈만 제거한 정규화 이름이 요청 산업명과 다르면, 추정 선택하지 않고 Telegram 확인 메시지의 `예/아니오` 답장을 받는다. 답장 전에는 `awaiting_input`으로 멈추며, `예`는 같은 ID를 재개하고 `아니오`는 거절 원인을 회신한다. 산업 분석 후 해당 산업의 분석 대상 기업은 [지정 기업분석 루트](https://drive.google.com/drive/folders/17Kwbq5u7jiFb7jH14ddV0tI8zfyGcCsk)에서 기업별로 찾고 **최근 3개월 이내 발행 자료만** 사용한다. 같은 규칙은 기업 직접 요청에도 적용한다. Notion 참고 루트는 [1. 기업 투자 분석](https://app.notion.com/p/3d29c770aa6180469edceca9fb363529), [2. 산업 투자 분석](https://app.notion.com/p/3e69c770aa61808aa0e8e136d62dc59a), [2_1. 산업 & 종목](https://app.notion.com/p/36a9c770aa61809c95e5c1117f9779b5), [2. Invest_WiKi](https://app.notion.com/p/3999c770aa6180ecb514e74eb998e127)이다. SnowBall Heritage 노션 페이지(https://app.notion.com/p/3d29c770aa61804783f2db8f1c9ddf4a)는 SnowBall 앱 개발 요청 메모라 투자 분석 근거로 조회하지 않는다(2026-10-06 사용자 결정). 투자 논지·훼손조건·확신도는 JARVIS `GET /api/public/stock-context?entity=KR:005930`(헤더 `X-Jarvis-Token`)으로 읽는다. 기업 요청은 기업 루트의 동일 기업과 산업 루트의 관련 산업을, 산업 요청은 산업 루트의 동일 산업과 보고서에서 실제 비교·추천하는 기업을 기업 루트에서 찾아 본문을 읽는다. 본문에 명시된 분석일·발행일이 최근 3개월인 자료만 현재 판단에 반영하고, 그보다 오래된 직전 완성본은 변화 비교용 역사 기준으로만 사용하여 최신 원문으로 재검증한다. 단순 수정일로 자료일을 대체하지 않고, 작성 중·실패·이번 실행 페이지는 이전 분석으로 선택하지 않는다. 검색 실패를 최초 분석으로 처리하지 않으며, 관련 페이지가 없으면 관련 최신 Notion 자료 미확인을 기록한다. 결과 저장 부모는 참고 조회 루트 역할도 하지만 새 결과는 기존 대상별/날짜별 계층에 저장하며, 현재 페이지나 기존 Notion 주장을 독립 외부 근거로 자기 인용하지 않는다. 웹 조사는 발행·갱신일이 최근 3개월인 원문을 우선하며, 구조적 배경에 불가피한 구자료는 기준일과 한계를 표시한다.  채널 접근이 막히면 반복 우회하지 않고 실패 범위를 기록한 뒤 다른 공개 원문으로 분석을 끝낸다. 채널 접근 실패만으로 `working` 유지·Notion 게시 보류·Telegram 링크 발송 보류를 하지 않는다.
 
 
 중요한 PDF·장문 근거는 `페이지 | 절·표 | 짧은 근거 문구 | 원문 위치 | 색상 표시 근거` 계약으로 저장한다. 실제 해당 페이지로 이동하는 것이 확인된 뷰어에만 페이지 fragment를 사용한다. Drive·Notion 등 페이지 직접 이동이 미지원이면 원문 링크와 페이지 번호에 더해 원본을 덮어쓰지 않은 색상 강조 PDF 사본과 해당 페이지 이미지를 보고서에 첨부한다. 강조 사본은 정확한 문구 검색 성공 시에만 만들고 원본·사본 SHA-256을 장부에 남긴다. 웹·Notion 원문은 수정하지 않으며 정확한 블록/게시물 링크와 짧은 색상 발췌로 대응한다.
@@ -1007,11 +1013,15 @@ DART 웹/SEC는 초당 1회 이하로 받으며 다운로드 실패·IR 부재�
 JARVIS Codex 분석이 sent로 전환되면 같은 트랜잭션의 트리거가 mode=analysis를 자동 접수한다. Telegram 직접 요청은 Codex 분석만 한다.
 기업 분석 sent 이후 별도 🎤 RPC가 mode=deck을 접수한다. 같은 요청의 analysis가 pending/working이면 deck claim을 보류한다.
 동시에 1건만 Claude Code 구독 로그인으로 기존 kairos-deck 스킬을 화면 없이 실행한다.
-analysis 90분/deck 120분 제한, 사용량 한도 30분 뒤 재시도·3회 초과 종료, 성공 JSON/이번 요청의 최신 결과 파일을 검증한다.
-Claude 인증 오류와 실행 실패 직후 로그인 소실도 같은 30분 재시도·상한을 적용한다. 실행 전 로그인 없음은 claim하지 않아 attempts를 소비하지 않는다. 로그인 장애가 30분 지속되면 기존 Heimdallr 전용 봇의 개인 채팅으로 KST 하루 1회 재로그인 안내를 보낸다. 로컬 SQLite에 장애 시작·발송 예약 날짜를 먼저 저장하여 재시작·전송 결과 불확실 시 중복하지 않는다. 구독 `CLAUDE_CODE_OAUTH_TOKEN`만 자식 환경에 추가 허용하고 API 키·외부 provider는 계속 차단한다. auth status가 OAuth 존재만으로 loggedIn을 표시할 수 있으므로 실패 후 실제 인증된 실행 전까지 장애 기록을 보존한다.
+analysis 90분/deck 120분 제한, 사용량 한도는 명시 reset 시각 또는 30분 뒤 재시도·실패 횟수 미소모, 성공 JSON/이번 요청의 최신 결과 파일을 검증한다.
+Claude 인증 오류와 실행 실패 직후 로그인 소실도 같은 30분 재시도·상한을 적용한다. 실행 전 로그인 없음은 claim하지 않아 attempts를 소비하지 않는다. 로그인 장애는 로컬 SQLite·worker 상태에만 기록하며 Telegram 재로그인 안내는 발송하지 않는다(2026-10-23 사용자 요청). 기존 발송 날짜는 이력으로 보존한다. 구독 `CLAUDE_CODE_OAUTH_TOKEN`만 자식 환경에 추가 허용하고 API 키·외부 provider는 계속 차단한다. auth status가 OAuth 존재만으로 loggedIn을 표시할 수 있으므로 실패 후 실제 인증된 실행 전까지 장애 기록을 보존한다.
 심층 분석 자체의 PDF 금지는 유지하고 별도 발표자료에만 PPTX/PDF/분석노트 생성·Notion 첨부를 허용한다.
 설치·RPC·Notion 재조회 증빙·실제 요청 검증 정본은 telegram_bridge/JARVIS.md, ADR 30이다.
 
+
+### 이벤트 기반 Codex 접수 전환 점검 (2026-10-11, M절)
+
+로컬 collector에서 pending/working 실제 작업이 있을 때만 사용량·공유 app-server 연결을 읽기 전용 점검한다. 빈 큐는 계정·서버·모델 조회0, 작업 중 점검10분 간격이다. 독립 app-server는 사용량 조회에만 사용하고 현재 데스크톱 대화의 동시 실행 판정으로 사용하지 않는다. 공유 소켓 Windows10050 장애로 전환 검증이 미완료이며 기존 heartbeat ACTIVE를 보존한다. 실제 기존 대화 호출·claim·Notion/Drive 도구 보존·한도 회복 재개 확인 전에는 자동 turn/start와 heartbeat 중단을 하지 않는다. 정본 JARVIS M절.
 
 ### 2_1·Invest_WiKi 조회와 내용 날짜 (2026-10-06, I절)
 
@@ -1027,13 +1037,34 @@ Claude 심층 분석은 Codex Notion과 실제 로컬 ID의 체크포인트·sou
 
 ### 8.7 J절: 대화를 열지 않는 자동 접수 (2026-10-07)
 
+- 큐 poll/status는 기존 SQLite 읽기 전용 조회다. 수신기의 전체 기업·산업 명부는 정상 조회 완료본을 1시간 캐시하고 만료 후 갱신한다. DB HTTP 402 egress 제한은 안전한 고정 코드 SUPABASE_EGRESS_QUOTA로 기록하며 복구 전 접수·업데이트 확인을 진행하지 않는다.
 - 전용 대화: `Kairos 자동 분석 전용` (`01a11689-cd7f-7fb0-bc8d-af71da3a7d4b`). 과거 대화는 참고용으로 보존하고 trigger를 새 대화로 변경했다.
-- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–24:00에 30분 간격. 과거 사용량 회복용 `kairos`는 PAUSED다.
+- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–23:00 매 정각(60분 간격). 과거 사용량 회복용 `kairos`는 PAUSED다.
 - configure-trigger의 `--mode heartbeat`는 수집기의 queue 발송·확인 후 재개 queue도 차단한다. 예약 턴만 접수·재개하여 중복 실행을 방지한다.
 - poll 한 번 → 빈 큐면 추가 도구 없이 종료. 작업이 있으면 모든 사용량 창 잔여 10% 이상 및 ordinaryUsageAllowed를 확인한다. working 우선, 없으면 가장 오래된 pending 한 건을 claim한다. 사용량 부족은 같은 상태·장부로 다음 실행까지 기다린다.
 - 실제 요청은 WORKFLOW와 Kairos 스킬에 따라 Notion 저장·재조회·deliver/fail까지 처리한다. source=jarvis는 Heimdallr 메시지 없이 sent→H절 analysis→JARVIS 알림으로 연결한다. Telegram 리서치는 제외한다.
 - PC·앱·로그인·네트워크 유지가 필요하다. 사용자가 전용 대화를 직접 열 필요는 없다. 유휴 heartbeat도 사용량이 발생할 수 있어 1회 실측 20,000 토큰 초과이면 30분으로 조정한다.
 - 선택 J3의 파일 status 변경 실험은 하지 않고 앱 API로 등록한 intake를 ACTIVE 유지한다. 앱 내부 SQLite는 수정하지 않는다.
+
+### 8.7 K. Telegram 선택형 Claude·기업/산업 PPT (2026-10-09)
+
+자동 실행에서는 Agent 도구를 차단하고 후처리·저장·재조회 완료를 기다린다. 작업 폴더 result.json을 먼저 저장한 후 최종 JSON을 반환한다. 종료 코드 0의 중간 보고는 sent의 근거가 아니며 RESULT_MISSING은 같은 요청의 검증된 세션으로 명시 복구한다.
+
+기업·산업 Notion의 사용자 추가 작성·검수 기준은 `telegram_bridge/analysis_presentation_policy.md`다. Codex·Claude 공통 필수 읽기이며 실제 양식과 원본 분석 지침을 보존한다. 발표형 완결 문장·숫자/날짜/원문 요약 박스·색상 강조·PER/F.PER 병기·동일 섹터 Peer·6개월 촉매·고객/밸류체인·네이버 주가 MA5/10/20/MACD/RSI·사업/산업 이미지와 `(확보 필요)` 표를 저장 후 확인한다.
+
+Telegram 기업·산업 Codex 분석 완료 메시지에 Notion 링크와 `🧠 Claude 심층 분석 요청` callback 버튼을 제공한다.
+실제 원 요청 소유자·허용 개인채팅·Heimdallr 봇·원 완료 message_id·source=telegram·sent를 대조한 클릭만 mode=analysis를 접수한다.
+Claude 완료 뒤 `🎤 PPT 발표자료 만들기` 버튼을 제공하며 같은 요청의 성공 Claude MD·Notion이 있을 때만 mode=deck을 접수한다.
+버튼을 누르지 않으면 후속 생성하지 않는다. JARVIS 기존 자동 analysis 트리거와 무발송 계약은 유지한다.
+기존 kairos_deck_requests의 (request_id,mode) 유일 인덱스와 단일 working worker를 재사용한다.
+재클릭/동시 클릭은 열린/완료 작업을 재사용하고 failed만 명시적 재요청할 수 있다. DB 실패 때 callback update를 소비하지 않는다.
+후속 Telegram 접수/실제 시작/완료/실패 알림은 명시 클릭 작업만 로컬 내구 장부로 추적한다. 접수와 시작은 별도 채팅 메시지이며 작업·단계별 한 번만 발송한다. 실제 claim 후 시작을 알리며, 알림 실패가 분석을 중단하지 않는다. 발송 전 예약, 결과 불확실 시 자동 재전송 금지.
+자료·지침은 JARVIS kairos-deck의 analysis-spec 및 Codex Notion·동일 로컬 ID 장부/sources·최근3개월 Drive/Notion·공식 웹을 그대로 사용한다. Telegram 리서치 제외.
+기업은 기존 20장 양식을 보존하고 산업은 같은 디자인에 presentation_workflow.md의 20장 산업 구성을 적용한다.
+실제 PPTX와 PDF 미리보기를 source Notion의 같은 기업/산업 부모에 첨부한다. 새 대상 페이지를 임의 생성하지 않는다.
+저장 스크립트는 source/parent/root를 조회해 유형별 지정 루트와 대조하고 첨부 뒤 전체 페이지 자식 블록을 페이징 재조회한다.
+요청 ID·기준시각·원문/부모·블록·PPTX/PDF 해시 증빙을 보존하고 실행기는 실제 Drive 파일과 재조회 해시까지 확인한 뒤 sent로 기록한다.
+기존 예약 listener/worker가 다음 실행부터 수정 코드를 사용한다. 기존 sent 자동 backfill·시험 운영 분석/Notion 페이지는 만들지 않는다.
 
 ### 8.8 🧭 JARVIS 진입 필수 조건 `entry_checks` · 🔵 K1 실적 돌파 (2026-10-01)
 
@@ -1124,6 +1155,10 @@ Fear & Greed × 나스닥100 비교는 기존 60거래일을 지난 12개월로 
 
 ## 10. 자동화 · 운영
 
+현재 예약은 한국 평일 16시 `universe_daily`(한국 공휴일 제외), 실적 시즌 2시간 `disclosure_poll`이다. 로컬 `HeimdallrProAnalysisRunner`가 1분마다 Python으로 승인 큐를 확인하며 빈 큐에는 모델을 호출하지 않는다. 기존 `kairos-intake`와 Windows DashboardAnalysis/KairosDeckRunner는 사용자 승인 후 중지한다. 이전 LLM/전략/매크로 별도 예약은 비활성이다. 정확한 운영 적용 여부는 세션 실측과 `adr50_schedules.sql`을 따른다.
+
+### 이전 예약 기록 (ADR50으로 대체)
+
 | 워크플로우 | 스케줄 (UTC) | 내용 |
 |---|---|---|
 | `universe_daily.yml` | `0 21 * * *` (06:00 KST) | KIND+네이버+corpCode 갱신, 시세·지수 및 전 유니버스 네이버 컨센서스/PER 수집, 정밀 재무 보충, PRI·점수 재계산 → 5거래일 창이 닫힌 ★·○의 최근 10일 리포트 웹검색·3단계 LLM |
@@ -1197,6 +1232,19 @@ Fear & Greed × 나스닥100 비교는 기존 60거래일을 지난 12개월로 
 ---
 
 ## 11. 비용 설계
+
+현재: 기존 ChatGPT Pro 구독 범위로만 분석하며 OpenAI/Anthropic/Batch API 비용과 추가 크레딧 자동 구매는 0으로 제한한다. 아래 예산은 실청구액이 아니라 비교 가정이다.
+
+| 항목 | 하루 4시간 PC | 24시간 PC |
+|---|---:|---:|
+| Supabase $25 × 1,400원 가정 | 35,000원/월 | 35,000원/월 |
+| PC 100W × 30일 × 300원/kWh | 3,600원/월 | 21,600원/월 |
+| 기존 Pro 제외 합계 | 38,600원/월 | 56,600원/월 |
+| Pro $200 전액 배분 가정 합계 | 318,600원/월 | 336,600원/월 |
+
+호스팅·Actions 무료 범위, 세금·환율·프로젝트 compute·스토리지·전송량 초과는 별도 확인한다. 실제 Pro 요금제로 대체해야 하며 구독 사용량과 처리 기간은 보장하지 않는다. 권장: 클라우드 16시 지표 작업 + 18시 이후 PC 분석, 과거 분기는 낮은 우선순위로 보충한다.
+
+### 이전 API 비용 기록 (ADR50으로 비활성)
 
 | 항목 | 단가 | 수량 | 분기 비용 |
 |---|---|---|---|
@@ -1481,3 +1529,14 @@ KIS_ALLOWED_PATHS         = (       # 주문 API 호출 금지 — 화이트리�
 - [Investor Attention from Internet Search Volume and Underreaction to Earnings Announcements in Korea, *Sustainability* 12(22):9358 (2020)](https://www.mdpi.com/2071-1050/12/22/9358)
 - [FnGuide 컨센서스 페이지](https://comp.fnguide.com/SVO2/asp/SVD_Consensus.asp?gicode=A005930)
 - 참고 코드: `C:\Claude\dev\HermesCall` — CLAUDE.md, src/screener/quant_filters.py, src/orchestrator/pipeline.py, src/universe/krx_listing.py, src/utils/cost_guard.py, src/db/schema.sql, dashboard/lib/
+
+
+### 8.7 L. 공통 근거 패키지·미확보 재조사·사용량 자동 재개 (2026-10-11)
+
+telegram_bridge/optimization_policy.md가 실행 정본이다. Codex facts/gaps/thesis/artifacts 패키지, Claude 공백별 검색·분석 시도 증거, 핵심 원문 독립 검증, 전체 양식 보존과 프로그램 게시·PPT 재사용을 적용한다. 산업 자료는 전체 폴더의 최근 달력상 3개월 발행 자료이며 날짜 미확인은 공백으로 넘긴다. 사용량은 실패로 종료하지 않고 체크포인트·같은 ID/세션에서 자동 재개한다. Telegram 주기별 중단/재개 알림은 중복/불확실 재전송을 차단하고 JARVIS는 무발송이다. 프로세스 종료 확인 없는 재실행과 sent 재처리는 금지한다.
+
+### 8.7 N. Codex 파일 전달·자동 Claude·최종 Notion 단일 게시 (2026-10-11)
+
+Telegram에는 Codex 시작·파일 인계 완료, Claude Code 실제 시작·최종 Notion 검수 완료를 각각 새 메시지로 알린다. Codex 완료 알림이 자동 Claude 큐 접수보다 먼저이며 최종 Claude 완료 메시지에만 PPT 작성 버튼을 표시한다. 재실행/불확실 발송을 중복 통지하지 않고 source=jarvis 무발송을 유지한다.
+
+사용자가 2번 방식으로 변경을 승인했다. 새 요청은 Codex 전체 양식 원고/표/차트/원문/템플릿 snapshot을 SHA-256과 함께 보존하고 자동 Claude로 인계한다. Codex 중간 Notion과 Claude 승인 버튼은 생략한다. Claude는 핵심 원문 독립 검증과 모든 gap 검색·분석을 시도하고 최초 판단/검증 판단/변경·유지 근거 비교 표를 남긴다. 최종 지정 Notion 전체 재조회·gap-review·comparison-review·실파일 검증 마커가 있어야 부모 요청을 sent로 기록하고 PPT 버튼을 표시한다. PPT는 이 버튼 클릭 후에만 작성한다. 인계/완료 장애는 같은 ID·체크포인트에서 복구하며 기존 완료 코세스·sent 요청을 재실행하지 않는다. 사용량 부족 알림/재설정 시각 복구, 최근 달력상3개월 발행 자료, Telegram 리서치 제외와 JARVIS 무발송을 유지한다. 정본 `telegram_bridge/optimization_policy.md` N절·ADR48.
