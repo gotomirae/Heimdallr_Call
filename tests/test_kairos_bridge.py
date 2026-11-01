@@ -3,16 +3,93 @@
 
 from __future__ import annotations
 
+import sqlite3
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
+from src.db.supabase_client import service_error_code
 from telegram_bridge import bridge
+
+
+def test_poll_read_only_does_not_initialize_or_modify_queue(db):
+    insert_job(db)
+    before = bridge.STATE.read_bytes()
+    reader = bridge.connect(read_only=True)
+    try:
+        assert bridge.poll(reader)["jobs"][0]["id"] == 42
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            reader.execute("DELETE FROM jobs")
+    finally:
+        reader.close()
+    assert bridge.STATE.read_bytes() == before
+
+
+def test_read_only_missing_queue_does_not_create_empty_database(tmp_path, monkeypatch):
+    path = tmp_path / "missing" / "queue.sqlite3"
+    monkeypatch.setattr(bridge, "STATE", path)
+    with pytest.raises(sqlite3.OperationalError):
+        bridge.connect(read_only=True)
+    assert not path.parent.exists()
+
+
+def test_quota_error_is_actionable_without_exposing_raw_details():
+    from postgrest.exceptions import APIError
+
+    error = APIError({"message": "JSON could not be generated", "code": 402,
+                      "hint": "details", "details": "exceed_egress_quota secret-value"})
+    assert service_error_code(error) == "SUPABASE_EGRESS_QUOTA"
+    other = APIError({"message": "secret-value", "code": "401", "details": "secret-value",
+                      "hint": "secret-value"})
+    assert service_error_code(other) == "APIError"
+
+
+def test_listener_reuses_complete_catalog_and_refreshes_expired_cache(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    import json
+    from telegram_bridge import listener_once
+
+    monkeypatch.setattr(listener_once, "CATALOG", tmp_path / "catalog.json")
+    fetch = Mock(return_value=({"005930": "삼성전자"}, {"반도체"}))
+    monkeypatch.setattr(listener_once, "load_catalogs", fetch)
+    for _ in range(60):
+        assert listener_once.load_listener_catalogs() == ({"005930": "삼성전자"}, {"반도체"})
+    assert fetch.call_count == 1
+    cache = json.loads(listener_once.CATALOG.read_text(encoding="utf-8"))
+    cache["checked_at"] = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    listener_once.CATALOG.write_text(json.dumps(cache), encoding="utf-8")
+    fetch.side_effect = RuntimeError("DB unavailable")
+    with pytest.raises(RuntimeError, match="DB unavailable"):
+        listener_once.load_listener_catalogs()
+    assert fetch.call_count == 2
+
+
+def test_listener_database_failure_does_not_consume_telegram_updates(tmp_path, monkeypatch):
+    from postgrest.exceptions import APIError
+    from telegram_bridge import listener_once
+    import json
+
+    monkeypatch.setattr(listener_once, "HEALTH", tmp_path / "health.json")
+    monkeypatch.setattr(listener_once, "TelegramClient", lambda: SimpleNamespace(token="test"))
+    monkeypatch.setattr(listener_once, "bot_id_of", lambda _: listener_once.HEIMDALLR_BOT_ID)
+    monkeypatch.setattr(listener_once, "allowed_chats", lambda: {"111"})
+    error = APIError({"message": "restricted", "code": 402, "hint": "",
+                      "details": "exceed_egress_quota"})
+    monkeypatch.setattr(listener_once, "load_listener_catalogs", Mock(side_effect=error))
+    receive = Mock()
+    monkeypatch.setattr(listener_once, "poll_once", receive)
+    assert listener_once.main() == 1
+    receive.assert_not_called()
+    assert json.loads(listener_once.HEALTH.read_text())["last_error"] == "SUPABASE_EGRESS_QUOTA"
 
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
+    from src.notify import listen
+    from telegram_bridge import usage_notices
+    monkeypatch.setattr(listen, "allowed_chats", lambda: {"111"})
+    monkeypatch.setattr(usage_notices, "STATE", tmp_path / "usage.sqlite3")
     monkeypatch.setattr(bridge, "STATE", tmp_path / "queue.sqlite3")
     connection = bridge.connect()
     yield connection
@@ -74,44 +151,12 @@ def test_bridge_refuses_a_different_bot(monkeypatch):
         bridge.verify_bot()
 
 
-def test_wake_once_and_claim(db, monkeypatch):
+def test_python_dispatch_does_not_wake_a_model_and_preserves_claim(db, monkeypatch):
     insert_job(db)
-    bridge.configure_trigger(db, "01a0b3d1-390f-7301-bd23-be3bdcda4329")
-    monkeypatch.setattr(bridge, "find_codex", lambda: "codex.exe")
-    called = []
-
-    def run(args, **kwargs):
-        called.append(args)
-        return SimpleNamespace(returncode=0)
-
-    monkeypatch.setattr(bridge.subprocess, "run", run)
-    assert bridge.wake_pending(db)["status"] == "queued"
-    assert bridge.wake_pending(db)["status"] == "already_queued"
-    assert db.execute("SELECT wake_sent_at FROM jobs WHERE id=42").fetchone()[0]
-    assert len(called) == 1 and "$kairos" in called[0][-1]
-    assert "기존 `kairos`는 PAUSED" in called[0][-1]
-    assert "삼성전자" not in called[0][-1]  # 원문은 명령행에 넣지 않는다.
-    monkeypatch.setattr(bridge, "change_remote", lambda *a, **k: True)
-    query = Mock()
-    query.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
-    remote = Mock()
-    remote.table.return_value = query
-    monkeypatch.setattr(bridge, "get_client", lambda: remote)
-    claimed = bridge.claim(db, 42)
-    assert claimed["status"] == "claimed"
-    checkpoint = bridge.checkpoint_path(42)
-    assert checkpoint.exists()
-    checkpoint_text = checkpoint.read_text(encoding="utf-8")
-    assert "005930" in checkpoint_text
-    assert "공식 원문(공시·IR·증권사·공공 통계)" in checkpoint_text
-    assert "페이지 단위 근거·강조 사본" in checkpoint_text
-    assert "직접 확인 필요 외부 자료·링크" in checkpoint_text
-    assert "언급 종목 네이버증권 링크 검증" in checkpoint_text
-    checkpoint.write_text("진행 중 원고와 출처", encoding="utf-8")
-    assert bridge.ensure_checkpoint(db, 42) == checkpoint
-    assert checkpoint.read_text(encoding="utf-8") == "진행 중 원고와 출처"
-    assert bridge.poll(db)["jobs"][0]["checkpoint"] == str(checkpoint)
-    assert bridge.claim(db, 42)["status"] == "not_claimed"
+    monkeypatch.setattr(bridge, "find_codex", lambda: pytest.fail("Python dispatch must not wake an app model"))
+    assert bridge.wake_pending(db)=={"status":"python_queue","model_calls":0}
+    assert bridge.wake_pending(db)=={"status":"python_queue","model_calls":0}
+    assert db.execute("SELECT status FROM jobs WHERE id=42").fetchone()[0]=="pending"
 
 
 def test_reconfiguring_trigger_requeues_pending_and_reports_freshness(db):
@@ -135,20 +180,11 @@ def test_reconfiguring_trigger_requeues_pending_and_reports_freshness(db):
     assert status["trigger_thread_updated_at"] == second["configured_at"]
 
 
-def test_unclaimed_wake_retries_after_five_minutes(db, monkeypatch):
+def test_unclaimed_request_is_preserved_without_model_heartbeat(db, monkeypatch):
     insert_job(db)
-    bridge.configure_trigger(db, "01a0b3d1-390f-7301-bd23-be3bdcda4329")
-    monkeypatch.setattr(bridge, "find_codex", lambda: "codex.exe")
-    calls = []
-    monkeypatch.setattr(bridge.subprocess, "run",
-                        lambda *a, **k: calls.append(a) or SimpleNamespace(returncode=0))
-    assert bridge.wake_pending(db)["status"] == "queued"
-    assert bridge.wake_pending(db)["status"] == "already_queued"
-    with db:
-        db.execute("UPDATE jobs SET wake_sent_at=? WHERE id=42",
-                   ("2020-01-01T00:00:00+00:00",))
-    assert bridge.wake_pending(db)["status"] == "requeued"
-    assert len(calls) == 2
+    monkeypatch.setattr(bridge.subprocess, "run", lambda *a, **k: pytest.fail("no heartbeat subprocess"))
+    assert bridge.wake_pending(db)["model_calls"]==0
+    assert db.execute("SELECT wake_sent_at FROM jobs WHERE id=42").fetchone()[0] is None
 
 
 def test_progress_edits_existing_receipt_once(db, monkeypatch):
@@ -328,9 +364,9 @@ def test_confirmed_folder_sync_requeues_same_job(db, monkeypatch):
         bridge.subprocess, "run",
         lambda args, **kwargs: calls.append(args) or SimpleNamespace(returncode=0),
     )
-    assert bridge.wake_pending(db)["status"] == "resumed"
-    assert "선택을 사용자가 확인" in calls[0][-1]
-    assert db.execute("SELECT resume_requested FROM jobs WHERE id=43").fetchone()[0] == 0
+    assert bridge.wake_pending(db)["status"] == "python_queue"
+    assert calls == []
+    assert db.execute("SELECT resume_requested FROM jobs WHERE id=43").fetchone()[0] == 1
 
 
 def test_heartbeat_intake_never_queues_pending_or_resume(db, monkeypatch):
@@ -340,11 +376,24 @@ def test_heartbeat_intake_never_queues_pending_or_resume(db, monkeypatch):
     def forbidden(*args, **kwargs):
         pytest.fail("heartbeat must not send queue messages")
     monkeypatch.setattr(bridge, "find_codex", forbidden)
-    assert bridge.wake_pending(db) == {"status": "heartbeat"}
+    assert bridge.wake_pending(db) == {"status": "python_queue", "model_calls": 0}
     with db:
         db.execute("UPDATE jobs SET status='working',resume_requested=1 WHERE id=42")
-    assert bridge.wake_pending(db) == {"status": "heartbeat"}
+    assert bridge.wake_pending(db) == {"status": "python_queue", "model_calls": 0}
     assert db.execute("SELECT resume_requested FROM jobs WHERE id=42").fetchone()[0] == 1
+
+
+def test_shadow_readiness_failure_does_not_break_heartbeat_or_claim(db, monkeypatch):
+    from telegram_bridge import intake_readiness
+    insert_job(db)
+    bridge.configure_trigger(db, '01a11689-cd7f-7fb0-bc8d-af71da3a7d4b', 'heartbeat')
+    bridge.save_setting(db, 'intake_readiness_enabled', '1')
+    monkeypatch.setattr(bridge, 'find_codex', lambda: 'codex.exe')
+    def unavailable(*args, **kwargs):
+        raise RuntimeError('shared server unavailable')
+    monkeypatch.setattr(intake_readiness, 'inspect', unavailable)
+    assert bridge.wake_pending(db) == {'status': 'python_queue', 'model_calls': 0}
+    assert db.execute('SELECT status FROM jobs WHERE id=42').fetchone()[0] == 'pending'
 
 
 def test_poll_prioritizes_working_and_oldest_pending_with_negative_ids(db):

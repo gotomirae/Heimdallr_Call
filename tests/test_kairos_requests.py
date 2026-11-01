@@ -167,11 +167,11 @@ def test_telegram_update_sends_progress_receipt_without_short_report(monkeypatch
                         lambda update_id, msg_id: receipts.append((update_id, msg_id)))
     monkeypatch.setattr(listen, "confirm", lambda client, update_id: None)
     result = listen.poll_once(client, analyze=False)
-    assert queued == [123]
-    assert receipts == [(123, 77)]
-    assert result[0]["kairos"] == "접수"
-    assert "분석 접수" in client.send_message.call_args.args[0]
-    assert "30~90분" in client.send_message.call_args.args[0]
+    assert queued == []
+    assert receipts == []
+    assert result[0]["result"] == "분석 버튼 대기"
+    assert "분석을 눌러야" in client.send_message.call_args.args[0]
+    assert client.send_message.call_args.kwargs["reply_markup"]["inline_keyboard"][0][0]["text"] == "분석"
 
 
 def test_industry_name_beats_partial_company_matches_and_is_queued(monkeypatch):
@@ -192,9 +192,9 @@ def test_industry_name_beats_partial_company_matches_and_is_queued(monkeypatch):
         industries={"반도체"},
         update_id=124,
     )
-    assert outcome["result"] == "분석 접수"
-    assert queued == [AnalysisTarget("industry", "반도체")]
-    assert "반도체 산업 분석 접수" in client.send_message.call_args_list[0].args[0]
+    assert outcome["result"] == "분석 버튼 대기"
+    assert queued == []
+    assert "반도체" in client.send_message.call_args_list[0].args[0]
 
 
 def test_folder_confirmation_reply_is_consumed_before_new_analysis(monkeypatch):
@@ -277,6 +277,12 @@ def test_receipt_send_failure_keeps_update_for_retry(monkeypatch):
     monkeypatch.setattr(listen, "confirm", lambda *a: confirms.append(a))
     assert "발송 실패" in listen.poll_once(client, analyze=False)[0]["result"]
     assert confirms == []
-    assert listen.poll_once(client, analyze=False)[0]["result"] == "분석 접수"
-    assert receipts == [(123, 78)]
+    assert listen.poll_once(client, analyze=False)[0]["result"] == "분석 버튼 대기"
+    assert receipts == []
     assert len(confirms) == 1
+
+
+@pytest.fixture(autouse=True)
+def isolated_analysis_confirmation_store(tmp_path, monkeypatch):
+    import src.notify.analysis_confirmation as confirmation
+    monkeypatch.setattr(confirmation, "STATE", tmp_path / "confirmations.sqlite3")

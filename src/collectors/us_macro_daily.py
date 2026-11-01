@@ -520,11 +520,21 @@ def main() -> int:
     parser.add_argument("--write", action="store_true", help="검증 성공 시 대시보드 JSON 갱신")
     parser.add_argument("--force", action="store_true", help="같은 날 출처 선택 수정 시 재생성")
     args = parser.parse_args()
+    from src.utils.operating_calendar import indicators_due, KST
+    if not indicators_due(datetime.now(KST)):
+        print("ADR50: 지표 갱신일/16시 조건 불충족 — 수집 없이 종료")
+        return 0
     context = collect()
     print(context["checkedAt"], context["marketDate"], context["sortMode"])
     print(context["summary"]["current"])
     if args.write:
         previous = json.loads(OUTPUT.read_text(encoding="utf-8")) if OUTPUT.exists() else {}
+        from src.config.constants import MACRO_DYNAMIC_FIELDS
+        # Static commentary stays frozen until a user's analysis request publishes a new report.
+        for key in list(context):
+            if key not in MACRO_DYNAMIC_FIELDS:
+                context[key] = previous.get(key)
+        context["commentaryCheckedAt"] = previous.get("commentaryCheckedAt", previous.get("checkedAt"))
         if should_write_snapshot(previous, context, force=args.force):
             OUTPUT.write_text(json.dumps(context, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"갱신: {OUTPUT}")

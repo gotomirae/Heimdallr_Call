@@ -59,7 +59,7 @@ export function parseInvestorFlows(body: unknown): NaverInvestorFlow[] {
   });
 }
 
-export async function getNaverInvestorFlows(code: string, fromDate?: string): Promise<NaverInvestorFlow[]> {
+export async function collectNaverInvestorFlows(code: string, fromDate?: string): Promise<NaverInvestorFlow[]> {
   if (!/^[0-9A-Z]{6}$/.test(code)) return [];
   const rows = new Map<string, NaverInvestorFlow>();
   let cursor = "";
@@ -270,7 +270,7 @@ async function wiseAnnual(code: string) {
 }
 
 /** 네이버 일봉. 같은 날짜 중복은 마지막 값만 남기고 일자 오름차순으로 돌려준다. */
-export async function getNaverDailyPrices(
+export async function collectNaverDailyPrices(
   code: string,
   years = 3
 ): Promise<NaverDailyPrice[]> {
@@ -319,7 +319,7 @@ export async function getNaverDailyPrices(
  * JSON의 `(E)` 열을 사용해 올해와 내년의 시간축을 정확히 맞춘다. 두 번째 추정
  * 연도가 없으면 저장 DB 값으로 꾸며내지 않고 null로 둔다.
  */
-export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnapshot | null> {
+export async function collectNaverLiveSnapshot(code: string): Promise<NaverLiveSnapshot | null> {
   if (!/^[0-9A-Z]{6}$/.test(code)) return null;
   const [quoteResult, annualResult, wiseResult] = await Promise.allSettled([
     naverJson(`${encodeURIComponent(code)}/integration`),
@@ -375,4 +375,26 @@ export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnaps
     fcfYear: annual?.current.year ?? null,
     fcf: annual?.current.fcf ?? null,
   };
+}
+
+
+// ADR50: render paths read the 16:00 snapshot; only the scheduled collector calls collectNaver*.
+async function storedIndicators(code: string): Promise<Record<string, any>> {
+  const {analysisAdmin} = await import("./pro-analysis-server");
+  const admin = analysisAdmin();
+  if (!admin) throw new Error("일일 지표 저장소 연결 설정 없음");
+  const {data,error} = await admin.from("daily_indicator_details").select("payload,checked_at").eq("code",code).limit(1);
+  if (error) throw new Error("16시 지표 스냅샷 조회 실패");
+  if (!data?.length) throw new Error("16시 지표 스냅샷 수집 대기");
+  return data[0].payload;
+}
+export async function getNaverDailyPrices(code: string, years = 3): Promise<NaverDailyPrice[]> {
+  return ((await storedIndicators(code)).prices ?? []) as NaverDailyPrice[];
+}
+export async function getNaverInvestorFlows(code: string, fromDate?: string): Promise<NaverInvestorFlow[]> {
+  const rows = ((await storedIndicators(code)).flows ?? []) as NaverInvestorFlow[];
+  return fromDate ? rows.filter(row => row.trade_date >= fromDate) : rows;
+}
+export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnapshot | null> {
+  return ((await storedIndicators(code)).quote ?? null) as NaverLiveSnapshot | null;
 }

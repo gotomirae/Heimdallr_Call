@@ -16,6 +16,7 @@ requires-python = ">=3.11"
 # 검증: python -m venv /tmp/x && /tmp/x/bin/pip install -e . 후 실제 경로 1회 실행.
 # ─────────────────────────────────────────────────────────────────────
 dependencies = [
+    "holidays>=0.60,<1",  # ADR50 한국 공휴일·대체/임시공휴일 달력
     "httpx>=0.27",
     "beautifulsoup4>=4.12",
     "lxml>=5.2",            # 주의: KIND 상장법인목록에는 쓰지 않는다(T5) — 다른 소스 전용

@@ -1,10 +1,42 @@
+# 最新 우선 지시 (ADR50 · 2026-11-01)
+
+이하 과거 Claude 필수 지시보다 ADR50이 우선한다. 이름/코드 입력은 분석 버튼을 제시하며 버튼클릭으로 접수한다. Codex가 전체원고 작성 후 complete-codex로 같은Pro구독의 Codex검수→Notion게시를 수행한다. Claude/API/Batch/추가크레딧자동구매는 금지한다. 기존 전체양식·최근3개월자료·gap조사·비교검수·Notion전체재조회·해시검증은 유지한다. 과거분기도Pro순차큐이며PPT는사용자요청시에만만든다.
+
 # Heimdallr Telegram → Kairos → Notion
 
-Claude 후속 analysis/deck의 인증 오류는 30분 후 같은 작업 ID로 재시도하며 기존 attempts 상한을 유지한다. 실행 전 로그인 없음은 claim하지 않는다. 로그인 장애가 30분 지속되면 Heimdallr 전용 봇의 개인 채팅으로 KST 하루 1회 `Claude 로그인 필요 — PowerShell claude auth login`을 안내한다. 선택 구독 setup-token은 ignored dotenv의 `CLAUDE_CODE_OAUTH_TOKEN`으로만 전달한다. API 키·외부 provider로 대체하지 않는다. `sent` 작업은 다시 pending으로 바꾸지 않는다.
+## N절 현재 기본 흐름 — 파일 전달·최종본 단일 게시
+
+Telegram 진행 알림은 각 요청의 Codex 시작 → Codex 완료 → Claude Code 접수/실제 시작 → Claude Code 완료 순서로 새 메시지를 보낸다. Codex 완료는 파일 인계 검증 후, Claude 완료는 최종 Notion 전체 재조회 후다. Claude 완료 메시지에 Notion 열기와 🎤 PPT 발표자료 만들기 버튼을 함께 표시한다. request/event별 발송 예약으로 중복/불확실 재전송을 차단하며 source=jarvis는 무발송이다.
+
+신규 요청: Codex 전체 분석 파일/원문/차트/템플릿 → `handoff` → `complete-codex ID --industry 산업명` → 자동 Claude 전체 검증·모든 gap 보완 → 최종 Notion 작성·전체 재조회 → Notion 링크와 🎤 PPT 버튼 → 클릭 시 PPTX/PDF 저장·첨부 검증. 아래 K절 선택형 Claude와 Codex Notion은 과거 요청 경로이며 신규 요청은 N절이 우선한다.
+
+필수 실행 정본은 `optimization_policy.md` N절과 `JARVIS.md`다. Codex는 중간 Notion을 만들지 않지만 실제 전체 양식과 기존 분석은 읽고 원고를 파일로 완성한다. 원고/템플릿/artifacts SHA-256을 대조하며 Claude는 원본을 덮어쓰지 않는다. Codex 최초 판단과 Claude 검증 이유를 최종본 비교 표·comparison_review_path에 남긴다. 모든 gap·실파일·최종 Notion 검수 통과 전에는 완료·PPT 버튼을 발송하지 않는다. 로컬 claude/원격 working-stage=claude로 인계 상태를 유지하고 같은 ID·세션·검증 마커에서 복구한다. 기존 완료 코세스와 과거 sent는 재처리하지 않는다.
+
+## 기업·산업 Notion 작성 공통 기준
+
+자동 Claude 실행은 백그라운드 Agent 도구를 차단한다. 후처리·Drive 파일 저장·Notion 전체 재조회가 끝난 다음 작업 폴더의 result.json을 저장하고 최종 결과 JSON을 반환해야 한다. CLI 종료 코드 0이어도 중간 진행 보고는 완료가 아니다. RESULT_MISSING으로 실패한 요청의 저장된 정상 CLI 응답에 유효한 session_id가 있으면 명시적 복구 시 그 요청의 세션만 재개하여 기존 페이지를 마무리한다. sent는 재개하지 않는다.
+
+완료 files에는 실제 개별 파일 경로만 기록한다. 그래프 폴더·이미지 개수 설명·와일드카드를 파일명으로 넣으면 DECK_FILE_MISSING이다. Claude는 저장한 결과를 worker의 validate_success로 직접 검증하고 통과한 뒤 반환한다. 복구 시 실제 파일·해시·Notion 전체 재조회를 확인하고 기존 실패 요청에만 조건부 완료 처리하며 원래 성공 요청을 다시 실행하지 않는다.
+
+사용량 중단 후 같은 Claude 요청을 재개할 때도 최신 공통 지침을 다시 읽고 기존 원고에 적용한다. 동일 요청의 사용량 오류 응답에 유효한 session_id가 있으면 `--resume`으로 그 세션만 이어받는다. 기존 원고·조사자료·같은 대상 Notion을 먼저 확인하고 보완하며 중복 생성하지 않는다. `You've hit your session limit`도 USAGE이며 Asia/Seoul의 명시적 재설정 시각이 있으면 그 시각까지 대기하여 재시도 횟수를 소모하지 않는다. 기존 attempts 상한은 유지한다.
+
+모든 Codex/Claude 분석은 작성 전 `telegram_bridge/analysis_presentation_policy.md`를 반드시 읽고 저장 후 전체 재조회로 검수한다. 2026-10-09 사용자 추가 지침이 기존 문체 규칙보다 우선한다. 기존 양식 순서와 원본 analysis-spec은 보존하며 PER·F.PER 병기·동일 섹터 Peer·6개월 촉매·고객/밸류체인·실제 색상과 박스·주가 보조지표·개요 이미지를 포함한다. 미확보 핵심은 `(확보 필요)`로 명시한다.
+
+## K절 Telegram 선택형 후속 분석·발표자료 (2026-10-09)
+
+ChatGPT/Codex 분석 → Notion 저장·재조회 → Telegram `🧠 Claude 심층 분석 요청` → 기존 Claude 구독 실행기 → 같은 기업/산업 부모의 Claude Notion·Drive MD → Telegram `🎤 PPT 발표자료 만들기` → 실제 PPTX·PDF 미리보기 → 같은 Notion 부모 첨부·전체 재조회 → 완료 링크.
+기업과 산업 모두 지원한다. 각 후속 단계는 사용자가 버튼을 클릭한 뒤에만 접수된다.
+동일 요청 ID의 `state/checkpoints/ID.md`, `state/sources/ID`를 Claude에 전달한다. 산업/기업 최근3개월 규칙·양식·Telegram 리서치 제외를 유지한다.
+callback은 원 요청 소유자·개인채팅·봇·완료 메시지를 대조한다. 열린/완료 후속 작업은 반복 클릭해도 재사용한다.
+`state/followups.sqlite3`는 클릭 작업별 알림 예약·실발송 message_id를 기록한다. 불확실 발송은 재전송하지 않는다.
+PPT 실행 정본은 `presentation_workflow.md`, 실제 Notion 저장/재조회는 `attach_presentation.py`다. 기업·산업 저장 루트와 실제 상위 페이지를 대조하고 PPTX/PDF 파일 해시와 블록을 재조회해야 완료다.
+기존 JARVIS source=jarvis 자동 analysis·Heimdallr 무발송은 변경하지 않는다. 새로운 자동화/시험 페이지/과거 sent 자동 접수는 없다.
+
+Claude 후속 analysis/deck의 인증 오류는 30분 후 같은 작업 ID로 재시도하며 기존 attempts 상한을 유지한다. 실행 전 로그인 없음은 claim하지 않는다. 로그인 장애는 로컬 SQLite·worker 상태에만 기록한다. 사용자 요청(2026-10-23)으로 Telegram 재로그인 안내는 발송하지 않는다. 선택 구독 setup-token은 ignored dotenv의 `CLAUDE_CODE_OAUTH_TOKEN`으로만 전달한다. API 키·외부 provider로 대체하지 않는다. `sent` 작업은 다시 pending으로 바꾸지 않는다.
 
 Windows의 `HeimdallrTelegramListener`만 Telegram `getUpdates`를 1분마다 호출한다. 인증된 개인 채팅에서 종목명·6자리 코드 또는 산업명을 단독으로 입력하면 접수·예상 시간 메시지를 보내고 `kairos_requests`에 Telegram update ID, `request_kind`, `target_name`으로 심층 분석 요청을 기록한다. 짧은 종목 요약은 보내지 않는다. 수정·전달·그룹·봇 경유 메시지와 문장형 질의는 심층 분석 요청이 아니다. `/status`는 최근 요청의 대상 유형·단계·실패 원인을 조회한다.
 
-Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 이 저장소의 로컬 SQLite 큐로 복사한다. 전용 대화 `Kairos 자동 분석 전용`의 `kairos-intake` heartbeat가 07:00–24:00 KST에 30분마다 큐를 확인하고 접수·재개한다. 사용자가 대화를 열 필요는 없다. heartbeat 모드에서는 `codex queue`를 호출하지 않는다. queue 모드는 이전 설치 호환용이며 무인 실행의 근거가 아니다. 이 수집기는 Telegram API를 폴링하지 않는다. 기존 `C:\Codex\Kairos` 봇·큐·미처리 작업은 건드리지 않는다.
+Windows의 `HeimdallrKairosCollector`는 Supabase의 `pending` 요청을 읽어 이 저장소의 로컬 SQLite 큐로 복사한다. 전용 대화 `Kairos 자동 분석 전용`의 `kairos-intake` heartbeat가 07:00–23:00 KST 매 정각(60분 간격)에 큐를 확인하고 접수·재개한다. 사용자가 대화를 열 필요는 없다. heartbeat 모드에서는 `codex queue`를 호출하지 않는다. queue 모드는 이전 설치 호환용이며 무인 실행의 근거가 아니다. 이 수집기는 Telegram API를 폴링하지 않는다. 기존 `C:\Codex\Kairos` 봇·큐·미처리 작업은 건드리지 않는다.
 
 산업 Drive 폴더는 분석 작업이 `ask-folder ID --json-stdin`으로 기록하고, `folder_name`·`folder_url`은 하나의 JSON 객체로 표준입력에 전달한다. Drive에서 읽은 폴더명을 shell 명령문에 직접 삽입하지 않는다. 숫자 접두어·공백·밑줄·하이픈만 제외한 정규화 이름이 요청 산업명과 같으면 바로 계속한다. 이름이 다르면 `awaiting_input`으로 멈추고 해당 Telegram 확인 메시지에 `예` 또는 `아니오`로 답장받는다. `예`는 같은 ID의 원고·체크포인트를 재개하고, `아니오`는 요청을 거절하며 이유를 회신한다. 확인 대기 중에는 다른 작업을 시작하지 않는다.
 
@@ -49,6 +81,11 @@ Peer Group 표와 본문에 실제로 언급된 모든 상장사는 종목명 �
 
 ## 운영 확인
 
+- 이벤트 기반 전환은 JARVIS M절의 읽기 전용 shadow 점검 단계다. 기존 collector는 실제 요청이 있을 때만 최대 10분 간격으로 연결·사용량을 검사한다. 빈 큐는 서버·모델 호출0이며 자동 Codex dispatch와 heartbeat 대체는 아직 활성화하지 않았다. Windows 공유 소켓 장애가 해소되고 실제 요청 시작·재개 및 커넥터 보존이 확인될 때까지 기존 intake를 유지한다.
+
+- `poll`·`status`는 기존 로컬 SQLite를 읽기 전용으로 열며 마이그레이션·UPDATE를 실행하지 않는다. 없는 큐를 빈 요청으로 생성하지 않는다.
+- 수신기 기업/산업 카탈로그는 정상 페이징 조회 후 1시간 로컬 캐시한다. 사전 검사 `--check`는 항상 새로 조회한다. 만료·불완전 캐시는 재조회하며 DB 장애 시 오래된 캐시로 접수하지 않는다.
+- `SUPABASE_EGRESS_QUOTA`는 운영 DB의 HTTP 402 `exceed_egress_quota`다. 계정 소유자가 서비스 제한을 해제해야 접수·claim이 재개된다. 토큰 교체·venv 재설치로 해결되지 않는다. 제한 중 Telegram 업데이트를 확인/소비하지 않으며 임의 로컬 요청·시험 페이지를 만들지 않는다.
 - `status`는 봇 ID와 로컬 큐 상태를 출력하며 토큰을 노출하지 않는다.
 - `poll`은 로컬 큐만 읽고 Telegram·Supabase 네트워크를 쓰지 않는다.
 - `checkpoint ID`는 `working` 작업의 장부만 만들며 기존 내용을 보존한다. `telegram_bridge/state/`는 Git에서 제외된다.
@@ -76,3 +113,8 @@ JARVIS source의 deliver는 sent 변경 트랜잭션에서 analysis 작업을 �
 ## Telegram 리서치 소스 제외 (2026-10-07)
 
 Telegram 리서치 채널·게시물·첨부·재배포 링크는 분석 소스에서 제외한다(2026-10-07 사용자 결정). 검색·인증을 요구하지 않고 과거 체크포인트·sources의 Telegram 자료도 분석 근거로 사용하지 않는다. 같은 보고서가 필요하면 공시·IR·증권사 등 원 발행기관에서 직접 확보한다.
+
+
+## L절 사용량 최적화·자료 공백·자동 재개 (2026-10-11)
+
+정본은 `optimization_policy.md`이며 기존 상충 규칙보다 우선한다. 새 claim은 handoff-v1 패키지를 만들고 deliver 전에 검사한다. Claude는 모든 gap를 직접 검색·분석 시도하고 gap-review 전체 커버리지 및 Notion 전체 재조회 proof를 검증한다. 산업/기업 모두 전체 하위 폴더에서 최근 달력상 3개월 발행 자료를 쓴다. 산업 PDF 보존 목적지는 기존 bootstrap이다. 사용량은 실패 상한과 분리하여 무기한 대기·동일 ID 자동 재개한다. Codex usage-wait/usage-resume, Claude USAGE pending 및 중단/재개 주기별 Telegram 알림, source=jarvis 무발송을 적용한다. 실제 프로세스가 살아 있거나 종료 확인 불가면 중복 재실행하지 않는다. 새 실행의 worker/CLI PID 종료가 확인되면 기존 세션을 이어서 재시도한다. 미완료 중간 보고 RESULT_MISSING은 기존 세션에서 기술 재시도 상한 안에서 보완한다. 기존 sent는 재접수하지 않는다.

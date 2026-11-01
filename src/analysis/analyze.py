@@ -591,7 +591,12 @@ def analyze(
         raise AnalysisError("출력·비용 상한은 양수여야 한다 — 생성 0회")
     if max_cost_usd is not None and web_search:
         raise AnalysisError("단건 하드캡 검증은 웹검색 없이 실행해야 한다 — 생성 0회")
-    if enforce_budget:
+    if provider is None:
+        provider, selected_model = resolve_provider(provider_name, model)
+    else:
+        selected_model = model or ANALYSIS_MODEL
+    subscription = provider.name == "codex_subscription"
+    if enforce_budget and not subscription:
         status = check_budget(env=env)
         if not status.allowed:
             raise BudgetExceeded(
@@ -599,14 +604,10 @@ def analyze(
                 f"${status.month_ceiling_usd} · 오늘 {status.today_count}/{status.daily_limit}"
             )
 
-    if provider is None:
-        provider, selected_model = resolve_provider(provider_name, model)
-    else:
-        selected_model = model or ANALYSIS_MODEL
-
     # 단가가 없는 모델은 유료 호출 전에 차단한다. 임의의 가격으로 비용 실링을
     # 계산하면 가드가 있어도 없는 것과 같다.
-    get_pricing(selected_model)
+    if not subscription:
+        get_pricing(selected_model)
     user_message = build_user_message(data)
     request = build_llm_request(
         data,
@@ -620,7 +621,7 @@ def analyze(
     #   쓰이지 않았다 — PRD가 "초과 시 호출하지 않는다"고 적어 둔 규칙이
     #   코드에는 없었다. 발췌를 싣기 시작했으므로 이제 진짜 방어가 필요하다.
     # ★ count_tokens는 무료이고 1초쯤 걸린다. 45초짜리 호출 앞에 붙일 만하다.
-    if token_budget or max_cost_usd is not None:
+    if not subscription and (token_budget or max_cost_usd is not None):
         tokens = provider.count_input_tokens(request)
         if token_budget and tokens > token_budget:
             raise AnalysisError(
@@ -637,7 +638,7 @@ def analyze(
                 raise BudgetExceeded("단건 최악비용이 월 잔여 예산을 넘는다 — 생성 0회")
 
     response = provider.generate_structured(request)
-    cost = record_usage(selected_model, response.usage, env=env)
+    cost = 0.0 if subscription else record_usage(selected_model, response.usage, env=env)
     return analysis_result_from_response(
         data,
         response,
@@ -953,6 +954,8 @@ def save(result: AnalysisResult) -> None:
     stage_history[stage] = completed_at
     stored_payload["_heimdallr"] = {
         **old_meta,
+        "pro_evidence_hash": stored_payload.pop("_pro_evidence_hash", old_meta.get("pro_evidence_hash")),
+        "input_built_at": stored_payload.pop("_pro_input_built_at", old_meta.get("input_built_at")),
         "analysis_stage": stage,
         "previous_analysis": result.previous_analysis,
         "stage_history": stage_history,

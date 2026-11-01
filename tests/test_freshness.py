@@ -371,18 +371,10 @@ def test_outcome_refresh_preserves_original_judgment_and_measured_return(monkeyp
     assert captured[0]["excess_d5"] == 10
 
 
-def test_refresh_workflows_cover_consensus_and_changed_analysis():
+def test_daily_refresh_keeps_consensus_but_no_automatic_report_generation():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    workflows = root / ".github" / "workflows"
-    daily = (workflows / "universe_daily.yml").read_text(encoding="utf-8")
+    daily = (root / ".github/workflows/universe_daily.yml").read_text(encoding="utf-8")
+    poll = (root / ".github/workflows/disclosure_poll.yml").read_text(encoding="utf-8")
     assert "src.collectors.consensus_run --save" in daily
-    assert daily.index("src.collectors.consensus_run") < daily.index("src.screener.run")
-    manual = (workflows / "llm_batch.yml").read_text(encoding="utf-8")
-    assert "schedule:" not in manual
-    assert "--notify-only" in manual
-    poll = (workflows / "disclosure_poll.yml").read_text(encoding="utf-8")
-    assert "--refresh-finalized --notify-only" in poll
-    assert "vars.SEASON_MODE" not in poll
-    assert 'cron: "*/30 0-14 * * *"' in poll
-    assert "--report-final --notify-only" in daily
+    assert "src.analysis.batch" not in daily and "src.analysis.batch" not in poll

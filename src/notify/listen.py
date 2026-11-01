@@ -128,7 +128,7 @@ def latest_analysis_status(chat_id: str) -> str:
                 stage = f"\n⚠️ 분석 시작 지연 · 자동 재시도 중\n최근 시도: {local['progress_updated_at']} (UTC)"
             elif local and local["progress_stage"] in bridge.STAGES:
                 stage = f"\n단계: {bridge.STAGES[local['progress_stage']]}\n최근 갱신: {local['progress_updated_at']} (UTC)"
-                if local["progress_updated_at"] and item["status"] == "working":
+                if local["progress_updated_at"] and item["status"] == "working" and local["progress_stage"] != 'claude':
                     last = datetime.fromisoformat(local["progress_updated_at"])
                     if datetime.now(timezone.utc) - last > timedelta(minutes=15):
                         stage += "\n⚠️ 15분 이상 단계 갱신 없음 · 사용량/연결 확인 필요"
@@ -311,7 +311,7 @@ def handle_message(
     if text.split()[0].lower() in {"/start", "/help"}:
         client.send_message(
             "🛡️ Heimdallr Call\n\n"
-            "기업명·종목명·6자리 종목코드 또는 산업명만 보내면 심층 분석을 접수합니다.\n"
+            "기업명·종목명·6자리 종목코드 또는 산업명을 보내고 분석 버튼을 누르면 심층 분석을 접수합니다.\n"
             "접수·조사·작성·검증 상태를 같은 메시지에 표시하고, 완료 후 Notion 링크를 보냅니다.\n\n"
             "예: 삼성전자 / 005930 / 반도체 / 전력인프라\n"
             "진행 확인: /status"
@@ -368,6 +368,8 @@ def handle_message(
         direct_industry_request(message, target, chats)
     ))
     if update_id is not None and direct and target is not None and is_direct:
+        from src.notify.analysis_confirmation import propose
+        return propose(client, update_id, message, target)
         try:
             is_new = enqueue(update_id, message, target)
         except Exception as exc:
@@ -431,6 +433,18 @@ def poll_once(
     results: list[dict] = []
     failed = False
     for upd in updates:
+        if upd.get('callback_query'):
+            from src.notify.analysis_confirmation import handle as handle_analysis_confirmation
+            from src.notify.kairos_followups import handle_callback
+            try:
+                confirmed = handle_analysis_confirmation(client, upd['callback_query'], chats)
+                results.append(confirmed if confirmed is not None else handle_callback(client, upd['callback_query'], chats))
+            except Exception:
+                # DB failure must not consume the user's authorization click.
+                results.append({'result': '후속 버튼 처리 실패(연결 확인 필요)'})
+                failed = True
+                break
+            continue
         direct = bool(upd.get("message"))
         msg = upd.get("message") or upd.get("edited_message")
         if not msg:

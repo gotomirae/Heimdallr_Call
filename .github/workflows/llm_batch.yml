@@ -1,91 +1,53 @@
-# PRD Ref: §7 (LLM 해석) · ADR 3 · traps.md T69
-#
-# 자동 스케줄이 없는 **수동 복구 전용** LLM 배치 (2026-09-07)
-#
-# 정상 운영은 `disclosure_poll`의 1·2단계와 `universe_daily`의 3단계뿐이다.
-# 이 파일은 장애 복구를 사람이 명시적으로 요청할 때만 실행하며 ★·○로 제한한다.
-#
-# ★ 비용은 코드가 막는다 — 월 실링·일 상한(`check_budget`).
-#   ★ 숫자를 여기 적지 않는다. 실제 값은 `src/config/constants.py`에 있고,
-#     손으로 옮겨 적으면 바뀔 때마다 조용히 어긋난다(실측: 이 주석이 3개 워크플로에서
-#     제각각 $8·$8·$12를 말하고 있었다 — T82).
-#   상한에 걸리면 **실패가 아니라** 남은 건수를 밝히고 멈춘다.
-#   저장소 변수 `MONTHLY_COST_CEILING_USD`·`DAILY_ANALYSIS_LIMIT`로 조절한다.
-
+# PRD Ref: §7/10 · ADR50 — Pro 전용·거래일16시, 자동 모델 호출 없음
 name: llm_batch
-
-on:
-  # 자동 실행 금지. 운영 LLM은 disclosure_poll의 1·2단계와 universe_daily의
-  # 3단계만 쓴다. 이 워크플로는 명시적 수동 복구 전용이다.
-  workflow_dispatch:
-    inputs:
-      max_seconds:
-        description: "이번 실행 시간 예산(초)"
-        required: false
-        default: "10800"
-      min_score:
-        description: "스코어 하한 (발송 등급 ★/○은 하한과 무관하게 항상 포함)"
-        required: false
-        default: "0"
-
 concurrency:
   group: llm-batch
-  # ★ 취소하지 않는다. 도는 중에 새로 띄우면 같은 종목을 두 번 호출해 돈이 두 번 나간다.
   cancel-in-progress: false
-
 jobs:
   run:
     runs-on: ubuntu-latest
-    # 시간 예산(기본 3시간)보다 여유를 둔다. 예산이 먼저 걸려 깨끗하게 멈춘다.
     timeout-minutes: 200
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
-      OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
-      OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
-      OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
-      OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
-      OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
-      # ★★ T82 — 이 줄이 없으면 저장소 변수를 만들어도 **에러 없이 무시**되고
-      #   코드 기본값이 쓰인다. 비었으면 `optional_env_int`가 기본값으로 떨어진다(안전).
-      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
-      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
-      # ★ 진행 통지용. **매일 보내지 않는다** — 비용 상한·새 실패 다수만.
-      #   밤마다 같은 메시지가 오면 알림이 소음이 되고 정작 종목 알림을 덮는다.
       HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
-      # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 공시 발췌 수집 (따라잡기)
+      continue-on-error: true
+      run: python -m src.collectors.excerpt_run --limit 300 --max-seconds 1500 --save
+    - name: LLM 배치 (따라잡기)
+      run: 'secs="${{ inputs.max_seconds }}"
 
-      # ★★ 분석 **전에** 공시 발췌를 모은다. 이게 없으면 모델은 숫자표만 보고
-      #   증설·신제품·수주를 써야 하고, 그러면 지어내거나 비운다(T93).
-      # ★ 원문 1건이 3~6MB에 ~30초라 전부 받으면 두 시간이 넘는다 —
-      #   **시간으로 끊고 여러 밤에 걸쳐 누적**한다(LLM 배치와 같은 방식).
-      # ★ 실패해도 분석은 계속한다(`continue-on-error`). 발췌는 있으면 좋은 것이지
-      #   없다고 분석을 막을 것은 아니다.
-      - name: 공시 발췌 수집 (따라잡기)
-        continue-on-error: true
-        run: python -m src.collectors.excerpt_run --limit 300 --max-seconds 1500 --save
+        score="${{ inputs.min_score }}"
 
-      # ★ 분기를 셸로 정한다. GitHub 삼항 `${{ x && 'A' || 'B' }}`는 x가 false일 때도
-      #   B를 주고, schedule에는 inputs 자체가 없어 늘 B다 — 양방향으로 조용히 틀린다(T55).
-      - name: LLM 배치 (따라잡기)
-        run: |
-          secs="${{ inputs.max_seconds }}"
-          score="${{ inputs.min_score }}"
-          [ -z "$secs" ] && secs=10800
-          [ -z "$score" ] && score=0
-          echo "시간 예산 ${secs}초 · 스코어 하한 ${score}"
-          python -m src.analysis.batch --send --refresh-finalized --notify-only --max-seconds "$secs" --min-score "$score"
+        [ -z "$secs" ] && secs=10800
+
+        [ -z "$score" ] && score=0
+
+        echo "시간 예산 ${secs}초 · 스코어 하한 ${score}"
+
+        python -m src.analysis.batch --send --refresh-finalized --notify-only --max-seconds "$secs" --min-score "$score"
+
+        '
+    if: ${{ false }}
+'on':
+  workflow_dispatch:
+    inputs:
+      max_seconds:
+        description: 이번 실행 시간 예산(초)
+        required: false
+        default: '10800'
+      min_score:
+        description: 스코어 하한 (발송 등급 ★/○은 하한과 무관하게 항상 포함)
+        required: false
+        default: '0'

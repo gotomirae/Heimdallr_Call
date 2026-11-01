@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import AutoRefresh from "@/components/AutoRefresh";
+import ProAnalysisPanel from "@/components/ProAnalysisPanel";
 import FastNav from "@/components/FastNav";
 import TableHeaders from "@/components/TableHeaders";
 import constants from "@/lib/constants.json";
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
         <AutoRefresh seconds={constants.dashboard_refresh_seconds} />
-        <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-6"><ProAnalysisPanel />{children}</main>
         <TableHeaders />
       </body>
     </html>

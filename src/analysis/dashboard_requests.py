@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from src.analysis.analyze import AnalysisError, BudgetExceeded, analyze, save, validate_payload
 from src.analysis.run import build_input, load_narrative_history, load_previous_analysis
 from src.config.constants import (
+    ANALYSIS_REQUEST_DAILY_LIMIT,
     ANALYSIS_PREVIOUS_MAX_CHARS,
     DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET,
     DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS,
@@ -134,107 +135,19 @@ def set_status(row_id: int, status: str, *, error: str | None = None) -> None:
 
 
 def run(limit: int, max_seconds: float) -> int:
-    started = time.monotonic()
-    done = failed = deferred = 0
-    for row in pending_rows(limit):
-        if time.monotonic() - started >= max_seconds:
-            break
-        budget = check_budget()
-        if not budget.allowed:
-            # 한도가 회복되면 같은 deferred 행을 다음 실행이 다시 집는다.
-            set_status(row["id"], "deferred", error=str(budget.reason))
-            deferred += 1
-            break
-        if not claim(row):
-            continue
-        label = f"{row['code']} {row['fiscal_year']}.{row['fiscal_quarter']}Q"
-        try:
-            data = build_input(
-                row["code"], year=row["fiscal_year"], quarter=row["fiscal_quarter"],
-                allow_fetch=True,
-            )
-            data.analysis_stage = "dashboard_on_demand"
-            # 고정 계약/최근 4분기 발췌와 숫자 표는 보존하고 중복 최신 발췌만 압축한다.
-            data.excerpt = (getattr(data, "excerpt", "") or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
-            data.previous_analysis = load_previous_analysis(row["code"], row["fiscal_year"], row["fiscal_quarter"])
-            data.narrative_history = load_narrative_history(
-                row["code"], row["fiscal_year"], row["fiscal_quarter"],
-                include_current=True, max_chars=ANALYSIS_PREVIOUS_MAX_CHARS,
-            )
-            try:
-                result = analyze(data, env="prod", web_search=True, token_budget=DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET)
-            except Exception as exc:
-                if inaccessible_search_domain(exc):
-                    print(f"⚠ {label} · 검색 허용 도메인 거부 — 같은 Provider로 공개 원문 검색 없이 재시도")
-                    result = strict_repair(data, label)
-                elif output_truncated(exc):
-                    print(f"⚠ {label} · 웹검색 출력 상한 도달 — compact strict 계약으로 1회 자동 복구")
-                    result = strict_repair(data, label)
-                elif input_too_large(exc):
-                    print(
-                        f"⚠ {label} · 검색 도구 포함 입력 상한 초과 — 구조화 재무는 유지하고 "
-                        f"공시 발췌를 {DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS}자로 줄여 웹검색을 먼저 재시도"
-                    )
-                    compact = copy(data)
-                    compact.excerpt = (data.excerpt or "")[:DASHBOARD_ON_DEMAND_EXCERPT_MAX_CHARS]
-                    try:
-                        result = analyze(compact, env="prod", web_search=True, token_budget=DASHBOARD_ANALYSIS_INPUT_TOKEN_BUDGET)
-                    except Exception as compact_search_exc:
-                        if not input_too_large(compact_search_exc):
-                            raise
-                        print(
-                            f"⚠ {label} · 압축 후에도 검색 계약이 입력 상한 초과 — "
-                            "검색 전용 선택 필드를 뺀 strict 계약으로 재시도"
-                        )
-                        result = strict_repair(data, label)
-                else:
-                    raise
-            problems = validate_payload(result.payload)
-            if problems:
-                # 웹검색은 forced strict tool과 함께 쓸 수 없어 드물게 일부 필드만 온다(T96).
-                # 유료 응답을 화면에 숨긴 채 끝내지 않고, 검색을 끈 compact strict 계약으로
-                # 딱 한 번 복구한다. 두 호출 모두 비용 장부에는 이미 기록된다.
-                print(
-                    f"⚠ {label} · 웹검색 결과 구조 오류 — strict 계약으로 1회 자동 복구: "
-                    f"{'; '.join(problems[:4])}"
-                )
-                result = strict_repair(data, label)
-                problems = validate_payload(result.payload)
-                if problems:
-                    raise AnalysisError(
-                        f"{label}: 자동복구 실패 — strict 복구 결과 검증 실패: {'; '.join(problems[:8])}"
-                    )
-            save(result)
-            set_status(row["id"], "completed")
-            done += 1
-            print(f"✓ {label} · 대시보드 요청 분석 완료 · ${result.cost_usd:.4f}")
-        except BudgetExceeded as exc:
-            set_status(row["id"], "deferred", error=str(exc))
-            deferred += 1
-            print(f"⏳ {label} · 사용량 갱신 대기")
-            break
-        except AnalysisError as exc:
-            resume_at = provider_usage_resume_at(str(exc))
-            if resume_at is not None:
-                set_status(row["id"], "deferred", error=str(exc)[:500])
-                deferred += 1
-                print(f"⏳ {label} · Provider 사용량 한도 — {resume_at.isoformat()} 이후 자동 재개")
-                break
-            set_status(row["id"], "failed", error=str(exc)[:500])
-            failed += 1
-            print(f"✗ {label} · {exc}")
-        except Exception as exc:
-            resume_at = provider_usage_resume_at(str(exc))
-            if resume_at is not None:
-                set_status(row["id"], "deferred", error=str(exc)[:500])
-                deferred += 1
-                print(f"⏳ {label} · Provider 사용량 한도 — {resume_at.isoformat()} 이후 자동 재개")
-                break
-            set_status(row["id"], "failed", error=f"{type(exc).__name__}: {exc}"[:500])
-            failed += 1
-            print(f"✗ {label} · {type(exc).__name__}: {exc}")
-    print(f"대시보드 LLM 요청: 완료 {done} · 실패 {failed} · 사용량 대기 {deferred}")
-    return 1 if failed else 0
+    from src.analysis.pro_worker import run_once
+    db = get_client()
+    old = db.table("dashboard_analysis_requests").select("*").in_("status", ["pending", "deferred"]).order("requested_at").range(0, limit - 1).execute().data or []
+    for row in old:
+        db.rpc("pro_enqueue_analysis", {"p_request": {
+            "request_key": f"company:{row['code']}:{row['fiscal_year']}:{row['fiscal_quarter']}",
+            "kind": "company", "target": row["code"], "fiscal_year": row["fiscal_year"], "fiscal_quarter": row["fiscal_quarter"],
+            "historical": False, "force_analysis": False, "daily_limit": ANALYSIS_REQUEST_DAILY_LIMIT,
+        }}).execute()
+        set_status(row["id"], "completed", error="MIGRATED_TO_PRO_QUEUE")
+    result = run_once()
+    print(result)
+    return 1 if result.get("status") == "failed" else 0
 
 
 def main() -> int:

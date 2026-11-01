@@ -323,7 +323,22 @@ ANALYSIS_MODEL = "claude-sonnet-5"  # PRD §5.1 L6 — 해석 전용
 FALLBACK_MODEL = "claude-haiku-4-5"  # PRD §5.1 L2' — 잠정실적 규칙 파서 실패 시만
 # Provider 전환은 코드 수정이 아니라 명시적 설정으로 한다. 기본값은 현재 운영 중인
 # Anthropic을 보존한다. OpenAI는 동일 replay 검증 뒤 이 값만 바꿔 Primary로 전환한다.
-ANALYSIS_LLM_PROVIDER = optional_env("ANALYSIS_LLM_PROVIDER", "anthropic").lower()
+ANALYSIS_LLM_PROVIDER = "codex_subscription"  # ADR50: 환경변수로 API 폴백하지 않는다.
+# 구독 처리/운영 일정의 단일 출처. 가격표와 구독 사용량을 환산하지 않는다.
+CODEX_ANALYSIS_MODEL = optional_env("CODEX_ANALYSIS_MODEL", "gpt-6.1-sol")
+CODEX_EXEC_TIMEOUT_SECONDS = 3600
+CODEX_USAGE_RETRY_SECONDS = 1800
+CODEX_INPUT_MAX_CHARS = 160_000
+INDICATORS_HOUR_KST = 16
+DISCLOSURE_INTERVAL_HOURS = 2
+ANALYSIS_REQUEST_DAILY_LIMIT = 20
+ANALYSIS_HISTORY_MAX_ITEMS = 100
+KOREA_EXTRA_HOLIDAYS = tuple(filter(None, (optional_env("KOREA_EXTRA_HOLIDAYS", "") or "").split(",")))
+# 집중기간부터 확정 보고서 기간까지. 법정 마감일을 판단하는 상수가 아니다.
+EARNINGS_SEASON_WINDOWS = ((1, 15, 3, 31), (4, 15, 5, 31), (7, 15, 8, 31), (10, 15, 11, 30))
+MACRO_DYNAMIC_FIELDS = ("source", "checkedAt", "marketDate", "koreaMarketDate", "items", "markets", "fearGreed", "flags", "sortMode", "koreaMode")
+INDICATOR_DETAIL_HISTORY_YEARS = 3
+INDICATOR_DETAIL_CONCURRENCY = 2
 OPENAI_ANALYSIS_MODEL = optional_env("OPENAI_ANALYSIS_MODEL")
 # OpenAI 단가는 모델마다 다르고 바뀔 수 있다. 추측한 기본값을 두지 않는다.
 # 네 값이 모두 없으면 OpenAI 호출 **전에** UnknownModelError로 차단한다.
@@ -550,6 +565,7 @@ STRATEGY_REVISION_MIN_DAYS = 7
 
 # §8.7 G: local JARVIS / SEC / Drive / deck worker budgets.
 KAIROS_SOURCE_MONTHS = 3
+KAIROS_LISTENER_CATALOG_CACHE_SECONDS = 3600
 KAIROS_REPORT_COUNT = 4
 KAIROS_SEC_CACHE_SECONDS = 86400
 KAIROS_DOWNLOAD_INTERVAL_SECONDS = 1.0
@@ -557,6 +573,10 @@ KAIROS_ANALYSIS_TIMEOUT_SECONDS = 5400
 KAIROS_DECK_TIMEOUT_SECONDS = 7200
 KAIROS_DECK_RETRY_MINUTES = 30
 KAIROS_DECK_USAGE_RETRIES = 3
+KAIROS_DECK_RECOVERY_MINUTES = 1
+KAIROS_INTAKE_MIN_REMAINING_PERCENT = 10
+KAIROS_INTAKE_RPC_TIMEOUT_SECONDS = 5
+KAIROS_INTAKE_PROBE_INTERVAL_SECONDS = 600
 KAIROS_CLAUDE_LOGIN_NOTICE_MINUTES = 30
 
 KAIROS_REGISTRY_BATCH_SIZE = 500

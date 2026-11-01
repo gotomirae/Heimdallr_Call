@@ -1,5 +1,29 @@
 # JARVIS G·H·I·J절 운영·설치 (2026-10-08)
 
+## N절 최종 분석만 Notion 게시·PPT 직전 승인 (2026-10-11)
+
+새 Telegram/JARVIS 분석은 Codex 전체 분석 파일 → 자동 Claude 검증·공백 보완 → 최종 Notion 전체 저장·재조회 → PPT 선택 순서다. 사용자 최신 결정으로 아래 K절의 Codex Notion·Claude 승인 버튼 규칙을 대체한다. 실행 정본은 `optimization_policy.md` N절이다. 기존 sent 분석/PPT는 그대로 보존한다.
+
+Codex는 실제 양식 전체·기존 분석을 읽고 중간 Notion 없이 원고·표·차트·공식 원문·템플릿 전체 snapshot과 SHA-256을 보존한다. `handoff` 뒤 `complete-codex ID --industry 산업명`으로 인계한다. 부모 요청은 원격 working/stage=claude, 로컬 claude이며 Codex 재접수 대상에서 제외한다. 인계 장애는 기존 collector와 유일 큐 인덱스로 같은 ID에서 복구한다. DB 스키마/RPC 변경과 새 자동화는 없다.
+
+Claude는 모든 gap 검색/분석 시도, 핵심 원문 독립 검증, Codex 최초 판단/Claude 검증/변경·유지 근거 비교 표와 검수 JSON을 남긴다. 실파일·gap-review·comparison-review·실제 Notion page/blocks/ancestors 전체 재조회를 통과한 검증 마커 이후에만 부모 sent를 기록한다. 최종 상태 전환 장애는 마커에서 복구하며 분석을 다시 생성하지 않는다. Telegram에는 자동 접수/시작·사용량 중단/재개·최종 Notion 링크와 PPT 버튼을 알리고, PPT는 버튼 클릭 후에만 만든다. source=jarvis에는 Heimdallr 메시지·awaiting_input 없이 기존 JARVIS 알림과 PPT 선택을 유지한다.
+
+## M절 이벤트 기반 접수 전환 점검 (2026-10-11)
+
+`python -m telegram_bridge.intake_readiness --check`는 실제 구독 사용량과 기존 대화 상태를 읽기만 한다. 모델 호출·turn/start·queue·claim·발송은 하지 않는다. 현재 Windows의 공유 app-server control socket은 OS 10050로 연결 실패했다. 독립 stdio 서버의 사용량 조회는 성공했지만 실행 중인 데스크톱 대화를 notLoaded로 표시하므로 동시 실행 판정에 사용하지 않는다.
+
+`--enable-shadow`는 기존 collector에 실제 pending/working 요청이 있을 때만 10분 간격의 읽기 전용 전환 점검을 연결한다. 빈 큐에서는 app-server 프로세스·계정 조회·모델 호출을 하지 않는다. sending/uncertain/awaiting_input은 대체 실행 대상에서 제외한다. 진단 오류는 collector를 중단시키지 않는다. 설정 해제는 로컬 settings의 intake_readiness_enabled를 0으로 변경한다.
+
+결과는 `state/intake-readiness.json`에 사용량 창·checked_at·request_id·공유 연결 상태만 저장한다. 토큰·원시 프로토콜 오류·대화 본문을 저장하지 않는다. 자동 dispatch는 구현·활성화하지 않았으며 kairos-intake는 ACTIVE, 과거 kairos는 PAUSED를 유지한다. 실제 공유 서버에서 기존 대화의 active/idle 판정, Notion/Drive 도구와 권한 보존, 미열림 대화의 실제 요청 시작·claim 및 사용량 회복 재개를 검증한 뒤에만 heartbeat를 대체한다. 독립 서버 조회 성공이나 queue 종료0을 전환 성공으로 세지 않는다.
+
+## K절 Telegram 후속 버튼 확장 (2026-10-09)
+
+Telegram 직접 요청에도 같은 JARVIS Claude 지침·구독 실행기·자료 장부를 연결한다. 자동 Claude 시작은 하지 않으며 Codex 완료의 🧠 버튼, Claude 완료의 🎤 버튼이 각각 실행 승인이다.
+기업·산업 발표자료는 실제 PPTX를 해당 Notion 대상 부모에 저장한다. PDF는 미리보기이며 본문형 슬라이드만으로 성공을 선언하지 않는다.
+기존 company-only 검사를 실행기에서 기업/산업으로 확장한다. Telegram 접수는 service_role의 기존 테이블·유일 인덱스를 사용하므로 운영 SQL 변경이 필요 없다. 기존 JARVIS 기업 🎤 RPC·자동 analysis는 그대로 유지된다.
+기업 양식과 산업20장 매핑·실제 파일 첨부/재조회 계약은 `telegram_bridge/presentation_workflow.md`다. PPT 성공 JSON에는 같은 요청의 `proof_path`가 필요하다.
+기존 완료 코세스893060873의 Telegram145 버튼만 사용자 지시로 수정한다. 수정은 새 분석 접수가 아니다. 버튼을 클릭할 때만 후속 작업을 생성한다.
+
 PRD Ref: §8.7 G·H·I · 사용자 D59·D60·D61. 시험용 Notion 페이지는 만들지 않는다.
 
 ## 구현 파일
@@ -126,7 +150,7 @@ Claude는 API 키·외부 LLM endpoint 변수를 상속받지 않고 저장된 �
 120분 제한, 출력 JSON 래퍼의 result 안에 있는 최종 JSON도 지원한다.
 fallback 파일은 이번 실행 이후이고 `request_id=D<id>`가 같은 `result.json`만 인정한다.
 성공은 Notion URL·Drive 디렉터리·PPTX/PDF/MD 실파일 존재를 대조한다.
-사용량 제한은 pending으로 되돌리고 retry_after 30분, 4번째 한도 실패는 USAGE로 종료한다.
+사용량 제한은 pending으로 되돌리고 retry_after 30분, 사용량 소진은 실패 상한을 소모하지 않고 같은 ID로 자동 재개한다.
 
 `telegram_bridge/state/decks/D<id>.json`은 DB 기록 전에 결과를 보존한다.
 최근 worker 상태/설정 실패는 `telegram_bridge/state/decks/worker.json`에 남긴다.
@@ -181,7 +205,7 @@ Windows PowerShell 5.1을 위해 install_jarvis.ps1의 UTF-8 BOM을 유지한다
 ## J절: 대화를 열지 않는 자동 접수 (2026-10-07)
 
 - 전용 대화: `Kairos 자동 분석 전용` (`01a11689-cd7f-7fb0-bc8d-af71da3a7d4b`). 과거 대화는 참고용으로 보존하고 trigger를 새 대화로 변경했다.
-- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–24:00에 30분 간격. 과거 사용량 회복용 `kairos`는 PAUSED다.
+- 앱 heartbeat `kairos-intake`: ACTIVE, Asia/Seoul 07:00–23:00 매 정각(60분 간격). 과거 사용량 회복용 `kairos`는 PAUSED다.
 - configure-trigger의 `--mode heartbeat`는 수집기의 queue 발송·확인 후 재개 queue도 차단한다. 예약 턴만 접수·재개하여 중복 실행을 방지한다.
 - poll 한 번 → 빈 큐면 추가 도구 없이 종료. 작업이 있으면 모든 사용량 창 잔여 10% 이상 및 ordinaryUsageAllowed를 확인한다. working 우선, 없으면 가장 오래된 pending 한 건을 claim한다. 사용량 부족은 같은 상태·장부로 다음 실행까지 기다린다.
 - 실제 요청은 WORKFLOW와 Kairos 스킬에 따라 Notion 저장·재조회·deliver/fail까지 처리한다. source=jarvis는 Heimdallr 메시지 없이 sent→H절 analysis→JARVIS 알림으로 연결한다. Telegram 리서치는 제외한다.
@@ -189,3 +213,8 @@ Windows PowerShell 5.1을 위해 install_jarvis.ps1의 UTF-8 BOM을 유지한다
 - 선택 J3의 파일 status 변경 실험은 하지 않고 앱 API로 등록한 intake를 ACTIVE 유지한다. 앱 내부 SQLite는 수정하지 않는다.
 
 첫 유휴 실측은 캐시포함170,563토큰(캐시165,120·비캐시+출력5,443)이므로 J절 기준에 따라 현재 간격은30분이다. 실제 -1 Codex Notion과 JARVIS 완료 알림은 확인했으며 Claude A1은 구독 재인증이 필요하다. 상세 운영 증거는 docs/sessions/2026-10-07-jarvis-intake.md에 보존한다.
+
+
+## L절 사용량 최적화·자료 공백·자동 재개 (2026-10-11)
+
+정본은 `optimization_policy.md`이며 기존 상충 규칙보다 우선한다. 새 claim은 handoff-v1 패키지를 만들고 deliver 전에 검사한다. Claude는 모든 gap를 직접 검색·분석 시도하고 gap-review 전체 커버리지 및 Notion 전체 재조회 proof를 검증한다. 산업/기업 모두 전체 하위 폴더에서 최근 달력상 3개월 발행 자료를 쓴다. 산업 PDF 보존 목적지는 기존 bootstrap이다. 사용량은 실패 상한과 분리하여 무기한 대기·동일 ID 자동 재개한다. Codex usage-wait/usage-resume, Claude USAGE pending 및 중단/재개 주기별 Telegram 알림, source=jarvis 무발송을 적용한다. 실제 프로세스가 살아 있거나 종료 확인 불가면 중복 재실행하지 않는다. 새 실행의 worker/CLI PID 종료가 확인되면 기존 세션을 이어서 재시도한다. 미완료 중간 보고 RESULT_MISSING은 기존 세션에서 기술 재시도 상한 안에서 보완한다. 기존 sent는 재접수하지 않는다.

@@ -80,6 +80,14 @@ def optional_env(name: str, default: str | None = None) -> str | None:
     return value if value else default
 
 
+def codex_subscription_env() -> dict[str, str]:
+    """구독 CLI에 API 인증/우회 URL을 전달하지 않는다. 환경 접근은 이 모듈만 한다."""
+    blocked = {"OPENAI_API_KEY", "CODEX_API_KEY", "OPENAI_BASE_URL", "OPENAI_API_BASE",
+               "CHATGPT_BASE_URL", "ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY",
+               "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"}
+    return {key: value for key, value in os.environ.items() if key.upper() not in blocked}
+
+
 def require_env(name: str) -> str:
     """없거나 비어 있으면 MissingEnvError. 절대 빈 문자열을 돌려주지 않는다."""
     value = optional_env(name)

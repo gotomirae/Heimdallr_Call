@@ -1,27 +1,8 @@
-# PRD Ref: §10, §10.2 · traps.md T28, T36
-#
-# DART 공시 폴링 → 잠정실적 파싱 → 파생지표 → 스크리닝 → ⚡알림.
-#
-# 매일 주간 30분·야간 3시간 간격. 최근 7일을 재조회해 지연·실패를 복구한다.
-# ★ 잡 안에서 sleep 루프를 쓰지 않는다(PRD §10.1) — sleep도 과금된다.
-
+# PRD Ref: §10 · ADR50
 name: disclosure_poll
-
-on:
-  schedule:
-    - cron: "*/30 0-14 * * *" # 매일 09:00~23:30 KST 30분마다
-    - cron: "17 15,18,21 * * *" # 야간에도 3시간 간격으로 누락 복구
-  workflow_dispatch:
-    inputs:
-      notify:
-        description: "★/○ 즉시 알림까지 발송"
-        type: boolean
-        default: true
-
 concurrency:
   group: disclosure-poll
   cancel-in-progress: false
-
 jobs:
   poll:
     runs-on: ubuntu-latest
@@ -30,118 +11,74 @@ jobs:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      # ★ LLM 배치가 쓴다. 없으면 `require_env`가 명시적으로 실패한다 —
-      #   조용히 분석을 건너뛰지 않는다.
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
-      OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
-      OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
-      OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
-      OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
-      OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
-      # ★★ T82 — 넘기지 않으면 저장소 변수가 **에러 없이 무시**된다.
-      #   비었으면 `optional_env_int`가 코드 기본값으로 떨어진다(안전).
-      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
-      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
       HEIMDALLR_TELEGRAM_BOT_TOKEN: ${{ secrets.HEIMDALLR_TELEGRAM_BOT_TOKEN }}
       HEIMDALLR_TELEGRAM_CHAT_ID: ${{ secrets.HEIMDALLR_TELEGRAM_CHAT_ID }}
-      # 미설정이면 빈 문자열이 되고 optional_env가 코드 기본값으로 떨어진다(안전).
       DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
+      KOREA_EXTRA_HOLIDAYS: ${{ vars.KOREA_EXTRA_HOLIDAYS }}
     steps:
-      # 계절 변수의 수동 전환 누락으로 갱신이 멈추지 않도록 상시 실행한다.
-      - name: 자동 갱신 시작
-        id: season
-        run: echo "run=true" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - name: 설치
+      run: pip install -e .
+    - name: 실적시즌·비시즌16시 판정
+      id: season
+      run: python -m src.utils.operating_calendar disclosure --output "$GITHUB_OUTPUT"
+    - name: 공시 감지 · 잠정실적 반영
+      if: steps.season.outputs.run == 'true'
+      run: 'begin=$(date -u -d ''7 days ago'' +%Y%m%d)
 
-      - uses: actions/checkout@v7
-        if: steps.season.outputs.run == 'true'
-      - uses: actions/setup-python@v7
-        if: steps.season.outputs.run == 'true'
-        with:
-          python-version: "3.12"
-          cache: pip
-      - name: 설치
-        if: steps.season.outputs.run == 'true'
-        run: pip install -e .
+        end=$(date -u +%Y%m%d)
 
-      # 최근 3일치만 훑는다. 텔레그램과 달리 DART는 과거를 계속 주므로
-      # 놓친 공시가 있어도 다음 실행이 다시 잡는다.
-      - name: 공시 감지 · 잠정실적 반영
-        if: steps.season.outputs.run == 'true'
-        run: |
-          begin=$(date -u -d '7 days ago' +%Y%m%d)
-          end=$(date -u +%Y%m%d)
-          python -m src.collectors.replay --begin "$begin" --end "$end" --save
-          python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
-          python -m src.collectors.order_contract_run --limit 100 --save
+        python -m src.collectors.replay --begin "$begin" --end "$end" --save
 
-      - name: 정기보고서 감지 · 확정 재무 갱신
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.finance.backfill --save --recent-periodic-days 7
+        python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
 
-      - name: 파생지표
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.finance.enrich --save
+        python -m src.collectors.order_contract_run --limit 100 --save
 
-      - name: 스크리닝
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.screener.run --save
-
-      - name: 새 게이트 통과 종목 정밀 재무
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.finance.detail --save --limit 4
-
-      - name: 정밀 재무 반영 스크리닝
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.screener.run --save
-
-      - name: 과거 분기 GPM 점진 보충
-        if: steps.season.outputs.run == 'true'
-        timeout-minutes: 2
-        continue-on-error: true  # 보조 백필 장애가 공시·알림을 막지 않되 실패 로그는 남긴다.
-        run: python -m src.finance.detail --gpm-history --save --limit 4
-
-      - name: 확정실적 원인 분석용 정기보고서 근거
-        if: steps.season.outputs.run == 'true'
-        run: python -m src.collectors.excerpt_run --save --limit 4 --max-seconds 120
-
-      # ★ LLM 배치 — 알림 **전에** 돌린다. 분석이 먼저 있어야 알림에 해석이 실린다.
-      #   이미 분석된 종목은 재호출하지 않으므로 하루 여러 번 돌아도 비용이 안 늘어난다.
-      #   상한은 코드가 건다(월 실링·일 상한 — 값은 `src/config/constants.py`).
-      #   ★ 숫자를 여기 적지 않는다. 손으로 옮겨 적으면 조용히 어긋난다(T82).
-      #   실패해도 잡을 세우지 않는다 —
-      #   해석이 없으면 숫자만 담긴 알림이 나갈 뿐이다.
-      # ★ 시간 예산을 잡의 timeout(15분)보다 작게 준다 — 강제 종료되면 진행 상황이
-      #   로그에 안 남는다. 배치는 멱등이라 여러 실행에 걸쳐 누적된다.
-      #   여기서는 **갓 발표된 종목**을 빠르게 해석하는 것이 목적이다(알림에 실린다).
-      #   동일 근거 실패는 분석 메타에 남겨 다음 폴링에서 다시 결제하지 않는다.
-      - name: LLM 배치 분석 (신규 우선)
-        if: steps.season.outputs.run == 'true'
-        continue-on-error: true
-        run: python -m src.analysis.batch --send --refresh-finalized --notify-only --max-seconds 300
-
-      # 중복은 `notifications` 테이블이 막는다 — 하루 38회 돌아도 같은 종목은 한 번만 나간다.
-      #
-      # ★★ T79 — 분기를 **셸로** 한다(T55와 같은 실패 모양이 여기서 재발했다).
-      #   원래는 `if: … && inputs.notify != false`였다. `schedule`에는 inputs가 없어
-      #   `inputs.notify`가 null인데, GitHub 표현식은 타입이 다르면 **숫자로 캐스팅**한다 —
-      #   null도 0, false도 0이라 `null != false`가 **false**가 된다.
-      #   즉 cron 경로에서 이 스텝은 **영영 skipped**였다. 대상 종목을 계산까지 다 해 놓고
-      #   발송만 안 한다. `skipped`는 UI에서 **초록색**이라 잡 성공만 보면 못 알아챈다
-      #   (`gh api …/jobs --jq '.jobs[].steps[]'`로 스텝 단위를 봐야 드러난다).
-      - name: ⚡ 즉시 알림
-        if: steps.season.outputs.run == 'true'
-        env:
-          # schedule에는 inputs가 없어 **빈 문자열**이 된다 → 아래에서 기본 ON이 된다.
-          NOTIFY_INPUT: ${{ inputs.notify }}
-        run: |
-          # ★ 끄더라도 드라이런은 돌린다 — 무엇이 나갔을 것인지 로그에 남는다.
-          #   조용히 건너뛰면 "발송 대상이 없었는지 스텝이 안 돌았는지"를 구분할 수 없다.
-          if [ "$NOTIFY_INPUT" = "false" ]; then
-            echo "즉시 알림 OFF — 수동 실행에서 명시적으로 껐다 (드라이런만 한다)"
-            python -m src.notify.batch --flash
-          else
-            python -m src.notify.batch --flash --send
-          fi
+        '
+    - name: 정기보고서 감지 · 확정 재무 갱신
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.finance.backfill --save --recent-periodic-days 7
+    - name: 파생지표
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.finance.enrich --save
+    - name: 스크리닝
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.screener.run --save
+    - name: 새 게이트 통과 종목 정밀 재무
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.finance.detail --save --limit 4
+    - name: 정밀 재무 반영 스크리닝
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.screener.run --save
+    - name: 과거 분기 GPM 점진 보충
+      if: steps.season.outputs.run == 'true'
+      timeout-minutes: 2
+      continue-on-error: true
+      run: python -m src.finance.detail --gpm-history --save --limit 4
+    - name: 확정실적 원인 분석용 정기보고서 근거
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.collectors.excerpt_run --save --limit 4 --max-seconds 120
+    - name: ⚡ 즉시 알림
+      if: steps.season.outputs.run == 'true'
+      env:
+        NOTIFY_INPUT: ${{ inputs.notify }}
+      run: "# ★ 끄더라도 드라이런은 돌린다 — 무엇이 나갔을 것인지 로그에 남는다.\n#   조용히 건너뛰면 \"발송 대상이 없었는지 스텝이 안 돌았는지\"를 구분할 수 없다.\nif [ \"$NOTIFY_INPUT\"\
+        \ = \"false\" ]; then\n  echo \"즉시 알림 OFF — 수동 실행에서 명시적으로 껐다 (드라이런만 한다)\"\n  python -m src.notify.batch --flash\n\
+        else\n  python -m src.notify.batch --flash --send\nfi\n"
+    - name: 공시 슬롯 완료표식
+      if: steps.season.outputs.run == 'true'
+      run: python -m src.utils.operating_calendar disclosure --complete
+'on':
+  schedule:
+  - cron: 0 1-23/2 * * *
+  workflow_dispatch:
+    inputs:
+      notify:
+        description: ★/○ 즉시 알림까지 발송
+        type: boolean
+        default: true

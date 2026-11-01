@@ -1,35 +1,8 @@
-# PRD Ref: §10 · traps.md T2, T24, T39
-#
-# 확정 재무 배치. 잠정 → 확정 전환이 여기서 일어난다.
-#
-# ★ 스케줄은 최근 45일의 미반영 정기보고서만 돈다. 전 종목 × 3개 연도를
-#   매번 재수집하면 2시간 제한에서 잘리고 후속 파생·스크리닝이 전부 건너뛴다(T133).
-# ★ `--fix-missing-revenue`는 주요계정 API가 매출을 안 주는 종목만 재수집한다(T39).
-
+# PRD Ref: §7/10 · ADR50 — Pro 전용·거래일16시, 자동 모델 호출 없음
 name: quarterly_backfill
-
-on:
-  schedule:
-    - cron: "0 20 1,15 * *" # 매월 1·15일 05:00 KST
-  workflow_dispatch:
-    inputs:
-      fix_missing_revenue:
-        description: "매출 결측 종목만 재수집 (T39 폴백)"
-        type: boolean
-        default: false
-      codes:
-        description: "수동 갱신할 종목코드(쉼표 구분, 비우면 전체)"
-        type: string
-        default: ""
-      full_history:
-        description: "전 종목 전체 연도 재수집(수동 복구용·시간 소요)"
-        type: boolean
-        default: false
-
 concurrency:
   group: quarterly-backfill
   cancel-in-progress: false
-
 jobs:
   backfill:
     runs-on: ubuntu-latest
@@ -38,70 +11,54 @@ jobs:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANALYSIS_LLM_PROVIDER: ${{ vars.ANALYSIS_LLM_PROVIDER }}
-      OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
-      OPENAI_INPUT_PER_MTOK: ${{ vars.OPENAI_INPUT_PER_MTOK }}
-      OPENAI_OUTPUT_PER_MTOK: ${{ vars.OPENAI_OUTPUT_PER_MTOK }}
-      OPENAI_CACHE_WRITE_PER_MTOK: ${{ vars.OPENAI_CACHE_WRITE_PER_MTOK }}
-      OPENAI_CACHE_READ_PER_MTOK: ${{ vars.OPENAI_CACHE_READ_PER_MTOK }}
-      MONTHLY_COST_CEILING_USD: ${{ vars.MONTHLY_COST_CEILING_USD }}
-      DAILY_ANALYSIS_LIMIT: ${{ vars.DAILY_ANALYSIS_LIMIT }}
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e .
-
-      - name: 확정 재무 수집
-        env:
-          CODES_INPUT: ${{ inputs.codes }}
-        run: |
-          if [ -n "$CODES_INPUT" ]; then
-            python -m src.finance.backfill --save --codes "$CODES_INPUT"
-          elif [ "${{ inputs.fix_missing_revenue }}" = "true" ]; then
-            python -m src.finance.backfill --save --fix-missing-revenue
-          elif [ "${{ inputs.full_history }}" = "true" ]; then
-            python -m src.finance.backfill --save
-          else
-            python -m src.finance.backfill --save --recent-periodic-days 45
-          fi
-
-      - name: 파생지표
-        run: python -m src.finance.enrich --save
-
-      - name: 게이트 1차 계산
-        run: python -m src.screener.run --save
-
-      - name: 게이트 통과 종목 정밀 재무
-        env:
-          CODES_INPUT: ${{ inputs.codes }}
-        run: |
-          if [ -n "$CODES_INPUT" ]; then
-            python -m src.finance.detail --save --code "$CODES_INPUT" --refresh
-          else
-            python -m src.finance.detail --save
-          fi
-
-      - name: D축 반영 최종 스크리닝
-        run: python -m src.screener.run --save
-
-      - name: 표시 구간 과거 GPM 보충
-        env:
-          CODES_INPUT: ${{ inputs.codes }}
-        run: |
-          if [ -n "$CODES_INPUT" ]; then
-            python -m src.finance.detail --gpm-history --save --code "$CODES_INPUT"
-          else
-            python -m src.finance.detail --gpm-history --save
-          fi
-
-      - name: 정기보고서 서술 근거 갱신
-        run: python -m src.collectors.excerpt_run --save --limit 200 --max-seconds 1800
-
-      - name: 잠정 분석을 확정실적 분석으로 갱신
-        run: python -m src.analysis.batch --send --refresh-finalized --max-seconds 2400
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 확정 재무 수집
+      env:
+        CODES_INPUT: ${{ inputs.codes }}
+      run: "if [ -n \"$CODES_INPUT\" ]; then\n  python -m src.finance.backfill --save --codes \"$CODES_INPUT\"\nelif [ \"\
+        ${{ inputs.fix_missing_revenue }}\" = \"true\" ]; then\n  python -m src.finance.backfill --save --fix-missing-revenue\n\
+        elif [ \"${{ inputs.full_history }}\" = \"true\" ]; then\n  python -m src.finance.backfill --save\nelse\n  python\
+        \ -m src.finance.backfill --save --recent-periodic-days 45\nfi\n"
+    - name: 파생지표
+      run: python -m src.finance.enrich --save
+    - name: 게이트 1차 계산
+      run: python -m src.screener.run --save
+    - name: 게이트 통과 종목 정밀 재무
+      env:
+        CODES_INPUT: ${{ inputs.codes }}
+      run: "if [ -n \"$CODES_INPUT\" ]; then\n  python -m src.finance.detail --save --code \"$CODES_INPUT\" --refresh\nelse\n\
+        \  python -m src.finance.detail --save\nfi\n"
+    - name: D축 반영 최종 스크리닝
+      run: python -m src.screener.run --save
+    - name: 표시 구간 과거 GPM 보충
+      env:
+        CODES_INPUT: ${{ inputs.codes }}
+      run: "if [ -n \"$CODES_INPUT\" ]; then\n  python -m src.finance.detail --gpm-history --save --code \"$CODES_INPUT\"\n\
+        else\n  python -m src.finance.detail --gpm-history --save\nfi\n"
+    - name: 정기보고서 서술 근거 갱신
+      run: python -m src.collectors.excerpt_run --save --limit 200 --max-seconds 1800
+    - name: 잠정 분석을 확정실적 분석으로 갱신
+      run: python -m src.analysis.batch --send --refresh-finalized --max-seconds 2400
+    if: ${{ false }}
+'on':
+  workflow_dispatch:
+    inputs:
+      fix_missing_revenue:
+        description: 매출 결측 종목만 재수집 (T39 폴백)
+        type: boolean
+        default: false
+      codes:
+        description: 수동 갱신할 종목코드(쉼표 구분, 비우면 전체)
+        type: string
+        default: ''
+      full_history:
+        description: 전 종목 전체 연도 재수집(수동 복구용·시간 소요)
+        type: boolean
+        default: false

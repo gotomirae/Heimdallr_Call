@@ -35,7 +35,7 @@ API_BASE = "https://api.telegram.org/bot{token}/{method}"
 #:   `getUpdates`는 들어 있지만, 아래 봇 분리 검사를 통과해야 실제로 호출된다.
 ALLOWED_METHODS = frozenset({
     "sendMessage", "editMessageText", "getMe", "getUpdates", "setChatMenuButton",
-    "getChat", "pinChatMessage",
+    "getChat", "pinChatMessage", "answerCallbackQuery", "editMessageReplyMarkup",
 })
 
 #: 수신(폴링)에만 해당하는 메서드. 공유 봇에서는 이것들을 막는다.
@@ -176,6 +176,7 @@ class TelegramClient:
         *,
         disable_preview: bool = True,
         parse_mode: str | None = "HTML",
+        reply_markup: dict | None = None,
     ) -> dict:
         """메시지 1건 발송.
 
@@ -196,6 +197,8 @@ class TelegramClient:
         }
         if parse_mode:
             payload["parse_mode"] = parse_mode
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
         body = self.call("sendMessage", payload)
         self.stats.sent += 1
         return body

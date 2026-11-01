@@ -312,42 +312,14 @@ def test_openai_adapter_uses_responses_structured_outputs_and_exact_token_count(
     )
 
 
-def test_openai_canary_can_disable_sdk_retries(monkeypatch):
-    import sys
-
-    captured = {}
-
-    class _Client:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
-
-    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=_Client))
-    monkeypatch.setattr(
-        "src.llm.providers.openai.require_env", lambda name: "test-key"
-    )
-
-    OpenAIProvider(max_retries=0)._client()
-
-    assert captured == {"api_key": "test-key", "max_retries": 0}
+def test_openai_api_is_disabled_even_for_canary():
+    with pytest.raises(RuntimeError, match="API_DISABLED"):
+        OpenAIProvider(max_retries=0)._client()
 
 
-def test_anthropic_canary_can_disable_sdk_retries(monkeypatch):
-    import sys
-
-    captured = {}
-
-    class _Client:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
-
-    monkeypatch.setitem(sys.modules, "anthropic", SimpleNamespace(Anthropic=_Client))
-    monkeypatch.setattr(
-        "src.llm.providers.anthropic.require_env", lambda name: "test-key"
-    )
-
-    AnthropicProvider(max_retries=0)._client()
-
-    assert captured == {"api_key": "test-key", "max_retries": 0}
+def test_anthropic_api_is_disabled_even_for_canary():
+    with pytest.raises(RuntimeError, match="API_DISABLED"):
+        AnthropicProvider(max_retries=0)._client()
 
 
 def test_openai_adapter_rejects_web_search_before_any_paid_call():
@@ -523,33 +495,15 @@ def test_unpriced_model_is_blocked_before_provider_calls(monkeypatch):
     assert provider.called is False
 
 
-def test_dependency_and_all_paid_workflows_declare_openai_settings():
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"openai>=' in pyproject
-
-    required = (
-        "OPENAI_API_KEY",
-        "ANALYSIS_LLM_PROVIDER",
-        "OPENAI_ANALYSIS_MODEL",
-        "OPENAI_INPUT_PER_MTOK",
-        "OPENAI_OUTPUT_PER_MTOK",
-        "OPENAI_CACHE_WRITE_PER_MTOK",
-        "OPENAI_CACHE_READ_PER_MTOK",
-    )
-    # telegram_listen.yml은 로컬 단일 폴러로 이전한 뒤 실행 불가인 보존용 stub이다.
-    for name in ("llm_batch.yml", "disclosure_poll.yml"):
-        body = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
-        missing = [setting for setting in required if setting not in body]
-        assert not missing, f"{name}: OpenAI 전환 설정 누락 {missing}"
+def test_scheduled_generation_workflows_do_not_declare_api_credentials():
+    for name in ("llm_batch.yml", "disclosure_poll.yml", "dashboard_analysis.yml", "universe_daily.yml"):
+        body = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+        assert "OPENAI_API_KEY" not in body and "ANTHROPIC_API_KEY" not in body
 
 
-def test_registry_selects_explicit_provider_without_silent_fallback():
-    anthropic, anthropic_model = resolve_provider("anthropic")
-    openai, openai_model = resolve_provider("openai", "gpt-tested-snapshot")
-
-    assert isinstance(anthropic, AnthropicProvider)
-    assert anthropic_model == ANALYSIS_MODEL
-    assert isinstance(openai, OpenAIProvider)
-    assert openai_model == "gpt-tested-snapshot"
-    with pytest.raises(ValueError, match="지원하지 않는"):
-        resolve_provider("gemini")
+def test_registry_selects_pro_and_rejects_all_api_fallbacks():
+    provider, model = resolve_provider()
+    assert provider.name == "codex_subscription" and model
+    for name in ("anthropic", "openai", "gemini"):
+        with pytest.raises(ValueError, match="API_DISABLED"):
+            resolve_provider(name)

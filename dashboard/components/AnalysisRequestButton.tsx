@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {analysisHeaders} from "@/lib/pro-analysis-client";
 
 type State = {
   status: string;
@@ -51,16 +52,17 @@ function errorLabel(value?: string): string | null {
   return value.length > 240 ? `${value.slice(0, 240)}…` : value;
 }
 
-export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis, analyzedAt }: {
-  code: string; year: number; quarter: number; hasAnalysis: boolean; analyzedAt?: string;
+export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis, analyzedAt, needsUpdate }: {
+  code: string; year: number; quarter: number; hasAnalysis: boolean; analyzedAt?: string; needsUpdate?: boolean;
 }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: hasAnalysis ? "completed" : "idle" });
+  const [force, setForce] = useState(false);
   const polling = useRef<ReturnType<typeof setInterval> | null>(null);
   const endpoint = `/api/analysis-request?code=${code}&year=${year}&quarter=${quarter}`;
 
   const read = async () => {
-    const response = await fetch(endpoint, { cache: "no-store" });
+    const response = await fetch(endpoint, { cache: "no-store", headers: analysisHeaders() });
     const next = await response.json();
     setState(next);
     const nextActive = ["pending", "working", "deferred"].includes(next.status);
@@ -84,8 +86,8 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
     setState({ status: "pending", message: "요청을 접수하고 있다." });
     try {
     const response = await fetch("/api/analysis-request", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code, year, quarter }),
+      method: "POST", headers: analysisHeaders(),
+      body: JSON.stringify({ code, year, quarter, force }),
     });
     const next = await response.json();
     setState(next);
@@ -105,15 +107,17 @@ export default function AnalysisRequestButton({ code, year, quarter, hasAnalysis
   return <div className="mb-4 rounded-lg border border-violet-700/70 bg-violet-950/25 p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <div className="text-sm font-bold text-violet-100">기업 투자판단 LLM 분석</div>
+        <div className="text-sm font-bold text-violet-100">기업 투자판단 분석</div>
         <p className="mt-1 text-xs text-emerald-200">🕒 가장 최근 분석: {timeLabel(analyzedAt) ?? "분석 이력 없음"}</p>
+        {needsUpdate && <p className="mt-1 text-sm font-bold text-amber-300">새 공시 있음 · 분석 갱신 필요. 기존 보고서는 작성 당시 기준을 유지합니다.</p>}
         <p className="mt-1 text-xs text-violet-200">🔁 강조 · 🔄 변경 · 🛠 수정 · 🆕 신규를 이전 분석과 비교합니다. 다음 분기 확인 항목도 재점검합니다.</p>
-        <p className="mt-1 text-xs leading-relaxed text-white">클릭하면 현재 시점에 새 분석을 접수합니다. 생성 시각과 실적·확정 종가의 기준일은 구분합니다.<br />기업 개요·제품별 매출 비중·핵심 투자 아이디어·실적 원인·향후 전망·주가 구간별 상승/하락 원인·리스크를 공시와 공개 원문으로 분석합니다.</p>
+        <p className="mt-1 text-xs leading-relaxed text-white">분석을 누를 때만 보고서를 갱신합니다. 같은 종목·분기·근거는 저장 결과를 재사용하며 주가만 바뀌면 지표만 자동 갱신합니다. 상단 분석 메뉴에서 분석 암호를 입력할 수 있습니다.</p>
+        <label className="mt-2 block text-xs"><input type="checkbox" checked={force} onChange={e => setForce(e.target.checked)} /> 같은 근거라도 명시적으로 재검토</label>
       </div>
       <button type="button" onClick={request} disabled={active}
         className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-950/40 hover:bg-violet-400 disabled:cursor-wait disabled:bg-slate-600">
         {active && <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-white" />}
-        {(state.status === "completed" || state.status === "idle") && hasAnalysis ? "현재 기준 LLM 다시 분석" : LABEL[state.status] ?? "LLM 분석 실행"}
+        {active ? LABEL[state.status] : "분석"}
       </button>
     </div>
     {state.status !== "idle" && <div className="mt-4" aria-label="LLM 분석 처리 단계 진행률">

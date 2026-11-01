@@ -198,7 +198,8 @@ def test_us_telegram_direct_input_is_enqueued(monkeypatch):
     client.send_message.return_value={'result':{'message_id':1}}
     msg={'chat':{'type':'private','id':111},'from':{'id':111},'text':'NVDA'}
     result=listen.handle_message(client,msg,{},analyze=False,chats={'111'},update_id=1)
-    assert result['result']=='분석 접수' and seen[0].market=='US'
+    assert result['result']=='분석 버튼 대기' and seen == []
+    assert 'NVIDIA' in client.send_message.call_args.args[0]
 
 
 def test_deck_wrapper_result_and_files(tmp_path):
@@ -222,25 +223,21 @@ def test_deck_fallback_only_same_fresh_request(tmp_path):
     assert deck.result_file(tmp_path,10,0)['request_id']=='D10'
 
 
-@pytest.mark.parametrize('attempts,expected',[(1,'pending'),(3,'pending'),(4,'failed')])
-def test_deck_usage_retry_budget_and_manifest(tmp_path,monkeypatch,attempts,expected):
-    (tmp_path/'SKILL.md').write_text('skill',encoding='utf-8')
-    monkeypatch.setattr(deck,'SKILL',tmp_path)
+@pytest.mark.parametrize('attempts', [1,3,4,99])
+def test_pro_usage_wait_does_not_spend_retry_budget(tmp_path,monkeypatch,attempts):
+    from telegram_bridge import pro_followups as pro
+    from src.llm.subscription import SubscriptionWait
     monkeypatch.setattr(deck,'STATE',tmp_path/'state')
-    monkeypatch.setattr(deck.shutil,'which',lambda *a:'claude.exe')
-    monkeypatch.setattr(deck.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0,stdout=json.dumps({'loggedIn':True,'authMethod':'claude.ai'})))
-    monkeypatch.setattr(deck,'run_claude',lambda *a,**k:SimpleNamespace(returncode=1,stdout='You have hit your usage limit',stderr=''))
+    monkeypatch.setattr(deck,'build_prompt',lambda job:'approved PPT request')
     client=Mock()
-    client.rpc.return_value.execute.return_value.data={'id':10,'attempts':attempts,'analysis':{
-        'company_name':'삼성전자','code':'005930','market':'KR','notion_url':'https://www.notion.so/'+'a'*32,
-        'request_kind':'company','status':'sent'}}
+    client.rpc.return_value.execute.return_value.data={'id':10,'attempts':attempts,'mode':'deck','analysis':{'request_kind':'company','status':'sent'}}
     client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data=[{'id':10}]
     monkeypatch.setattr(deck,'get_client',lambda:client)
+    monkeypatch.setattr(pro,'execute',lambda *a,**k: (_ for _ in ()).throw(SubscriptionWait('USAGE')))
     result=deck.run_once()
-    assert result['status']==expected
-    if expected=='pending':
-        delay=datetime.fromisoformat(result['retry_after'])-datetime.now(timezone.utc)
-        assert timedelta(minutes=29)<delay<timedelta(minutes=31)
+    assert result['status']=='pending' and result['attempts']==attempts-1
+    assert result['claimed_at'] is None and result['completed_at'] is None
+    assert timedelta(minutes=29)<datetime.fromisoformat(result['retry_after'])-datetime.now(timezone.utc)<timedelta(minutes=31)
     assert (tmp_path/'state/D10.json').is_file()
 
 
@@ -276,92 +273,51 @@ def test_subscription_auth_method_is_checked(monkeypatch, method, token, allowed
     assert probe_subscription('claude')['loggedIn'] is allowed
 
 
-@pytest.mark.parametrize('output,post_login,attempts,status,error', [
-    ('Please run /login', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
-    ('Invalid API key', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
-    ('authentication_error 401', True, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
-    ('not logged in', True, 4, 'failed', 'CLAUDE_LOGIN_REQUIRED'),
-    ('exit without result', False, 1, 'pending', 'CLAUDE_LOGIN_REQUIRED'),
-    ('exit without result', True, 1, 'failed', 'CLAUDE_EXIT')])
-def test_deck_auth_failure_retries_with_cap(tmp_path, monkeypatch, output, post_login, attempts, status, error):
-    (tmp_path / 'SKILL.md').write_text('skill', encoding='utf-8')
-    monkeypatch.setattr(deck, 'SKILL', tmp_path)
-    monkeypatch.setattr(deck, 'STATE', tmp_path / 'state')
-    monkeypatch.setattr(deck.shutil, 'which', lambda *a: 'claude')
-    probes = iter([{'loggedIn': True}, {'loggedIn': post_login}])
-    monkeypatch.setattr(deck, 'probe_subscription', lambda *a: next(probes))
-    monkeypatch.setattr(deck, 'login_notice', lambda *a, **k: {})
-    monkeypatch.setattr(deck, 'run_claude', lambda *a, **k: SimpleNamespace(returncode=1, stdout=output, stderr=''))
-    client = Mock()
-    client.rpc.return_value.execute.return_value.data = {'id': 10, 'attempts': attempts, 'analysis': {
-        'company_name': '삼성전자', 'code': '005930', 'market': 'KR',
-        'notion_url': 'https://www.notion.so/' + 'a' * 32, 'request_kind': 'company', 'status': 'sent'}}
-    client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{'id': 10}]
-    monkeypatch.setattr(deck, 'get_client', lambda: client)
-    result = deck.run_once()
-    assert (result['status'], result['error']) == (status, error)
-    if status == 'pending':
-        assert result['claimed_at'] is None and result['completed_at'] is None
-        assert timedelta(minutes=29) < datetime.fromisoformat(result['retry_after']) - datetime.now(timezone.utc) < timedelta(minutes=31)
+@pytest.mark.parametrize('reason', ['CHATGPT_LOGIN_REQUIRED','CODEX_BUSY','CODEX_PROCESS_STILL_RUNNING'])
+def test_pro_auth_or_busy_wait_preserves_work_without_api_fallback(tmp_path,monkeypatch,reason):
+    from telegram_bridge import pro_followups as pro
+    from src.llm.subscription import SubscriptionWait
+    monkeypatch.setattr(deck,'STATE',tmp_path/'state')
+    monkeypatch.setattr(deck,'build_prompt',lambda job:'approved PPT request')
+    client=Mock()
+    client.rpc.return_value.execute.return_value.data={'id':10,'attempts':4,'mode':'deck','analysis':{'request_kind':'company','status':'sent'}}
+    client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data=[{'id':10}]
+    monkeypatch.setattr(deck,'get_client',lambda:client)
+    monkeypatch.setattr(pro,'execute',lambda *a,**k: (_ for _ in ()).throw(SubscriptionWait(reason)))
+    result=deck.run_once()
+    assert result['status']=='pending' and result['error']==reason and result['attempts']==3
 
 
-def test_login_outage_notice_durable_once_per_kst_day(tmp_path, monkeypatch):
+def test_login_outage_stays_local_across_days_and_recovery(tmp_path, monkeypatch):
+    import sqlite3
+
     monkeypatch.setattr(deck, 'STATE', tmp_path)
-    sent = []
-    monkeypatch.setattr(deck, 'send_login_notice', lambda: sent.append('sent'))
+    sender = Mock(side_effect=AssertionError('Login tracking must not contact Telegram'))
+    monkeypatch.setattr('src.notify.telegram.TelegramClient', sender)
     now = datetime(2026, 10, 8, 14, 0, tzinfo=timezone.utc)  # 23:00 KST
-    deck.login_notice(False, now)
-    deck.login_notice(False, now + timedelta(minutes=29))
-    deck.login_notice(None, now + timedelta(minutes=29))  # superficial loggedIn must not erase an expired token outage
-    assert sent == []
-    deck.login_notice(False, now + timedelta(minutes=30))
-    deck.login_notice(False, now + timedelta(minutes=59))
-    assert len(sent) == 1
-    deck.login_notice(False, now + timedelta(hours=1))  # next KST day
-    assert len(sent) == 2
-    deck.login_notice(True, now + timedelta(hours=2))
-    deck.login_notice(False, now + timedelta(hours=3))
-    deck.login_notice(False, now + timedelta(hours=4))
-    assert len(sent) == 2  # recovery must not erase today's dedupe
+    # Replay an existing outage with an already-sent daily reminder.
+    with sqlite3.connect(tmp_path / 'auth.sqlite3') as db:
+        db.execute('CREATE TABLE auth (id INTEGER PRIMARY KEY, since TEXT, notice_day TEXT)')
+        db.execute('INSERT INTO auth VALUES(1, ?, ?)', (now.isoformat(), '2026-10-08'))
+    for days in range(15):
+        for available in (False, None):
+            result = deck.login_notice(available, now + timedelta(days=days, minutes=31))
+            assert result == {'login_required_since': now.isoformat(),
+                              'login_notice_day': '2026-10-08', 'login_notice': 'disabled'}
+    recovered = deck.login_notice(True, now + timedelta(days=15))
+    assert recovered['login_required_since'] is None
+    restarted = deck.login_notice(False, now + timedelta(days=16))
+    assert restarted['login_required_since'] == (now + timedelta(days=16)).isoformat()
+    sender.assert_not_called()
 
 
-def test_login_notice_uncertain_send_does_not_duplicate(tmp_path, monkeypatch):
-    monkeypatch.setattr(deck, 'STATE', tmp_path)
-    sender = Mock(side_effect=RuntimeError('private error must not escape'))
-    monkeypatch.setattr(deck, 'send_login_notice', sender)
-    now = datetime.now(timezone.utc)
-    deck.login_notice(False, now)
-    result = deck.login_notice(False, now + timedelta(minutes=31))
-    deck.login_notice(False, now + timedelta(minutes=32))
-    assert sender.call_count == 1 and result['login_notice_error'] == 'RuntimeError'
-
-
-def test_missing_login_never_claims_or_spends_attempts(tmp_path, monkeypatch):
-    (tmp_path / 'SKILL.md').write_text('skill', encoding='utf-8')
-    monkeypatch.setattr(deck, 'SKILL', tmp_path)
-    monkeypatch.setattr(deck, 'STATE', tmp_path / 'state')
-    monkeypatch.setattr(deck.shutil, 'which', lambda *a: 'claude')
-    monkeypatch.setattr(deck, 'probe_subscription', lambda *a: {'loggedIn': False})
-    client = Mock()
-    monkeypatch.setattr(deck, 'get_client', client)
-    assert deck.run_once()['status'] == 'unavailable'
-    client.assert_not_called()
-
-
-@pytest.mark.parametrize('bot_id,chat_type,allowed', [
-    ('8933940541', 'private', True), ('8605695587', 'private', False),
-    ('8933940541', 'group', False)])
-def test_login_notice_only_heimdallr_private_chat(monkeypatch, bot_id, chat_type, allowed):
-    client = Mock(token=bot_id + ':fixture', chat_id='fixture')
-    client.call.return_value = {'result': {'type': chat_type}}
-    monkeypatch.setattr('src.notify.telegram.TelegramClient', lambda: client)
-    if allowed:
-        deck.send_login_notice()
-        client.send_message.assert_called_once()
-    else:
-        with pytest.raises(ValueError):
-            deck.send_login_notice()
-        client.send_message.assert_not_called()
+def test_empty_pro_followup_queue_does_not_probe_auth_or_call_model(monkeypatch):
+    from telegram_bridge import pro_followups as pro
+    client=Mock();client.rpc.return_value.execute.return_value.data=None
+    monkeypatch.setattr(deck,'get_client',lambda:client)
+    monkeypatch.setattr(pro,'execute',lambda *a,**k:pytest.fail('empty queue model call'))
+    monkeypatch.setattr(deck,'probe_subscription',lambda *a:pytest.fail('legacy login probe'))
+    assert deck.run_once()=={'status':'idle','model_calls':0}
 
 
 def test_sql_runtime_budgets_match_constants():
@@ -380,5 +336,20 @@ def test_us_exact_ticker_precedes_same_industry_label(monkeypatch):
     client = Mock()
     client.send_message.return_value = {"result": {"message_id": 1}}
     message = {"chat": {"type": "private", "id": 111}, "from": {"id": 111}, "text": "IT"}
-    assert listen.handle_message(client, message, {}, analyze=False, chats={"111"}, update_id=1)["result"] == "분석 접수"
-    assert seen[0].kind == "company" and seen[0].ticker == "IT"
+    assert listen.handle_message(client, message, {}, analyze=False, chats={"111"}, update_id=1)["result"] == "분석 버튼 대기"
+    assert seen == []
+    assert "GARTNER" in client.send_message.call_args.args[0]
+
+
+@pytest.fixture(autouse=True)
+def isolated_analysis_confirmation_store(tmp_path, monkeypatch):
+    import src.notify.analysis_confirmation as confirmation
+    monkeypatch.setattr(confirmation, "STATE", tmp_path / "confirmations.sqlite3")
+
+
+@pytest.fixture(autouse=True)
+def isolated_pro_execution_store(tmp_path, monkeypatch):
+    import src.llm.subscription as subscription
+    from telegram_bridge import pro_followups
+    monkeypatch.setattr(subscription, "STATE", tmp_path / "pro-execution")
+    monkeypatch.setattr(pro_followups, "STATE", tmp_path / "pro-execution")

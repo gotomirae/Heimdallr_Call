@@ -267,13 +267,11 @@ def test_pg_cron_fires_before_jarvis_judgement():
     assert max(_minutes(c) for c in crons) < _minutes("10 10 * * *")
 
 
-def test_schedule_is_backup_thirty_minutes_after_pg_cron():
-    yaml = pytest.importorskip("yaml")
-    spec = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    on = spec.get(True) or spec.get("on")
-    backups = [_minutes(row["cron"]) for row in on["schedule"]]
-    primaries = [_minutes(cron) for _, cron, _ in _pg_cron_jobs()]
-    assert backups == [m + 30 for m in primaries]
+def test_latest_migration_replaces_staggered_dispatch_with_1600():
+    from pathlib import Path
+    text = (Path(__file__).resolve().parents[1] / "docs/migrations/adr50_schedules.sql").read_text(encoding="utf-8")
+    assert "heimdallr-indicators-1600','0 7 * * 1-5'" in text
+    assert "heimdallr-digest-%" in text and "cron.unschedule" in text
 
 
 def test_dispatched_inputs_are_declared():

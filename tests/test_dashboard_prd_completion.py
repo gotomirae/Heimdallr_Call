@@ -336,7 +336,8 @@ def test_discovery_uses_verified_us_global_macro_without_blocking_page_render():
     assert "getMacroContext()" in page
     assert "미국·글로벌 매크로" in DISCOVERY
     assert "실적 갱신 자동 계산 흐름" in DISCOVERY
-    assert "오늘의 시장 온도" in DISCOVERY and "앞으로 볼 변수" in DISCOVERY
+    assert "저장된 시장 해설" in DISCOVERY and "앞으로 볼 변수" in DISCOVERY
+    assert "commentaryCheckedAt" in DISCOVERY
     assert "공식 발표 핵심 요약" in DISCOVERY and "매크로 적합 섹터 TOP" in DISCOVERY
     assert DISCOVERY.count("추천 정렬") == 1
     assert DISCOVERY.index("추천 정렬") < DISCOVERY.index('<table className="w-full min-w-[1820px]')
