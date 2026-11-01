@@ -37,9 +37,11 @@ jobs:
 
         python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
 
-        python -m src.collectors.order_contract_run --limit 100 --save
-
         '
+    - name: 수시 계약 구조화 · 개별 실패 격리
+      if: steps.season.outputs.run == 'true'
+      continue-on-error: true
+      run: python -m src.collectors.order_contract_run --limit 100 --save
     - name: 정기보고서 감지 · 확정 재무 갱신
       if: steps.season.outputs.run == 'true'
       run: python -m src.finance.backfill --save --recent-periodic-days 7
@@ -67,9 +69,9 @@ jobs:
       if: steps.season.outputs.run == 'true'
       env:
         NOTIFY_INPUT: ${{ inputs.notify }}
-      run: "# ★ 끄더라도 드라이런은 돌린다 — 무엇이 나갔을 것인지 로그에 남는다.\n#   조용히 건너뛰면 \"발송 대상이 없었는지 스텝이 안 돌았는지\"를 구분할 수 없다.\nif [ \"$NOTIFY_INPUT\"\
-        \ = \"false\" ]; then\n  echo \"즉시 알림 OFF — 수동 실행에서 명시적으로 껐다 (드라이런만 한다)\"\n  python -m src.notify.batch --flash\n\
-        else\n  python -m src.notify.batch --flash --send\nfi\n"
+      run: "# ★ 끄더라도 드라이런은 돌린다 — 무엇이 나갔을 것인지 로그에 남는다.\n#   조용히 건너뛰면 \"발송 대상이 없었는지 스텝이 안 돌았는지\"를 구분할 수 없다.\nif [\
+        \ \"$NOTIFY_INPUT\" = \"false\" ]; then\n  echo \"즉시 알림 OFF — 수동 실행에서 명시적으로 껐다 (드라이런만 한다)\"\n  python -m\
+        \ src.notify.batch --flash\nelse\n  python -m src.notify.batch --flash --send\nfi\n"
     - name: 공시 슬롯 완료표식
       if: steps.season.outputs.run == 'true'
       run: python -m src.utils.operating_calendar disclosure --complete

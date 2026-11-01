@@ -37,3 +37,16 @@ Telegram 이름/코드 입력 후 분석 버튼 승인, 기존 요청 ID·전체
 ## 배포 검증 (후속 실측 추가)
 
 원격 main의 추가78커밋이 자동 macro/season JSON 두 파일뿐임을 확인하고 ff-only 통합했다. 이전 미커밋 파일 인계/출처 계약은 삭제하지 않고 필수 런타임 의존성으로 보존했다. 배포·cron과 초기 전수 저장 최종 수치는 아래 추가 기록을 따른다.
+
+
+## 운영 배포 최종 실측
+
+PR #10 병합871530c7b9ba4542f8754a92fe4a84a4bedcbf75, main CI41278538611:1430 passed/35 skipped/3 deselected(무시크릿/네트워크 제외). Vercel production 성공. 실제 /·/stock/000660·/settings HTTP200, 새 분석 메뉴/저장 해설 확인. 미인증 큐 조회403, 로컬 소유자 암호로 조회200/idle. POST 접수·모델 생성 없이 검증했다.
+
+지표 초기 이관1219대상/1219저장/실패0/부분1. 1218종목2026-10-30, 006380은 원천 quoteAvailable=false·annualAvailable=true·일봉/수급701개·마지막2026-09-16로 그대로 보존했다. 가격이나 기준일을 추측하지 않았다. 모델/API/Telegram 발송0인 데이터 이관이다.
+
+정확한 Heimdallr SQL UI에서 기존 cron5개(06:00/16:30 universe,17:37/18:17/19:07 digest)를 새2개로 교체했다. heimdallr-indicators-1600=`0 7 * * 1-5`, heimdallr-disclosure-2h=`0 1-23/2 * * *`, 실제 active=true2/2. 세 테이블 RLS=true3/3, anon SELECT=false3/3를 실제 조회했다. dispatch 함수/기존 인증은 유지했다. 휴일/시즌/중복은 각 Python 게이트가 판정한다.
+
+같은 main 배포 이후 새 실행기 실제 worker.json 반복 idle/model_calls0/notifications sent0·watched0. 이전 큐/완료 결과 재생성0. 새 owner 암호는 ignored 로컬 .env의 ANALYSIS_ACCESS_TOKEN에 있으며 로그/커밋에 값은 남기지 않았다.
+
+추가 점검에서 이전 disclosure_poll41267166941이 계약4건 구조화 실패로 뒤의 정상 정기재무/선별까지 중단된 사실을 확인했다. 이 선택 단계만 독립 경고 스텝으로 격리했다(T296). 실패 계약 자체를 복구하거나 정상 수치로 가장하지 않았다. 새 예약의 첫 실제 거래일16시 전체 실행과 사용자가 누른 실제 금융 보고서의 전체 게시 완료는 아직 관측하지 않았으며, 구독 smoke를 금융 분석 검증으로 세지 않는다.
