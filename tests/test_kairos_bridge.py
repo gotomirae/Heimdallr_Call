@@ -86,6 +86,10 @@ def test_listener_database_failure_does_not_consume_telegram_updates(tmp_path, m
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
+    from src.notify import listen
+    from telegram_bridge import usage_notices
+    monkeypatch.setattr(listen, "allowed_chats", lambda: {"111"})
+    monkeypatch.setattr(usage_notices, "STATE", tmp_path / "usage.sqlite3")
     monkeypatch.setattr(bridge, "STATE", tmp_path / "queue.sqlite3")
     connection = bridge.connect()
     yield connection
