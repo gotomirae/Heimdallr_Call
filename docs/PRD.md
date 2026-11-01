@@ -1,6 +1,6 @@
 # Heimdallr_Call — PRD v2.1 (Final)
 
-> **2026-11-01 최신 구현 기준(배포 검증 진행 중)**: 분기실적 국내종목 자동/수동발굴. 매일변경지표는16시KST 자동갱신(토/일·한국공휴일제외),종목포함 고정지표/내용/해설/보고서는 `분석` 버튼으로만 갱신. 시즌2시간공시확인/정량발굴은유지하되새공시만으로AI보고서자동갱신하지않는다. 과거분기까지Pro로그인Codex 순차처리,OpenAI/Anthropic/Batch API사용안함·자동크레딧구매금지. [ADR50](decisions/050-trading-day-indicators-pro-only-analysis.md)이ADR49와관련이전규칙보다우선한다. SC3는 시즌 2시간 감지 + 처리 지연이다. 적용 실측은 2026-11-01-pro-only-implementation 세션을 따른다.
+> **2026-11-01 최신 운영 기준(배포·DB 예약 적용 확인)**: 분기실적 국내종목 자동/수동발굴. 매일변경지표는16시KST 자동갱신(토/일·한국공휴일제외),종목포함 고정지표/내용/해설/보고서는 `분석` 버튼으로만 갱신. 시즌2시간공시확인/정량발굴은유지하되새공시만으로AI보고서자동갱신하지않는다. 과거분기까지Pro로그인Codex 순차처리,OpenAI/Anthropic/Batch API사용안함·자동크레딧구매금지. [ADR50](decisions/050-trading-day-indicators-pro-only-analysis.md)이ADR49와관련이전규칙보다우선한다. SC3는 시즌 2시간 감지 + 처리 지연이다. 적용 실측은 2026-11-01-pro-only-implementation 세션을 따른다.
 
 > **이 문서 하나만으로 구현이 가능해야 한다.** Claude Code 세션 시작 시 이 파일을 먼저 읽힌다.
 > 버전: v2.1 · 작성일: 2026-08-13
