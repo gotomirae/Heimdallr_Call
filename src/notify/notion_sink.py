@@ -1,4 +1,4 @@
-# PRD Ref: §8 (외부 연동) · JARVIS NEXUS NXD-7
+# PRD Ref: §8 (외부 연동) · JARVIS NEXUS NXD-7 — 세 저장소 공용 노션 클라이언트
 """노션(원장 #1) 쓰기 — 공용 최소 클라이언트.
 
 JARVIS NEXUS 결정 NXD-7(2026-11-08): HermesCall·Heimdallr Call·Sage는 각자 노션
@@ -16,10 +16,15 @@ Sage `collector/notion_sink.py`). 한쪽을 고치면 나머지도 같이 고칠
      아티팩트가 그 칸으로 종목을 고르는 규칙이 조용히 깨진다. 시작할 때 스키마를
      읽어 거른다.
   4. dry-run이면 노션을 읽기만 하고 쓰지 않는다(토큰이 없으면 읽지도 않는다).
+  5. **본문(블록)은 분석 전체를 싣는다**(2026-11-08 사용자 지시 "투자 판단에 유용한
+     내용 모두"). 본문 첫 줄에 내용 해시(🔖 내보내기 버전)를 두고, 분석이 바뀌면
+     (예: 어닝콜 Q&A가 뒤늦게 붙음) 속성을 고치고 본문을 통째로 바꾼다. 같으면 건너뛴다.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
 from typing import Any, Iterable
@@ -98,6 +103,111 @@ def compact(props: dict[str, dict | None]) -> dict[str, dict]:
     return {k: v for k, v in props.items() if v is not None}
 
 
+# ── 본문 블록 (순수 함수) ──────────────────────────────────────────────
+
+_BLOCK_TEXT_LIMIT = 1900
+VERSION_PREFIX = "🔖 내보내기 버전 "
+
+
+def _rich(text: str) -> list[dict]:
+    """2,000자 제한을 넘는 글은 여러 rich_text 조각으로 나눈다(블록당 100조각까지)."""
+    text = (text or "").strip()
+    parts = [text[i:i + _BLOCK_TEXT_LIMIT] for i in range(0, len(text), _BLOCK_TEXT_LIMIT)] or [""]
+    return [{"type": "text", "text": {"content": p}} for p in parts[:100]]
+
+
+def b_heading(text: str, level: int = 2) -> dict:
+    kind = f"heading_{max(1, min(3, level))}"
+    return {"object": "block", "type": kind, kind: {"rich_text": _rich(text[:200])}}
+
+
+def b_para(text: str) -> dict:
+    return {"object": "block", "type": "paragraph", "paragraph": {"rich_text": _rich(text)}}
+
+
+def b_bullet(text: str) -> dict:
+    return {"object": "block", "type": "bulleted_list_item",
+            "bulleted_list_item": {"rich_text": _rich(text)}}
+
+
+def b_divider() -> dict:
+    return {"object": "block", "type": "divider", "divider": {}}
+
+
+def content_hash(*parts: Any) -> str:
+    raw = json.dumps(parts, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def _scalar(v: Any) -> str:
+    if isinstance(v, bool):
+        return "예" if v else "아니오"
+    if isinstance(v, float):
+        return f"{v:,.4g}" if abs(v) < 1e6 else f"{v:,.0f}"
+    if isinstance(v, int):
+        return f"{v:,}"
+    return str(v).strip()
+
+
+def _is_empty(v: Any) -> bool:
+    return v is None or v == "" or v == [] or v == {}
+
+
+def render_value(value: Any, labels: dict[str, str] | None = None, *,
+                 level: int = 3, max_depth: int = 4) -> list[dict]:
+    """임의의 JSON(딕셔너리·목록·값)을 노션 블록으로. 빈 값은 건너뛴다.
+
+    딕셔너리: 값이 짧은 스칼라면 '라벨: 값' 글머리, 길거나 중첩이면 소제목 + 하위.
+    목록: 스칼라면 글머리, 딕셔너리면 항목마다 '· 요약' 글머리 + 나머지 필드 글머리.
+    """
+    labels = labels or {}
+    out: list[dict] = []
+    if _is_empty(value):
+        return out
+    if isinstance(value, dict):
+        # 짧은 값(스칼라)을 먼저, 묶음(딕셔너리·목록)을 뒤에 — 소제목 아래에 스칼라가 섞여
+        # 다른 묶음의 일부처럼 읽히지 않게
+        items = [kv for kv in value.items() if not _is_empty(kv[1])]
+        items.sort(key=lambda kv: isinstance(kv[1], (dict, list)))
+        for k, v in items:
+            label = labels.get(k, k)
+            if not isinstance(v, (dict, list)):
+                text = _scalar(v)
+                out.append(b_bullet(f"{label}: {text}") if len(text) <= 160
+                           else b_para(f"【{label}】 {text}"))
+            elif max_depth <= 0:
+                out.append(b_bullet(f"{label}: {json.dumps(v, ensure_ascii=False)[:1800]}"))
+            else:
+                out.append(b_heading(label, level) if level <= 3 else b_para(f"【{label}】"))
+                out.extend(render_value(v, labels, level=level + 1, max_depth=max_depth - 1))
+        return out
+    if isinstance(value, list):
+        for item in value:
+            if _is_empty(item):
+                continue
+            if isinstance(item, dict):
+                out.append(b_bullet(_item_line(item, labels)))
+            elif isinstance(item, list):
+                out.extend(render_value(item, labels, level=level, max_depth=max_depth - 1))
+            else:
+                out.append(b_bullet(_scalar(item)))
+        return out
+    out.append(b_para(_scalar(value)))
+    return out
+
+
+def _item_line(item: dict, labels: dict[str, str]) -> str:
+    """목록 안 딕셔너리 한 항목을 한 줄로: '라벨: 값 · 라벨: 값'."""
+    bits = []
+    for k, v in item.items():
+        if _is_empty(v):
+            continue
+        if isinstance(v, (dict, list)):
+            v = json.dumps(v, ensure_ascii=False)
+        bits.append(f"{labels.get(k, k)}: {_scalar(v)}")
+    return " · ".join(bits)
+
+
 # ── 클라이언트 ─────────────────────────────────────────────────────────
 
 class NotionSink:
@@ -108,6 +218,7 @@ class NotionSink:
         self._options: dict[tuple[str, str], set[str]] = {}
         self._client = httpx.Client(timeout=timeout) if self.token else None
         self.created = 0
+        self.updated = 0
         self.skipped = 0
 
     @property
@@ -178,6 +289,76 @@ class NotionSink:
             "parent": {"type": "data_source_id", "data_source_id": data_source},
             "properties": properties,
         })
+        self.created += 1
+        return "created"
+
+
+    # ── 본문까지 쓰는 upsert ──────────────────────────────────────────
+
+    def find(self, data_source: str, flt: dict) -> str | None:
+        if not self.can_read:
+            return None
+        data = self._call("POST", f"/data_sources/{data_source}/query",
+                          {"filter": flt, "page_size": 1})
+        res = data.get("results") or []
+        return res[0]["id"] if res else None
+
+    def _children(self, block_id: str) -> list[dict]:
+        out, cursor = [], None
+        while True:
+            q = f"/blocks/{block_id}/children?page_size=100"
+            if cursor:
+                q += f"&start_cursor={cursor}"
+            data = self._call("GET", q)
+            out.extend(data.get("results") or [])
+            if not data.get("has_more"):
+                return out
+            cursor = data.get("next_cursor")
+
+    def _append(self, block_id: str, blocks: list[dict]) -> None:
+        for i in range(0, len(blocks), 100):
+            self._call("PATCH", f"/blocks/{block_id}/children", {"children": blocks[i:i + 100]})
+
+    def _page_version(self, page_id: str) -> str | None:
+        data = self._call("GET", f"/blocks/{page_id}/children?page_size=1")
+        res = data.get("results") or []
+        if not res or res[0].get("type") != "paragraph":
+            return None
+        text = "".join(t.get("plain_text", "") for t in res[0]["paragraph"].get("rich_text", []))
+        return text[len(VERSION_PREFIX):].strip() if text.startswith(VERSION_PREFIX) else None
+
+    def upsert(self, data_source: str, properties: dict[str, dict], children: list[dict], *,
+               dedup: dict, version: str) -> str:
+        """행 1개를 본문까지 맞춘다. 반환: 'created' | 'updated' | 'unchanged' | 'dry-run'.
+
+        본문 맨 앞에 버전 문단을 넣는다. 같은 버전이면 아무것도 안 한다(매일 같은 기간을
+        다시 훑어도 노션 호출이 조회 2회로 끝난다).
+        """
+        blocks = [b_para(f"{VERSION_PREFIX}{version}"), *children]
+        page_id = self.find(data_source, dedup)
+        if page_id and self._page_version(page_id) == version:
+            self.skipped += 1
+            return "unchanged"
+        if self.dry_run:
+            title = next((v["title"][0]["text"]["content"] for v in properties.values()
+                          if "title" in v), "?")
+            logger.info("[dry-run] 노션 %s: %s (본문 %d블록)",
+                        "갱신" if page_id else "생성", title, len(blocks))
+            return "dry-run"
+        if page_id:
+            self._call("PATCH", f"/pages/{page_id}", {"properties": properties})
+            for blk in self._children(page_id):
+                self._call("DELETE", f"/blocks/{blk['id']}")
+            self._append(page_id, blocks)
+            self.updated += 1
+            return "updated"
+        page = self._call("POST", "/pages", {
+            "parent": {"type": "data_source_id", "data_source_id": data_source},
+            "properties": properties,
+            "children": blocks[:100],
+        })
+        if len(blocks) > 100:
+            self._append(page["id"], blocks[100:])
         self.created += 1
         return "created"
 

@@ -61,3 +61,79 @@ def test_signal_scale():
     assert ns.signal_from_strength(10) == "5"
     assert ns.signal_from_strength(1) == "1"
     assert ns.signal_from_strength(None) is None
+
+
+# ── 2026-11-08 "모든 범위를 포함해서 기록" — 본문에 payload 전 필드가 남는가 ──
+
+_PAYLOAD = {
+    "one_line_thesis": "HBM 후공정 장비 수주가 매출로 전환되기 시작",
+    "why_now": "3분기 수주 1,200억원이 4분기 매출로 인식",
+    "earnings_change": {"cause": "TC 본더 출하 2배", "outlook": "4Q 매출 +40%"},
+    "growth_engine": [{"title": "HBM4", "evidence": "고객사 2곳 퀄 통과"}],
+    "acceleration_quality": {"is_genuine": True, "structural_or_temporary": "구조적",
+                             "sustainability_quarters": 4, "base_effect_assessment": "기저 낮음"},
+    "triggers": {"within_3m": [{"event": "4Q 잠정실적", "expected_date": "2027-01",
+                                "verifiable_metric": "매출 1,500억원"}],
+                 "within_6m": [{"event": "HBM4 양산", "expected_date": "2027-03"}]},
+    "price_position": {"verdict": "미반영", "reason": "PER 12배", "priced_in": ["HBM3E"],
+                       "not_priced_in": ["HBM4"]},
+    "scenarios": {"bull": {"probability": 30, "condition": "점유율 50%", "implication": "+60%"},
+                  "bear": {"probability": 20, "condition": "고객 이탈", "implication": "-30%"}},
+    "risks": [{"risk": "고객 집중", "likelihood": "중간", "watch_metric": "고객 비중"}],
+    "how_i_could_be_wrong": ["경쟁사 장비 채택"],
+    "global_chain": {"upstream": "NVIDIA Rubin", "customers": ["SK하이닉스"]},
+    "broker_reports": [{"publisher": "KB증권", "published_at": "2026-10-30", "key_point": "목표가 상향"}],
+    "next_data_to_watch": ["11월 수출입 통계"],
+    "future_field_xyz": "나중에 추가된 필드",
+}
+
+
+def _texts(blocks):
+    return "\n".join("".join(r["text"]["content"] for r in b[b["type"]].get("rich_text", []))
+                     for b in blocks)
+
+
+def _leaves(v):
+    if isinstance(v, dict):
+        for x in v.values():
+            yield from _leaves(x)
+    elif isinstance(v, list):
+        for x in v:
+            yield from _leaves(x)
+    elif isinstance(v, str) and v:
+        yield v
+
+
+def test_page_body_keeps_every_payload_string():
+    from src.notify.notion_export import build_page_body
+    blocks = build_page_body(
+        code="042700", name="한미반도체", fy=2026, fq=3, payload=_PAYLOAD,
+        screen={"grade": "△", "score_final": 61.2, "pri": 0.31, "has_consensus": False,
+                "gate_detail": {"g1": "매출 YoY 가속 +12%p"}},
+        fund={"revenue": 1.5e11, "revenue_yoy": 85.3, "op": 4.2e10, "op_status_label": None,
+              "opm": 28.0, "opm_yoy_delta": 6.1, "fs_div": "CFS"},
+        sector="특수 목적용 기계 제조업", link="https://dart/x", dashboard="https://h/stock/042700")
+    text = _texts(blocks)
+    missing = [s for s in _leaves(_PAYLOAD) if s not in text]
+    assert not missing, missing
+    assert "등급 △" in text and "컨센서스 있음 아니오" in text and "매출 YoY 가속 +12%p" in text
+    assert "매출: 1,500억원" in text and "OPM YoY: +6.1%p" in text
+    assert all(len(r["text"]["content"]) <= 2000 for b in blocks
+               for r in b[b["type"]].get("rich_text", []))
+
+
+def test_low_grades_are_exported_with_signal():
+    """△·✕도 내보낸다 — 등급은 신호강도·영향 칸으로 구분한다."""
+    from src.notify.notion_export import build_row
+    allowed = {"영향": {"긍정", "중립", "부정"}, "신호강도": {"1", "2", "3", "4", "5"}, "기업": set()}
+    row = build_row(code="000000", name="X", fy=2026, fq=3, payload={}, grade="✕", score=10,
+                    fund={}, sector=None, day="2026-11-08", link="L", dashboard="D", allowed=allowed)
+    assert row["신호강도"]["select"]["name"] == "1"
+    assert row["영향"]["select"]["name"] == "부정"
+
+
+def test_run_no_longer_filters_by_grade():
+    import inspect
+    from src.notify import notion_export
+    src = inspect.getsource(notion_export.run)
+    assert "NOTIFY_GRADES" not in src and "continue" not in src
