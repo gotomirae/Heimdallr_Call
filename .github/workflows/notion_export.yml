@@ -1,0 +1,46 @@
+# PRD Ref: §8 (외부 연동) · JARVIS NEXUS NXD-7 (2026-11-08)
+# Heimdallr 분기 분석(발송 등급·노션 관심종목) → 노션 「2_5. 소스 DB」. 하루 1회 17:05 KST.
+# 최근 3일을 훑고 노션에 이미 있는 원문 링크는 건너뛴다(멱등) — 하루 빠져도 다음 날 메워진다.
+# 필요한 시크릿: NOTION_TOKEN(노션 내부 통합 토큰, 「2. 주식 자본」에 연결), SUPABASE_*.
+name: notion_export
+concurrency:
+  group: notion-export
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
+      PYTHONUNBUFFERED: '1'
+      # schedule에는 inputs가 없다 — 분기는 if:가 아니라 셸에서(T79)
+      INPUT_DAYS: ${{ inputs.days }}
+      INPUT_DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+        cache: pip
+    - run: pip install -e .
+    - name: 노션 2_5 내보내기
+      run: |
+        args="--days ${INPUT_DAYS:-3}"
+        if [ "${INPUT_DRY_RUN}" = "true" ]; then args="$args --dry-run"; fi
+        python -m src.notify.notion_export $args
+'on':
+  schedule:
+  - cron: 5 8 * * *
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 몇 일 전까지 훑을지 (처음엔 30)
+        required: false
+        default: '3'
+      dry_run:
+        description: "'true'면 노션에 쓰지 않고 로그만"
+        required: false
+        default: 'false'
