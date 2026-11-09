@@ -137,3 +137,15 @@ def test_run_no_longer_filters_by_grade():
     from src.notify import notion_export
     src = inspect.getsource(notion_export.run)
     assert "NOTIFY_GRADES" not in src and "continue" not in src
+
+
+def test_string_payload_fields_do_not_break_row():
+    """옛 행은 earnings_change·price_position이 문자열로 저장돼 있다(실측 11/09 5건 실패)."""
+    from src.notify.notion_export import build_row
+    allowed = {"영향": {"긍정", "중립", "부정"}, "신호강도": {"1", "2", "3", "4", "5"}, "기업": set()}
+    row = build_row(code="053260", name="X", fy=2026, fq=2,
+                    payload={"one_line_thesis": "t", "earnings_change": '{"cause":">skip',
+                             "price_position": "미반영"},
+                    grade="△", score=50, fund={}, sector=None, day="2026-08-20", link="L",
+                    dashboard="D", allowed=allowed)
+    assert row["제목"]["title"][0]["text"]["content"].startswith("[Heimdallr] X 2026.2Q")
