@@ -13,6 +13,7 @@ export interface NaverLiveSnapshot {
   annualAvailable: boolean;
   priceDate: string | null;
   fetchedAt: string;
+  annualCheckedDate?: string | null;
   close: number | null;
   chgPct: number | null;
   marketCapKrw: number | null;
@@ -396,5 +397,22 @@ export async function getNaverInvestorFlows(code: string, fromDate?: string): Pr
   return fromDate ? rows.filter(row => row.trade_date >= fromDate) : rows;
 }
 export async function getNaverLiveSnapshot(code: string): Promise<NaverLiveSnapshot | null> {
-  return ((await storedIndicators(code)).quote ?? null) as NaverLiveSnapshot | null;
+  const payload = await storedIndicators(code);
+  return payload.quote ? {...payload.quote, annualCheckedDate: payload.sources?.annual ?? null} : null;
+}
+
+/** Preserve independently collected quote/annual values on partial failure (ADR50). */
+export function mergeIndicatorQuote(prior: NaverLiveSnapshot | null, fresh: NaverLiveSnapshot | null): NaverLiveSnapshot | null {
+  if (!fresh) return prior;
+  if (!prior) return fresh;
+  const result = {...prior};
+  const quoteKeys = ["priceDate", "close", "chgPct", "marketCapKrw", "high52w", "low52w", "pbr"] as const;
+  const annualKeys = ["per4q", "perYear", "fwdPer", "fwdPerYear", "perHistory3yAvg", "perHistoryYears", "eps", "epsNext", "roeYear", "roe", "roeNextYear", "roeNext", "fcfYear", "fcf"] as const;
+  const keys = [...(fresh.quoteAvailable ? quoteKeys : []), ...(fresh.annualAvailable ? annualKeys : [])];
+  for (const key of keys) (result as unknown as Record<string, unknown>)[key] = fresh[key];
+  result.quoteAvailable = fresh.quoteAvailable || prior.quoteAvailable;
+  result.annualAvailable = fresh.annualAvailable || prior.annualAvailable;
+  // A request timestamp is not evidence that an unavailable field was refreshed.
+  if (fresh.quoteAvailable || fresh.annualAvailable) result.fetchedAt = fresh.fetchedAt;
+  return result;
 }

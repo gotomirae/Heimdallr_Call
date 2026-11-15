@@ -342,7 +342,11 @@ export default async function StockPage({ params }: { params: { code: string } }
   const liveAnnual = naverLive?.annualAvailable === true;
   const liveCurrentAnnual = liveAnnual && naverLive?.per4q != null;
   const liveNextAnnual = liveAnnual && naverLive?.fwdPer != null;
-  const completedQuote = completedCloseAtKst16(dailyPrices);
+  const dailyQuote = completedCloseAtKst16(dailyPrices);
+  // One source can lag while the daily DB snapshot succeeds. Choose by actual
+  // trading date, so an old chart cannot hide a newer confirmed stored close.
+  const storedIsNewer = price?.close != null && price.snap_date && (!dailyQuote || price.snap_date > dailyQuote.tradeDate);
+  const completedQuote = storedIsNewer ? null : dailyQuote;
   const currentClose = completedQuote?.close ?? price?.close ?? null;
   const currentChgPct = completedQuote?.chgPct ?? price?.chg_pct ?? null;
   const currentMarketCap = liveQuote
@@ -465,8 +469,8 @@ export default async function StockPage({ params }: { params: { code: string } }
   const nextRoe = liveAnnual ? naverLive?.roeNext ?? null : annualConsensus?.roe_next_est ?? null;
   const nextRoeYear = liveAnnual ? naverLive?.roeNextYear ?? null : annualConsensus?.roe_next_year ?? null;
   const storedAnnualBasisDate = annualConsensus?.snapshot_at?.slice(0, 10) ?? null;
-  const currentAnnualBasisDate = liveCurrentAnnual ? priceBasisDate : storedAnnualBasisDate;
-  const nextAnnualBasisDate = liveNextAnnual ? priceBasisDate : storedAnnualBasisDate;
+  const currentAnnualBasisDate = liveCurrentAnnual ? naverLive?.annualCheckedDate ?? null : storedAnnualBasisDate;
+  const nextAnnualBasisDate = liveNextAnnual ? naverLive?.annualCheckedDate ?? null : storedAnnualBasisDate;
   const historicalPerAvg = naverLive?.perHistory3yAvg ?? null;
   const historicalPerYears = naverLive?.perHistoryYears ?? [];
   const calculatedPeg = forwardPeg(forwardPerValue, naverLive?.eps, naverLive?.epsNext);
@@ -631,6 +635,7 @@ export default async function StockPage({ params }: { params: { code: string } }
           <div className="mt-0.5 text-[11px] font-medium text-emerald-300">
             {priceBasisDate ?? "기준일 미상"} 기준 · {priceBasisLabel}
           </div>
+          <div className="mt-1 text-xs text-white">거래일 16시 하루 1회 갱신 · 주말·한국 공휴일 제외</div>
           <div className="mt-1 text-xs text-white">
             52주 {num(currentLow52w)} ~ {num(currentHigh52w)}
             {currentPos52w != null && ` (위치 ${(currentPos52w * 100).toFixed(0)}%)`}
