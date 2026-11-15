@@ -70,6 +70,8 @@ jobs:
       working-directory: dashboard
       run: npm ci
     - name: 상세 화면 일봉·수급·가치지표 16시 스냅샷
+      id: details
+      continue-on-error: true
       working-directory: dashboard
       run: node scripts/refresh-indicator-details.cjs
     - name: 네이버 컨센서스 · 확정 및 선행 PER
@@ -88,6 +90,11 @@ jobs:
         \  git config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n  git add dashboard/lib/macro-daily.json\n\
         \  git commit -m \"chore: refresh daily dynamic indicators\"\n  git pull --rebase origin main\n  git push origin HEAD:main\n\
         fi"
+    - name: 상세 지표 미완료 확인
+      if: steps.details.outcome == 'failure'
+      run: |
+        echo "상세 지표 일부 수집 실패 — 나머지 지표는 갱신했으며 완료 표식은 남기지 않습니다."
+        exit 1
     - name: 오늘 완료 표식
       run: python -m src.db.job_runs done --job universe_daily --run-id ${{ github.run_id }}
 'on':

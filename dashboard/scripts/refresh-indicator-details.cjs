@@ -27,11 +27,15 @@ async function all(table, columns, alter=q=>q) {
 async function main() {
   const codes=await all('krx_universe','code',q=>selected?q.eq('code',selected):q
     .eq('is_excluded',false).gte('market_cap_krw',constants.gate.market_cap_floor_krw));
-  const stored=new Map((await all('daily_indicator_details','code,snap_date,payload',q=>selected?q.eq('code',selected):q)).map(r=>[r.code,r]));
+  // History payloads contain years of prices/flows. Fetching 1,000 payloads in a
+  // single PostgREST page times out (57014) before any stock can be refreshed.
   const stats={day,targets:codes.length,updated:0,reused:0,partial:0,failed:0};
   async function collect({code}) {
-    const before=stored.get(code), prior=before?.payload || {};
-    if(before?.snap_date===day && !prior.incomplete && prior.quote && prior.prices?.length && prior.flows?.length) {stats.reused++;return;}
+    const {data,error:readError}=await db.from('daily_indicator_details').select('snap_date,payload,checked_at').eq('code',code).limit(1);
+    if(readError) throw new Error(`STORAGE_${readError.code}`);
+    const before=data?.[0], prior=before?.payload || {};
+    const checkedDay=before?.checked_at ? new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(before.checked_at)) : null;
+    if(!bootstrap && checkedDay===day) {stats.reused++;return;}
     const from=prior.flows?.map(r=>r.trade_date).sort().at(-1) || `${Number(day.slice(0,4))-constants.indicator_details.history_years}${day.slice(4)}`;
     const [prices,quote,flows]=await Promise.all([
       naver.collectNaverDailyPrices(code,constants.indicator_details.history_years),
@@ -39,22 +43,25 @@ async function main() {
     const merged=new Map((prior.flows || []).map(r=>[r.trade_date,r]));
     flows.forEach(row=>merged.set(row.trade_date,row));
     // Failures preserve the previous valid field and its actual source date.
-    const payload={prices:prices.length?prices:prior.prices || [],quote:quote || prior.quote || null,
+    const payload={prices:prices.length?prices:prior.prices || [],quote:naver.mergeIndicatorQuote(prior.quote || null,quote),
       flows:[...merged.values()].filter(r=>r.trade_date>=`${Number(day.slice(0,4))-constants.indicator_details.history_years}${day.slice(4)}`).sort((a,b)=>a.trade_date.localeCompare(b.trade_date)),
-      sources:{prices:prices.length?day:prior.sources?.prices || null,quote:quote?day:prior.sources?.quote || null,flows:flows.length?day:prior.sources?.flows || null},
+      sources:{prices:prices.length?day:prior.sources?.prices || null,quote:quote?.quoteAvailable?day:prior.sources?.quote || null,
+        annual:quote?.annualAvailable?day:prior.sources?.annual || null,flows:flows.length?day:prior.sources?.flows || null},
       incomplete:!prices.length || !quote?.quoteAvailable || !quote?.annualAvailable || !flows.length};
     if(!prices.length && !quote && !flows.length) {stats.failed++;return;}
-    const asOf=bootstrap ? payload.prices.at(-1)?.trade_date || quote?.priceDate : day;
+    const asOf=[payload.prices.at(-1)?.trade_date,payload.quote?.priceDate,before?.snap_date].filter(Boolean).sort().at(-1);
     if(!asOf) {stats.failed++;return;}
     const {error}=await db.from('daily_indicator_details').upsert({code,snap_date:asOf,payload,checked_at:new Date().toISOString()},{onConflict:'code'});
     if(error) throw new Error(`STORE_${error.code}`);
     stats.updated++;if(payload.incomplete)stats.partial++;
   }
   for(let i=0;i<codes.length;i+=constants.indicator_details.concurrency)
-    await Promise.all(codes.slice(i,i+constants.indicator_details.concurrency).map(collect));
+    await Promise.all(codes.slice(i,i+constants.indicator_details.concurrency).map(async row=>{
+      try {await collect(row);} catch(error) {stats.failed++;console.error(`${row.code}: ${error.message}`);}
+    }));
   console.log(JSON.stringify(stats));
   // A delisted/temporarily unavailable source must not prevent every other daily indicator.
   // Explicit counts remain in the job log; failed stocks retain their prior dated snapshot.
-  if(stats.targets && stats.failed===stats.targets) process.exitCode=1;
+  if(stats.failed) process.exitCode=1;
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});

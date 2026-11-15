@@ -11,6 +11,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_partial_daily_indicator_refresh_preserves_verified_values():
+    node = shutil.which("node")
+    if not node or not (ROOT / "dashboard/node_modules/jiti").exists():
+        pytest.skip("Node/jiti runtime unavailable")
+    subprocess.run([node, "scripts/indicator-cases.cjs"], cwd=ROOT / "dashboard", check=True)
+
+
 def test_actual_typescript_quarter_causes_and_flow_nulls():
     node = shutil.which("node")
     if not node or not (ROOT / "dashboard/node_modules/typescript").exists():

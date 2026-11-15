@@ -78,6 +78,9 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
     ]);
   const { rows: screens, dropped } = screenResult;
   const priceResult = priceLoad.value;
+  const priceDates = [...priceResult.prices.values()].map(row => row.snap_date).filter(Boolean).sort();
+  const latestPriceDate = priceDates.at(-1) ?? null;
+  const olderPriceCount = latestPriceDate ? priceDates.filter(day => day < latestPriceDate).length : 0;
   const outcomeResult = outcomeLoad.value;
   const annualConsensus = consensusLoad.value;
   const quarterlyConsensus = quarterlyConsensusLoad.value;
@@ -185,6 +188,11 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
         <h1 className="text-2xl font-bold text-white">
           {watchlistOnly ? "관심 종목" : "발굴 목록"}
         </h1>
+        <p className="mt-1 text-xs text-emerald-300">
+          주가·시총 최신 기준일 {latestPriceDate ?? "미확인"} · 거래일 16시 하루 1회 갱신
+          {olderPriceCount > 0 && ` · 이전 기준일 ${olderPriceCount}종목`}
+          {" · 실적은 표시된 분기, 전망은 컨센서스 수집일 기준"}
+        </p>
         <p className="mt-1 text-sm text-white">
           {watchlistOnly ? (
             "이 브라우저에 저장한 종목이다. ★를 다시 누르면 목록에서 제거된다."
