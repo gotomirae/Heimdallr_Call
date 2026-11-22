@@ -35,6 +35,8 @@ from src.collectors.provisional_parser import (
         ("분기보고서 (2026.03)", DOC_PERIODIC),
         ("[기재정정]사업보고서 (2025.12)", DOC_PERIODIC),
         ("단일판매ㆍ공급계약체결", DOC_ORDER_CONTRACT),
+        ("[기재정정]단일판매ㆍ공급계약체결", DOC_ORDER_CONTRACT),
+        ("단일판매ㆍ공급계약해지", DOC_ORDER_CONTRACT),
     ],
 )
 def test_classify_matches(name, expected):
@@ -49,6 +51,8 @@ def test_classify_matches(name, expected):
         "결산실적공시예고(안내공시)",  # 실적 발표 '예고'지 실적이 아니다
         "기업설명회(IR)개최",
         "현금ㆍ현물배당결정",
+        "주권매매거래정지              (단일판매공급계약)",
+        "주권매매거래정지해제 (단일판매ㆍ공급계약)",
     ],
 )
 def test_classify_rejects_false_positives(name):

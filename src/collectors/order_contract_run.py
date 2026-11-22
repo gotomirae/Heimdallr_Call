@@ -13,6 +13,7 @@ import re
 import time
 from dataclasses import asdict, dataclass
 
+from src.collectors.dart_disclosure import DOC_ORDER_CONTRACT, classify
 from src.collectors.dart_excerpt import ExcerptError, fetch_report_xml
 from src.db.supabase_client import get_client, select_all
 from src.utils.console import enable_utf8_stdout
@@ -133,8 +134,11 @@ def parse_order_contract(xml: str) -> OrderContract | None:
 
 def targets(limit: int, *, refresh: bool = False) -> list[dict]:
     rows = [row for row in select_all(
-        "earnings_disclosures", "rcept_no,code,report_nm,doc_type,disclosed_at"
-    ) if row.get("doc_type") == "order_contract"]
+        "earnings_disclosures", "rcept_no,code,report_nm,disclosed_at",
+        filters={"doc_type": DOC_ORDER_CONTRACT},
+    ) if classify(row.get("report_nm") or "")[0] == DOC_ORDER_CONTRACT]
+    if not rows:
+        return []
     have = {row["rcept_no"] for row in select_all("disclosure_excerpts", "rcept_no,sections")
             if isinstance(row.get("sections"), dict) and "단일판매·공급계약" in row["sections"]}
     return sorted((row for row in rows if refresh or row["rcept_no"] not in have),
