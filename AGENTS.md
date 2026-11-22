@@ -141,7 +141,7 @@ python -m pytest tests/
   4. 되돌리면 안 되는 결정은 `docs/decisions/NNN-제목.md`
 
 ## 세션 진행 상황
-- **공시·즉시 알림·홈 복구 (2026-11-22)** — 공시751행·선별1,223행 재처리·알림 렌더링2/2, 홈 조회 범위 축소 전후1,226종목 일치. T298~300·`docs/sessions/2026-11-22-disclosure-poll-recovery.md`.
+- **공시·즉시 알림·홈 복구 (2026-11-22)** — 공시751행·선별1,223행 재처리·알림2건 발송, 거래정지5건과 저장 계약5건 대조. 홈1,226종목 일치. T298~301·`docs/sessions/2026-11-22-disclosure-poll-recovery.md`.
 - **Pro 전용 운영 전환 (2026-11-01)** — 분석 버튼·과거 큐·작성/검수 Codex 통합, API/Batch 차단·평일16시 지표·고정 스냅샷 분리.
   private baseline1,446기업/11,101분기·실제 idle/model0·전체1,465 passed/build12/12. 사용자 승인 후 기존 intake/Claude 예약 중지·Pro 실행기 활성.
   ADR50·T294~295·적용 상태와 실측은 `docs/sessions/2026-11-01-pro-only-implementation.md`.

@@ -33,6 +33,7 @@ _PROVISIONAL_TOKEN = "영업(잠정)실적"
 _PL_CHANGE_TOKEN = "매출액또는손익구조"
 _PERIODIC_TOKENS = ("분기보고서", "반기보고서", "사업보고서")
 _ORDER_CONTRACT_TOKENS = ("단일판매", "공급계약")
+_TRADING_HALT_TOKEN = "주권매매거래정지"
 
 #: 공시 주체의 실적이 아니다 — 버린다.
 _SUBSIDIARY_TOKEN = "자회사의 주요경영사항"
@@ -86,6 +87,9 @@ def classify(report_nm: str) -> tuple[str | None, str | None]:
         return DOC_PERIODIC, None
 
     if all(token in name for token in _ORDER_CONTRACT_TOKENS):
+        # SC: 거래정지 사유에 계약이 적혀 있어도 계약 내용 공시가 아니다.
+        if _TRADING_HALT_TOKEN in re.sub(r"\s+", "", name):
+            return None, None
         if _SUBSIDIARY_TOKEN in name:
             return None, "subsidiary"
         return DOC_ORDER_CONTRACT, None
