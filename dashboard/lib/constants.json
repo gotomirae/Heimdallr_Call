@@ -35,6 +35,7 @@
     600,
     1500
   ],
+  "dashboard_price_fallback_query_codes": 100,
   "discovery_initial_rows": 120,
   "discovery_row_step": 120,
   "discovery_ranking": {

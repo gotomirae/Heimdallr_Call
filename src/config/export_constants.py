@@ -59,6 +59,7 @@ def build() -> dict:
         "pri_review_min_rows": constants.PRI_REVIEW_MIN_ROWS,
         "pri_review_min_quarters": constants.PRI_REVIEW_MIN_QUARTERS,
         "dashboard_db_retry_delays_ms": list(constants.DASHBOARD_DB_RETRY_DELAYS_MS),
+        "dashboard_price_fallback_query_codes": constants.DASHBOARD_PRICE_FALLBACK_QUERY_CODES,
         "discovery_initial_rows": constants.DISCOVERY_INITIAL_ROWS,
         "discovery_row_step": constants.DISCOVERY_ROW_STEP,
         "discovery_ranking": {
