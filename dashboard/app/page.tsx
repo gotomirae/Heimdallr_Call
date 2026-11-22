@@ -66,15 +66,24 @@ function failReasons(detail: Record<string, unknown> | null): string[] {
 
 export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?: boolean }) {
   // ★ 전수를 읽는다(accelerating:false). 통과분만 읽으면 필터로 탈락을 볼 수 없다.
-  const [screenResult, universe, priceLoad, outcomeLoad, macroContext, consensusLoad, quarterlyConsensusLoad] =
+  const screensPromise = getLatestDiscoveryScreens();
+  // 늦게 발표한 종목도 포함하므로 실제 평가 분기 집합을 조회에 사용한다.
+  const quartersPromise = screensPromise.then(({ rows }) =>
+    [...new Set(rows.map((s) => qIndex(s.fiscal_year, s.fiscal_quarter)))]
+      .map((key) => ({ year: Math.floor(key / 4), quarter: (key % 4) + 1 }))
+  );
+  const [screenResult, universe, priceLoad, outcomeLoad, macroContext, consensusLoad, quarterlyConsensusLoad, fundLoad] =
     await Promise.all([
-      getLatestDiscoveryScreens(),
+      screensPromise,
       getUniverse(),
-      withReadFallback("시세", getAllLatestDiscoveryPrices(), { prices: new Map(), dropped: [] }),
+      withReadFallback("시세", screensPromise.then(({ rows }) =>
+        getAllLatestDiscoveryPrices(rows.map((row) => row.code))
+      ), { prices: new Map(), dropped: [] }),
       withReadFallback("발표 후 수익률", getDiscoveryOutcomes(), { rows: [], dropped: [] }),
       getMacroContext(),
       withReadFallback("컨센서스", getAllLatestDiscoveryConsensus(), new Map()),
-      withReadFallback("분기 컨센서스", getAllQuarterlyDiscoveryConsensus(), new Map()),
+      withReadFallback("분기 컨센서스", quartersPromise.then(getAllQuarterlyDiscoveryConsensus), new Map()),
+      withReadFallback("분기 실적", quartersPromise.then(getFundamentalsForQuarters), []),
     ]);
   const { rows: screens, dropped } = screenResult;
   const priceResult = priceLoad.value;
@@ -84,7 +93,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
   const outcomeResult = outcomeLoad.value;
   const annualConsensus = consensusLoad.value;
   const quarterlyConsensus = quarterlyConsensusLoad.value;
-  const connectionWarnings = [priceLoad.warning, outcomeLoad.warning, consensusLoad.warning, quarterlyConsensusLoad.warning]
+  const connectionWarnings = [priceLoad.warning, outcomeLoad.warning, consensusLoad.warning, quarterlyConsensusLoad.warning, fundLoad.warning]
     .filter((warning): warning is string => warning != null);
 
   // ── 성장률 열의 재료 ────────────────────────────────────────────
@@ -92,18 +101,7 @@ export async function DiscoveryPage({ watchlistOnly = false }: { watchlistOnly?:
   //   실으려면 그 **평가 분기의** 재무를 따로 읽어야 한다.
   // ★ 종목마다 평가 분기가 다르다(T36) — 최신 한 분기만 읽으면 먼저 발표한 종목과
   //   늦은 종목이 섞여 **일부 행만 조용히 빈다.** 실제로 존재하는 분기를 전부 읽는다.
-  const quarterKeys = [
-    ...new Set(screens.map((s) => qIndex(s.fiscal_year, s.fiscal_quarter))),
-  ];
-  const fundLoad = await withReadFallback(
-    "분기 실적",
-    getFundamentalsForQuarters(
-      quarterKeys.map((k) => ({ year: Math.floor(k / 4), quarter: (k % 4) + 1 }))
-    ),
-    []
-  );
   const funds = fundLoad.value;
-  if (fundLoad.warning) connectionWarnings.push(fundLoad.warning);
   const fundByKey = new Map<string, FundamentalRow>(
     funds.map((f) => [`${f.code}|${f.fiscal_year}|${f.fiscal_quarter}`, f])
   );

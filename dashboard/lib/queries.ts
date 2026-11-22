@@ -365,23 +365,39 @@ export async function getDisclosures(
 }
 
 /** 발굴 목록 전용 최신 시세 최소 열. */
-export async function getAllLatestDiscoveryPrices(): Promise<{
+export async function getAllLatestDiscoveryPrices(codes: string[]): Promise<{
   prices: Map<string, PriceRow>;
   dropped: string[];
 }> {
+  const latest = new Map<string, PriceRow>();
+  if (codes.length === 0) return { prices: latest, dropped: [] };
+
   const { rows, dropped } = await selectWithOptionalColumns<PriceRow>(
     "price_snapshots",
     DISCOVERY_PRICE_COLUMNS,
-    (q, cols) => q.select(cols).range(0, 4999)
+    (q, cols) => q.select(cols).order("snap_date", { ascending: false }).limit(1)
   );
+  const newestDay = rows[0]?.snap_date;
+  if (!newestDay) return { prices: latest, dropped };
+
   const columns = DISCOVERY_PRICE_COLUMNS.filter((column) => !dropped.includes(column)).join(",");
-  const all = rows.length >= 1000
-    ? await selectAll<PriceRow>("price_snapshots", columns)
-    : rows;
-  const latest = new Map<string, PriceRow>();
-  for (const row of all) {
-    const previous = latest.get(row.code);
-    if (!previous || row.snap_date > previous.snap_date) latest.set(row.code, row);
+  const newestRows = await selectAll<PriceRow>(
+    "price_snapshots", columns, (q) => q.eq("snap_date", newestDay).order("code"),
+  );
+  const requested = new Set(codes);
+  for (const row of newestRows) if (requested.has(row.code)) latest.set(row.code, row);
+
+  // 직전 값만 있는 종목은 실제 관측일을 보존한다. 전체 이력은 다시 읽지 않는다.
+  const missing = codes.filter((code) => !latest.has(code));
+  const batchSize = constants.dashboard_price_fallback_query_codes;
+  for (let start = 0; start < missing.length; start += batchSize) {
+    const batch = missing.slice(start, start + batchSize);
+    const history = await selectAll<PriceRow>(
+      "price_snapshots", columns,
+      (q) => q.in("code", batch).lt("snap_date", newestDay)
+        .order("code").order("snap_date", { ascending: false }),
+    );
+    for (const row of history) if (!latest.has(row.code)) latest.set(row.code, row);
   }
   return { prices: latest, dropped };
 }
@@ -488,14 +504,18 @@ export async function getAllLatestDiscoveryConsensus(): Promise<Map<string, Cons
 }
 
 /** 발굴 목록의 평가 분기별 영업이익 컨센서스. 같은 분기는 가장 최근 스냅샷만 남긴다. */
-export async function getAllQuarterlyDiscoveryConsensus(): Promise<Map<string, ConsensusRow>> {
-  const rows = await selectAll<ConsensusRow>(
-    "consensus_snapshots",
-    CONSENSUS_COLUMNS.join(","),
-    (q) => q.neq("fiscal_quarter", 0).eq("source", "naver")
-  );
-  const latest = new Map<string, ConsensusRow>();
-  for (const row of rows) {
+type DiscoveryQuarterlyConsensus = Pick<ConsensusRow, "code" | "fiscal_year" | "fiscal_quarter" | "op_est" | "snapshot_at">;
+
+export async function getAllQuarterlyDiscoveryConsensus(
+  quarters: { year: number; quarter: number }[],
+): Promise<Map<string, DiscoveryQuarterlyConsensus>> {
+  const batches = await Promise.all(quarters.map(({ year, quarter }) => selectAll<DiscoveryQuarterlyConsensus>(
+    "consensus_snapshots", "code,fiscal_year,fiscal_quarter,op_est,snapshot_at",
+    (q) => q.eq("fiscal_year", year).eq("fiscal_quarter", quarter).eq("source", "naver")
+      .order("code").order("snapshot_at"),
+  )));
+  const latest = new Map<string, DiscoveryQuarterlyConsensus>();
+  for (const row of batches.flat()) {
     const key = `${row.code}|${row.fiscal_year}|${row.fiscal_quarter}`;
     const previous = latest.get(key);
     if (!previous || String(row.snapshot_at ?? "") > String(previous.snapshot_at ?? "")) {
