@@ -143,23 +143,22 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
     row = uni.get(code) or {}
     cap_rank, peer_count = market_cap_rank(uni, code)
 
-    funds = [f for f in select_all("quarterly_fundamentals", FUND_COLUMNS)
-             if f["code"] == code]
+    company = {"code": code}
+    period = {**company, "fiscal_year": year, "fiscal_quarter": quarter}
+    funds = select_all("quarterly_fundamentals", FUND_COLUMNS, filters=company)
     funds.sort(key=lambda f: (f["fiscal_year"], f["fiscal_quarter"]))
     cur = next((f for f in funds
                 if f["fiscal_year"] == year and f["fiscal_quarter"] == quarter), {})
     prev = funds[funds.index(cur) - 1] if cur in funds and funds.index(cur) > 0 else {}
 
     screen = next(
-        (s for s in select_all("screen_results", SCREEN_COLUMNS)
-         if s["code"] == code and s["fiscal_year"] == year and s["fiscal_quarter"] == quarter),
+        iter(select_all("screen_results", SCREEN_COLUMNS, filters=period)),
         {},
     )
 
     # 최신 시세 스냅샷 1건 — PER/PBR의 출처를 여기 하나로 고정한다.
     snaps = sorted(
-        (p for p in select_all("price_snapshots", "code,snap_date,per,pbr,market_cap_krw")
-         if p["code"] == code),
+        select_all("price_snapshots", "code,snap_date,per,pbr,market_cap_krw", filters=company),
         key=lambda p: p["snap_date"],
     )
     price = snaps[-1] if snaps else {}
@@ -173,11 +172,10 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
     # ── 컨센서스 ──────────────────────────────────────────────
     # ★ 분기를 반드시 맞춘다. 다른 분기 추정치로 서프라이즈를 계산하면 조용히 틀린다.
     cons = next(
-        (c for c in select_all(
+        iter(select_all(
             "consensus_snapshots",
-            "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,source")
-         if c["code"] == code and c["fiscal_year"] == year
-         and c["fiscal_quarter"] == quarter and c.get("source") == "naver"),
+            "code,fiscal_year,fiscal_quarter,n_estimates,revenue_est,op_est,np_est,source",
+            filters={**period, "source": "naver"})),
         {},
     )
     rev_surprise = revenue_surprise_pct(cur.get("revenue"), cons.get("revenue_est"))
@@ -195,9 +193,9 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
     annual = next(
         (c for c in select_all(
             "consensus_snapshots",
-            "code,fiscal_year,fiscal_quarter,np_est,source")
-         if c["code"] == code and c["fiscal_quarter"] == 0 and c.get("source") == "naver"
-         and c["fiscal_year"] >= year),
+            "code,fiscal_year,fiscal_quarter,np_est,source",
+            filters={**company, "fiscal_quarter": 0, "source": "naver"})
+         if c["fiscal_year"] >= year),
         {},
     )
     fwd_per, fwd_basis = None, None
@@ -224,8 +222,7 @@ def build_flash_context(code: str, year: int, quarter: int) -> dict:
             fwd_basis = f"{fy}년 컨센 기준"
 
     analysis = next(
-        (a for a in select_all("analyses", "code,fiscal_year,fiscal_quarter,payload")
-         if a["code"] == code and a["fiscal_year"] == year and a["fiscal_quarter"] == quarter),
+        iter(select_all("analyses", "code,fiscal_year,fiscal_quarter,payload", filters=period)),
         None,
     )
     # ★ 저장 시점에도 걷어내지만(T61) **이미 저장된 행**이 있으므로 읽는 쪽에서도 막는다.
