@@ -171,8 +171,11 @@ def poll(
             )
             body = resp.json()
             stats.calls += 1
-            if body.get("status") != "000":
-                break  # '013' 조회 결과 없음 — 정상 케이스
+            status = body.get("status")
+            if status == "013" and page == 1:
+                break  # 해당 시장의 조회 결과 없음
+            if status != "000":
+                raise RuntimeError(f"OpenDART 공시 목록 오류: market={corp_cls} page={page} status={status!r}")
 
             for row in body.get("list") or []:
                 stats.scanned += 1

@@ -6,7 +6,8 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 실제 15분 제한에 즉시 알림·완료 표식이 잘린 이력이 있다.
+    timeout-minutes: 30
     env:
       OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -29,15 +30,12 @@ jobs:
       run: python -m src.utils.operating_calendar disclosure --output "$GITHUB_OUTPUT"
     - name: 공시 감지 · 잠정실적 반영
       if: steps.season.outputs.run == 'true'
-      run: 'begin=$(date -u -d ''7 days ago'' +%Y%m%d)
-
-        end=$(date -u +%Y%m%d)
-
-        python -m src.collectors.replay --begin "$begin" --end "$end" --save
-
-        python -m src.collectors.replay --begin "$begin" --end "$end" --ingest 200
-
-        '
+      env:
+        TZ: Asia/Seoul
+      run: |
+        begin=$(date -d '7 days ago' +%Y%m%d)
+        end=$(date +%Y%m%d)
+        python -m src.collectors.replay --begin "$begin" --end "$end" --save --ingest 200
     - name: 수시 계약 구조화 · 개별 실패 격리
       if: steps.season.outputs.run == 'true'
       continue-on-error: true

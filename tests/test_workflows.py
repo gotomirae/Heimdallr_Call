@@ -295,6 +295,17 @@ def test_periodic_disclosure_collects_facts_without_automatic_analysis():
     assert "operating_calendar disclosure" in text
 
 
+def test_disclosure_reuses_the_same_dart_listing_and_allows_time_to_finish():
+    import yaml
+    job = yaml.safe_load(_text(WORKFLOWS / "disclosure_poll.yml"))["jobs"]["poll"]
+    collectors = [step for step in job["steps"] if "src.collectors.replay" in step.get("run", "")]
+    assert len(collectors) == 1
+    assert collectors[0]["run"].count("src.collectors.replay") == 1
+    assert '--save --ingest' in collectors[0]["run"]
+    assert collectors[0]["env"]["TZ"] == "Asia/Seoul"
+    assert job["timeout-minutes"] >= 30
+
+
 def test_order_disclosure_backfills_ten_quarters():
     body = _text(WORKFLOWS / "order_disclosure.yml")
     assert "collectors.order_history_run --save" in body
