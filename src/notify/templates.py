@@ -354,7 +354,21 @@ def earnings_block(ctx: dict) -> list[str]:
         out += ["", "⚡ <b>가속</b> <i>(전분기 성장률 → 이번 분기)</i>"] + accel
 
     cd = ctx.get("confirmed_delta") or {}
-    parts = [f"{k} {signed(v)}" for k, v in cd.items() if v is not None]
+    parts = []
+    for key, value in cd.items():
+        label = {"revenue": "매출", "op": "영업익", "np": "순이익"}.get(key, key)
+        if isinstance(value, dict):
+            # 확정 재무 저장값은 금액/비율을 따로 둔다. 비율 결측은 금액만 표시한다.
+            delta, pct = value.get("delta"), value.get("delta_pct")
+            if delta is not None:
+                change = f"{delta:+,.0f}원"
+                if pct is not None:
+                    change += f" ({signed(pct, digits=5)})"
+                parts.append(f"{label} {change}")
+            elif pct is not None:
+                parts.append(f"{label} {signed(pct)}")
+        elif value is not None:
+            parts.append(f"{label} {signed(value)}")
     if parts:
         out.append(f"🔁 잠정 대비 {' · '.join(parts)}")
 

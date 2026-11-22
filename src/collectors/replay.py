@@ -18,6 +18,7 @@ from src.collectors.dart_disclosure import (
     DOC_ORDER_CONTRACT,
     DOC_PL_CHANGE,
     DOC_PROVISIONAL,
+    Disclosure,
     PollStats,
     period_of,
     poll,
@@ -40,7 +41,7 @@ def load_universe() -> dict[str, dict]:
     }
 
 
-def replay(begin: str, end: str, parse_limit: int, save: bool) -> int:
+def replay(begin: str, end: str, parse_limit: int, save: bool, *, ingest_limit: int = 0) -> int:
     universe = load_universe()
     stats = PollStats()
     found = poll(begin, end, universe=universe, stats=stats)
@@ -87,7 +88,10 @@ def replay(begin: str, end: str, parse_limit: int, save: bool) -> int:
         _parse_sample(found, parse_limit)
 
     if save:
-        return _save(found)
+        status = _save(found)
+        if status or not ingest_limit:
+            return status
+        return _ingest_provisionals(found, ingest_limit)
     print("\n(--save 미지정 — DB에 기록하지 않았다)")
     return 0
 
@@ -187,6 +191,11 @@ def _save(found: list) -> int:
 
 
 def ingest_provisionals(begin: str, end: str, limit: int) -> int:
+    found = poll(begin, end, universe=load_universe(), stats=PollStats())
+    return _ingest_provisionals(found, limit)
+
+
+def _ingest_provisionals(found: list[Disclosure], limit: int) -> int:
     """잠정실적을 `quarterly_fundamentals`에 `is_estimate=True`로 반영한다.
 
     ★ 같은 종목·분기에 공시가 여러 건이면 **나중 것이 이긴다**(정정·상세 공시).
@@ -194,8 +203,6 @@ def ingest_provisionals(begin: str, end: str, limit: int) -> int:
     ★ fs_div가 기존 저장값과 다르면 **건너뛴다** — 기준을 섞으면 YoY가 조작된 것처럼
       보인다(T2). 잠정치가 별도(OFS)인데 확정 이력이 연결(CFS)인 경우가 그렇다.
     """
-    universe = load_universe()
-    found = poll(begin, end, universe=universe, stats=PollStats())
     completed = {r["rcept_no"] for r in select_all("earnings_disclosures", "rcept_no,processed") if r.get("processed") is True}
     targets = [d for d in found if d.doc_type == DOC_PROVISIONAL and d.rcept_no not in completed][:limit]
 
@@ -271,9 +278,9 @@ def main() -> int:
     parser.add_argument("--ingest", type=int, default=0,
                         help="잠정실적 N건을 파싱해 quarterly_fundamentals에 반영")
     args = parser.parse_args()
-    if args.ingest:
+    if args.ingest and not args.save:
         return ingest_provisionals(args.begin, args.end, args.ingest)
-    return replay(args.begin, args.end, args.parse, args.save)
+    return replay(args.begin, args.end, args.parse, args.save, ingest_limit=args.ingest)
 
 
 if __name__ == "__main__":

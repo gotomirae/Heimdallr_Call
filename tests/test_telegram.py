@@ -306,6 +306,16 @@ def test_confirmed_delta_is_surfaced():
     assert "잠정 대비" in text and "-8.2" in text
 
 
+def test_confirmed_delta_renders_saved_amounts_and_omits_unavailable_pct():
+    text = flash_message(_rich_ctx(is_estimate=False, confirmed_delta={
+        "revenue": {"delta": 68706, "delta_pct": 0.00002421886},
+        "op": {"delta": -68072},
+        "np": {"delta": 0, "delta_pct": 0},
+    }))
+    assert "매출 +68,706원 (+0.00002%)" in text
+    assert "영업익 -68,072원 · 순이익 +0원 (+0.00000%)" in text
+
+
 
 def test_pick_unit_keeps_one_unit_per_table():
     """표 하나에 단위가 섞이면 자릿수가 흔들려 표가 표로 안 보인다."""
