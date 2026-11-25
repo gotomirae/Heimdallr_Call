@@ -149,3 +149,54 @@ def test_string_payload_fields_do_not_break_row():
                     grade="△", score=50, fund={}, sector=None, day="2026-08-20", link="L",
                     dashboard="D", allowed=allowed)
     assert row["제목"]["title"][0]["text"]["content"].startswith("[Heimdallr] X 2026.2Q")
+
+
+def test_body_version_ignores_daily_moving_screen_fields():
+    """주가·순위로 매일 움직이는 칸이 바뀌어도 본문 버전은 같다(2026-11-25 실측: 이미 있는 행
+    본문을 매일 다시 써 days=120이 45분에 끊김). 등급·게이트·LLM 분석이 바뀌면 버전이 바뀐다."""
+    from src.notify.notion_export import body_version
+    payload, fund = {"one_line_thesis": "t"}, {"revenue": 1, "updated_at": "a"}
+    screen = {"grade": "★", "score_final": 70, "pri": 0.3, "pri_detail": {"x": 1}, "pctile_in_quarter": 5}
+    base = body_version(payload, screen, fund)
+    moved = dict(screen, pri=0.9, pri_detail={"x": 2}, pctile_in_quarter=9, score_flash=1, score_delta=2)
+    assert body_version(payload, moved, dict(fund, updated_at="b")) == base
+    assert body_version(payload, dict(screen, grade="○"), fund) != base
+    assert body_version({"one_line_thesis": "u"}, screen, fund) != base
+
+
+class _FakeSink:
+    """NotionSink의 네트워크 호출만 바꿔 끼운다 — 어떤 호출이 나가는지 센다."""
+
+    def __init__(self, existing_version):
+        from src.notify import notion_sink as ns
+        self.sink = ns.NotionSink("x")
+        self.calls = []
+        self.sink.find = lambda ds, dedup: "PAGE" if existing_version is not None else None
+        self.sink._page_version = lambda pid: existing_version
+        self.sink._children = lambda pid: [{"id": f"b{i}"} for i in range(3)]
+
+        def call(method, path, body=None):
+            self.calls.append((method, path))
+            return {"id": "NEW"}
+        self.sink._call = call
+
+
+def test_create_only_skips_existing_without_any_write():
+    f = _FakeSink(existing_version="old")
+    out = f.sink.upsert("DS", {"제목": {"title": [{"text": {"content": "t"}}]}}, [],
+                        dedup={}, version="new", create_only=True)
+    assert out == "exists" and f.calls == [] and f.sink.existed == 1
+
+
+def test_same_version_refreshes_properties_only():
+    f = _FakeSink(existing_version="v1")
+    out = f.sink.upsert("DS", {}, [], dedup={}, version="v1", refresh_props=True)
+    assert out == "props" and f.calls == [("PATCH", "/pages/PAGE")]
+
+
+def test_changed_version_still_rewrites_body_and_new_row_is_created():
+    f = _FakeSink(existing_version="v1")
+    assert f.sink.upsert("DS", {}, [], dedup={}, version="v2", refresh_props=True) == "updated"
+    assert sum(1 for m, _ in f.calls if m == "DELETE") == 3
+    g = _FakeSink(existing_version=None)
+    assert g.sink.upsert("DS", {}, [], dedup={}, version="v1", create_only=True) == "created"

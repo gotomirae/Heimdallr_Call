@@ -50,6 +50,12 @@ SCREEN_COLUMNS = ("grade,score_final,score_flash,score_delta,score_a,score_b,sco
                   "pctile_in_quarter,pri,pri_detail,gate_detail,has_consensus,turnaround,"
                   "base_effect_warning")
 
+#: 본문 버전(다시 쓸지 판단)에서 뺄 스크리너 칸 — 주가·순위로 매일 움직인다.
+#: 이 칸까지 버전에 넣으면 이미 있는 행도 매일 '바뀜'이 되어 본문을 다시 쓴다(블록을 하나씩
+#: 지워 1건 약 2분 · 2026-11-25 days=120 실행이 21건 갱신·새 행 0으로 45분 제한에 끊김).
+#: 이 값들은 대시보드가 정본이고, 노션 속성(등급·신호강도)은 refresh_props로 매일 맞춘다.
+VOLATILE_SCREEN_KEYS = ("score_flash", "score_delta", "pctile_in_quarter", "pri", "pri_detail")
+
 #: JARVIS 노션 L1 코드 → 노션 2_5 '산업' 선택지 이름. 코드 정본은 JARVIS taxonomy.
 #: '1l'(자동차)·'ETC'는 2_5에 맞는 칸이 없어 비워 둔다(추측해서 넣지 않는다).
 L1_TO_NOTION: dict[str, str] = {
@@ -224,7 +230,7 @@ def build_page_body(*, code: str, name: str, fy: int, fq: int, payload: dict, sc
     if screen.get("gate_detail"):
         out += [H("게이트 근거", 3), *R(screen["gate_detail"], LABELS)]
     if screen.get("pri_detail"):
-        out += [H("주가반영도 근거", 3), *R(screen["pri_detail"], LABELS)]
+        out += [H("주가반영도 근거 (본문 작성 시점 · 최신은 대시보드)", 3), *R(screen["pri_detail"], LABELS)]
 
     lines = [f"{lab}: {txt}" for k, lab, kind in FUND_FIELDS
              if (txt := _fund_value(fund.get(k), kind)) is not None]
@@ -247,6 +253,12 @@ def page_version(*parts: Any) -> str:
     return ns.content_hash(*parts)
 
 
+def body_version(payload: dict, screen: dict, fund: dict) -> str:
+    """본문을 다시 쓸지 정하는 버전 — LLM 분석·재무·안정적인 스크리너 칸만(순수 함수)."""
+    stable = {k: v for k, v in screen.items() if k not in VOLATILE_SCREEN_KEYS}
+    return page_version(payload, stable, {k: v for k, v in fund.items() if k not in ("updated_at",)})
+
+
 def _one(db, table: str, columns: str, **eq) -> dict:
     query = db.table(table).select(columns)
     for k, v in eq.items():
@@ -254,7 +266,7 @@ def _one(db, table: str, columns: str, **eq) -> dict:
     return (query.limit(1).execute().data or [{}])[0]
 
 
-def run(days: int, dry_run: bool) -> int:
+def run(days: int, dry_run: bool, new_only: bool = False) -> int:
     token = optional_env("NOTION_TOKEN")
     if not token and not dry_run:
         logger.error("NOTION_TOKEN이 없다 — GitHub Secrets에 노션 통합 토큰을 등록할 것")
@@ -305,15 +317,17 @@ def run(days: int, dry_run: bool) -> int:
                           link=link, dashboard=dashboard, allowed=allowed),
                 children,
                 dedup=ns.url_equals("원문 링크", link),
-                version=page_version(payload, screen, {k: v for k, v in fund.items()
-                                                       if k not in ("updated_at",)}))
+                version=body_version(payload, screen, fund),
+                create_only=new_only, refresh_props=not new_only)
             logger.info("2_5 %s %s %d.%dQ (%s): %s", code, name, fy, fq, grade, status)
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 나머지를 막지 않게
             failures += 1
             logger.error("노션 내보내기 실패 %s %s.%s: %s: %s", code, fy, fq, type(exc).__name__, exc)
 
-    logger.info("노션 내보내기 끝: 분석 %d · 대상 %d · 새 행 %d · 본문 갱신 %d · 변화 없음 %d · 실패 %d",
-                len(rows), picked, sink.created, sink.updated, sink.skipped, failures)
+    logger.info("노션 내보내기 끝: 분석 %d · 대상 %d · 새 행 %d · 본문 갱신 %d · 속성만 갱신 %d · "
+                "변화 없음 %d · 이미 있음(새 행만) %d · 실패 %d",
+                len(rows), picked, sink.created, sink.updated, sink.props_updated,
+                sink.skipped, sink.existed, failures)
     return 1 if failures else 0
 
 
@@ -321,9 +335,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Heimdallr → 노션 2_5 내보내기")
     parser.add_argument("--days", type=int, default=3)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--new-only", action="store_true",
+                        help="이미 노션에 있는 행은 건너뛰고 없는 행만 만든다(백필용 — 본문 다시 쓰기 없음)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    sys.exit(run(args.days, args.dry_run))
+    sys.exit(run(args.days, args.dry_run, args.new_only))
 
 
 if __name__ == "__main__":
