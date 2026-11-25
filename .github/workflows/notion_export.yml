@@ -9,7 +9,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45   # 첫 days=120 실행이 15분에 끊겼다(193행 기록 후) — 다음 실행은 이미 있는 행을 건너뛰어 빠르다
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

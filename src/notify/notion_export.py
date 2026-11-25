@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from datetime import datetime, timedelta, timezone
@@ -102,6 +103,21 @@ FUND_FIELDS: tuple[tuple[str, str, str], ...] = (
 )
 
 
+def _as_dict(value: Any) -> dict:
+    """payload 칸이 객체 대신 문자열(JSON 조각 포함)로 저장된 옛 행이 있다(T95·T103).
+    객체면 그대로, JSON 문자열이면 풀어서, 아니면 빈 딕셔너리 — 속성 한 칸 때문에 행 전체를
+    잃지 않게. 본문에는 원래 값이 그대로 실린다(render_value가 문자열도 그린다)."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip().startswith("{"):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except ValueError:
+            return {}
+    return {}
+
+
 def notion_industries(sector: str | None) -> list[str]:
     codes, _ = resolve_l1(sector)
     return [L1_TO_NOTION[c] for c in codes if c in L1_TO_NOTION]
@@ -135,8 +151,8 @@ def build_row(*, code: str, name: str, fy: int, fq: int, payload: dict, grade: s
               score: Any, fund: dict, sector: str | None, day: str | None, link: str,
               dashboard: str, allowed: dict[str, set[str] | None]) -> dict:
     thesis = (payload.get("one_line_thesis") or "").strip()
-    cause = ((payload.get("earnings_change") or {}).get("cause") or "").strip()
-    price = payload.get("price_position") or {}
+    cause = (_as_dict(payload.get("earnings_change")).get("cause") or "").strip()
+    price = _as_dict(payload.get("price_position"))
     body = [thesis, (payload.get("why_now") or "").strip(),
             f"실적 원인: {cause}" if cause else "",
             f"주가 위치: {price.get('verdict')} — {(price.get('reason') or '')[:200]}"
