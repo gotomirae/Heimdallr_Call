@@ -220,6 +220,8 @@ class NotionSink:
         self.created = 0
         self.updated = 0
         self.skipped = 0
+        self.existed = 0
+        self.props_updated = 0
 
     @property
     def can_read(self) -> bool:
@@ -328,15 +330,27 @@ class NotionSink:
         return text[len(VERSION_PREFIX):].strip() if text.startswith(VERSION_PREFIX) else None
 
     def upsert(self, data_source: str, properties: dict[str, dict], children: list[dict], *,
-               dedup: dict, version: str) -> str:
-        """행 1개를 본문까지 맞춘다. 반환: 'created' | 'updated' | 'unchanged' | 'dry-run'.
+               dedup: dict, version: str, create_only: bool = False,
+               refresh_props: bool = False) -> str:
+        """행 1개를 본문까지 맞춘다.
+        반환: 'created' | 'updated' | 'props' | 'unchanged' | 'exists' | 'dry-run'.
 
-        본문 맨 앞에 버전 문단을 넣는다. 같은 버전이면 아무것도 안 한다(매일 같은 기간을
-        다시 훑어도 노션 호출이 조회 2회로 끝난다).
+        본문 맨 앞에 버전 문단을 넣는다. 같은 버전이면 본문은 건드리지 않는다(매일 같은 기간을
+        다시 훑어도 노션 호출이 조회 2회로 끝난다). 본문 다시 쓰기는 블록을 하나씩 지워야 해
+        한 페이지에 약 2분이 걸린다(2026-11-25 실측: 21건 · DELETE 3,791회 · 45분 제한 초과).
+        - create_only: 이미 있는 행은 조회 1회로 건너뛴다('exists') — 백필용.
+        - refresh_props: 버전이 같아도 속성(등급·신호강도 등)만 PATCH 1회로 맞춘다('props').
         """
         blocks = [b_para(f"{VERSION_PREFIX}{version}"), *children]
         page_id = self.find(data_source, dedup)
+        if page_id and create_only:
+            self.existed += 1
+            return "exists"
         if page_id and self._page_version(page_id) == version:
+            if refresh_props and not self.dry_run:
+                self._call("PATCH", f"/pages/{page_id}", {"properties": properties})
+                self.props_updated += 1
+                return "props"
             self.skipped += 1
             return "unchanged"
         if self.dry_run:

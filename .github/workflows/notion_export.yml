@@ -9,7 +9,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 45   # 첫 days=120 실행이 15분에 끊겼다(193행 기록 후) — 다음 실행은 이미 있는 행을 건너뛰어 빠르다
+    timeout-minutes: 45   # 11/25 days=120이 45분에도 끊겼다(이미 있는 행 본문 다시 쓰기 1건 약 2분) — 백필은 new_only=true로
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -19,6 +19,7 @@ jobs:
       # schedule에는 inputs가 없다 — 분기는 if:가 아니라 셸에서(T79)
       INPUT_DAYS: ${{ inputs.days }}
       INPUT_DRY_RUN: ${{ inputs.dry_run }}
+      INPUT_NEW_ONLY: ${{ inputs.new_only }}
     steps:
     - uses: actions/checkout@v7
     - uses: actions/setup-python@v7
@@ -30,6 +31,7 @@ jobs:
       run: |
         args="--days ${INPUT_DAYS:-3}"
         if [ "${INPUT_DRY_RUN}" = "true" ]; then args="$args --dry-run"; fi
+        if [ "${INPUT_NEW_ONLY}" = "true" ]; then args="$args --new-only"; fi
         python -m src.notify.notion_export $args
 'on':
   schedule:
@@ -42,5 +44,9 @@ jobs:
         default: '3'
       dry_run:
         description: "'true'면 노션에 쓰지 않고 로그만"
+        required: false
+        default: 'false'
+      new_only:
+        description: "'true'면 이미 있는 행은 건너뛰고 없는 행만 만든다(백필용 — days=120과 함께)"
         required: false
         default: 'false'
